@@ -5035,7 +5035,7 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
         from app.engine.speed_intelligence import SpeedIntelligenceEngine
         from app.engine.content_intelligence_deep import ContentIntelligenceDeep
 
-        for idx, page in enumerate(pages[:50]):
+        for idx, page in enumerate(pages[:3]):
             page_obj = PageAdapter(page)
             page_dict = {
                 "url": page_obj.url, "title": page_obj.title, "meta_description": page_obj.meta_description,
@@ -5052,9 +5052,9 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
                 key = "ai_bot_intelligence"
                 if key not in engine_scores:
                     engine_scores[key] = []
-                engine_scores[key].append({"url": page.url, "score": abi.get("score", 0)})
-                if abi.get("score", 100) < 60:
-                    priority_actions.append({"engine": key, "url": page.url, "score": abi.get("score", 0), "issues": abi.get("issues", [])[:3]})
+                engine_scores[key].append({"url": page.url, "score": abi.get("overall_ai_accessibility_score", 0)})
+                if abi.get("overall_ai_accessibility_score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": abi.get("overall_ai_accessibility_score", 0), "issues": abi.get("issues", [])[:3]})
             except Exception:
                 pass
 
@@ -5063,9 +5063,9 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
                 key = "offsite_authority"
                 if key not in engine_scores:
                     engine_scores[key] = []
-                engine_scores[key].append({"url": page.url, "score": osa.get("score", 0)})
-                if osa.get("score", 100) < 60:
-                    priority_actions.append({"engine": key, "url": page.url, "score": osa.get("score", 0), "issues": osa.get("issues", [])[:3]})
+                engine_scores[key].append({"url": page.url, "score": osa.get("authority_score", 0)})
+                if osa.get("authority_score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": osa.get("authority_score", 0), "issues": osa.get("issues", [])[:3]})
             except Exception:
                 pass
 
@@ -5074,9 +5074,9 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
                 key = "schema_intelligence"
                 if key not in engine_scores:
                     engine_scores[key] = []
-                engine_scores[key].append({"url": page.url, "score": si.get("score", 0)})
-                if si.get("score", 100) < 60:
-                    priority_actions.append({"engine": key, "url": page.url, "score": si.get("score", 0), "issues": si.get("issues", [])[:3]})
+                engine_scores[key].append({"url": page.url, "score": si.get("schema_score", 0)})
+                if si.get("schema_score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": si.get("schema_score", 0), "issues": si.get("issues", [])[:3]})
             except Exception:
                 pass
 
@@ -5085,9 +5085,9 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
                 key = "speed_intelligence"
                 if key not in engine_scores:
                     engine_scores[key] = []
-                engine_scores[key].append({"url": page.url, "score": spi.get("score", 0)})
-                if spi.get("score", 100) < 60:
-                    priority_actions.append({"engine": key, "url": page.url, "score": spi.get("score", 0), "issues": spi.get("issues", [])[:3]})
+                engine_scores[key].append({"url": page.url, "score": spi.get("performance_score", 0)})
+                if spi.get("performance_score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": spi.get("performance_score", 0), "issues": spi.get("issues_detected", [])[:3]})
             except Exception:
                 pass
 
@@ -5096,9 +5096,9 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
                 key = "content_deep_v2"
                 if key not in engine_scores:
                     engine_scores[key] = []
-                engine_scores[key].append({"url": page.url, "score": cdv2.get("score", 0)})
-                if cdv2.get("score", 100) < 60:
-                    priority_actions.append({"engine": key, "url": page.url, "score": cdv2.get("score", 0), "issues": cdv2.get("issues", [])[:3]})
+                engine_scores[key].append({"url": page.url, "score": cdv2.get("content_score", 0)})
+                if cdv2.get("content_score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": cdv2.get("content_score", 0), "issues": cdv2.get("issues", [])[:3]})
             except Exception:
                 pass
 
@@ -5136,5 +5136,33 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
             "geo_score": scores.geo_score if scores else 0,
         },
     }
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/page-intelligence-v2/{page_idx}")
+async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"piv2:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.page_intelligence_v2 import PageIntelligenceV2Engine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = PageIntelligenceV2Engine()
+    all_pages_data = [PageAdapter(p) for p in pages]
+    page_data = all_pages_data[page_idx]
+    resp = engine.analyze(page_data, all_pages=all_pages_data)
     _cache_set(cache_key, resp)
     return resp
