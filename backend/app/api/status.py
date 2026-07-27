@@ -5162,7 +5162,46 @@ async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSessio
 
     engine = PageIntelligenceV2Engine()
     all_pages_data = [PageAdapter(p) for p in pages]
-    page_data = all_pages_data[page_idx]
-    resp = engine.analyze(page_data, all_pages=all_pages_data)
+    page_obj = all_pages_data[page_idx]
+    page_dict = {
+        "url": page_obj.url,
+        "title": page_obj.title,
+        "meta_description": page_obj.meta_description,
+        "h1": page_obj.h1,
+        "headings": page_obj.headings,
+        "content_text": page_obj.content_text,
+        "word_count": page_obj.word_count,
+        "html_raw": page_obj.html_raw,
+        "images": page_obj.images,
+        "links_internal": page_obj.links_internal,
+        "links_external": page_obj.links_external,
+        "schema_markup": page_obj.schema_markup,
+        "page_type": page_obj.page_type,
+        "response_time_ms": page_obj.response_time_ms,
+        "status_code": page_obj.status_code,
+        "canonical": page_obj.canonical,
+        "robots_txt": "",
+    }
+    all_pages_dicts = []
+    for ap in all_pages_data:
+        all_pages_dicts.append({
+            "url": ap.url,
+            "title": ap.title,
+            "meta_description": ap.meta_description,
+            "h1": ap.h1,
+            "headings": ap.headings,
+            "content_text": ap.content_text,
+            "word_count": ap.word_count,
+            "html_raw": ap.html_raw,
+            "images": ap.images,
+            "links_internal": ap.links_internal,
+            "links_external": ap.links_external,
+            "schema_markup": ap.schema_markup,
+            "page_type": ap.page_type,
+            "response_time_ms": ap.response_time_ms,
+            "status_code": ap.status_code,
+            "canonical": ap.canonical,
+        })
+    resp = engine.analyze(page_dict, all_pages=all_pages_dicts)
     _cache_set(cache_key, resp)
     return resp

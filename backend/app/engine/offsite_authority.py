@@ -121,6 +121,19 @@ _PODCAST_RE = _compile(r'\bpodcast(?:s)?\b|\bepisode\s+\d+\b|\blisten\s+(?:on|to
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _normalize_link_list(links: list) -> list[str]:
+    """Convert list of link dicts (from DB) or plain URL strings to plain strings."""
+    result: list[str] = []
+    for item in links:
+        if isinstance(item, dict):
+            url_val = item.get("url") or item.get("href") or ""
+            if url_val:
+                result.append(str(url_val))
+        elif isinstance(item, str):
+            result.append(item)
+    return result
+
+
 def _safe_domain(url: str) -> str:
     m = _DOMAIN_RE.search(url)
     return m.group(1).lower() if m else ''
@@ -174,8 +187,10 @@ class OffsiteAuthorityEngine:
 
         html_raw: str = page.get('html_raw', '') or ''
         content_text: str = page.get('content_text', '') or ''
-        links_external: list[str] = page.get('links_external', []) or []
-        links_internal: list[str] = page.get('links_internal', []) or []
+        raw_ext = page.get('links_external', []) or []
+        links_external: list[str] = _normalize_link_list(raw_ext)
+        raw_int = page.get('links_internal', []) or []
+        links_internal: list[str] = _normalize_link_list(raw_int)
         word_count: int = page.get('word_count', 0) or len(_WORD_RE.findall(content_text))
         images: list = page.get('images', []) or []
         schema: list = page.get('schema_markup', []) or []

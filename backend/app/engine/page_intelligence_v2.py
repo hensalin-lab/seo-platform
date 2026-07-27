@@ -64,20 +64,26 @@ def _sentences(text: str) -> list[str]:
     return [s.strip() for s in _SENTENCE_RE.split(text) if s.strip()]
 
 
-def _heading_depth(h: str) -> int:
-    h = h.strip()
-    if h.startswith("h1"):
-        return 1
-    if h.startswith("h2"):
-        return 2
-    if h.startswith("h3"):
-        return 3
-    if h.startswith("h4"):
-        return 4
-    if h.startswith("h5"):
-        return 5
-    if h.startswith("h6"):
-        return 6
+def _heading_depth(h) -> int:
+    if isinstance(h, dict):
+        level = str(h.get("level", "")).strip().lower()
+        if level in ("h1", "1"): return 1
+        if level in ("h2", "2"): return 2
+        if level in ("h3", "3"): return 3
+        if level in ("h4", "4"): return 4
+        if level in ("h5", "5"): return 5
+        if level in ("h6", "6"): return 6
+        tag = str(h.get("tag", "")).strip().lower()
+        if tag.startswith("h") and len(tag) == 2 and tag[1].isdigit():
+            return int(tag[1])
+        return 0
+    h = str(h).strip().lower()
+    if h.startswith("h1"): return 1
+    if h.startswith("h2"): return 2
+    if h.startswith("h3"): return 3
+    if h.startswith("h4"): return 4
+    if h.startswith("h5"): return 5
+    if h.startswith("h6"): return 6
     return 0
 
 
