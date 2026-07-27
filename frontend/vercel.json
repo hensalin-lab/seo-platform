@@ -3,14 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://seo-platform-api.onrender.com/api/:path*"
-    }
-  ],
-  "headers": [
+    },
     {
-      "source": "/api/:path*",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }
