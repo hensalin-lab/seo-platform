@@ -995,17 +995,21 @@ export default function ContentRewriter() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 3 }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 3, flexWrap: 'wrap' }}>
                 {[
-                  { key: 'issues', label: `Issues & Fixes (${issues.length})`, icon: AlertTriangle },
+                  { key: 'issues', label: `Issues (${issues.length})`, icon: AlertTriangle },
+                  { key: 'rewrite', label: 'AI Rewrite', icon: Sparkles },
+                  { key: 'eeat', label: 'E-E-A-T', icon: Users },
+                  { key: 'keywords', label: 'AI Keywords', icon: Key },
+                  { key: 'faq', label: 'FAQ + Schema', icon: HelpCircle },
+                  { key: 'links', label: 'Int. Links', icon: Link2 },
                   { key: 'serp', label: 'SERP Preview', icon: Target },
-                  { key: 'platforms', label: 'Platform', icon: BarChart3 },
                   { key: 'readability', label: 'Readability', icon: Brain },
                 ].map(t => {
                   const Icon = t.icon;
                   return (
                     <button key={t.key} onClick={() => setRightTab(t.key)} style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '6px 6px',
+                      flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '6px 6px',
                       border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 600,
                       background: rightTab === t.key ? '#3b82f6' : 'transparent',
                       color: rightTab === t.key ? '#fff' : '#64748b',
@@ -1027,37 +1031,323 @@ export default function ContentRewriter() {
                 </div>
               )}
 
-              {rightTab === 'serp' && (
+              {rightTab === 'rewrite' && rewrite?.ai_rewrite && (
                 <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Google SERP Preview</div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>How your page appears in Google search results</p>
-                  <SerpPreview title={rewrite?.title || page.title} url={page.url} description={rewrite?.meta_description || page.meta_description} />
-                  {rewrite?.targets && (
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={14} color="#7950f2" /> AI Content Rewrite
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Before/after rewrites with impact ratings</p>
+
+                  {rewrite.ai_rewrite.title_suggestions?.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#2563eb', marginBottom: 4 }}>TITLE SUGGESTIONS</div>
+                      {rewrite.ai_rewrite.title_suggestions.map((t, i) => (
+                        <div key={i} style={{ padding: '6px 8px', background: '#eff6ff', borderRadius: 5, border: '1px solid #bfdbfe', marginBottom: 3, fontSize: 11, color: '#1e40af', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 700 }}>{i + 1}.</span> {t}
+                          <button onClick={() => navigator.clipboard?.writeText(t)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><Copy size={10} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.meta_description_suggestions?.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>META DESCRIPTION SUGGESTIONS</div>
+                      {rewrite.ai_rewrite.meta_description_suggestions.map((m, i) => (
+                        <div key={i} style={{ padding: '6px 8px', background: '#f5f3ff', borderRadius: 5, border: '1px solid #ddd6fe', marginBottom: 3, fontSize: 11, color: '#5b21b6', lineHeight: 1.5 }}>
+                          {m}
+                          <button onClick={() => navigator.clipboard?.writeText(m)} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><Copy size={10} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.rewrite_sections?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 6 }}>SECTION REWRITES ({rewrite.ai_rewrite.rewrite_sections.length})</div>
+                      {rewrite.ai_rewrite.rewrite_sections.map((s, i) => (
+                        <div key={i} style={{ marginBottom: 10, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+                          <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.section || `Section ${i + 1}`}</span>
+                            {s.impact && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 3, background: s.impact === 'high' ? '#dc262615' : s.impact === 'medium' ? '#d9770615' : '#2563eb15', color: s.impact === 'high' ? '#dc2626' : s.impact === 'medium' ? '#d97706' : '#2563eb', fontWeight: 700 }}>{s.impact}</span>}
+                            {s.keyword_placement && <span style={{ fontSize: 8, color: '#64748b' }}>KW: {s.keyword_placement}</span>}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                            <div style={{ padding: 8, borderRight: '1px solid #e2e8f0', background: '#fef2f2' }}>
+                              <div style={{ fontSize: 7, color: '#dc2626', fontWeight: 700, marginBottom: 2 }}>BEFORE</div>
+                              <div style={{ fontSize: 10, color: '#7f1d1d', lineHeight: 1.5, maxHeight: 100, overflow: 'auto' }}>{s.current_text || '—'}</div>
+                            </div>
+                            <div style={{ padding: 8, background: '#f0fdf4' }}>
+                              <div style={{ fontSize: 7, color: '#059669', fontWeight: 700, marginBottom: 2 }}>AFTER</div>
+                              <div style={{ fontSize: 10, color: '#065f46', lineHeight: 1.5, maxHeight: 100, overflow: 'auto' }}>{s.improved_text || '—'}</div>
+                            </div>
+                          </div>
+                          {s.reason && <div style={{ padding: '4px 10px', fontSize: 9, color: '#64748b', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>Why: {s.reason}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.new_content_suggestions?.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#2563eb', marginBottom: 6 }}>Target Keywords</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {Array.isArray(rewrite.targets) ? rewrite.targets.map((kw, i) => <span key={i} style={{ fontSize: 10, padding: '2px 6px', background: '#eff6ff', borderRadius: 4, color: '#2563eb', fontWeight: 500 }}>{kw}</span>) : null}
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7950f2', marginBottom: 6 }}>NEW CONTENT TO ADD</div>
+                      {rewrite.ai_rewrite.new_content_suggestions.map((s, i) => (
+                        <div key={i} style={{ padding: '8px 10px', background: '#faf5ff', borderRadius: 6, border: '1px solid #e9d5ff', marginBottom: 4 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8', marginBottom: 2 }}>{s.section}</div>
+                          <div style={{ fontSize: 10, color: '#4c1d95', lineHeight: 1.5 }}>{s.content}</div>
+                          {s.why && <div style={{ fontSize: 9, color: '#7c3aed', marginTop: 3 }}>Why: {s.why}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(!rewrite.ai_rewrite.rewrite_sections || rewrite.ai_rewrite.rewrite_sections.length === 0) && !rewrite.ai_rewrite.title_suggestions?.length && (
+                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>AI rewrite data loading... Select a different page and re-run to see suggestions.</div>
+                  )}
+                </div>
+              )}
+
+              {rightTab === 'rewrite' && !rewrite?.ai_rewrite && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center' }}>
+                  <Sparkles size={24} color="#94a3b8" />
+                  <p style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>AI Rewrite suggestions loading...</p>
+                  <p style={{ fontSize: 10, color: '#94a3b8' }}>First load takes ~15s (cached after)</p>
+                </div>
+              )}
+
+              {rightTab === 'eeat' && rewrite?.ai_eeat && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Users size={14} color="#f59e0b" /> E-E-A-T Analysis
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Experience, Expertise, Authoritativeness, Trustworthiness</p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                    {[
+                      { label: 'Overall E-E-A-T', value: rewrite.ai_eeat.overall_eeat, color: '#f59e0b' },
+                      { label: 'Experience', value: rewrite.ai_eeat.experience_score, color: '#3b82f6' },
+                      { label: 'Expertise', value: rewrite.ai_eeat.expertise_score, color: '#7950f2' },
+                      { label: 'Authoritativeness', value: rewrite.ai_eeat.authoritativeness_score, color: '#059669' },
+                      { label: 'Trustworthiness', value: rewrite.ai_eeat.trustworthiness_score, color: '#10b981' },
+                    ].map((item, i) => (
+                      <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value ?? '—'}</div>
+                        <div style={{ fontSize: 9, color: '#64748b' }}>{item.label}</div>
                       </div>
+                    ))}
+                  </div>
+
+                  {rewrite.ai_eeat.strengths?.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4 }}>STRENGTHS</div>
+                      {rewrite.ai_eeat.strengths.map((s, i) => (
+                        <div key={i} style={{ padding: '4px 8px', fontSize: 11, color: '#065f46', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={10} color="#059669" /> {s}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_eeat.weaknesses?.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>WEAKNESSES</div>
+                      {rewrite.ai_eeat.weaknesses.map((w, i) => (
+                        <div key={i} style={{ padding: '4px 8px', fontSize: 11, color: '#7f1d1d', display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={10} color="#dc2626" /> {w}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_eeat.missing_signals?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#d97706', marginBottom: 4 }}>MISSING SIGNALS</div>
+                      {rewrite.ai_eeat.missing_signals.map((sig, i) => (
+                        <div key={i} style={{ padding: '6px 8px', background: '#fffbeb', borderRadius: 5, border: '1px solid #fde68a', marginBottom: 3 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#92400e' }}>{sig.signal}</div>
+                          {sig.how_to_add && <div style={{ fontSize: 10, color: '#059669', marginTop: 2 }}>How: {sig.how_to_add}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_eeat.author_analysis && (
+                    <div style={{ marginTop: 10, padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>AUTHOR ANALYSIS</div>
+                      <BoolField label="Author mentioned" value={rewrite.ai_eeat.author_analysis.author_mentioned} />
+                      <BoolField label="Credentials shown" value={rewrite.ai_eeat.author_analysis.credentials_shown} />
                     </div>
                   )}
                 </div>
               )}
 
-              {rightTab === 'platforms' && (
+              {rightTab === 'eeat' && !rewrite?.ai_eeat && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center' }}>
+                  <Users size={24} color="#94a3b8" />
+                  <p style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>E-E-A-T analysis loading...</p>
+                </div>
+              )}
+
+              {rightTab === 'keywords' && rewrite?.ai_keywords && (
                 <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>Platform Readiness</div>
-                  <PlatformScoresBar platformScores={platformScores} />
-                  {catScores && Object.keys(catScores).filter(k => catScores[k] < 100).length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>Category Scores (below 100%)</div>
-                      {Object.entries(catScores).filter(([_, v]) => v < 100).sort((a, b) => a[1] - b[1]).slice(0, 15).map(([cat, score]) => (
-                        <div key={cat} style={{ padding: '4px 6px', borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 9, color: '#64748b', textTransform: 'capitalize' }}>{(SIGNAL_CATEGORIES[cat]?.label || cat).replace(/_/g, ' ')}</div>
-                            <div style={{ height: 2, background: '#e2e8f0', borderRadius: 1, marginTop: 1 }}><div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626', borderRadius: 1 }} /></div>
-                          </div>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626' }}>{Math.round(score)}</span>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Key size={14} color="#d97706" /> AI Keyword Insights
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>AI-analyzed keyword placement and opportunities</p>
+
+                  {rewrite.ai_keywords.primary_keyword && (
+                    <div style={{ padding: 10, background: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a', marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>PRIMARY KEYWORD</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#b45309' }}>{rewrite.ai_keywords.primary_keyword.keyword}</div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                        {rewrite.ai_keywords.primary_keyword.in_title !== undefined && (
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, background: rewrite.ai_keywords.primary_keyword.in_title ? '#f0fdf4' : '#fef2f2', color: rewrite.ai_keywords.primary_keyword.in_title ? '#059669' : '#dc2626', fontWeight: 600 }}>
+                            In Title: {rewrite.ai_keywords.primary_keyword.in_title ? 'Yes' : 'No'}
+                          </span>
+                        )}
+                        {rewrite.ai_keywords.primary_keyword.in_h1 !== undefined && (
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, background: rewrite.ai_keywords.primary_keyword.in_h1 ? '#f0fdf4' : '#fef2f2', color: rewrite.ai_keywords.primary_keyword.in_h1 ? '#059669' : '#dc2626', fontWeight: 600 }}>
+                            In H1: {rewrite.ai_keywords.primary_keyword.in_h1 ? 'Yes' : 'No'}
+                          </span>
+                        )}
+                        {rewrite.ai_keywords.primary_keyword.in_meta !== undefined && (
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, background: rewrite.ai_keywords.primary_keyword.in_meta ? '#f0fdf4' : '#fef2f2', color: rewrite.ai_keywords.primary_keyword.in_meta ? '#059669' : '#dc2626', fontWeight: 600 }}>
+                            In Meta: {rewrite.ai_keywords.primary_keyword.in_meta ? 'Yes' : 'No'}
+                          </span>
+                        )}
+                        {rewrite.ai_keywords.primary_keyword.density && (
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 3, background: '#eff6ff', color: '#2563eb', fontWeight: 600 }}>
+                            Density: {rewrite.ai_keywords.primary_keyword.density}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {rewrite.ai_keywords.missing_keywords?.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>MISSING KEYWORDS ({rewrite.ai_keywords.missing_keywords.length})</div>
+                      {rewrite.ai_keywords.missing_keywords.map((kw, i) => (
+                        <div key={i} style={{ padding: '5px 8px', background: '#fef2f2', borderRadius: 5, border: '1px solid #fecaca', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#7f1d1d', flex: 1 }}>{kw.keyword}</span>
+                          {kw.importance && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: kw.importance === 'high' ? '#dc262615' : '#d9770615', color: kw.importance === 'high' ? '#dc2626' : '#d97706', fontWeight: 600 }}>{kw.importance}</span>}
+                          {kw.where_to_add && <span style={{ fontSize: 9, color: '#64748b' }}>{kw.where_to_add}</span>}
                         </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_keywords.secondary_keywords?.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7950f2', marginBottom: 4 }}>SECONDARY KEYWORDS</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {rewrite.ai_keywords.secondary_keywords.map((kw, i) => (
+                          <span key={i} style={{ fontSize: 10, padding: '3px 6px', borderRadius: 4, background: kw.present !== false ? '#f0fdf4' : '#fef2f2', color: kw.present !== false ? '#059669' : '#dc2626', border: `1px solid ${kw.present !== false ? '#bbf7d0' : '#fecaca'}`, fontWeight: 500 }}>
+                            {kw.keyword || kw} {kw.present !== false ? '✓' : '✗'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rewrite.ai_keywords.long_tail_opportunities?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4 }}>LONG-TAIL OPPORTUNITIES</div>
+                      {rewrite.ai_keywords.long_tail_opportunities.map((kw, i) => (
+                        <div key={i} style={{ padding: '3px 8px', fontSize: 11, color: '#065f46' }}>· {kw}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {rightTab === 'keywords' && !rewrite?.ai_keywords && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center' }}>
+                  <Key size={24} color="#94a3b8" />
+                  <p style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>AI keyword insights loading...</p>
+                </div>
+              )}
+
+              {rightTab === 'faq' && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <HelpCircle size={14} color="#059669" /> FAQ & Schema Suggestions
+                  </div>
+
+                  {rewrite?.ai_rewrite?.faq_suggestions?.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 6 }}>FAQ SUGGESTIONS ({rewrite.ai_rewrite.faq_suggestions.length})</div>
+                      {rewrite.ai_rewrite.faq_suggestions.map((faq, i) => (
+                        <div key={i} style={{ padding: '8px 10px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0', marginBottom: 4 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#065f46', marginBottom: 2 }}>Q: {faq.question}</div>
+                          <div style={{ fontSize: 10, color: '#065f46', lineHeight: 1.5 }}>A: {faq.answer}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rewrite?.ai_rewrite?.schema_suggestions?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', marginBottom: 6 }}>SCHEMA MARKUP TO ADD</div>
+                      {rewrite.ai_rewrite.schema_suggestions.map((schema, i) => {
+                        const text = typeof schema === 'string' ? schema : JSON.stringify(schema, null, 2);
+                        return (
+                          <div key={i} style={{ position: 'relative', marginBottom: 6 }}>
+                            <pre style={{ background: '#1e293b', borderRadius: 6, padding: 10, fontSize: 9, color: '#e2e8f0', fontFamily: 'monospace', whiteSpace: 'pre-wrap', margin: 0, maxHeight: 200, overflow: 'auto' }}>{text}</pre>
+                            <button onClick={() => navigator.clipboard?.writeText(text)}
+                              style={{ position: 'absolute', top: 6, right: 6, padding: '3px 6px', borderRadius: 4, background: '#475569', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, fontSize: 8, color: '#fff', fontWeight: 600 }}>
+                              <Copy size={9} /> Copy
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {(!rewrite?.ai_rewrite?.faq_suggestions || rewrite.ai_rewrite.faq_suggestions.length === 0) && (!rewrite?.ai_rewrite?.schema_suggestions || rewrite.ai_rewrite.schema_suggestions.length === 0) && (
+                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No FAQ or schema suggestions available yet.</div>
+                  )}
+                </div>
+              )}
+
+              {rightTab === 'links' && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Link2 size={14} color="#7c3aed" /> AI Internal Link Suggestions
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Suggested internal links with anchor text</p>
+
+                  {rewrite?.ai_links?.length > 0 ? rewrite.ai_links.map((link, i) => (
+                    <div key={i} style={{ padding: '8px 10px', background: '#f5f3ff', borderRadius: 6, border: '1px solid #e9d5ff', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8' }}>{link.anchor_text}</span>
+                        <ArrowRight size={10} color="#7c3aed" />
+                        <span style={{ fontSize: 10, color: '#5b21b6', wordBreak: 'break-all' }}>{link.suggested_url}</span>
+                      </div>
+                      {link.context_sentence && <div style={{ fontSize: 10, color: '#6b21a8', fontStyle: 'italic', marginTop: 2 }}>"{link.context_sentence}"</div>}
+                      {link.reason && <div style={{ fontSize: 9, color: '#7c3aed', marginTop: 2 }}>Why: {link.reason}</div>}
+                    </div>
+                  )) : (
+                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No link suggestions available yet.</div>
+                  )}
+
+                  {rewrite?.ai_rewrite?.internal_link_suggestions?.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>ADDITIONAL LINK IDEAS</div>
+                      {rewrite.ai_rewrite.internal_link_suggestions.map((link, i) => (
+                        <div key={i} style={{ padding: '4px 8px', fontSize: 11, color: '#5b21b6' }}>· {typeof link === 'string' ? link : JSON.stringify(link)}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {rightTab === 'serp' && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Google SERP Preview</div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>How your page appears in Google search results</p>
+                  <SerpPreview title={rewrite?.ai_rewrite?.title_suggestions?.[0] || rewrite?.title || page.title} url={page.url} description={rewrite?.ai_rewrite?.meta_description_suggestions?.[0] || rewrite?.meta_description || page.meta_description} />
+                  {rewrite?.ai_rewrite?.title_suggestions?.length > 1 && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#2563eb', marginBottom: 4 }}>ALTERNATIVE TITLES</div>
+                      {rewrite.ai_rewrite.title_suggestions.slice(1).map((t, i) => (
+                        <div key={i} style={{ padding: '6px 8px', background: '#eff6ff', borderRadius: 5, border: '1px solid #bfdbfe', marginBottom: 3, fontSize: 11, color: '#1e40af' }}>{t}</div>
                       ))}
                     </div>
                   )}
@@ -1070,9 +1360,9 @@ export default function ContentRewriter() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     {[
                       { label: 'Word Count', value: mega?.word_count || page.word_count || 0, color: '#3b82f6' },
-                      { label: 'Sentences', value: readability.sentence_count || 'N/A', color: '#8b5cf6' },
-                      { label: 'Avg Sentence', value: readability.avg_sentence_length ? `${readability.avg_sentence_length}w` : 'N/A', color: '#d97706' },
-                      { label: 'Readability', value: typeof readability === 'number' ? readability : (readability.score || readability.flesch_kincaid || 'N/A'), color: '#059669' },
+                      { label: 'Sentences', value: rewrite?.ai_readability?.sentence_count || readability.sentence_count || 'N/A', color: '#8b5cf6' },
+                      { label: 'Avg Sentence', value: rewrite?.ai_readability?.avg_sentence_length || readability.avg_sentence_length ? `${rewrite?.ai_readability?.avg_sentence_length || readability.avg_sentence_length}w` : 'N/A', color: '#d97706' },
+                      { label: 'Readability', value: rewrite?.ai_readability?.score || rewrite?.ai_readability?.flesch_kincaid || readability.score || readability.flesch_kincaid || 'N/A', color: '#059669' },
                     ].map((s, i) => (
                       <div key={i} style={{ padding: 10, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
                         <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -1080,7 +1370,22 @@ export default function ContentRewriter() {
                       </div>
                     ))}
                   </div>
-                  <SerpPreview title={rewrite?.title || page.title} url={page.url} description={rewrite?.meta_description || page.meta_description} />
+                  {rewrite?.ai_readability?.strengths?.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4 }}>STRENGTHS</div>
+                      {rewrite.ai_readability.strengths.map((s, i) => (
+                        <div key={i} style={{ padding: '3px 8px', fontSize: 11, color: '#065f46', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={10} color="#059669" /> {s}</div>
+                      ))}
+                    </div>
+                  )}
+                  {rewrite?.ai_readability?.weaknesses?.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>AREAS TO IMPROVE</div>
+                      {rewrite.ai_readability.weaknesses.map((w, i) => (
+                        <div key={i} style={{ padding: '3px 8px', fontSize: 11, color: '#7f1d1d', display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={10} color="#dc2626" /> {w}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -412,6 +412,54 @@ export default function PageDetail() {
           </div>
 
           <div>
+            {mega && (
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Target size={16} color="#3b82f6" /> Score Breakdown
+                </div>
+                {Object.entries(catScores).sort((a, b) => a[1] - b[1]).map(([cat, score]) => (
+                  <div key={cat} style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                      <span style={{ fontSize: 11, flex: 1, color: '#475569', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626' }}>{Math.round(score)}</span>
+                    </div>
+                    <div style={{ height: 3, background: '#eef0f2', borderRadius: 2 }}>
+                      <div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626', borderRadius: 2 }} />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ marginTop: 12, padding: 10, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>WHAT THIS SCORE MEANS</div>
+                  <div style={{ fontSize: 11, color: '#065f46', lineHeight: 1.5 }}>
+                    {mega.overall_score >= 80 ? 'Excellent technical foundation. Focus on content depth and AI search optimization.' :
+                     mega.overall_score >= 60 ? 'Good foundation with room for improvement. Fix critical issues first.' :
+                     'Significant issues found. Prioritize technical fixes before content work.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {mega && (
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <TrendingUp size={16} color="#059669" /> After Fix Predictions
+                </div>
+                {[
+                  { label: 'Current Score', value: Math.round(mega.overall_score || 0), color: '#d97706' },
+                  { label: 'After Critical Fixes', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.filter(i => i.severity === 'CRITICAL').length * 2)), color: '#3b82f6' },
+                  { label: 'After All Fixes', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)), color: '#059669' },
+                ].map((item, i) => (
+                  <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, flex: 1, color: '#475569' }}>{item.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
+                  </div>
+                ))}
+                <div style={{ fontSize: 10, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
+                  Estimated improvement: +{Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)) - Math.round(mega.overall_score || 0)} points after implementing all {issues.length} recommended fixes.
+                </div>
+              </div>
+            )}
+
             <AiRecommendationsPanel auditId={id} pageIdx={selectedIdx} />
           </div>
         </div>

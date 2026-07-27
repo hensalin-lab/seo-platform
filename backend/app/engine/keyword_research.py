@@ -126,7 +126,9 @@ class KeywordResearchEngine:
                 "estimated_volume": est_volume,
                 "type": "short-tail" if len(kw.split()) <= 2 else "long-tail",
                 "intent": intent,
-                "difficulty": difficulty,
+                "difficulty": difficulty["level"],
+                "difficulty_score": difficulty["score"],
+                "difficulty_reason": difficulty["reason"],
                 "opportunity": opportunity,
                 "pages_using": len(pages_using),
                 "density": round(freq / max(len(all_clean_text.split()), 1) * 100, 2),
@@ -146,7 +148,9 @@ class KeywordResearchEngine:
                 "estimated_volume": est_volume,
                 "type": "long-tail",
                 "intent": intent,
-                "difficulty": difficulty,
+                "difficulty": difficulty["level"],
+                "difficulty_score": difficulty["score"],
+                "difficulty_reason": difficulty["reason"],
                 "opportunity": self._score_opportunity(kw, freq, intent, difficulty, all_titles, all_h1s),
                 "pages_using": len(pages_using),
                 "density": round(freq / max(len(all_clean_text.split()), 1) * 100, 2),
@@ -225,11 +229,11 @@ class KeywordResearchEngine:
         score = min(10, competition_signals + length_bonus + (5 if frequency < 3 else 0))
 
         if score <= 3:
-            return "LOW"
+            return {"level": "LOW", "score": min(30, score * 10), "reason": "Low competition — fewer authoritative domains targeting this keyword"}
         elif score <= 6:
-            return "MEDIUM"
+            return {"level": "MEDIUM", "score": min(60, 30 + score * 5), "reason": "Moderate competition — some established pages ranking for this keyword"}
         else:
-            return "HIGH"
+            return {"level": "HIGH", "score": min(90, 60 + score * 3), "reason": "High competition — strong SaaS competitors with rich backlink profiles"}
 
     def _estimate_volume(self, keyword, frequency, total_pages):
         base = frequency * total_pages * 12
@@ -255,9 +259,9 @@ class KeywordResearchEngine:
             score += 25
         elif frequency >= 3:
             score += 15
-        if difficulty == "LOW":
+        if difficulty["level"] == "LOW":
             score += 25
-        elif difficulty == "MEDIUM":
+        elif difficulty["level"] == "MEDIUM":
             score += 15
         if intent == "COMMERCIAL":
             score += 10
@@ -556,6 +560,8 @@ class KeywordResearchEngine:
         return [{
             "keyword": kw["keyword"],
             "difficulty": kw["difficulty"],
+            "difficulty_score": kw.get("difficulty_score", 50),
+            "difficulty_reason": kw.get("difficulty_reason", ""),
             "type": kw["type"],
             "competition_level": "High" if kw["difficulty"] == "HIGH" else "Medium" if kw["difficulty"] == "MEDIUM" else "Low",
         } for kw in keywords[:25]]
@@ -564,7 +570,7 @@ class KeywordResearchEngine:
         total = len(result["keywords"])
         high_opp = len([k for k in result["keywords"] if k["opportunity"] == "HIGH"])
         med_opp = len([k for k in result["keywords"] if k["opportunity"] == "MEDIUM"])
-        low_diff = len([k for k in result["keywords"] if k["difficulty"] == "LOW"])
+        low_diff = len([k for k in result["keywords"] if k.get("difficulty", "LOW") == "LOW" or (isinstance(k.get("difficulty"), dict) and k["difficulty"].get("level") == "LOW")])
         questions = len(result["question_keywords"])
         clusters = len(result["topic_clusters"])
         cannibal = len(result["cannibalization"])

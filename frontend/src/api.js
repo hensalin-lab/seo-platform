@@ -111,6 +111,8 @@ export const api = {
   getRecommendationsDeepByUrl: (id, url) => request(`/audit/${id}/recommendations-deep-by-url?url=${encodeURIComponent(url)}`),
   getAiSearchDeep: (id, idx) => request(`/audit/${id}/ai-search-deep/${idx}`),
   getAiSearchDeepByUrl: (id, url) => request(`/audit/${id}/ai-search-deep-by-url?url=${encodeURIComponent(url)}`),
+  getAiSearchIntelligence: (id, idx) => request(`/audit/${id}/ai-search-intelligence/${idx}`),
+  getAiSearchIntelligenceByUrl: (id, url) => request(`/audit/${id}/ai-search-intelligence-by-url?url=${encodeURIComponent(url)}`),
   getCompetitorDeep: (id, idx) => request(`/audit/${id}/competitor-deep/${idx}`),
   getCompetitorDeepByUrl: (id, url) => request(`/audit/${id}/competitor-deep-by-url?url=${encodeURIComponent(url)}`),
   getDashboardDeep: (id) => request(`/audit/${id}/dashboard-deep`),

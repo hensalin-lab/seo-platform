@@ -3621,7 +3621,8 @@ async def get_content_deep(audit_id: str, page_idx: int, db: AsyncSession = Depe
         raise HTTPException(status_code=400, detail="Invalid page index")
 
     engine = ContentIntelligenceDeep()
-    resp = engine.analyze(PageAdapter(pages[page_idx]))
+    all_pages_data = [PageAdapter(p) for p in pages]
+    resp = engine.analyze(PageAdapter(pages[page_idx]), all_pages=all_pages_data)
     _cache_set(cache_key, resp)
     return resp
 
@@ -3649,7 +3650,8 @@ async def get_content_deep_by_url(audit_id: str, url: str, db: AsyncSession = De
         raise HTTPException(status_code=404, detail="Page not found")
 
     engine = ContentIntelligenceDeep()
-    resp = engine.analyze(PageAdapter(page))
+    all_pages_data = [PageAdapter(p) for p in pages]
+    resp = engine.analyze(PageAdapter(page), all_pages=all_pages_data)
     _cache_set(cache_key, resp)
     return resp
 
@@ -3773,6 +3775,62 @@ async def get_ai_search_deep_by_url(audit_id: str, url: str, db: AsyncSession = 
 
     engine = AISearchDeepEngine()
     resp = engine.analyze(PageAdapter(page))
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/ai-search-intelligence/{page_idx}")
+async def get_ai_search_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"aisi:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.ai_search_intelligence import AiSearchIntelligenceEngine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = AiSearchIntelligenceEngine()
+    all_pages_data = [PageAdapter(p) for p in pages]
+    resp = engine.analyze(PageAdapter(pages[page_idx]), all_pages=all_pages_data)
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/ai-search-intelligence-by-url")
+async def get_ai_search_intelligence_by_url(audit_id: str, url: str, db: AsyncSession = Depends(get_db)):
+    import hashlib
+    cache_key = f"aisi_url:{audit_id}:{hashlib.md5(url.encode()).hexdigest()}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.ai_search_intelligence import AiSearchIntelligenceEngine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    page = next((p for p in pages if p.url == url), None)
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    engine = AiSearchIntelligenceEngine()
+    all_pages_data = [PageAdapter(p) for p in pages]
+    resp = engine.analyze(PageAdapter(page), all_pages=all_pages_data)
     _cache_set(cache_key, resp)
     return resp
 

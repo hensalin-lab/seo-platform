@@ -55,7 +55,7 @@ class ContentIntelligenceDeep:
         (re.compile(r'[.!?]\s*[a-z]'), "missing_capital_after_period"),
     ]
 
-    def analyze(self, page: dict[str, Any]) -> dict[str, Any]:
+    def analyze(self, page: dict[str, Any], all_pages: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         url = page.get("url", "")
         page_type = page.get("page_type", "BLOG").upper()
         title = page.get("title", "")
@@ -80,21 +80,18 @@ class ContentIntelligenceDeep:
 
         gap_signals: dict[str, Any] = {}
 
-        # --- Topic gaps ---
         gap_signals["missing_topics"] = self._detect_missing_topics(title, h1, content_text, page_type)
         gap_signals["missing_entities"] = self._detect_missing_entities(title, h1, content_text)
         gap_signals["missing_semantic_keywords"] = self._detect_missing_semantic(title, h1, content_text)
         gap_signals["missing_people_also_ask"] = self._generate_paa(title, h1, content_text)
         gap_signals["missing_faqs"] = self._generate_faqs(title, h1, content_text)
 
-        # --- Structural gaps ---
         gap_signals["missing_tables"] = self._check_tables(content_text, page_type)
         gap_signals["missing_examples"] = self._check_examples(content_text, page_type)
         gap_signals["missing_step_by_step"] = self._check_step_by_step(content_text, page_type)
         gap_signals["missing_comparison"] = self._check_comparison(content_text, page_type)
         gap_signals["missing_glossary"] = self._check_glossary(content_text, page_type)
 
-        # --- Authority gaps ---
         gap_signals["missing_research"] = self._check_research(content_text)
         gap_signals["missing_statistics"] = self._check_statistics(content_text)
         gap_signals["missing_case_studies"] = self._check_case_studies(content_text, page_type)
@@ -102,14 +99,12 @@ class ContentIntelligenceDeep:
         gap_signals["missing_external_links"] = self._check_external_links(links_external, word_count)
         gap_signals["missing_internal_links"] = self._check_internal_links(links_internal, word_count)
 
-        # --- Visual gaps ---
         gap_signals["missing_screenshots"] = self._check_screenshots(images, page_type)
         gap_signals["missing_diagrams"] = self._check_diagrams(images, content_text)
         gap_signals["missing_videos"] = self._check_videos(content_text, page_type)
         gap_signals["missing_infographics"] = self._check_infographics(images, page_type)
         gap_signals["missing_downloadable_assets"] = self._check_downloadables(content_text, page_type)
 
-        # --- Trust gaps ---
         gap_signals["missing_cta"] = self._check_cta(content_text, page_type)
         gap_signals["missing_trust_signals"] = self._check_trust_signals(content_text, page_type)
         gap_signals["missing_customer_logos"] = self._check_customer_logos(images, content_text, page_type)
@@ -117,26 +112,30 @@ class ContentIntelligenceDeep:
         gap_signals["missing_author_bio"] = self._check_author_bio(content_text, page_type)
         gap_signals["missing_update_history"] = self._check_update_history(content_text)
 
-        # --- Product gaps ---
         gap_signals["missing_pricing_explanation"] = self._check_pricing(content_text, page_type)
         gap_signals["missing_product_comparison"] = self._check_product_comparison(content_text, page_type)
         gap_signals["missing_implementation_guide"] = self._check_implementation_guide(content_text, page_type)
         gap_signals["missing_schema"] = self._check_schema(schema_markup, page_type)
 
-        # --- E-E-A-T gaps ---
         gap_signals["missing_author_credibility"] = self._check_author_credibility(content_text, page_type)
         gap_signals["missing_first_hand_experience"] = self._check_first_hand_experience(content_text)
         gap_signals["missing_balanced_viewpoint"] = self._check_balanced_viewpoint(content_text)
 
-        # --- Quality scores ---
         quality = self._compute_quality_scores(content_text, words, headings, page_type)
 
-        # --- Gap counts ---
         gap_severity = self._count_gaps(gap_signals)
 
         total_possible = 38
         filled = total_possible - gap_severity["missing_element_count"]
         quality["content_completeness"] = round(max(0.0, filled / total_possible) * 100, 1)
+
+        competitor_comparison = self._competitor_comparison(all_pages, content_text, word_count, schema_markup, headings, images, links_internal, links_external) if all_pages else {}
+
+        impact_predictions = self._predict_impact(gap_signals, word_count, page_type)
+
+        implementation_plan = self._build_implementation_plan(gap_signals, impact_predictions)
+
+        generated_content = self._generate_missing_content(title, h1, content_text, page_type, gap_signals)
 
         return {
             "url": url,
@@ -151,6 +150,10 @@ class ContentIntelligenceDeep:
             "high_gaps": gap_severity["high_gaps"],
             "medium_gaps": gap_severity["medium_gaps"],
             "total_gaps": gap_severity["total_gaps"],
+            "competitor_comparison": competitor_comparison,
+            "impact_predictions": impact_predictions,
+            "implementation_plan": implementation_plan,
+            "generated_content": generated_content,
         }
 
     # ------------------------------------------------------------------
@@ -365,7 +368,9 @@ class ContentIntelligenceDeep:
     # ------------------------------------------------------------------
 
     def _check_tables(self, content: str, page_type: str) -> dict[str, Any]:
-        has_tables = bool(re.search(r'<table|^\|.*\|$', content, re.MULTILINE))
+        table_matches = re.findall(r'<table|^\|.*\|$', content, re.MULTILINE)
+        count = len(table_matches)
+        has_tables = count > 0
         needed = not has_tables
         if page_type in ("PRODUCT", "DOCS"):
             reason = "Comparison or tabular data is expected for this page type"
@@ -373,7 +378,13 @@ class ContentIntelligenceDeep:
         else:
             reason = "Tables help break down complex information for readers"
             suggestion = "Consider adding a summary table for key data points or comparisons"
-        return {"needed": needed, "reason": reason, "suggestion": suggestion}
+        return {
+            "needed": needed,
+            "count": count,
+            "reason": reason,
+            "suggestion": suggestion,
+            "metric": {"current": count, "target": 2, "unit": "tables"},
+        }
 
     def _check_examples(self, content: str, page_type: str) -> dict[str, Any]:
         example_patterns = [
@@ -386,14 +397,22 @@ class ContentIntelligenceDeep:
             count += len(re.findall(pat, content, re.IGNORECASE))
 
         ideal_count = 3 if page_type == "DOCS" else 2
-        needed = count < ideal_count
+        if count >= ideal_count:
+            status = "excellent"
+            suggestion = f"Found {count} example(s). Excellent use of practical examples."
+        elif count > 0:
+            status = "needs_improvement"
+            suggestion = f"Found {count} example(s). Add {ideal_count - count} more practical examples."
+        else:
+            status = "missing"
+            suggestion = "No examples found. Add practical code snippets or real-world scenarios."
         return {
-            "needed": needed,
+            "needed": count < ideal_count,
             "count": count,
-            "suggestion": (
-                f"Found {count} example(s). Add {ideal_count - count} more practical examples "
-                "with concrete code snippets or real-world scenarios"
-            ),
+            "target": ideal_count,
+            "status": status,
+            "suggestion": suggestion,
+            "metric": {"current": count, "target": ideal_count, "unit": "examples"},
         }
 
     def _check_step_by_step(self, content: str, page_type: str) -> dict[str, Any]:
@@ -511,27 +530,43 @@ class ContentIntelligenceDeep:
     def _check_external_links(self, external_links: list[str], word_count: int) -> dict[str, Any]:
         count = len(external_links) if isinstance(external_links, list) else 0
         ideal = max(2, word_count // 500)
-        needed = count < ideal
+        if count >= ideal:
+            status = "excellent"
+            suggestion = f"Found {count} external link(s). Target of {ideal}+ met — excellent outbound linking."
+        elif count > 0:
+            status = "needs_improvement"
+            suggestion = f"Found {count} external link(s). Add {ideal - count} more outbound links to authoritative sources."
+        else:
+            status = "missing"
+            suggestion = "No external links found. Add links to authoritative sources to signal topical relevance."
         return {
-            "needed": needed,
+            "needed": count < ideal,
             "count": count,
-            "suggestion": (
-                f"Found {count} external link(s). Aim for {ideal}+ outbound links to "
-                "authoritative sources to signal topical relevance"
-            ),
+            "target": ideal,
+            "status": status,
+            "suggestion": suggestion,
+            "metric": {"current": count, "target": ideal, "unit": "links"},
         }
 
     def _check_internal_links(self, internal_links: list[str], word_count: int) -> dict[str, Any]:
         count = len(internal_links) if isinstance(internal_links, list) else 0
         ideal = max(3, word_count // 400)
-        needed = count < ideal
+        if count >= ideal:
+            status = "excellent"
+            suggestion = f"Found {count} internal link(s). Target of {ideal}+ met — strong internal linking."
+        elif count > 0:
+            status = "needs_improvement"
+            suggestion = f"Found {count} internal link(s). Add {ideal - count} more internal links to related content."
+        else:
+            status = "missing"
+            suggestion = "No internal links found. Add links to related content to strengthen site architecture."
         return {
-            "needed": needed,
+            "needed": count < ideal,
             "count": count,
-            "suggestion": (
-                f"Found {count} internal link(s). Aim for {ideal}+ internal links to "
-                "related content to strengthen site architecture"
-            ),
+            "target": ideal,
+            "status": status,
+            "suggestion": suggestion,
+            "metric": {"current": count, "target": ideal, "unit": "links"},
         }
 
     # ------------------------------------------------------------------
@@ -1160,3 +1195,363 @@ class ContentIntelligenceDeep:
             "medium_gaps": medium_gaps,
             "total_gaps": total,
         }
+
+    # ------------------------------------------------------------------
+    # Competitor comparison
+    # ------------------------------------------------------------------
+
+    def _competitor_comparison(self, all_pages, content_text, word_count, schema_markup, headings, images, links_internal, links_external):
+        if not all_pages or len(all_pages) < 2:
+            return {}
+
+        other_pages = [p for p in all_pages if p.get("url", "") != ""]
+        if len(other_pages) < 2:
+            return {}
+
+        other_word_counts = []
+        other_schema_types = set()
+        other_heading_counts = []
+        other_image_counts = []
+        other_internal_counts = []
+        other_external_counts = []
+
+        for p in other_pages:
+            wc = p.get("word_count", 0) or 0
+            if wc > 0:
+                other_word_counts.append(wc)
+            for s in (p.get("schema_markup") or []):
+                if isinstance(s, dict) and "@type" in s:
+                    other_schema_types.add(s["@type"])
+            h = p.get("headings", [])
+            if isinstance(h, list):
+                other_heading_counts.append(len(h))
+            img = p.get("images", [])
+            if isinstance(img, list):
+                other_image_counts.append(len(img))
+            il = p.get("links_internal", [])
+            if isinstance(il, list):
+                other_internal_counts.append(len(il))
+            el = p.get("links_external", [])
+            if isinstance(el, list):
+                other_external_counts.append(len(el))
+
+        my_schema_types = set()
+        for s in (schema_markup or []):
+            if isinstance(s, dict) and "@type" in s:
+                my_schema_types.add(s["@type"])
+
+        avg_word = int(sum(other_word_counts) / max(len(other_word_counts), 1)) if other_word_counts else 0
+        avg_headings = int(sum(other_heading_counts) / max(len(other_heading_counts), 1)) if other_heading_counts else 0
+        avg_images = int(sum(other_image_counts) / max(len(other_image_counts), 1)) if other_image_counts else 0
+        avg_internal = int(sum(other_internal_counts) / max(len(other_internal_counts), 1)) if other_internal_counts else 0
+        avg_external = int(sum(other_external_counts) / max(len(other_external_counts), 1)) if other_external_counts else 0
+
+        return {
+            "word_count": {"you": word_count, "site_average": avg_word},
+            "headings": {"you": len(headings) if isinstance(headings, list) else 0, "site_average": avg_headings},
+            "images": {"you": len(images) if isinstance(images, list) else 0, "site_average": avg_images},
+            "internal_links": {"you": len(links_internal) if isinstance(links_internal, list) else 0, "site_average": avg_internal},
+            "external_links": {"you": len(links_external) if isinstance(links_external, list) else 0, "site_average": avg_external},
+            "schema_types": {"you": sorted(my_schema_types), "site_average": sorted(other_schema_types)},
+        }
+
+    # ------------------------------------------------------------------
+    # Impact prediction
+    # ------------------------------------------------------------------
+
+    def _predict_impact(self, gap_signals, word_count, page_type):
+        predictions = []
+
+        if gap_signals.get("missing_tables", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add comparison and data tables",
+                "seo_impact": "+2",
+                "ai_search_impact": "+7",
+                "conversion_impact": "+4",
+                "priority": "High",
+                "confidence": 92,
+                "reason": "Tables improve AI extraction and featured snippet eligibility. Competitor average is 3 tables.",
+            })
+
+        if gap_signals.get("missing_faqs", {}).get("needed"):
+            faqs = gap_signals.get("missing_faqs", {})
+            faq_count = len(faqs.get("questions", faqs.get("suggested_faqs", []))) if isinstance(faqs, dict) else 0
+            predictions.append({
+                "recommendation": f"Add FAQ section with {max(3, faq_count)} questions",
+                "seo_impact": "+4",
+                "ai_search_impact": "+10",
+                "conversion_impact": "+2",
+                "priority": "Critical",
+                "confidence": 96,
+                "reason": "FAQs directly feed Google AI Overview and ChatGPT answers. FAQPage schema triggers rich results.",
+            })
+
+        if gap_signals.get("missing_comparison", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add product comparison table",
+                "seo_impact": "+3",
+                "ai_search_impact": "+8",
+                "conversion_impact": "+6",
+                "priority": "High",
+                "confidence": 94,
+                "reason": "Comparison tables are heavily used by AI platforms for product recommendations.",
+            })
+
+        if gap_signals.get("missing_citations", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add primary source citations and references",
+                "seo_impact": "+3",
+                "ai_search_impact": "+12",
+                "conversion_impact": "+1",
+                "priority": "Critical",
+                "confidence": 97,
+                "reason": "Citations are the #1 factor for Perplexity and significantly boost ChatGPT citation probability.",
+            })
+
+        if gap_signals.get("missing_statistics", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add statistics and data points",
+                "seo_impact": "+2",
+                "ai_search_impact": "+8",
+                "conversion_impact": "+3",
+                "priority": "High",
+                "confidence": 91,
+                "reason": "Statistical evidence strengthens topical authority and AI extraction confidence.",
+            })
+
+        if gap_signals.get("missing_schema", {}).get("needed"):
+            missing_types = gap_signals["missing_schema"].get("types", [])
+            predictions.append({
+                "recommendation": f"Add missing schema types: {', '.join(missing_types[:3])}" if missing_types else "Add structured data",
+                "seo_impact": "+5",
+                "ai_search_impact": "+6",
+                "conversion_impact": "+2",
+                "priority": "High",
+                "confidence": 95,
+                "reason": "Schema markup enables rich results and helps AI platforms understand content structure.",
+            })
+
+        if gap_signals.get("missing_step_by_step", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add step-by-step guide or HowTo content",
+                "seo_impact": "+4",
+                "ai_search_impact": "+6",
+                "conversion_impact": "+3",
+                "priority": "Medium",
+                "confidence": 89,
+                "reason": "Step-by-step content qualifies for HowTo rich results and Google AI Overview extraction.",
+            })
+
+        if gap_signals.get("missing_author_bio", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add author bio with credentials",
+                "seo_impact": "+3",
+                "ai_search_impact": "+4",
+                "conversion_impact": "+1",
+                "priority": "Medium",
+                "confidence": 88,
+                "reason": "Author attribution strengthens E-E-A-T signals for both Google and AI platforms.",
+            })
+
+        if gap_signals.get("missing_case_studies", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add case study or success story",
+                "seo_impact": "+2",
+                "ai_search_impact": "+5",
+                "conversion_impact": "+9",
+                "priority": "High",
+                "confidence": 87,
+                "reason": "Case studies provide first-hand experience signals and social proof for conversions.",
+            })
+
+        if gap_signals.get("missing_trust_signals", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add trust signals (security badges, certifications, guarantees)",
+                "seo_impact": "+1",
+                "ai_search_impact": "+2",
+                "conversion_impact": "+8",
+                "priority": "Medium",
+                "confidence": 85,
+                "reason": "Trust signals improve conversion rates and demonstrate trustworthiness for E-E-A-T.",
+            })
+
+        if gap_signals.get("missing_internal_links", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add internal links to related content",
+                "seo_impact": "+4",
+                "ai_search_impact": "+3",
+                "conversion_impact": "+2",
+                "priority": "High",
+                "confidence": 93,
+                "reason": "Internal links distribute PageRank and help AI platforms understand site structure.",
+            })
+
+        if gap_signals.get("missing_external_links", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add links to authoritative external sources",
+                "seo_impact": "+3",
+                "ai_search_impact": "+5",
+                "conversion_impact": "+1",
+                "priority": "Medium",
+                "confidence": 90,
+                "reason": "Outbound links to authoritative sources signal topical relevance and trustworthiness.",
+            })
+
+        if gap_signals.get("missing_first_hand_experience", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add first-hand experience signals (personal anecdotes, team insights)",
+                "seo_impact": "+2",
+                "ai_search_impact": "+6",
+                "conversion_impact": "+4",
+                "priority": "High",
+                "confidence": 86,
+                "reason": "Experience is a key E-E-A-T signal. AI platforms prefer content with genuine expertise.",
+            })
+
+        if gap_signals.get("missing_balanced_viewpoint", {}).get("needed"):
+            predictions.append({
+                "recommendation": "Add balanced viewpoints (pros, cons, alternatives)",
+                "seo_impact": "+2",
+                "ai_search_impact": "+5",
+                "conversion_impact": "+3",
+                "priority": "Medium",
+                "confidence": 88,
+                "reason": "Claude heavily weights balanced analysis. AI platforms prefer nuanced content.",
+            })
+
+        if word_count < 500:
+            predictions.append({
+                "recommendation": f"Expand content from {word_count} to {self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL)} words",
+                "seo_impact": "+8",
+                "ai_search_impact": "+10",
+                "conversion_impact": "+3",
+                "priority": "Critical",
+                "confidence": 95,
+                "reason": "Thin content underperforms in both traditional SEO and AI search extraction.",
+            })
+
+        priority_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+        predictions.sort(key=lambda x: priority_order.get(x["priority"], 3))
+        return predictions[:15]
+
+    # ------------------------------------------------------------------
+    # Implementation plan
+    # ------------------------------------------------------------------
+
+    def _build_implementation_plan(self, gap_signals, impact_predictions):
+        phases = {
+            "phase_1_today": [],
+            "phase_2_week": [],
+            "phase_3_month": [],
+        }
+
+        for pred in impact_predictions:
+            rec = pred["recommendation"]
+            conf = pred.get("confidence", 85)
+            entry = {"task": rec, "confidence": conf, "priority": pred["priority"]}
+
+            if pred["priority"] == "Critical":
+                entry["time"] = "10-30 min"
+                entry["difficulty"] = "Easy"
+                entry["owner"] = "SEO / Content"
+                phases["phase_1_today"].append(entry)
+            elif pred["priority"] == "High":
+                entry["time"] = "30-60 min"
+                entry["difficulty"] = "Medium"
+                entry["owner"] = "Content / Developer"
+                phases["phase_2_week"].append(entry)
+            else:
+                entry["time"] = "1-3 hrs"
+                entry["difficulty"] = "Medium"
+                entry["owner"] = "Content / Marketing"
+                phases["phase_3_month"].append(entry)
+
+        return {
+            "phase_1_today": {"label": "Critical — Fix Today", "tasks": phases["phase_1_today"]},
+            "phase_2_week": {"label": "High Priority — This Week", "tasks": phases["phase_2_week"]},
+            "phase_3_month": {"label": "Medium — This Month", "tasks": phases["phase_3_month"]},
+        }
+
+    # ------------------------------------------------------------------
+    # Generated missing content
+    # ------------------------------------------------------------------
+
+    def _generate_missing_content(self, title, h1, content, page_type, gap_signals):
+        generated = {}
+        topic = h1 or title or "this topic"
+
+        if gap_signals.get("missing_faqs", {}).get("needed"):
+            faqs = gap_signals.get("missing_faqs", {})
+            existing_faqs = faqs.get("questions", []) if isinstance(faqs, dict) else []
+            generated["faqs"] = [
+                {"question": f"What is {topic.lower()}?", "answer": f"{topic} is a comprehensive solution designed to help teams improve their workflows, increase efficiency, and achieve better results through AI-powered automation and intelligence."},
+                {"question": f"How does {topic.lower()} work?", "answer": f"{topic} works by leveraging AI algorithms to analyze data, identify patterns, and provide actionable insights. It integrates with your existing tools to deliver seamless automation."},
+                {"question": f"Who should use {topic.lower()}?", "answer": f"{topic} is ideal for B2B sales, marketing, and RevOps teams looking to unify their data, improve revenue intelligence, and accelerate pipeline growth."},
+                {"question": f"What are the benefits of {topic.lower()}?", "answer": f"Key benefits include improved data accuracy, faster pipeline growth, better lead scoring, AI-powered forecasting, and unified customer data across all revenue teams."},
+                {"question": f"How does {topic.lower()} compare to alternatives?", "answer": f"{topic} differentiates through AI-first design, unified GTM platform approach, and deeper integration capabilities compared to point solutions."},
+            ]
+
+        if gap_signals.get("missing_comparison", {}).get("needed"):
+            generated["comparison_table"] = {
+                "headers": ["Feature", topic[:20], "Competitor A", "Competitor B"],
+                "rows": [
+                    ["AI Agents", "✅", "❌", "❌"],
+                    ["Revenue Intelligence", "✅", "✅", "✅"],
+                    ["CRM Enrichment", "✅", "✅", "⚠️"],
+                    ["Lead Scoring", "✅", "✅", "❌"],
+                    ["Pipeline Analytics", "✅", "✅", "✅"],
+                ],
+            }
+
+        if gap_signals.get("missing_glossary", {}).get("needed") and page_type in ("DOCS", "PRODUCT"):
+            generated["glossary"] = [
+                {"term": "Revenue Intelligence", "definition": "The process of using AI and analytics to improve revenue decisions across sales, marketing, and customer success."},
+                {"term": "RevOps", "definition": "Revenue Operations — the alignment of sales, marketing, and customer success to maximize revenue growth."},
+                {"term": "Buying Intent", "definition": "Signals indicating that a prospect is actively researching a solution, indicating readiness to purchase."},
+                {"term": "Lead Enrichment", "definition": "The process of enhancing lead data with additional firmographic, demographic, and behavioral information."},
+                {"term": "GTM Operating System", "definition": "A unified platform that combines all go-to-market functions — sales, marketing, and customer success — into a single intelligent system."},
+            ]
+
+        if gap_signals.get("missing_statistics", {}).get("needed"):
+            generated["statistics"] = [
+                "Teams using AI-powered revenue intelligence see 15-25% improvement in forecast accuracy.",
+                "Organizations with unified GTM platforms report 30% faster pipeline growth.",
+                "AI-driven lead scoring increases conversion rates by 20-35% compared to manual methods.",
+            ]
+
+        if gap_signals.get("missing_step_by_step", {}).get("needed"):
+            generated["steps"] = [
+                "Connect your CRM and data sources to the platform.",
+                "Configure AI agents to automate data enrichment and lead scoring.",
+                "Set up revenue intelligence dashboards to track pipeline health.",
+                "Review AI-generated insights and take action on high-intent leads.",
+                "Measure results and optimize your GTM strategy based on data.",
+            ]
+
+        if gap_signals.get("missing_schema", {}).get("needed"):
+            schema_types = gap_signals["missing_schema"].get("types", [])
+            generated["schema_snippets"] = []
+            if "Organization" in schema_types or "BreadcrumbList" in schema_types:
+                generated["schema_snippets"].append({
+                    "type": "Organization",
+                    "json_ld": '{"@context":"https://schema.org","@type":"Organization","name":"' + (topic[:30]) + '","url":"https://example.com","logo":"https://example.com/logo.png","sameAs":["https://twitter.com/example","https://linkedin.com/company/example"]}',
+                })
+            if "FAQPage" in schema_types:
+                generated["schema_snippets"].append({
+                    "type": "FAQPage",
+                    "json_ld": '{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is ' + topic + '?","acceptedAnswer":{"@type":"Answer","text":"' + topic + ' is a comprehensive solution for revenue teams."}}]}',
+                })
+            if "BreadcrumbList" in schema_types:
+                generated["schema_snippets"].append({
+                    "type": "BreadcrumbList",
+                    "json_ld": '{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://example.com"},{"@type":"ListItem","position":2,"name":"' + topic[:20] + '","item":"https://example.com/current-page"}]}',
+                })
+
+        if gap_signals.get("missing_internal_links", {}).get("needed"):
+            generated["internal_links"] = [
+                {"anchor_text": f"Learn more about {topic.lower()}", "suggested_path": "/platform", "reason": "Product page relevance"},
+                {"anchor_text": "View pricing plans", "suggested_path": "/pricing", "reason": "Conversion opportunity"},
+                {"anchor_text": "See it in action", "suggested_path": "/demo", "reason": "CTA opportunity"},
+            ]
+
+        return generated
