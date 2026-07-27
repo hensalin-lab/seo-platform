@@ -501,19 +501,144 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
     total = len(pages)
     avg_internal = sum(len(p.links_internal or []) for p in pages) / max(total, 1)
     avg_external = sum(len(p.links_external or []) for p in pages) / max(total, 1)
-    no_links = [p.url for p in pages if not p.links_internal or len(p.links_internal) == 0]
-    orphan_pages = [p.url for p in pages if p.crawl_depth > 3]
+    no_links = [p for p in pages if not p.links_internal or len(p.links_internal) == 0]
+    orphan_pages = [p for p in pages if p.crawl_depth > 3]
+
+    def _safe_links(p):
+        v = p.links_internal
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                return parsed if isinstance(parsed, list) else []
+            except Exception:
+                return []
+        return []
+
+    def _safe_ext_links(p):
+        v = p.links_external
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                return parsed if isinstance(parsed, list) else []
+            except Exception:
+                return []
+        return []
+
+    def _link_text(link):
+        if isinstance(link, dict):
+            return (link.get("text", "") or link.get("anchor", "") or "").strip()
+        return ""
+
+    def _link_url(link):
+        if isinstance(link, dict):
+            return (link.get("url", "") or link.get("href", "")).strip()
+        if isinstance(link, str):
+            return link.strip()
+        return ""
+
+    link_map = {}
+    for p in pages:
+        for link in _safe_ext_links(p):
+            domain = _link_url(link).split("//")[-1].split("/")[0] if _link_url(link) else ""
+            if domain:
+                if domain not in link_map:
+                    link_map[domain] = {"count": 0, "from_pages": []}
+                link_map[domain]["count"] += 1
+                if p.url not in link_map[domain]["from_pages"]:
+                    link_map[domain]["from_pages"].append(p.url)
+
+    page_text_cache = {}
+    for p in pages:
+        ct = getattr(p, "content_text", None) or ""
+        import re as _re
+        cleaned = _re.sub(r'<[^>]+>', ' ', ct).lower()
+        cleaned = _re.sub(r'\s+', ' ', cleaned).strip()
+        page_text_cache[p.url] = cleaned
+
+    link_suggestions = []
+    pages_by_url = {p.url: p for p in pages}
+
+    for p in pages:
+        if not p.url:
+            continue
+        current_links = {_link_url(l) for l in _safe_links(p)}
+        external = _safe_ext_links(p)
+        ext_urls = {_link_url(l) for l in external}
+        p_text = page_text_cache.get(p.url, "")
+        p_words = set(p_text.split())
+        p_title_words = set((p.title or "").lower().split())
+        p_h1_words = set((p.h1 or "").lower().split())
+        key_terms = (p_words | p_title_words | p_h1_words) - {"the", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for", "of", "and", "or", "with", "from", "by", "this", "that", "it", "as", "be"}
+
+        for other in pages:
+            if other.url == p.url or not other.url:
+                continue
+            if other.url in current_links:
+                continue
+
+            other_text = page_text_cache.get(other.url, "")
+            other_title_words = set((other.title or "").lower().split())
+            overlap = len(key_terms & other_title_words)
+            if overlap >= 2 or any(t in other_text for t in list(key_terms)[:5] if len(t) > 4):
+                link_suggestions.append({
+                    "from_page": p.url,
+                    "to_page": other.url,
+                    "to_title": other.title or other.url.split("/")[-1].replace("-", " ").title(),
+                    "reason": f"Related content — shares topics: {', '.join(list(key_terms & other_title_words)[:3]) if key_terms & other_title_words else 'thematic relevance'}",
+                    "anchor_suggestion": (other.title or other.url.split("/")[-1].replace("-", " "))[:60],
+                    "priority": "HIGH" if overlap >= 3 else "MEDIUM",
+                })
+
+    link_suggestions.sort(key=lambda x: {"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(x.get("priority", "LOW"), 3))
+
+    link_improvements = []
+    for p in pages:
+        if not p.url:
+            continue
+        external = _safe_ext_links(p)
+        if len(external) == 0 and p.url not in [pp.url for pp in no_links]:
+            if p.word_count and p.word_count > 500:
+                link_improvements.append({
+                    "page": p.url,
+                    "issue": "No external links in 500+ word content",
+                    "suggestion": f"Add 2-3 outbound links to authoritative sources to boost E-E-A-T signals",
+                    "impact": "MEDIUM",
+                })
+
+        current_links = _safe_links(p)
+        if len(current_links) < 3 and p.word_count and p.word_count > 300:
+            link_improvements.append({
+                "page": p.url,
+                "issue": f"Only {len(current_links)} internal links in {p.word_count}-word content",
+                "suggestion": f"Add links to related pages to improve crawlability and topical authority. Aim for {max(3, len(current_links) + 2)} internal links.",
+                "impact": "HIGH",
+            })
+
+        if p.crawl_depth and p.crawl_depth > 3:
+            link_improvements.append({
+                "page": p.url,
+                "issue": f"Page is {p.crawl_depth} clicks from homepage (too deep)",
+                "suggestion": "Add links from higher-authority pages (homepage, category pages) to reduce crawl depth and improve indexability",
+                "impact": "HIGH",
+            })
+
     return {
         "total_pages": total,
         "avg_internal_links": round(avg_internal, 1),
         "avg_external_links": round(avg_external, 1),
         "pages_with_no_internal_links": len(no_links),
         "orphan_pages": len(orphan_pages),
-        "no_links_urls": no_links[:20],
-        "orphan_urls": orphan_pages[:20],
+        "no_links_urls": [p.url for p in no_links[:20]],
+        "orphan_urls": [p.url for p in orphan_pages[:20]],
+        "link_suggestions": link_suggestions[:30],
+        "link_improvements": link_improvements[:20],
         "pages": [{
-            "url": p.url, "internal_links": len(p.links_internal or []),
-            "external_links": len(p.links_external or []),
+            "url": p.url, "internal_links": len(_safe_links(p)),
+            "external_links": len(_safe_ext_links(p)),
             "crawl_depth": p.crawl_depth,
         } for p in pages[:50]],
     }
@@ -545,6 +670,7 @@ async def get_page_speed(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/audit/{audit_id}/eeat-analysis")
 async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
+    import re as _re
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
@@ -561,14 +687,131 @@ async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
         "trust_signals": len([p for p in pages if p.canonical]),
         "total_pages": len(pages),
     }
+
+    pages_by_url = {p.url: p for p in pages if p.url}
+    enhanced_issues = []
+    for i in seo_issues[:30]:
+        page = pages_by_url.get(i.page_url)
+        signal = (i.signal_name or "").lower()
+        enhanced_fix = i.fix or ""
+        enhanced_impact = i.impact or ""
+
+        if "duplicate title" in signal:
+            if page and page.title:
+                slug_words = page.url.rstrip("/").split("/")[-1].replace("-", " ").title() if page.url else ""
+                enhanced_fix = f'This page title "{page.title}" appears on multiple pages. Write a unique, keyword-rich title specific to this page\'s content. Example: "{slug_words} — {page.title.split("|")[0].strip()[:40]} | Your Brand Name" (50-60 characters, include primary keyword)'
+                enhanced_impact = "Duplicate titles cause Google to pick one randomly — your intended page may not rank. Each page needs a unique title to signal distinct content."
+            else:
+                enhanced_fix = "Add a unique, descriptive title tag between 50-60 characters. Include the primary keyword near the beginning and your brand name at the end."
+
+        elif "multiple h1" in signal:
+            if page:
+                headings = page.headings or []
+                if isinstance(headings, str):
+                    try:
+                        headings = json.loads(headings)
+                    except Exception:
+                        headings = []
+                h1_list = [h.get("text", "") for h in headings if isinstance(h, dict) and h.get("level") == "H1"][:3]
+                h1_text = "; ".join(h1_list) if h1_list else "multiple H1 tags"
+                enhanced_fix = f'This page has {len(h1_list)} H1 tags: "{h1_text}". Keep only the most important one as H1. Convert the rest to H2 by changing <h1> to <h2> in your HTML. The H1 should contain your primary target keyword and describe the page\'s main topic.'
+                enhanced_impact = "Multiple H1 tags confuse search engines about the page\'s primary topic. Google can only attribute one H1 as the main heading — having multiple dilutes your keyword signals."
+            else:
+                enhanced_fix = "Keep only one H1 tag per page. The H1 should contain the primary target keyword and describe the page\'s main topic. Convert all other H1s to H2 tags."
+
+        elif "missing alt text" in signal or ("alt" in signal and "missing" in signal):
+            if page:
+                images = page.images or []
+                if isinstance(images, str):
+                    try:
+                        images = json.loads(images)
+                    except Exception:
+                        images = []
+                no_alt = [img for img in images if isinstance(img, dict) and not img.get("alt")]
+                if no_alt:
+                    first_img = no_alt[0]
+                    img_src = first_img.get("src", first_img.get("url", "image"))[:80]
+                    enhanced_fix = f'{len(no_alt)} images are missing alt text. Start with the first one ({img_src}) — add a concise, descriptive alt attribute. Example: <img src="..." alt="Description of what the image shows">. Each alt text should describe the image content and include relevant keywords naturally.'
+                    enhanced_impact = "Missing alt text hurts accessibility for screen readers and prevents Google from understanding image content. Image search traffic is lost."
+                else:
+                    enhanced_fix = "Add descriptive alt text to all images. Each alt attribute should describe what the image shows in 5-15 words, incorporating relevant keywords naturally."
+
+        elif "meta description short" in signal or ("meta" in signal and "short" in signal):
+            if page and page.meta_description:
+                current_len = len(page.meta_description)
+                enhanced_fix = f'Your meta description is only {current_len} characters. Expand it to 150-160 characters. Include: 1) Primary keyword naturally, 2) A clear value proposition, 3) A call-to-action. Example: "{page.meta_description[:60]}... [expand with relevant keywords and CTA here]"'
+                enhanced_impact = "Short meta descriptions waste SERP real estate. Google may auto-generate one that misses your key message, reducing click-through rates."
+
+        elif "title" in signal and "missing" in signal:
+            enhanced_fix = f'Add a unique title tag to this page. Format: "Primary Keyword — Secondary Keyword | Brand Name". Keep it 50-60 characters. Put the most important keyword at the beginning.'
+            enhanced_impact = "Missing title tag means Google has no signal about what this page is about. Title is the #1 on-page SEO factor."
+
+        elif "meta description" in signal and ("missing" in signal or "absent" in signal):
+            enhanced_fix = "Add a meta description between 150-160 characters. Write it as a compelling ad copy: include the primary keyword, explain what the page offers, and end with a call-to-action like Learn more, Get started, or Discover."
+            enhanced_impact = "Missing meta description means Google auto-generates one from page content, which often misses your key message and reduces click-through rates."
+
+        elif "canonical" in signal:
+            enhanced_fix = "Add a canonical tag pointing to the preferred URL: <link rel='canonical' href='https://yourdomain.com/page-url'>. Use the full HTTPS URL. If this page has URL parameters, set the canonical to the clean version without parameters."
+            enhanced_impact = "Missing canonical tag can cause duplicate content issues when the same page is accessible via multiple URLs (with/without www, trailing slash, parameters)."
+
+        elif "heading" in signal and "h1" in signal.lower():
+            enhanced_fix = "Add a single H1 tag that contains the primary keyword and clearly describes the page topic. Place it at the top of the main content area. Example: <h1>Your Primary Keyword Here</h1>"
+            enhanced_impact = "Missing H1 tag removes the most important on-page keyword signal. Google uses H1 to understand the page\'s main topic."
+
+        elif "schema" in signal or "structured data" in signal:
+            enhanced_fix = "Add JSON-LD structured data. For this page type, implement: Organization schema with brand details, WebPage schema with description, and any relevant type (Article, Product, FAQ, etc.). Test at google.com/rich-results-test after adding."
+            enhanced_impact = "No structured data means missed opportunities for rich snippets, knowledge panels, and enhanced search features."
+
+        elif "open graph" in signal or "og:" in signal:
+            enhanced_fix = 'Add Open Graph tags: <meta property="og:title" content="Page Title">, <meta property="og:description" content="Page description">, <meta property="og:image" content="URL to 1200x630 image">, <meta property="og:url" content="Canonical URL">. These control how your page appears when shared on social media.'
+            enhanced_impact = "Missing Open Graph tags means poor social media previews — lower engagement and click-through from social shares."
+
+        elif "internal link" in signal:
+            if page:
+                link_count = len(page.links_internal or []) if isinstance(page.links_internal, list) else 0
+                enhanced_fix = f'This page has only {link_count} internal links. Add links to 3-5 related pages on your site using descriptive anchor text. For example, link to your most important related pages using the target keyword as anchor text.'
+                enhanced_impact = "Few internal links means search engines see this page as isolated. Internal links distribute PageRank and help Google understand your site structure."
+            else:
+                enhanced_fix = "Add 3-5 internal links to related pages using descriptive anchor text that includes target keywords."
+
+        elif "external link" in signal:
+            enhanced_fix = "Add 2-3 outbound links to authoritative, relevant sources (industry reports, government sites, well-known publications). Use descriptive anchor text. This boosts E-E-A-T by showing you reference credible sources."
+            enhanced_impact = "No outbound links to authoritative sources weakens E-E-A-T signals. Linking to quality sources shows Google you provide well-researched content."
+
+        elif "image" in signal and ("no " in signal or "missing" in signal):
+            enhanced_fix = "Add at least 1-2 images to break up text and improve engagement. Include a featured image at the top. Add 1-2 supporting images or diagrams within the content. Each image needs descriptive alt text."
+            enhanced_impact = "Pages with no images have higher bounce rates and lower time-on-page. Visual content improves user engagement signals."
+
+        elif "thin content" in signal or "word count" in signal:
+            if page and page.word_count:
+                enhanced_fix = f'This page has only {page.word_count} words. Expand to at least 800-1200 words of substantive, helpful content. Add: a clear introduction (2-3 sentences), detailed sections with H2/H3 headings, practical examples, and a conclusion. Quality matters more than quantity — each paragraph should provide value.'
+                enhanced_impact = f"Content with only {page.word_count} words is unlikely to rank competitively. Google favors comprehensive, in-depth content that fully answers user queries."
+            else:
+                enhanced_fix = "Expand content to at least 800-1200 words of substantive, helpful content. Focus on comprehensively covering the topic with clear sections, examples, and actionable advice."
+
+        elif "broken link" in signal or "404" in signal:
+            enhanced_fix = "Fix the broken link: either restore the missing page, update the link to point to the correct URL, or remove the link entirely. Set up 301 redirects if the content was moved to a new URL."
+            enhanced_impact = "Broken links waste crawl budget and create poor user experiences. Google may interpret broken links as a sign of site neglect."
+
+        elif "redirect" in signal:
+            enhanced_fix = "Ensure all redirects use 301 (permanent) redirects, not 302 (temporary). Check for redirect chains — each redirect should go directly to the final URL. Avoid redirect loops."
+            enhanced_impact = "Incorrect redirects confuse search engines and users. Chains longer than 2-3 hops waste crawl budget."
+
+        else:
+            if page and page.url:
+                enhanced_fix = f"Review and fix this issue on {page.url}. Check the specific signal: {i.signal_name or 'unknown'} for details."
+
+        enhanced_issues.append({
+            "id": i.id, "page_url": i.page_url, "severity": i.severity,
+            "signal_name": i.signal_name, "description": i.description,
+            "impact": enhanced_impact or i.impact or "",
+            "fix": enhanced_fix or i.fix or "",
+        })
+
     return {
         "eeat_score": scores.seo_score if scores else 0,
         "signals": eeat_signals,
-        "issues": [{
-            "id": i.id, "page_url": i.page_url, "severity": i.severity,
-            "signal_name": i.signal_name, "description": i.description,
-            "impact": i.impact, "fix": i.fix,
-        } for i in seo_issues[:30]],
+        "issues": enhanced_issues,
     }
 
 

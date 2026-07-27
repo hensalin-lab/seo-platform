@@ -51,6 +51,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
         "https://seo-platform.vercel.app",
+        "https://seo-platform-xi.vercel.app",
+        "https://seo-platform-e89q0082h-seo-tools1.vercel.app",
+        "https://seo-platform-jr83tb3xw-seo-tools1.vercel.app",
+        "https://seo-platform-de0dwy0qd-seo-tools1.vercel.app",
     ]
 
     AI_TIMEOUT: int = 45

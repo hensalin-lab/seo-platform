@@ -1,25 +1,81 @@
 """
-Complete Keyword Research Engine
+Complete Keyword Research Engine v2
 Provides intent analysis, difficulty scoring, topic clusters, cannibalization detection,
 question keywords, LSI, entities, suggested landing pages, blog topics, and FAQs.
+Uses navigation/boilerplate filtering for meaningful keyword extraction.
 """
 import logging
 import re
 from collections import Counter, defaultdict
-from math import log
 
 logger = logging.getLogger(__name__)
 
-STOP_WORDS = set("a an the and or but in on at to for of is it that this with from by as be are was were has have had do does did will would could should may might can shall not no nor so if than too very just about above after again also am any because before between both during each few more most other some such own same than these those up down out off over under".split())
+STOP_WORDS = frozenset(
+    "a an the and or but in on at to for of is it that this with from by as be are was "
+    "were has have had do does did will would could should may might can shall not no nor "
+    "so if than too very just about above after again also am any because before between "
+    "both during each few more most other some such own same than these those up down out "
+    "off over under where when how what which who whom why its being been are am will would "
+    "could should can may might shall must do does did has have had you we our us they them "
+    "their he she him her me my i the their there then them".split()
+)
+
+NAV_WORDS = frozenset(
+    "login sign account support help documentation docs api status contact us "
+    "privacy policy terms conditions cookie about our team careers jobs "
+    "home page site map blog resources guides faq pricing plan enterprise "
+    "get demo free trial signup register subscribe download try buy now "
+    "search menu close open expand collapse nav sidebar footer header "
+    "copyright reserved rights all facebook twitter linkedin instagram youtube "
+    "back next previous skip content main navigation min start activate "
+    "revenue beta read more learn more see more view all show calculator "
+    "fit comics podcast request quote contact book platform product sales "
+    "agents win personal data expand ready company built talk inc security "
+    "website stop".split()
+)
 
 QUESTION_STARTERS = {"how", "what", "why", "when", "where", "who", "which", "is", "are", "can", "does", "do", "should", "will", "could", "would", "may", "might"}
 
 INTENT_KEYWORDS = {
     "COMMERCIAL": ["best", "top", "review", "comparison", "compare", "vs", "versus", "alternative", "alternative to", "cheapest", "affordable", "pricing", "cost", "price", "deal", "discount", "coupon", "cheap", "premium", "enterprise", "agency"],
     "TRANSACTIONAL": ["buy", "purchase", "order", "signup", "sign up", "register", "subscribe", "download", "get", "try", "demo", "trial", "free trial", "book", "hire", "contact", "quote", "apply", "start"],
-    "INFORMATIONAL": ["what is", "how to", "guide", "tutorial", "learn", "example", "examples", "tips", "strategy", "strategies", "guide", "handbook", "overview", "introduction", "beginner", "advanced", "checklist", "template", "framework", "process", "step by step"],
+    "INFORMATIONAL": ["what is", "how to", "guide", "tutorial", "learn", "example", "examples", "tips", "strategy", "strategies", "handbook", "overview", "introduction", "beginner", "advanced", "checklist", "template", "framework", "process", "step by step"],
     "NAVIGATIONAL": ["login", "log in", "sign in", "dashboard", "account", "support", "help", "documentation", "docs", "api", "status", "contact us"],
 }
+
+
+def _clean_html(text: str) -> str:
+    text = re.sub(r"<script[^>]*>.*?</script>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<nav[^>]*>.*?</nav>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<footer[^>]*>.*?</footer>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<header[^>]*>.*?</header>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"[^\w\s]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _is_meaningful_term(term: str) -> bool:
+    words = term.lower().split()
+    for w in words:
+        if w in NAV_WORDS or w in STOP_WORDS:
+            return False
+    if len(term) < 4:
+        return False
+    if term.lower() in NAV_WORDS:
+        return False
+    if re.match(r"^[\d\s\.\,\-\_]+$", term):
+        return False
+    return True
+
+
+def _is_title_heading(term: str) -> bool:
+    words = term.split()
+    if len(words) <= 1:
+        return False
+    if any(w[0].isupper() for w in words if len(w) > 1):
+        return True
+    return False
 
 
 class KeywordResearchEngine:
@@ -45,54 +101,67 @@ class KeywordResearchEngine:
         if not pages:
             return result
 
-        all_text = " ".join(p.content_text for p in pages if p.content_text)
+        all_clean_text = " ".join(
+            _clean_html(p.content_text or "") + " " + (p.title or "") + " " + (p.h1 or "")
+            for p in pages
+        )
         all_titles = [p.title for p in pages if p.title]
         all_h1s = [p.h1 for p in pages if p.h1]
 
-        raw_keywords = self._extract_keywords(all_text)
-        bigrams = self._extract_bigrams(all_text)
+        raw_keywords = self._extract_keywords(all_clean_text)
+        bigrams = self._extract_bigrams(all_clean_text)
 
-        for kw, freq in raw_keywords[:100]:
-            intent = self._classify_intent(kw, all_text)
-            difficulty = self._estimate_difficulty(kw, freq, len(pages), all_text)
+        for kw, freq in raw_keywords[:80]:
+            if not _is_meaningful_term(kw):
+                continue
+            intent = self._classify_intent(kw, all_clean_text)
+            difficulty = self._estimate_difficulty(kw, freq, len(pages))
             opportunity = self._score_opportunity(kw, freq, intent, difficulty, all_titles, all_h1s)
             pages_using = self._find_pages_using_keyword(kw, pages)
+            est_volume = self._estimate_volume(kw, freq, len(pages))
 
             result["keywords"].append({
-                "keyword": kw,
+                "keyword": kw.title(),
                 "frequency": freq,
+                "estimated_volume": est_volume,
                 "type": "short-tail" if len(kw.split()) <= 2 else "long-tail",
                 "intent": intent,
                 "difficulty": difficulty,
                 "opportunity": opportunity,
                 "pages_using": len(pages_using),
-                "density": round(freq / max(len(all_text.split()), 1) * 100, 2),
+                "density": round(freq / max(len(all_clean_text.split()), 1) * 100, 2),
             })
 
-        for kw, freq in bigrams[:50]:
-            intent = self._classify_intent(kw, all_text)
-            difficulty = self._estimate_difficulty(kw, freq, len(pages), all_text)
+        for kw, freq in bigrams[:40]:
+            if not _is_meaningful_term(kw):
+                continue
+            intent = self._classify_intent(kw, all_clean_text)
+            difficulty = self._estimate_difficulty(kw, freq, len(pages))
             pages_using = self._find_pages_using_keyword(kw, pages)
+            est_volume = self._estimate_volume(kw, freq, len(pages))
+
             result["keywords"].append({
-                "keyword": kw,
+                "keyword": kw.title(),
                 "frequency": freq,
+                "estimated_volume": est_volume,
                 "type": "long-tail",
                 "intent": intent,
                 "difficulty": difficulty,
                 "opportunity": self._score_opportunity(kw, freq, intent, difficulty, all_titles, all_h1s),
                 "pages_using": len(pages_using),
-                "density": round(freq / max(len(all_text.split()), 1) * 100, 2),
+                "density": round(freq / max(len(all_clean_text.split()), 1) * 100, 2),
             })
 
         result["keywords"].sort(key=lambda x: x["frequency"], reverse=True)
+        result["keywords"] = [k for k in result["keywords"] if k["frequency"] >= 2][:50]
 
         result["intent_breakdown"] = self._get_intent_breakdown(result["keywords"])
 
-        result["question_keywords"] = self._find_question_keywords(all_text, all_titles, all_h1s)
+        result["question_keywords"] = self._find_question_keywords(all_clean_text, all_titles, all_h1s)
 
-        result["lsi_keywords"] = self._find_lsi_keywords(result["keywords"], all_text)
+        result["lsi_keywords"] = self._find_lsi_keywords(result["keywords"], all_clean_text)
 
-        result["entity_suggestions"] = self._extract_entities(all_text, pages)
+        result["entity_suggestions"] = self._extract_entities(all_clean_text, pages)
 
         result["topic_clusters"] = self._build_topic_clusters(result["keywords"], pages)
 
@@ -114,15 +183,17 @@ class KeywordResearchEngine:
         return result
 
     def _extract_keywords(self, text):
-        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
-        words = [w for w in words if w not in STOP_WORDS]
-        return Counter(words).most_common(100)
+        clean = _clean_html(text).lower()
+        words = re.findall(r'\b[a-zA-Z]{4,}\b', clean)
+        words = [w for w in words if w not in STOP_WORDS and w not in NAV_WORDS]
+        return Counter(words).most_common(80)
 
     def _extract_bigrams(self, text):
-        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
-        words = [w for w in words if w not in STOP_WORDS]
+        clean = _clean_html(text).lower()
+        words = re.findall(r'\b[a-zA-Z]{3,}\b', clean)
+        words = [w for w in words if w not in STOP_WORDS and w not in NAV_WORDS]
         bigrams = [f"{words[i]} {words[i+1]}" for i in range(len(words)-1)]
-        return Counter(bigrams).most_common(50)
+        return Counter(bigrams).most_common(40)
 
     def _classify_intent(self, keyword, all_text):
         kw_lower = keyword.lower()
@@ -139,24 +210,19 @@ class KeywordResearchEngine:
             return "NAVIGATIONAL"
         return "INFORMATIONAL"
 
-    def _estimate_difficulty(self, keyword, frequency, total_pages, all_text):
+    def _estimate_difficulty(self, keyword, frequency, total_pages):
         word_count = len(keyword.split())
-        kw_lower = keyword.lower()
-
         competition_signals = 0
-        if re.search(r'\b(best|top|review|comparison|vs)\b', kw_lower):
+        if re.search(r'\b(best|top|review|comparison|vs)\b', keyword):
             competition_signals += 3
-        if re.search(r'\b(buy|price|cost|cheap|deal)\b', kw_lower):
+        if re.search(r'\b(buy|price|cost|cheap|deal)\b', keyword):
             competition_signals += 2
-        if re.search(r'\b(guide|how to|tutorial|what is)\b', kw_lower):
+        if re.search(r'\b(guide|how to|tutorial|what is)\b', keyword):
             competition_signals += 1
 
-        text_words = len(all_text.split())
-        coverage = frequency / max(text_words, 1)
+        length_bonus = max(0, (word_count - 2) * 0.5)
 
-        length_penalty = max(0, (4 - word_count) * 0.1)
-
-        score = min(10, competition_signals + length_penalty + (5 if frequency < 3 else 0) + (2 if coverage < 0.001 else 0))
+        score = min(10, competition_signals + length_bonus + (5 if frequency < 3 else 0))
 
         if score <= 3:
             return "LOW"
@@ -164,6 +230,16 @@ class KeywordResearchEngine:
             return "MEDIUM"
         else:
             return "HIGH"
+
+    def _estimate_volume(self, keyword, frequency, total_pages):
+        base = frequency * total_pages * 12
+        if len(keyword.split()) >= 3:
+            base = int(base * 0.6)
+        if any(w in keyword for w in ("best", "top", "review", "vs", "alternative")):
+            base = int(base * 1.5)
+        if any(w in keyword for w in ("buy", "price", "cost", "free", "trial", "demo")):
+            base = int(base * 1.3)
+        return max(50, base)
 
     def _score_opportunity(self, keyword, frequency, intent, difficulty, all_titles, all_h1s):
         kw_lower = keyword.lower()
@@ -198,7 +274,7 @@ class KeywordResearchEngine:
 
     def _find_pages_using_keyword(self, keyword, pages):
         kw_lower = keyword.lower()
-        return [p.url for p in pages if p.content_text and kw_lower in p.content_text.lower()]
+        return [p.url for p in pages if p.content_text and kw_lower in _clean_html(p.content_text).lower()]
 
     def _get_intent_breakdown(self, keywords):
         breakdown = defaultdict(lambda: {"count": 0, "keywords": []})
@@ -211,16 +287,17 @@ class KeywordResearchEngine:
 
     def _find_question_keywords(self, all_text, all_titles, all_h1s):
         questions = []
-        sentences = re.split(r'[.!?\n]', all_text)
+        clean = _clean_html(all_text)
+        sentences = re.split(r'[.!?\n]', clean)
         for s in sentences:
             s = s.strip()
-            if "?" in s and len(s) > 10 and len(s) < 200:
+            if "?" in s and 15 < len(s) < 200:
                 first_word = s.split()[0].lower() if s.split() else ""
                 if first_word in QUESTION_STARTERS:
                     questions.append(s.strip())
 
         for h in all_titles + all_h1s:
-            if h and "?" in h:
+            if h and "?" in h and len(h) > 10:
                 questions.append(h.strip())
 
         seen = set()
@@ -234,7 +311,7 @@ class KeywordResearchEngine:
                     "type": self._classify_question_type(q),
                     "difficulty": "LOW" if len(q.split()) >= 6 else "MEDIUM",
                 })
-        return unique[:50]
+        return unique[:30]
 
     def _classify_question_type(self, question):
         q_lower = question.lower()
@@ -259,39 +336,40 @@ class KeywordResearchEngine:
         if not keywords:
             return lsi
 
-        top_kw = [kw["keyword"] for kw in keywords[:10]]
-        text_words = re.findall(r'\b[a-zA-Z]{4,}\b', all_text.lower())
-        text_words = [w for w in text_words if w not in STOP_WORDS]
-        word_freq = Counter(text_words)
+        clean = _clean_html(all_text).lower()
+        text_words = re.findall(r'\b[a-zA-Z]{4,}\b', clean)
+        text_words = [w for w in text_words if w not in STOP_WORDS and w not in NAV_WORDS]
 
-        for kw in top_kw[:5]:
+        for kw_data in keywords[:5]:
+            kw = kw_data["keyword"].lower()
             kw_words = kw.split()
             co_occurrences = Counter()
             for i, w in enumerate(text_words):
                 if w in kw_words:
                     for j in range(max(0, i-5), min(len(text_words), i+6)):
-                        if text_words[j] not in kw_words and text_words[j] not in STOP_WORDS:
+                        if text_words[j] not in kw_words and text_words[j] not in STOP_WORDS and text_words[j] not in NAV_WORDS:
                             co_occurrences[text_words[j]] += 1
 
             for word, count in co_occurrences.most_common(5):
                 if count >= 2:
                     lsi.append({
-                        "primary_keyword": kw,
-                        "lsi_keyword": word,
+                        "primary_keyword": kw_data["keyword"],
+                        "lsi_keyword": word.title(),
                         "co_occurrence_count": count,
                         "relevance": "HIGH" if count >= 5 else "MEDIUM",
                     })
 
-        return lsi[:30]
+        return lsi[:20]
 
     def _extract_entities(self, all_text, pages):
         entities = []
-        capitalized = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', all_text)
+        clean = _clean_html(all_text)
+        capitalized = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', clean)
         entity_freq = Counter(capitalized)
 
-        for entity, freq in entity_freq.most_common(30):
-            if freq >= 3 and len(entity) > 2:
-                context_pages = [p.url for p in pages if p.content_text and entity in (p.content_text or "")]
+        for entity, freq in entity_freq.most_common(20):
+            if freq >= 3 and len(entity) > 2 and _is_meaningful_term(entity):
+                context_pages = [p.url for p in pages if p.content_text and entity in _clean_html(p.content_text)]
                 entities.append({
                     "entity": entity,
                     "frequency": freq,
@@ -300,7 +378,7 @@ class KeywordResearchEngine:
                     "found_on_pages": len(context_pages),
                 })
 
-        return entities[:20]
+        return entities[:15]
 
     def _classify_entity_type(self, entity):
         entity_lower = entity.lower()
@@ -316,19 +394,21 @@ class KeywordResearchEngine:
         clusters = []
         root_words = Counter()
         for kw in keywords:
-            words = kw["keyword"].split()
+            words = kw["keyword"].lower().split()
             if words:
                 root_words[words[0]] += kw["frequency"]
 
-        for root, freq in root_words.most_common(10):
-            cluster_kws = [kw for kw in keywords if kw["keyword"].startswith(root)]
+        for root, freq in root_words.most_common(8):
+            if root in STOP_WORDS or root in NAV_WORDS:
+                continue
+            cluster_kws = [kw for kw in keywords if kw["keyword"].lower().startswith(root)]
             if len(cluster_kws) >= 2:
                 pages_in_cluster = []
                 for kw in cluster_kws:
                     pages_in_cluster.extend(kw.get("pages_using", []))
 
                 clusters.append({
-                    "root_keyword": root,
+                    "root_keyword": root.title(),
                     "total_frequency": freq,
                     "keywords": [kw["keyword"] for kw in cluster_kws[:8]],
                     "keyword_count": len(cluster_kws),
@@ -340,14 +420,13 @@ class KeywordResearchEngine:
 
     def _detect_cannibalization(self, pages, keywords):
         cannibalization = []
-        for kw_data in keywords[:20]:
-            kw = kw_data["keyword"]
-            kw_lower = kw.lower()
+        for kw_data in keywords[:15]:
+            kw = kw_data["keyword"].lower()
             competing_pages = []
             for p in pages:
-                if p.content_text and kw_lower in p.content_text.lower():
-                    title_match = p.title and kw_lower in p.title.lower()
-                    h1_match = p.h1 and kw_lower in p.h1.lower()
+                if p.content_text and kw in _clean_html(p.content_text).lower():
+                    title_match = p.title and kw in p.title.lower()
+                    h1_match = p.h1 and kw in p.h1.lower()
                     if title_match or h1_match:
                         competing_pages.append({
                             "url": p.url,
@@ -359,10 +438,10 @@ class KeywordResearchEngine:
 
             if len(competing_pages) >= 2:
                 cannibalization.append({
-                    "keyword": kw,
+                    "keyword": kw_data["keyword"],
                     "competing_pages": competing_pages,
                     "severity": "HIGH" if len(competing_pages) >= 4 else "MEDIUM",
-                    "recommendation": f"Consolidate {len(competing_pages)} pages targeting '{kw}' into one authoritative page",
+                    "recommendation": f"Consolidate {len(competing_pages)} pages targeting '{kw_data['keyword']}' into one authoritative page",
                 })
 
         return cannibalization
@@ -371,7 +450,7 @@ class KeywordResearchEngine:
         suggestions = []
         commercial_kws = [kw for kw in keywords if kw["intent"] in ("COMMERCIAL", "TRANSACTIONAL") and kw["opportunity"] in ("HIGH", "MEDIUM")]
 
-        for kw in commercial_kws[:15]:
+        for kw in commercial_kws[:12]:
             existing = self._find_pages_using_keyword(kw["keyword"], pages)
             best_page = None
             if existing:
@@ -381,6 +460,7 @@ class KeywordResearchEngine:
                 "keyword": kw["keyword"],
                 "intent": kw["intent"],
                 "difficulty": kw["difficulty"],
+                "estimated_volume": kw.get("estimated_volume", 0),
                 "suggested_page": best_page or f"/{kw['keyword'].replace(' ', '-')}",
                 "action": "OPTIMIZE" if best_page else "CREATE",
                 "priority": kw["opportunity"],
@@ -390,9 +470,9 @@ class KeywordResearchEngine:
 
     def _suggest_blog_topics(self, keywords, questions, pages):
         topics = []
-        informational_kws = [kw for kw in keywords if kw["intent"] == "INFORMATIONAL" and kw["frequency"] >= 2]
+        informational_kws = [kw for kw in keywords if kw["intent"] == "INFORMATIONAL" and kw["frequency"] >= 3]
 
-        for kw in informational_kws[:10]:
+        for kw in informational_kws[:8]:
             topics.append({
                 "title": f"How to {kw['keyword'].title()}: Complete Guide",
                 "keyword": kw["keyword"],
@@ -402,7 +482,7 @@ class KeywordResearchEngine:
                 "target_audience": "beginners" if "beginner" in kw["keyword"] else "general",
             })
 
-        for q in questions[:10]:
+        for q in questions[:8]:
             if q["question"] not in [t.get("keyword") for t in topics]:
                 topics.append({
                     "title": q["question"],
@@ -413,7 +493,7 @@ class KeywordResearchEngine:
                     "target_audience": "general",
                 })
 
-        comparison_kws = [kw for kw in keywords if "vs" in kw["keyword"] or "alternative" in kw["keyword"] or "comparison" in kw["keyword"]]
+        comparison_kws = [kw for kw in keywords if "vs" in kw["keyword"].lower() or "alternative" in kw["keyword"].lower() or "comparison" in kw["keyword"].lower()]
         for kw in comparison_kws[:5]:
             topics.append({
                 "title": f"{kw['keyword'].title()}: Which Is Better?",
@@ -428,7 +508,7 @@ class KeywordResearchEngine:
 
     def _suggest_faqs(self, questions, keywords):
         faqs = []
-        for q in questions[:15]:
+        for q in questions[:10]:
             faqs.append({
                 "question": q["question"],
                 "type": q["type"],
@@ -439,7 +519,7 @@ class KeywordResearchEngine:
 
         for kw in keywords[:5]:
             faqs.append({
-                "question": f"What is {kw['keyword']}?",
+                "question": f"What is {kw['keyword'].lower()}?",
                 "type": "DEFINITION",
                 "suggested_answer": f"Define '{kw['keyword']}' clearly, include key features, benefits, and use cases.",
                 "schema_type": "FAQPage",
@@ -450,23 +530,24 @@ class KeywordResearchEngine:
 
     def _find_content_gaps(self, pages, competitor_pages):
         gaps = []
-        my_text = " ".join(p.content_text for p in pages if p.content_text)
-        my_words = set(re.findall(r'\b[a-zA-Z]{4,}\b', my_text.lower())) - STOP_WORDS
+        my_text = " ".join(_clean_html(p.content_text or "") for p in pages if p.content_text)
+        my_words = set(re.findall(r'\b[a-zA-Z]{5,}\b', my_text.lower())) - STOP_WORDS - NAV_WORDS
 
-        comp_text = " ".join(p.content_text for p in competitor_pages if p.content_text)
-        comp_words = set(re.findall(r'\b[a-zA-Z]{4,}\b', comp_text.lower())) - STOP_WORDS
+        comp_text = " ".join(_clean_html(p.content_text or "") for p in competitor_pages if p.content_text)
+        comp_words = set(re.findall(r'\b[a-zA-Z]{5,}\b', comp_text.lower())) - STOP_WORDS - NAV_WORDS
 
         missing = comp_words - my_words
-        word_freq = Counter(re.findall(r'\b[a-zA-Z]{4,}\b', comp_text.lower()))
+        word_freq = Counter(re.findall(r'\b[a-zA-Z]{5,}\b', comp_text.lower()))
 
-        for word in sorted(missing, key=lambda w: word_freq.get(w, 0), reverse=True)[:30]:
+        for word in sorted(missing, key=lambda w: word_freq.get(w, 0), reverse=True)[:25]:
             freq = word_freq.get(word, 0)
             if freq >= 3:
                 gaps.append({
-                    "keyword": word,
+                    "keyword": word.title(),
                     "competitor_frequency": freq,
                     "your_frequency": 0,
                     "priority": "HIGH" if freq >= 10 else "MEDIUM",
+                    "action": f"Create content covering '{word}' — competitor mentions it {freq} times across their pages",
                 })
 
         return gaps
@@ -477,7 +558,7 @@ class KeywordResearchEngine:
             "difficulty": kw["difficulty"],
             "type": kw["type"],
             "competition_level": "High" if kw["difficulty"] == "HIGH" else "Medium" if kw["difficulty"] == "MEDIUM" else "Low",
-        } for kw in keywords[:30]]
+        } for kw in keywords[:25]]
 
     def _build_summary(self, result):
         total = len(result["keywords"])
@@ -500,7 +581,7 @@ class KeywordResearchEngine:
             "suggested_faqs": len(result["suggested_faqs"]),
             "content_gaps": len(result["content_gaps"]),
             "top_opportunities": [
-                {"keyword": k["keyword"], "difficulty": k["difficulty"], "intent": k["intent"]}
+                {"keyword": k["keyword"], "difficulty": k["difficulty"], "intent": k["intent"], "estimated_volume": k.get("estimated_volume", 0)}
                 for k in result["keywords"] if k["opportunity"] == "HIGH"
             ][:10],
         }

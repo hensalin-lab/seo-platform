@@ -5,20 +5,99 @@ from app.engine.crawler import PageData
 
 logger = logging.getLogger(__name__)
 
+NAV_WORDS = frozenset(
+    "login sign account support help documentation docs api status contact "
+    "privacy policy terms conditions cookie about us our team careers jobs "
+    "home page site map blog resources guides faq pricing plan enterprise "
+    "get demo free trial signup register subscribe download try buy now "
+    "search menu close open expand collapse nav sidebar footer header "
+    "copyright reserved rights reserved all rights "
+    "facebook twitter linkedin instagram youtube github "
+    "back next previous skip content main navigation "
+    "min max start free trial demo activate revenue "
+    "beta read more learn more see more view all show "
+    " calculator fit comics podcast contact ".split()
+)
+
+STOP_WORDS = frozenset(
+    "a an the and or but if in on at to for of is it its be are was were am been being "
+    "do does did has have had with from by as this that these those so too very just not "
+    "no nor can could would should may might will shall must need dare ought used also "
+    "into over under between through during before after above below up down out off "
+    "again further then once here there when where why how all any both each few more "
+    "most other some such only own same than what which who whom your you we our us "
+    "they them their he she him her me my i the their there than them then when what "
+    "which where who whom how its being been were are am will would could should can "
+    "may might shall must do does did has have had".split()
+)
+
+
+def _clean_text(text: str) -> str:
+    text = re.sub(r"<script[^>]*>.*?</script>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<nav[^>]*>.*?</nav>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<footer[^>]*>.*?</footer>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<header[^>]*>.*?</header>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _extract_meaningful_keywords(text: str, min_len: int = 4) -> list[tuple[str, int]]:
+    clean = _clean_text(text).lower()
+    words = re.findall(r"\b[a-z]{" + str(min_len) + r",}\b", clean)
+    words = [w for w in words if w not in STOP_WORDS and w not in NAV_WORDS and len(w) >= min_len]
+    return Counter(words).most_common(80)
+
+
+def _extract_bigrams(text: str) -> list[tuple[str, int]]:
+    clean = _clean_text(text).lower()
+    words = re.findall(r"\b[a-z]{3,}\b", clean)
+    words = [w for w in words if w not in STOP_WORDS and w not in NAV_WORDS]
+    bigrams = [f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)]
+    return Counter(bigrams).most_common(40)
+
+
+def _extract_title_bigrams(title: str) -> list[str]:
+    clean = _clean_text(title).lower()
+    words = [w for w in clean.split() if w not in STOP_WORDS and len(w) >= 3]
+    return [f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)]
+
+
+def _domain_from_url(url: str) -> str:
+    try:
+        domain = url.split("//")[-1].split("/")[0].split(":")[0]
+        if domain.startswith("www."):
+            domain = domain[4:]
+        return domain
+    except Exception:
+        return ""
+
+
+def _is_real_content_page(page) -> bool:
+    url = (page.url or "").lower()
+    skip = ("/login", "/signup", "/sign-up", "/register", "/admin", "/api/", "/feed", "/sitemap",
+            ".xml", ".json", ".rss", ".css", ".js", "#", "mailto:", "tel:")
+    return not any(s in url for s in skip)
+
 
 class CompetitorEngine:
     def analyze(self, my_pages, competitor_pages):
         if not competitor_pages:
             return self._empty_result()
 
-        my_200 = [p for p in my_pages if p.status_code == 200]
-        comp_200 = [p for p in competitor_pages if p.status_code == 200]
+        my_200 = [p for p in my_pages if p.status_code == 200 and _is_real_content_page(p)]
+        comp_200 = [p for p in competitor_pages if p.status_code == 200 and _is_real_content_page(p)]
+
+        if not my_200 or not comp_200:
+            return self._empty_result()
 
         my_urls = set(p.url for p in my_200)
         comp_urls = set(p.url for p in comp_200)
 
-        my_words = sum(p.word_count for p in my_200) / max(len(my_200), 1)
-        comp_words = sum(p.word_count for p in comp_200) / max(len(comp_200), 1)
+        my_words = sum(p.word_count or 0 for p in my_200) / max(len(my_200), 1)
+        comp_words = sum(p.word_count or 0 for p in comp_200) / max(len(comp_200), 1)
 
         my_schema = sum(1 for p in my_200 if p.schema_markup) / max(len(my_200), 1)
         comp_schema = sum(1 for p in comp_200 if p.schema_markup) / max(len(comp_200), 1)
@@ -32,6 +111,8 @@ class CompetitorEngine:
             for link in p.links_internal:
                 my_internal.add(link["url"].rstrip("/"))
         for p in comp_200:
+            for link in comp_internal if False else []:
+                pass
             for link in p.links_internal:
                 comp_internal.add(link["url"].rstrip("/"))
 
@@ -122,55 +203,91 @@ class CompetitorEngine:
     def _find_keyword_gaps(self, my_pages, comp_pages, my_avg_words, comp_avg_words):
         opportunities = []
 
-        for p in comp_pages:
-            if p.word_count > comp_avg_words * 1.3:
-                opportunities.append({
-                    "topic": p.title or p.url.split("/")[-1].replace("-", " ").title(),
-                    "url": p.url,
-                    "reason": f"Competitor has {p.word_count} words on this topic (avg: {int(comp_avg_words)})",
-                    "opportunity": "HIGH",
-                    "action": f"Create comprehensive content targeting this topic with {int(comp_avg_words * 1.2)}+ words",
-                })
+        my_all_text = " ".join(
+            (p.content_text or "") + " " + (p.title or "") + " " + (p.h1 or "")
+            for p in my_pages
+        )
+        comp_all_text = " ".join(
+            (p.content_text or "") + " " + (p.title or "") + " " + (p.h1 or "")
+            for p in comp_pages
+        )
 
-        my_paths = set()
-        comp_paths = set()
-        for p in my_pages:
-            parts = [s for s in p.url.split("/") if s and s != "https:" and s != "http:"]
-            if len(parts) > 2:
-                my_paths.add(parts[-1].lower())
-        for p in comp_pages:
-            parts = [s for s in p.url.split("/") if s and s != "https:" and s != "http:"]
-            if len(parts) > 2:
-                comp_paths.add(parts[-1].lower())
+        my_kws = dict(_extract_meaningful_keywords(my_all_text))
+        comp_kws = dict(_extract_meaningful_keywords(comp_all_text))
 
-        for path in list(comp_paths - my_paths)[:15]:
-            opportunities.append({
-                "topic": path.replace("-", " ").replace("_", " ").title(),
-                "url": "",
-                "reason": f"Competitor has '/{path}' page, you don't",
-                "opportunity": "MEDIUM",
-                "action": f"Create content for /{path} topic",
+        my_bigrams = dict(_extract_bigrams(my_all_text))
+        comp_bigrams = dict(_extract_bigrams(comp_all_text))
+
+        my_all_terms = set(my_kws.keys()) | set(my_bigrams.keys())
+        comp_all_terms = set(comp_kws.keys()) | set(comp_bigrams.keys())
+
+        missing = comp_all_terms - my_all_terms
+
+        scored = []
+        for term in missing:
+            freq = comp_kws.get(term, 0) + comp_bigrams.get(term, 0)
+            if freq < 2:
+                continue
+            is_bigram = " " in term
+            word_count = len(term.split())
+            if word_count >= 3:
+                intent = "INFORMATIONAL"
+            elif any(w in term for w in ("best", "top", "review", "vs", "alternative", "comparison")):
+                intent = "COMMERCIAL"
+            elif any(w in term for w in ("buy", "price", "cost", "free", "trial", "demo")):
+                intent = "TRANSACTIONAL"
+            else:
+                intent = "INFORMATIONAL"
+
+            difficulty = "LOW" if freq <= 3 else "MEDIUM" if freq <= 8 else "HIGH"
+            importance = "HIGH" if freq >= 8 else "MEDIUM" if freq >= 4 else "LOW"
+
+            scored.append({
+                "keyword": term.title(),
+                "competitor_frequency": freq,
+                "is_phrase": is_bigram,
+                "intent": intent,
+                "difficulty": difficulty,
+                "importance": importance,
             })
 
-        my_all_text = " ".join(p.content_text.lower() for p in my_pages if p.content_text)
-        comp_all_text = " ".join(p.content_text.lower() for p in comp_pages if p.content_text)
+        scored.sort(key=lambda x: x["competitor_frequency"], reverse=True)
 
-        my_words = set(re.findall(r'\b[a-z]{4,}\b', my_all_text[:200000]))
-        comp_words = set(re.findall(r'\b[a-z]{4,}\b', comp_all_text[:200000]))
-
-        stop = {"this", "that", "with", "from", "have", "been", "were", "will", "would", "could", "should", "about", "their", "there", "what", "when", "where", "which", "these", "those", "more", "than", "also", "into", "only", "very", "some", "your", "just", "like", "over", "such", "make", "both", "each", "much", "most", "other", "being", "does", "does", "well", "back", "even", "here", "after", "first", "still", "used"}
-        my_words -= stop
-        comp_words -= stop
-
-        unique_to_comp = comp_words - my_words
-        high_value = [w for w in unique_to_comp if len(w) > 5][:20]
-        for word in high_value:
+        for item in scored[:20]:
             opportunities.append({
-                "topic": word.title(),
+                "topic": item["keyword"],
                 "url": "",
-                "reason": f"Competitor uses '{word}' in content but you don't",
+                "reason": f"Competitor mentions '{item['keyword']}' {item['competitor_frequency']} times across their pages but you don't use this term",
+                "opportunity": item["importance"],
+                "action": f"Create content or optimize existing pages to include '{item['keyword']}' — target {max(500, item['competitor_frequency'] * 120)}+ words with natural usage",
+                "intent": item["intent"],
+                "difficulty": item["difficulty"],
+            })
+
+        comp_only_paths = set()
+        for p in comp_pages:
+            parts = p.url.rstrip("/").split("/")
+            if len(parts) > 3:
+                slug = parts[-1].lower()
+                if len(slug) > 3 and slug not in ("index", "home", "default"):
+                    comp_only_paths.add(slug)
+
+        my_paths = set()
+        for p in my_pages:
+            parts = p.url.rstrip("/").split("/")
+            if len(parts) > 3:
+                my_paths.add(parts[-1].lower())
+
+        for path in list(comp_only_paths - my_paths)[:10]:
+            topic = path.replace("-", " ").replace("_", " ").title()
+            opportunities.append({
+                "topic": topic,
+                "url": "",
+                "reason": f"Competitor has a dedicated page at /{path} but you don't have equivalent content",
                 "opportunity": "MEDIUM",
-                "action": f"Create content or add sections covering '{word}'",
+                "action": f"Create a dedicated page for '{topic}' targeting this content gap — aim for {int(comp_avg_words * 1.2)}+ words",
+                "intent": "INFORMATIONAL",
+                "difficulty": "MEDIUM",
             })
 
         return sorted(opportunities, key=lambda x: {"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(x.get("opportunity", "LOW"), 2))[:25]
@@ -183,41 +300,50 @@ class CompetitorEngine:
         for url in my_urls:
             parts = [s for s in url.split("/") if s and s not in ("https:", "http:", "")]
             for part in parts[2:]:
-                my_path_segments.add(part.lower())
+                if len(part) > 3:
+                    my_path_segments.add(part.lower())
         for url in comp_urls:
             parts = [s for s in url.split("/") if s and s not in ("https:", "http:", "")]
             for part in parts[2:]:
-                comp_path_segments.add(part.lower())
+                if len(part) > 3:
+                    comp_path_segments.add(part.lower())
 
         missing_segments = comp_path_segments - my_path_segments
-        for seg in list(missing_segments)[:15]:
+        for seg in list(missing_segments)[:10]:
+            if seg in ("index", "home", "default", "admin", "login", "signup", "api"):
+                continue
+            topic = seg.replace("-", " ").replace("_", " ").title()
             opportunities.append({
-                "topic": seg.replace("-", " ").replace("_", " ").title(),
-                "reason": f"Competitor has '/{seg}' content you're missing",
-                "priority": "MEDIUM",
-                "action": f"Create content about {seg.replace('-', ' ')}",
-            })
-
-        my_types = set()
-        comp_types = set()
-        for p in my_pages:
-            for s in p.schema_markup:
-                if isinstance(s, dict) and "@type" in s:
-                    my_types.add(s["@type"])
-        for p in comp_pages:
-            for s in p.schema_markup:
-                if isinstance(s, dict) and "@type" in s:
-                    comp_types.add(s["@type"])
-
-        for stype in comp_types - my_types:
-            opportunities.append({
-                "topic": f"Add {stype} Schema",
-                "reason": f"Competitor uses {stype} schema but you don't",
+                "topic": topic,
+                "reason": f"Competitor has a dedicated /{seg} page with content you're missing",
                 "priority": "HIGH",
-                "action": f"Implement {stype} structured data",
+                "action": f"Create comprehensive content about '{topic}' — competitor invested a full page here, so this topic matters for ranking",
             })
 
-        return opportunities[:20]
+        my_text_words = set()
+        comp_text_words = set()
+        for p in my_pages:
+            if p.content_text:
+                clean = _clean_text(p.content_text).lower()
+                words = set(re.findall(r"\b[a-z]{5,}\b", clean)) - STOP_WORDS - NAV_WORDS
+                my_text_words |= words
+        for p in comp_pages:
+            if p.content_text:
+                clean = _clean_text(p.content_text).lower()
+                words = set(re.findall(r"\b[a-z]{5,}\b", clean)) - STOP_WORDS - NAV_WORDS
+                comp_text_words |= words
+
+        high_value_missing = comp_text_words - my_text_words
+        topic_words = sorted(high_value_missing, key=lambda w: len(w), reverse=True)[:15]
+        for word in topic_words:
+            opportunities.append({
+                "topic": word.title(),
+                "reason": f"Competitor covers the concept of '{word}' across their content but you don't address it",
+                "priority": "MEDIUM",
+                "action": f"Add a section or article covering '{word}' with at least 300+ words of substantive content",
+            })
+
+        return opportunities[:15]
 
     def _find_entity_gaps(self, my_pages, comp_pages):
         my_entities = set()
@@ -245,53 +371,99 @@ class CompetitorEngine:
         for url in my_urls:
             parts = [s for s in url.split("/") if s and s not in ("https:", "http:", "")]
             if len(parts) > 3:
-                my_segs.add(parts[-1].lower())
+                seg = parts[-1].lower()
+                if len(seg) > 3:
+                    my_segs.add(seg)
         for url in comp_urls:
             parts = [s for s in url.split("/") if s and s not in ("https:", "http:", "")]
             if len(parts) > 3:
-                comp_segs.add(parts[-1].lower())
+                seg = parts[-1].lower()
+                if len(seg) > 3:
+                    comp_segs.add(seg)
 
         return [{"topic": s.replace("-", " ").title(), "action": f"Create content for '{s.replace('-', ' ')}'"} for s in list(comp_segs - my_segs)[:20]]
 
     def _analyze_backlink_gap(self, my_pages, comp_pages):
-        my_ext_urls = set()
-        comp_ext_urls = set()
+        my_domains = set()
+        comp_domains = set()
         for p in my_pages:
             for link in p.links_external:
-                my_ext_urls.add(link.get("url", ""))
+                url = link.get("url", "") if isinstance(link, dict) else str(link)
+                domain = _domain_from_url(url)
+                if domain and len(domain) > 3:
+                    my_domains.add(domain)
         for p in comp_pages:
             for link in p.links_external:
-                comp_ext_urls.add(link.get("url", ""))
+                url = link.get("url", "") if isinstance(link, dict) else str(link)
+                domain = _domain_from_url(url)
+                if domain and len(domain) > 3:
+                    comp_domains.add(domain)
 
-        comp_unique = comp_ext_urls - my_ext_urls
-        return [{"domain": url, "action": f"Consider acquiring backlink from this domain"} for url in list(comp_unique)[:15]]
+        comp_unique = comp_domains - my_domains
+
+        domain_sources = {}
+        for p in comp_pages:
+            for link in p.links_external:
+                url = link.get("url", "") if isinstance(link, dict) else str(link)
+                domain = _domain_from_url(url)
+                if domain in comp_unique:
+                    if domain not in domain_sources:
+                        domain_sources[domain] = {"count": 0, "pages": [], "anchors": []}
+                    domain_sources[domain]["count"] += 1
+                    if p.url not in domain_sources[domain]["pages"]:
+                        domain_sources[domain]["pages"].append(p.url)
+                    if isinstance(link, dict):
+                        anchor = link.get("text", "").strip()
+                        if anchor and len(anchor) > 1 and anchor not in domain_sources[domain]["anchors"]:
+                            domain_sources[domain]["anchors"].append(anchor[:60])
+
+        results = []
+        for domain, info in sorted(domain_sources.items(), key=lambda x: x[1]["count"], reverse=True)[:15]:
+            anchor_text = ", ".join(info["anchors"][:3]) if info["anchors"] else "no anchor text"
+            results.append({
+                "domain": domain,
+                "link_count": info["count"],
+                "linked_from_pages": len(info["pages"]),
+                "anchor_text_examples": anchor_text,
+                "action": f"Contact {domain} for a backlink opportunity — they already link to {len(info['pages'])} competitor page(s)",
+                "priority": "HIGH" if info["count"] >= 3 else "MEDIUM",
+            })
+
+        return results
 
     def _analyze_serp_gap(self, my_pages, comp_pages):
         gaps = []
-        my_titles = {p.title.lower(): p.url for p in my_pages if p.title}
-        comp_titles = {p.title.lower(): p.url for p in comp_pages if p.title}
+        my_urls = {p.url.rstrip("/") for p in my_pages}
+        comp_urls = {p.url.rstrip("/") for p in comp_pages}
 
-        for title, url in comp_titles.items():
-            if title not in my_titles:
-                gaps.append({
-                    "topic": title.title(),
-                    "competitor_url": url,
-                    "action": f"Create content targeting: {title.title()}",
-                })
+        missing_urls = comp_urls - my_urls
+        for url in sorted(missing_urls)[:15]:
+            slug = url.rstrip("/").split("/")[-1] if url.rstrip("/") else ""
+            topic = slug.replace("-", " ").replace("_", " ").title() if slug else url
+            comp_page = next((p for p in comp_pages if p.url.rstrip("/") == url), None)
+            title = comp_page.title if comp_page and comp_page.title else topic
+            word_count = comp_page.word_count if comp_page else 0
+            gaps.append({
+                "topic": title,
+                "competitor_url": url,
+                "action": f"Create content targeting '{title}' — competitor's page has ~{word_count} words",
+                "priority": "HIGH" if word_count > 1000 else "MEDIUM",
+            })
 
         return gaps[:15]
 
     def _generate_strategies(self, my_pages, comp_pages, strengths, weaknesses, keyword_ops, content_ops):
         strategies = []
-        my_words = sum(p.word_count for p in my_pages) / max(len(my_pages), 1)
-        comp_words = sum(p.word_count for p in comp_pages) / max(len(comp_pages), 1)
+        my_words = sum(p.word_count or 0 for p in my_pages) / max(len(my_pages), 1)
+        comp_words = sum(p.word_count or 0 for p in comp_pages) / max(len(comp_pages), 1)
 
         if my_words < comp_words:
-            strategies.append({"strategy": "Increase Content Depth", "detail": f"Expand content to match competitor's {int(comp_words)} avg words", "priority": "HIGH"})
-        
+            strategies.append({"strategy": "Increase Content Depth", "detail": f"Expand content to match competitor's {int(comp_words)} avg words per page", "priority": "HIGH"})
+
         high_kw_ops = [k for k in keyword_ops if k.get("opportunity") == "HIGH"]
         if high_kw_ops:
-            strategies.append({"strategy": "Target High-Value Keyword Gaps", "detail": f"Create content for {len(high_kw_ops)} high-opportunity topics", "priority": "HIGH"})
+            kw_list = ", ".join(k["topic"] for k in high_kw_ops[:5])
+            strategies.append({"strategy": "Target High-Value Keyword Gaps", "detail": f"Create content for: {kw_list}", "priority": "HIGH"})
 
         my_blog = sum(1 for p in my_pages if "/blog" in p.url.lower())
         comp_blog = sum(1 for p in comp_pages if "/blog" in p.url.lower())
