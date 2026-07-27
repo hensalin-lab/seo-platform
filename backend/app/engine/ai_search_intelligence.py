@@ -1122,3 +1122,5 @@ class AiSearchIntelligenceEngine:
             "predicted": predicted,
             "estimated_overall": round(sum(predicted.values()) / max(len(predicted), 1), 1),
         }
+#   F o r c e   r e d e p l o y   0 7 / 2 7 / 2 0 2 6   1 5 : 0 5 : 3 3  
+ 
