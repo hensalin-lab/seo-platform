@@ -4762,3 +4762,379 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
     }
     _cache_set(cache_key, resp)
     return resp
+
+
+@router.get("/audit/{audit_id}/ai-bot-intelligence/{page_idx}")
+async def get_ai_bot_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"abi:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.ai_bot_intelligence import AiBotIntelligenceEngine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = AiBotIntelligenceEngine()
+    page_obj = PageAdapter(pages[page_idx])
+    robots_txt = pages[page_idx].robots_txt if hasattr(pages[page_idx], 'robots_txt') and pages[page_idx].robots_txt else ""
+    all_pages_data = [PageAdapter(p) for p in pages]
+    page_dict = {
+        "url": page_obj.url,
+        "title": page_obj.title,
+        "meta_description": page_obj.meta_description,
+        "h1": page_obj.h1,
+        "headings": page_obj.headings,
+        "content_text": page_obj.content_text,
+        "word_count": page_obj.word_count,
+        "html_raw": page_obj.html_raw,
+        "images": page_obj.images,
+        "links_internal": page_obj.links_internal,
+        "links_external": page_obj.links_external,
+        "schema_markup": page_obj.schema_markup,
+        "page_type": page_obj.page_type,
+        "response_time_ms": page_obj.response_time_ms,
+        "status_code": page_obj.status_code,
+        "robots_txt": robots_txt,
+        "linked_files": [],
+        "domain": "",
+    }
+    resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/offsite-authority/{page_idx}")
+async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"osa:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.offsite_authority import OffsiteAuthorityEngine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = OffsiteAuthorityEngine()
+    page_obj = PageAdapter(pages[page_idx])
+    from urllib.parse import urlparse
+    domain = urlparse(page_obj.url).netloc if page_obj.url else ""
+    all_pages_data = [PageAdapter(p) for p in pages]
+    page_dict = {
+        "url": page_obj.url,
+        "title": page_obj.title,
+        "meta_description": page_obj.meta_description,
+        "h1": page_obj.h1,
+        "headings": page_obj.headings,
+        "content_text": page_obj.content_text,
+        "word_count": page_obj.word_count,
+        "html_raw": page_obj.html_raw,
+        "images": page_obj.images,
+        "links_internal": page_obj.links_internal,
+        "links_external": page_obj.links_external,
+        "schema_markup": page_obj.schema_markup,
+        "page_type": page_obj.page_type,
+        "response_time_ms": page_obj.response_time_ms,
+        "status_code": page_obj.status_code,
+        "robots_txt": "",
+        "linked_files": [],
+        "domain": domain,
+    }
+    resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/schema-intelligence/{page_idx}")
+async def get_schema_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"si:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.schema_intelligence import SchemaIntelligenceEngine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = SchemaIntelligenceEngine()
+    page_obj = PageAdapter(pages[page_idx])
+    all_pages_data = [PageAdapter(p) for p in pages]
+    page_dict = {
+        "url": page_obj.url,
+        "title": page_obj.title,
+        "meta_description": page_obj.meta_description,
+        "h1": page_obj.h1,
+        "headings": page_obj.headings,
+        "content_text": page_obj.content_text,
+        "word_count": page_obj.word_count,
+        "html_raw": page_obj.html_raw,
+        "images": page_obj.images,
+        "links_internal": page_obj.links_internal,
+        "links_external": page_obj.links_external,
+        "schema_markup": page_obj.schema_markup,
+        "page_type": page_obj.page_type,
+        "response_time_ms": page_obj.response_time_ms,
+        "status_code": page_obj.status_code,
+        "robots_txt": "",
+        "linked_files": [],
+        "domain": "",
+    }
+    resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/speed-intelligence/{page_idx}")
+async def get_speed_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"spi:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.speed_intelligence import SpeedIntelligenceEngine
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = SpeedIntelligenceEngine()
+    page_obj = PageAdapter(pages[page_idx])
+    all_pages_data = [PageAdapter(p) for p in pages]
+    page_dict = {
+        "url": page_obj.url,
+        "title": page_obj.title,
+        "meta_description": page_obj.meta_description,
+        "h1": page_obj.h1,
+        "headings": page_obj.headings,
+        "content_text": page_obj.content_text,
+        "word_count": page_obj.word_count,
+        "html_raw": page_obj.html_raw,
+        "images": page_obj.images,
+        "links_internal": page_obj.links_internal,
+        "links_external": page_obj.links_external,
+        "schema_markup": page_obj.schema_markup,
+        "page_type": page_obj.page_type,
+        "response_time_ms": page_obj.response_time_ms,
+        "status_code": page_obj.status_code,
+        "robots_txt": "",
+        "linked_files": [],
+        "domain": "",
+    }
+    resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/content-deep-v2/{page_idx}")
+async def get_content_deep_v2(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
+    cache_key = f"cdv2:{audit_id}:{page_idx}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.content_intelligence_deep import ContentIntelligenceDeep
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if page_idx < 0 or page_idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index")
+
+    engine = ContentIntelligenceDeep()
+    page_obj = PageAdapter(pages[page_idx])
+    all_pages_data = [PageAdapter(p) for p in pages]
+    page_dict = {
+        "url": page_obj.url,
+        "title": page_obj.title,
+        "meta_description": page_obj.meta_description,
+        "h1": page_obj.h1,
+        "headings": page_obj.headings,
+        "content_text": page_obj.content_text,
+        "word_count": page_obj.word_count,
+        "html_raw": page_obj.html_raw,
+        "images": page_obj.images,
+        "links_internal": page_obj.links_internal,
+        "links_external": page_obj.links_external,
+        "schema_markup": page_obj.schema_markup,
+        "page_type": page_obj.page_type,
+        "response_time_ms": page_obj.response_time_ms,
+        "status_code": page_obj.status_code,
+        "robots_txt": "",
+        "linked_files": [],
+        "domain": "",
+    }
+    resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/enterprise-dashboard")
+async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get_db)):
+    cache_key = f"ent_dash:{audit_id}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    all_pages_data = [PageAdapter(p) for p in pages]
+
+    score_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
+    scores = score_result.scalar_one_or_none()
+
+    engine_scores = {}
+    priority_actions = []
+
+    try:
+        from app.engine.ai_bot_intelligence import AiBotIntelligenceEngine
+        from app.engine.offsite_authority import OffsiteAuthorityEngine
+        from app.engine.schema_intelligence import SchemaIntelligenceEngine
+        from app.engine.speed_intelligence import SpeedIntelligenceEngine
+        from app.engine.content_intelligence_deep import ContentIntelligenceDeep
+
+        for idx, page in enumerate(pages[:50]):
+            page_obj = PageAdapter(page)
+            page_dict = {
+                "url": page_obj.url, "title": page_obj.title, "meta_description": page_obj.meta_description,
+                "h1": page_obj.h1, "headings": page_obj.headings, "content_text": page_obj.content_text,
+                "word_count": page_obj.word_count, "html_raw": page_obj.html_raw, "images": page_obj.images,
+                "links_internal": page_obj.links_internal, "links_external": page_obj.links_external,
+                "schema_markup": page_obj.schema_markup, "page_type": page_obj.page_type,
+                "response_time_ms": page_obj.response_time_ms, "status_code": page_obj.status_code,
+                "robots_txt": "", "linked_files": [], "domain": "",
+            }
+
+            try:
+                abi = AiBotIntelligenceEngine().analyze(page_dict, all_pages=all_pages_data)
+                key = "ai_bot_intelligence"
+                if key not in engine_scores:
+                    engine_scores[key] = []
+                engine_scores[key].append({"url": page.url, "score": abi.get("score", 0)})
+                if abi.get("score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": abi.get("score", 0), "issues": abi.get("issues", [])[:3]})
+            except Exception:
+                pass
+
+            try:
+                osa = OffsiteAuthorityEngine().analyze(page_dict, all_pages=all_pages_data)
+                key = "offsite_authority"
+                if key not in engine_scores:
+                    engine_scores[key] = []
+                engine_scores[key].append({"url": page.url, "score": osa.get("score", 0)})
+                if osa.get("score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": osa.get("score", 0), "issues": osa.get("issues", [])[:3]})
+            except Exception:
+                pass
+
+            try:
+                si = SchemaIntelligenceEngine().analyze(page_dict, all_pages=all_pages_data)
+                key = "schema_intelligence"
+                if key not in engine_scores:
+                    engine_scores[key] = []
+                engine_scores[key].append({"url": page.url, "score": si.get("score", 0)})
+                if si.get("score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": si.get("score", 0), "issues": si.get("issues", [])[:3]})
+            except Exception:
+                pass
+
+            try:
+                spi = SpeedIntelligenceEngine().analyze(page_dict, all_pages=all_pages_data)
+                key = "speed_intelligence"
+                if key not in engine_scores:
+                    engine_scores[key] = []
+                engine_scores[key].append({"url": page.url, "score": spi.get("score", 0)})
+                if spi.get("score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": spi.get("score", 0), "issues": spi.get("issues", [])[:3]})
+            except Exception:
+                pass
+
+            try:
+                cdv2 = ContentIntelligenceDeep().analyze(page_dict, all_pages=all_pages_data)
+                key = "content_deep_v2"
+                if key not in engine_scores:
+                    engine_scores[key] = []
+                engine_scores[key].append({"url": page.url, "score": cdv2.get("score", 0)})
+                if cdv2.get("score", 100) < 60:
+                    priority_actions.append({"engine": key, "url": page.url, "score": cdv2.get("score", 0), "issues": cdv2.get("issues", [])[:3]})
+            except Exception:
+                pass
+
+    except Exception as e:
+        logger.warning(f"Enterprise dashboard engine aggregation failed: {e}")
+
+    avg_engine_scores = {}
+    for eng, entries in engine_scores.items():
+        if entries:
+            avg_engine_scores[eng] = round(sum(e["score"] for e in entries) / len(entries), 1)
+
+    overall_score = round(sum(avg_engine_scores.values()) / len(avg_engine_scores), 1) if avg_engine_scores else 0
+
+    priority_actions.sort(key=lambda x: x.get("score", 100))
+
+    business_impact = {
+        "overall_score": overall_score,
+        "total_pages": len(pages),
+        "critical_areas": [a for a in priority_actions if a.get("score", 100) < 40][:10],
+        "improvement_opportunities": len(priority_actions),
+    }
+
+    resp = {
+        "audit_id": audit_id,
+        "website_url": audit.website_url,
+        "overall_score": overall_score,
+        "engine_scores": avg_engine_scores,
+        "raw_engine_data": {k: v[:10] for k, v in engine_scores.items()},
+        "priority_actions": priority_actions[:30],
+        "business_impact": business_impact,
+        "trends": {
+            "seo_score": scores.seo_score if scores else 0,
+            "technical_score": scores.technical_score if scores else 0,
+            "aeo_score": scores.aeo_score if scores else 0,
+            "geo_score": scores.geo_score if scores else 0,
+        },
+    }
+    _cache_set(cache_key, resp)
+    return resp

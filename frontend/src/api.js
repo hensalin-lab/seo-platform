@@ -123,5 +123,12 @@ export const api = {
   getMegaAnalysisByUrl: (id, url) => request(`/mega-analysis/${id}/by-url?url=${encodeURIComponent(url)}`),
   getFullStrategy: (id) => request(`/full-strategy/${id}`),
   getAllPagesMega: (id) => request(`/all-pages-mega/${id}`),
+  getAiBotIntelligence: (id, idx) => request(`/audit/${id}/ai-bot-intelligence/${idx}`),
+  getOffsiteAuthority: (id, idx) => request(`/audit/${id}/offsite-authority/${idx}`),
+  getSchemaIntelligence: (id, idx) => request(`/audit/${id}/schema-intelligence/${idx}`),
+  getSpeedIntelligence: (id, idx) => request(`/audit/${id}/speed-intelligence/${idx}`),
+  getContentDeepV2: (id, idx) => request(`/audit/${id}/content-deep-v2/${idx}`),
+  getPageIntelligenceV2: (id, idx) => request(`/audit/${id}/page-intelligence-v2/${idx}`),
+  getEnterpriseDashboard: (id) => request(`/audit/${id}/enterprise-dashboard`),
   request,
 };

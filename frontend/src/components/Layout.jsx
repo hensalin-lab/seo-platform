@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2,
   Gauge, BookOpen, Key, Globe, MessageSquare, Users,
   ExternalLink, Shield, Activity, Lightbulb, GitCompare,
-  Filter, Edit3, Eye, Layers, Brain, Zap, Sparkles
+  Filter, Edit3, Eye, Layers, Brain, Zap, Sparkles,
+  Bot, Award, FileCode, Cpu
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -24,8 +25,11 @@ const AUDIT_NAV = [
     items: [
       { suffix: '/seo', icon: Search, label: 'SEO Analysis' },
       { suffix: '/page-detail', icon: Layers, label: 'Page Intelligence' },
+      { suffix: '/page-deep', icon: Layers, label: 'Page Deep Dive' },
       { suffix: '/speed', icon: Gauge, label: 'Speed & CWV' },
+      { suffix: '/speed-intel', icon: Cpu, label: 'Speed Intelligence' },
       { suffix: '/internal-links', icon: Link2, label: 'Internal Links' },
+      { suffix: '/schema-intel', icon: FileCode, label: 'Schema Intelligence' },
     ],
   },
   {
@@ -41,6 +45,7 @@ const AUDIT_NAV = [
     items: [
       { suffix: '/ai-recommendations', icon: Sparkles, label: 'AI Recommendations' },
       { suffix: '/ai-deep', icon: Brain, label: 'AI Search Deep' },
+      { suffix: '/ai-bots', icon: Bot, label: 'AI Bot Access' },
       { suffix: '/eeat', icon: Activity, label: 'E-E-A-T' },
       { suffix: '/serp-preview', icon: Eye, label: 'SERP & AI Preview' },
     ],
@@ -50,6 +55,7 @@ const AUDIT_NAV = [
     items: [
       { suffix: '/recommendations-deep', icon: Zap, label: 'Recommendations' },
       { suffix: '/competitor-deep', icon: Users, label: 'Competitor Intel' },
+      { suffix: '/offsite-authority', icon: Award, label: 'Off-Site Authority' },
       { suffix: '/remediation', icon: Filter, label: 'Remediation Feed' },
       { suffix: '/roadmap', icon: GitCompare, label: 'Roadmap' },
     ],
@@ -109,6 +115,11 @@ export default function Layout({ children }) {
     if (path.endsWith('/serp-preview')) return 'SERP & AI Preview';
     if (path.endsWith('/chat')) return 'AI Chat';
     if (path.endsWith('/ai-recommendations')) return 'AI Recommendations';
+    if (path.endsWith('/ai-bots')) return 'AI Bot Intelligence';
+    if (path.endsWith('/offsite-authority')) return 'Off-Site Authority';
+    if (path.endsWith('/schema-intel')) return 'Schema Intelligence';
+    if (path.endsWith('/speed-intel')) return 'Speed Intelligence';
+    if (path.endsWith('/page-deep')) return 'Page Deep Dive';
     if (path.endsWith('/progress')) return 'Audit Progress';
     if (path.endsWith('/pages')) return 'Page Analysis';
     return 'Report';

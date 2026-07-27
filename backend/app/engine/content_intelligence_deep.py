@@ -1,21 +1,22 @@
+from __future__ import annotations
+
+import json
 import re
 from typing import Any
 
 
 class ContentIntelligenceDeep:
 
-    IDEAL_WORDS = {
+    IDEAL_WORDS: dict[str, int] = {
         "BLOG": 2000,
         "PRODUCT": 1500,
         "LANDING": 1000,
         "FAQ": 1200,
         "DOCS": 2500,
     }
-    DEFAULT_IDEAL = 1500
+    DEFAULT_IDEAL: int = 1500
 
-    QUESTION_WORDS = {"who", "what", "where", "when", "why", "how", "which", "can", "does", "is", "are", "do"}
-
-    STOP_WORDS = {
+    STOP_WORDS: set[str] = {
         "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
         "have", "has", "had", "do", "does", "did", "will", "would", "could",
         "should", "may", "might", "shall", "can", "to", "of", "in", "for",
@@ -27,227 +28,1755 @@ class ContentIntelligenceDeep:
         "other", "some", "such", "no", "only", "own", "same", "than", "too",
         "very", "just", "because", "if", "when", "while", "that", "this",
         "these", "those", "it", "its", "they", "them", "their", "we", "us",
-        "our", "you", "your", "he", "him", "his", "she", "her", "my", "me",
-        "i",
+        "our", "you", "your", "he", "him", "his", "she", "her", "my", "me", "i",
     }
 
-    TRANSITIONS = {
+    TRANSITIONS: set[str] = {
         "furthermore", "moreover", "additionally", "consequently", "therefore",
         "however", "nevertheless", "nonetheless", "meanwhile", "subsequently",
         "accordingly", "hence", "thus", "likewise", "similarly", "conversely",
         "alternatively", "specifically", "notably", "importantly", "essentially",
-        "essentially", "basically", "literally", "actually", "certainly",
-        "undoubtedly", "clearly", "obviously", "naturally", "inevitably",
     }
 
-    HEDGING = {
+    HEDGING: set[str] = {
         "might", "perhaps", "possibly", "arguably", "somewhat", "relatively",
-        "fairly", "quite", "rather", "arguably", "presumably", "apparently",
-        "seemingly", "supposedly", "allegedly", "it seems", "it appears",
-        "it is likely", "it is possible", "in general", "generally speaking",
+        "fairly", "quite", "rather", "presumably", "apparently", "seemingly",
+        "supposedly", "allegedly", "it seems", "it appears", "it is likely",
+        "it is possible", "in general", "generally speaking",
         "it is worth noting", "it should be noted",
     }
 
-    COMMON_GRAMMAR_ISSUES = [
-        (re.compile(r'\b(\w+)\s+\1\b', re.IGNORECASE), "repeated_word"),
-        (re.compile(r'\bi\b(?!\s+[a-z])', re.IGNORECASE), "lowercase_i"),
-        (re.compile(r'\s{2,}'), "extra_spaces"),
-        (re.compile(r'[.!?]\s*[a-z]'), "missing_capital_after_period"),
+    COMMON_GRAMMAR_ISSUES: list[tuple[re.Pattern[str], str]] = [
+        (re.compile(r"\b(\w+)\s+\1\b", re.IGNORECASE), "repeated_word"),
+        (re.compile(r"\s{2,}"), "extra_spaces"),
     ]
+
+    REWRITE_MODES: dict[str, dict[str, str]] = {
+        "seo": {
+            "label": "SEO Optimized",
+            "instruction": "Optimize for search engines with primary keywords, semantic variants, and structured content.",
+        },
+        "aeo_geo": {
+            "label": "AI Search (AEO/GEO)",
+            "instruction": "Optimize for AI Overviews, ChatGPT, and Perplexity citations with concise, factual, cited content.",
+        },
+        "readability": {
+            "label": "Readability",
+            "instruction": "Simplify language, shorten sentences, use plain English for broad accessibility.",
+        },
+        "conversion": {
+            "label": "Conversion",
+            "instruction": "Emphasize benefits, social proof, urgency, and clear calls-to-action.",
+        },
+        "eeat": {
+            "label": "E-E-A-T",
+            "instruction": "Strengthen Experience, Expertise, Authoritativeness, and Trustworthiness signals.",
+        },
+        "technical": {
+            "label": "Technical",
+            "instruction": "Use precise terminology, add specifications, and provide implementation details.",
+        },
+        "executive_summary": {
+            "label": "Executive Summary",
+            "instruction": "Lead with outcomes and ROI. Concise, high-level, decision-focused.",
+        },
+        "beginner_friendly": {
+            "label": "Beginner Friendly",
+            "instruction": "Explain jargon, add analogies, use short sentences, and build from basics.",
+        },
+        "voice_search": {
+            "label": "Voice Search",
+            "instruction": "Write in natural conversational phrasing that matches spoken queries.",
+        },
+        "featured_snippet": {
+            "label": "Featured Snippet",
+            "instruction": "Structure content to win position-zero: definitions, lists, steps, tables.",
+        },
+    }
+
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
 
     def analyze(self, page: dict[str, Any], all_pages: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         url = page.get("url", "")
-        page_type = page.get("page_type", "BLOG").upper()
-        title = page.get("title", "")
-        meta_description = page.get("meta_description", "")
-        h1 = page.get("h1", "")
-        content_text = page.get("content_text", "")
-        word_count = page.get("word_count", 0)
-        headings = page.get("headings", [])
-        images = page.get("images", [])
-        links_internal = page.get("links_internal", [])
-        links_external = page.get("links_external", [])
-        schema_markup = page.get("schema_markup", [])
+        page_type = (page.get("page_type") or "BLOG").upper()
+        title = page.get("title") or ""
+        meta = page.get("meta_description") or ""
+        h1 = page.get("h1") or ""
+        content_text = page.get("content_text") or ""
+        word_count = page.get("word_count") or 0
+        headings = page.get("headings") or []
+        images = page.get("images") or []
+        links_internal = page.get("links_internal") or []
+        links_external = page.get("links_external") or []
+        schema_markup = page.get("schema_markup") or []
 
         if not word_count and content_text:
             word_count = len(content_text.split())
 
-        ideal = self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL)
-        competitor_avg = int(ideal * 1.3)
-
-        content_lower = content_text.lower()
+        topic = self._extract_topic(h1, title, content_text)
+        brand = self._extract_brand(title, h1, content_text, url)
+        paragraphs = self._split_paragraphs(content_text)
+        sentences = self._split_sentences(content_text)
         words = content_text.split() if content_text else []
 
-        gap_signals: dict[str, Any] = {}
+        content_score = self._compute_overall_score(content_text, words, headings, title, meta, h1, word_count, schema_markup, images, links_internal, links_external, page_type)
+        readability_score = self._compute_readability_score(content_text, words)
+        current_level = self._flesch_kincaid_level(content_text, words)
 
-        gap_signals["missing_topics"] = self._detect_missing_topics(title, h1, content_text, page_type)
-        gap_signals["missing_entities"] = self._detect_missing_entities(title, h1, content_text)
-        gap_signals["missing_semantic_keywords"] = self._detect_missing_semantic(title, h1, content_text)
-        gap_signals["missing_people_also_ask"] = self._generate_paa(title, h1, content_text)
-        gap_signals["missing_faqs"] = self._generate_faqs(title, h1, content_text)
+        issues = self._collect_issues(title, meta, h1, content_text, word_count, headings, images, links_internal, links_external, schema_markup, page_type)
+        recommendations = self._build_recommendations(title, meta, h1, content_text, word_count, headings, images, links_internal, links_external, schema_markup, page_type, topic, brand, paragraphs)
 
-        gap_signals["missing_tables"] = self._check_tables(content_text, page_type)
-        gap_signals["missing_examples"] = self._check_examples(content_text, page_type)
-        gap_signals["missing_step_by_step"] = self._check_step_by_step(content_text, page_type)
-        gap_signals["missing_comparison"] = self._check_comparison(content_text, page_type)
-        gap_signals["missing_glossary"] = self._check_glossary(content_text, page_type)
-
-        gap_signals["missing_research"] = self._check_research(content_text)
-        gap_signals["missing_statistics"] = self._check_statistics(content_text)
-        gap_signals["missing_case_studies"] = self._check_case_studies(content_text, page_type)
-        gap_signals["missing_citations"] = self._check_citations(content_text)
-        gap_signals["missing_external_links"] = self._check_external_links(links_external, word_count)
-        gap_signals["missing_internal_links"] = self._check_internal_links(links_internal, word_count)
-
-        gap_signals["missing_screenshots"] = self._check_screenshots(images, page_type)
-        gap_signals["missing_diagrams"] = self._check_diagrams(images, content_text)
-        gap_signals["missing_videos"] = self._check_videos(content_text, page_type)
-        gap_signals["missing_infographics"] = self._check_infographics(images, page_type)
-        gap_signals["missing_downloadable_assets"] = self._check_downloadables(content_text, page_type)
-
-        gap_signals["missing_cta"] = self._check_cta(content_text, page_type)
-        gap_signals["missing_trust_signals"] = self._check_trust_signals(content_text, page_type)
-        gap_signals["missing_customer_logos"] = self._check_customer_logos(images, content_text, page_type)
-        gap_signals["missing_testimonials"] = self._check_testimonials(content_text, page_type)
-        gap_signals["missing_author_bio"] = self._check_author_bio(content_text, page_type)
-        gap_signals["missing_update_history"] = self._check_update_history(content_text)
-
-        gap_signals["missing_pricing_explanation"] = self._check_pricing(content_text, page_type)
-        gap_signals["missing_product_comparison"] = self._check_product_comparison(content_text, page_type)
-        gap_signals["missing_implementation_guide"] = self._check_implementation_guide(content_text, page_type)
-        gap_signals["missing_schema"] = self._check_schema(schema_markup, page_type)
-
-        gap_signals["missing_author_credibility"] = self._check_author_credibility(content_text, page_type)
-        gap_signals["missing_first_hand_experience"] = self._check_first_hand_experience(content_text)
-        gap_signals["missing_balanced_viewpoint"] = self._check_balanced_viewpoint(content_text)
-
-        quality = self._compute_quality_scores(content_text, words, headings, page_type)
-
-        gap_severity = self._count_gaps(gap_signals)
-
-        total_possible = 38
-        filled = total_possible - gap_severity["missing_element_count"]
-        quality["content_completeness"] = round(max(0.0, filled / total_possible) * 100, 1)
-
-        competitor_comparison = self._competitor_comparison(all_pages, content_text, word_count, schema_markup, headings, images, links_internal, links_external) if all_pages else {}
-
-        impact_predictions = self._predict_impact(gap_signals, word_count, page_type)
-
-        implementation_plan = self._build_implementation_plan(gap_signals, impact_predictions)
-
-        generated_content = self._generate_missing_content(title, h1, content_text, page_type, gap_signals)
+        rewrite_modes = self._generate_rewrite_modes(title, h1, meta, content_text, paragraphs, topic, brand, page_type)
+        missing_sections = self._generate_missing_sections(title, h1, content_text, topic, brand, page_type, word_count)
+        eeat = self._analyze_eeat(content_text, title, h1, topic, brand, page_type)
+        entity_opt = self._analyze_entities(title, h1, content_text, topic)
+        ai_preview = self._generate_ai_overview(content_text, title, h1, topic, brand, paragraphs)
+        readability_out = self._generate_readability_rewrite(content_text, paragraphs, topic, current_level)
+        internal_links = self._suggest_internal_links(content_text, topic, brand, page_type, all_pages)
+        schema_gen = self._generate_schema(title, h1, meta, url, topic, brand, page_type, missing_sections.get("faq", []))
+        score_predictions = self._predict_scores(content_score, readability_score, content_text, word_count, headings, page_type)
+        before_after = self._build_before_after(title, h1, meta, content_text, paragraphs, rewrite_modes, missing_sections, topic, brand)
+        implementation = self._build_implementation(issues, recommendations, missing_sections, eeat)
 
         return {
-            "url": url,
-            "page_type": page_type,
-            "current_word_count": word_count,
-            "ideal_word_count": ideal,
-            "competitor_average_estimate": competitor_avg,
-            "content_gaps": gap_signals,
-            "quality_scores": quality,
-            "missing_element_count": gap_severity["missing_element_count"],
-            "critical_gaps": gap_severity["critical_gaps"],
-            "high_gaps": gap_severity["high_gaps"],
-            "medium_gaps": gap_severity["medium_gaps"],
-            "total_gaps": gap_severity["total_gaps"],
-            "competitor_comparison": competitor_comparison,
-            "impact_predictions": impact_predictions,
-            "implementation_plan": implementation_plan,
-            "generated_content": generated_content,
+            "content_score": content_score,
+            "rewrite_modes": rewrite_modes,
+            "missing_sections": missing_sections,
+            "eeat_analysis": eeat,
+            "entity_optimization": entity_opt,
+            "ai_overview_preview": ai_preview,
+            "readability": readability_out,
+            "internal_link_suggestions": internal_links,
+            "schema_generated": schema_gen,
+            "score_predictions": score_predictions,
+            "implementation_plan": implementation,
+            "issues": issues,
+            "recommendations": recommendations,
+            "before_after": before_after,
         }
 
     # ------------------------------------------------------------------
-    # Topic gaps
+    # Topic / brand extraction
     # ------------------------------------------------------------------
 
-    def _detect_missing_topics(self, title: str, h1: str, content: str, page_type: str) -> list[dict[str, str]]:
-        missing: list[dict[str, str]] = []
-        combined = f"{title} {h1}".strip()
-        keywords = self._extract_keywords(combined)
-        content_lower = content.lower()
+    def _extract_topic(self, h1: str, title: str, content: str) -> str:
+        if h1:
+            return h1.strip()
+        if title:
+            cleaned = re.sub(r"\s*[|\-–—:]\s*.*$", "", title).strip()
+            if cleaned:
+                return cleaned
+        if content:
+            first_sentence = re.split(r"[.!?\n]", content)[0].strip()
+            if 5 < len(first_sentence) < 120:
+                return first_sentence
+        return "This topic"
 
-        topic_expectations = self._get_topic_expectations(page_type)
-        for topic, importance, reason in topic_expectations:
-            topic_lower = topic.lower()
-            if topic_lower not in content_lower and not any(k in content_lower for k in topic_lower.split()):
-                missing.append({"topic": topic, "importance": importance, "reason": reason})
+    def _extract_brand(self, title: str, h1: str, content: str, url: str) -> str:
+        combined = f"{title} {h1}"
+        words = re.findall(r"\b([A-Z][A-Za-z0-9]+)\b", combined)
+        for w in words:
+            if w.lower() not in self.STOP_WORDS and len(w) > 2:
+                return w
 
-        for kw in keywords[:10]:
-            if kw.lower() not in content_lower and len(kw) > 3:
-                missing.append({
-                    "topic": kw,
-                    "importance": "high",
-                    "reason": f"'{kw}' appears in title/h1 but is not substantively covered in body content",
-                })
+        if content:
+            content_words = re.findall(r"\b([A-Z][A-Za-z0-9]+)\b", content[:300])
+            for w in content_words:
+                if w.lower() not in self.STOP_WORDS and len(w) > 2:
+                    return w
 
-        return missing
+        if url:
+            domain_match = re.search(r"https?://(?:www\.)?([^/]+)", url)
+            if domain_match:
+                domain = domain_match.group(1).split(".")[0]
+                candidate = domain.capitalize()
+                if len(candidate) > 1:
+                    return candidate
 
-    def _get_topic_expectations(self, page_type: str) -> list[tuple[str, str, str]]:
-        base = [
-            ("introduction", "critical", "Content lacks a clear introduction framing the topic"),
-            ("conclusion", "critical", "Content lacks a conclusion summarizing key points"),
+        return "Your Product"
+
+    # ------------------------------------------------------------------
+    # Content splitting
+    # ------------------------------------------------------------------
+
+    def _split_paragraphs(self, content: str) -> list[str]:
+        if not content:
+            return []
+        parts = re.split(r"\n\s*\n", content)
+        return [p.strip() for p in parts if p.strip() and len(p.strip()) > 20]
+
+    def _split_sentences(self, content: str) -> list[str]:
+        if not content:
+            return []
+        parts = re.split(r"(?<=[.!?])\s+", content)
+        return [s.strip() for s in parts if s.strip() and len(s.strip()) > 5]
+
+    # ------------------------------------------------------------------
+    # Overall content score
+    # ------------------------------------------------------------------
+
+    def _compute_overall_score(
+        self, content: str, words: list[str], headings: list, title: str,
+        meta: str, h1: str, word_count: int, schema: list,
+        images: list, internal: list, external: list, page_type: str,
+    ) -> int:
+        scores: list[float] = []
+        ideal = self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL)
+
+        if word_count >= ideal:
+            scores.append(10.0)
+        elif word_count >= ideal * 0.7:
+            scores.append(7.5)
+        elif word_count >= ideal * 0.4:
+            scores.append(5.0)
+        else:
+            scores.append(2.5)
+
+        if title and 30 <= len(title) <= 70:
+            scores.append(10.0)
+        elif title:
+            scores.append(6.0)
+        else:
+            scores.append(0.0)
+
+        if meta and 120 <= len(meta) <= 160:
+            scores.append(10.0)
+        elif meta:
+            scores.append(6.0)
+        else:
+            scores.append(0.0)
+
+        if h1 and h1.strip() == title.strip():
+            scores.append(9.0)
+        elif h1:
+            scores.append(7.0)
+        else:
+            scores.append(1.0)
+
+        heading_count = len(headings) if isinstance(headings, list) else 0
+        if heading_count >= 5:
+            scores.append(9.0)
+        elif heading_count >= 3:
+            scores.append(7.0)
+        elif heading_count >= 1:
+            scores.append(4.0)
+        else:
+            scores.append(1.0)
+
+        if content:
+            scores.append(self._compute_readability_score(content, words) * 10.0)
+        else:
+            scores.append(0.0)
+
+        schema_count = len(schema) if isinstance(schema, list) else 0
+        scores.append(min(10.0, schema_count * 3.0))
+
+        img_count = len(images) if isinstance(images, list) else 0
+        if img_count >= 3:
+            scores.append(9.0)
+        elif img_count >= 1:
+            scores.append(6.0)
+        else:
+            scores.append(2.0)
+
+        int_count = len(internal) if isinstance(internal, list) else 0
+        ext_count = len(external) if isinstance(external, list) else 0
+        link_score = min(10.0, (int_count * 1.5) + (ext_count * 1.0))
+        scores.append(link_score)
+
+        eeat_signals = self._count_eeat_signals(content)
+        eeat_score = min(10.0, eeat_signals * 2.0)
+        scores.append(eeat_score)
+
+        avg = sum(scores) / max(len(scores), 1)
+        return max(0, min(100, int(avg * 10)))
+
+    def _count_eeat_signals(self, content: str) -> int:
+        if not content:
+            return 0
+        patterns = [
+            r"\baccording to\b", r"\bstud(?:y|ies)\b", r"\bresearch\b",
+            r"\b\d{4}\b", r"\bexperts?\b", r"\bauthoritative\b",
+            r"\bexperience\b", r"\bexpertise\b", r"\bcredentials?\b",
+            r"\bcertified\b", r"\bpublished\b", r"\baccording to\b",
         ]
-        if page_type == "BLOG":
-            base += [
-                ("key takeaways", "high", "Blog posts benefit from a summary of key takeaways"),
-                ("author", "medium", "Blog posts should identify the author for credibility"),
-            ]
-        elif page_type == "PRODUCT":
-            base += [
-                ("features", "critical", "Product page must list features clearly"),
-                ("benefits", "critical", "Product page must explain benefits"),
-                ("pricing", "high", "Product page should address pricing or how to get started"),
-            ]
-        elif page_type == "DOCS":
-            base += [
-                ("prerequisites", "high", "Documentation should list prerequisites"),
-                ("examples", "high", "Documentation benefits from practical examples"),
-                ("troubleshooting", "medium", "Documentation should cover common issues"),
-            ]
-        return base
+        count = 0
+        for p in patterns:
+            count += len(re.findall(p, content, re.IGNORECASE))
+        return count
 
-    def _detect_missing_entities(self, title: str, h1: str, content: str) -> list[dict[str, str]]:
-        missing: list[dict[str, str]] = []
+    def _compute_readability_score(self, content: str, words: list[str]) -> float:
+        if not words or not content:
+            return 0.0
+        sentences = self._split_sentences(content)
+        if not sentences:
+            return 0.0
+        total_words = len(words)
+        total_sentences = len(sentences)
+        syllables = sum(self._count_syllables(w) for w in words)
+        avg_wps = total_words / total_sentences
+        avg_spw = syllables / total_words
+        fk = 206.835 - 1.015 * avg_wps - 84.6 * avg_spw
+        fk = max(0.0, min(100.0, fk))
+        return round(fk / 100.0, 2)
+
+    def _flesch_kincaid_level(self, content: str, words: list[str]) -> str:
+        if not words or not content:
+            return "N/A"
+        sentences = self._split_sentences(content)
+        if not sentences:
+            return "N/A"
+        total_words = len(words)
+        total_sentences = len(sentences)
+        syllables = sum(self._count_syllables(w) for w in words)
+        avg_wps = total_words / total_sentences
+        avg_spw = syllables / total_words
+        grade = 0.39 * avg_wps + 11.8 * avg_spw - 15.59
+        grade = max(0.0, grade)
+        if grade <= 5:
+            return "Grade 5 (Elementary)"
+        elif grade <= 8:
+            return f"Grade {int(grade)} (Middle School)"
+        elif grade <= 12:
+            return f"Grade {int(grade)} (High School)"
+        elif grade <= 16:
+            return f"Grade {int(grade)} (College)"
+        return f"Graduate Level ({int(grade)})"
+
+    def _count_syllables(self, word: str) -> int:
+        word = word.lower().strip()
+        if not word:
+            return 0
+        if len(word) <= 3:
+            return 1
+        vowels = "aeiouy"
+        count = 0
+        prev_vowel = False
+        for ch in word:
+            is_v = ch in vowels
+            if is_v and not prev_vowel:
+                count += 1
+            prev_vowel = is_v
+        if word.endswith("e") and count > 1:
+            count -= 1
+        return max(1, count)
+
+    # ------------------------------------------------------------------
+    # Issue collection
+    # ------------------------------------------------------------------
+
+    def _collect_issues(
+        self, title: str, meta: str, h1: str, content: str, word_count: int,
+        headings: list, images: list, internal: list, external: list,
+        schema: list, page_type: str,
+    ) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
+
+        if not title:
+            issues.append({"severity": "critical", "category": "on_page", "issue": "Missing title tag", "fix": "Add a descriptive title tag (50-70 characters) with primary keyword"})
+        elif len(title) < 30:
+            issues.append({"severity": "high", "category": "on_page", "issue": f"Title too short ({len(title)} chars)", "fix": "Expand title to 50-70 characters to maximize SERP visibility"})
+        elif len(title) > 70:
+            issues.append({"severity": "medium", "category": "on_page", "issue": f"Title too long ({len(title)} chars, may truncate)", "fix": "Shorten title to under 70 characters"})
+
+        if not meta:
+            issues.append({"severity": "critical", "category": "on_page", "issue": "Missing meta description", "fix": "Write a compelling meta description (120-160 chars) with CTA"})
+        elif len(meta) < 120:
+            issues.append({"severity": "high", "category": "on_page", "issue": f"Meta description too short ({len(meta)} chars)", "fix": "Expand to 120-160 characters to fill SERP snippet"})
+        elif len(meta) > 160:
+            issues.append({"severity": "medium", "category": "on_page", "issue": f"Meta description too long ({len(meta)} chars)", "fix": "Shorten to under 160 characters"})
+
+        if not h1:
+            issues.append({"severity": "critical", "category": "on_page", "issue": "Missing H1 tag", "fix": "Add a single H1 that matches the page topic and primary keyword"})
+
+        if h1 and title and h1.strip() != title.strip():
+            issues.append({"severity": "medium", "category": "on_page", "issue": "H1 and title do not match", "fix": "Align H1 with title tag for consistent keyword signaling"})
+
+        ideal = self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL)
+        if word_count < ideal * 0.3:
+            issues.append({"severity": "critical", "category": "content", "issue": f"Severely thin content ({word_count} words, target {ideal})", "fix": f"Expand content to at least {ideal} words with substantive, original information"})
+        elif word_count < ideal * 0.6:
+            issues.append({"severity": "high", "category": "content", "issue": f"Below-target word count ({word_count}/{ideal})", "fix": f"Add ~{ideal - word_count} more words covering missing subtopics"})
+
+        heading_count = len(headings) if isinstance(headings, list) else 0
+        if heading_count == 0:
+            issues.append({"severity": "high", "category": "structure", "issue": "No subheadings found", "fix": "Add H2/H3 headings to break content into scannable sections"})
+        elif heading_count < 3:
+            issues.append({"severity": "medium", "category": "structure", "issue": f"Only {heading_count} subheading(s) found", "fix": "Add more H2/H3 headings to improve structure and featured snippet potential"})
+
+        img_count = len(images) if isinstance(images, list) else 0
+        if img_count == 0:
+            issues.append({"severity": "medium", "category": "content", "issue": "No images on page", "fix": "Add relevant images, diagrams, or screenshots to increase engagement"})
+        elif img_count > 0 and isinstance(images, list):
+            no_alt = sum(1 for img in images if isinstance(img, dict) and not img.get("alt"))
+            if no_alt > 0:
+                issues.append({"severity": "medium", "category": "accessibility", "issue": f"{no_alt} image(s) missing alt text", "fix": "Add descriptive alt text to all images for accessibility and image SEO"})
+
+        schema_count = len(schema) if isinstance(schema, list) else 0
+        if schema_count == 0:
+            issues.append({"severity": "high", "category": "technical", "issue": "No structured data / schema markup", "fix": "Add JSON-LD schema (FAQPage, Article, Organization) for rich results"})
+
+        if isinstance(internal, list):
+            int_count = len(internal)
+        else:
+            int_count = 0
+        if int_count == 0:
+            issues.append({"severity": "high", "category": "seo", "issue": "No internal links", "fix": "Add 3-5 internal links to related content to strengthen site architecture"})
+
+        if isinstance(external, list):
+            ext_count = len(external)
+        else:
+            ext_count = 0
+        if ext_count == 0:
+            issues.append({"severity": "medium", "category": "seo", "issue": "No external links", "fix": "Link to 2-3 authoritative sources to boost topical relevance"})
+
+        if content:
+            stat_count = len(re.findall(r"\d+%|\$\d+|\d+x\b|\d{1,3}(?:,\d{3})+", content))
+            if stat_count < 2:
+                issues.append({"severity": "medium", "category": "authority", "issue": "Few statistics or data points", "fix": "Add 3-5 statistics with sources to strengthen credibility"})
+
+            faq_signal = re.search(r"\b(?:frequently asked|faq|q:|a:)\b", content, re.IGNORECASE)
+            if not faq_signal:
+                issues.append({"severity": "high", "category": "ai_search", "issue": "No FAQ section detected", "fix": "Add FAQ section with schema markup for AI Overview and rich result eligibility"})
+
+            author_signal = re.search(r"\b(written by|author|byline|bio)\b", content, re.IGNORECASE)
+            if not author_signal and page_type in ("BLOG", "DOCS"):
+                issues.append({"severity": "medium", "category": "eeat", "issue": "No author attribution", "fix": "Add author name, bio, and credentials for E-E-A-T"})
+
+        return issues
+
+    # ------------------------------------------------------------------
+    # Recommendations with before/after
+    # ------------------------------------------------------------------
+
+    def _build_recommendations(
+        self, title: str, meta: str, h1: str, content: str, word_count: int,
+        headings: list, images: list, internal: list, external: list,
+        schema: list, page_type: str, topic: str, brand: str,
+        paragraphs: list[str],
+    ) -> list[dict[str, Any]]:
+        recs: list[dict[str, Any]] = []
+
+        new_title = self._rewrite_title_for_mode(title, topic, brand, page_type, "seo")
+        if title != new_title:
+            recs.append({
+                "section": "Title Tag",
+                "before": title or "(missing)",
+                "after": new_title,
+                "why": "Optimized title targets primary keyword, includes brand, and stays within 70-character SERP limit. Current title " + ("is missing" if not title else "is %d chars and underoptimized" % len(title)) + ".",
+                "impact": {"seo": "high", "ai_search": "medium", "conversion": "medium"},
+                "confidence": 92,
+            })
+
+        new_meta = self._rewrite_meta_for_mode(meta, topic, brand, page_type, "seo")
+        if meta != new_meta:
+            recs.append({
+                "section": "Meta Description",
+                "before": meta or "(missing)",
+                "after": new_meta,
+                "why": "Meta description crafted with primary keyword, value proposition, and CTA within 155-character limit.",
+                "impact": {"seo": "high", "ai_search": "low", "conversion": "high"},
+                "confidence": 90,
+            })
+
+        new_h1 = self._rewrite_h1_for_mode(h1, topic, brand, page_type, "seo")
+        if h1 != new_h1:
+            recs.append({
+                "section": "H1 Heading",
+                "before": h1 or "(missing)",
+                "after": new_h1,
+                "why": "H1 aligned with title tag and primary keyword while remaining natural and compelling.",
+                "impact": {"seo": "high", "ai_search": "medium", "conversion": "low"},
+                "confidence": 88,
+            })
+
+        new_intro = self._rewrite_intro_for_mode(topic, brand, page_type, "seo", paragraphs)
+        first_para = paragraphs[0] if paragraphs else ""
+        if first_para != new_intro:
+            recs.append({
+                "section": "Introduction Paragraph",
+                "before": first_para[:300] + ("..." if len(first_para) > 300 else "") if first_para else "(missing)",
+                "after": new_intro,
+                "why": "Introduction now leads with the core value proposition, includes the primary keyword in the first sentence, and establishes relevance for both human readers and AI extraction.",
+                "impact": {"seo": "high", "ai_search": "high", "conversion": "medium"},
+                "confidence": 87,
+            })
+
+        ideal = self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL)
+        if word_count < ideal * 0.7:
+            recs.append({
+                "section": "Content Depth",
+                "before": f"{word_count} words (target: {ideal})",
+                "after": f"Expand to {ideal}+ words covering missing subtopics, FAQs, comparison tables, and supporting data",
+                "why": f"Content is {ideal - word_count} words below target. Comprehensive content outperforms thin pages in both traditional SEO and AI extraction.",
+                "impact": {"seo": "high", "ai_search": "high", "conversion": "medium"},
+                "confidence": 85,
+            })
+
+        if isinstance(schema, list) and len(schema) == 0:
+            recs.append({
+                "section": "Structured Data",
+                "before": "(none)",
+                "after": "Add FAQPage, Article, Organization, and BreadcrumbList schema in JSON-LD format",
+                "why": "Schema markup enables rich results in Google and provides structured context for AI platforms to understand and cite your content.",
+                "impact": {"seo": "high", "ai_search": "high", "conversion": "medium"},
+                "confidence": 94,
+            })
+
+        if isinstance(internal, list) and len(internal) == 0:
+            recs.append({
+                "section": "Internal Linking",
+                "before": "0 internal links",
+                "after": f"Add 3-5 internal links to related {brand} pages (documentation, pricing, case studies)",
+                "why": "Internal links distribute PageRank, help crawlers discover content, and signal topical relationships to AI platforms.",
+                "impact": {"seo": "high", "ai_search": "medium", "conversion": "medium"},
+                "confidence": 91,
+            })
+
+        return recs
+
+    # ------------------------------------------------------------------
+    # Rewrite mode generation
+    # ------------------------------------------------------------------
+
+    def _generate_rewrite_modes(
+        self, title: str, h1: str, meta: str, content: str,
+        paragraphs: list[str], topic: str, brand: str, page_type: str,
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for mode_key, mode_info in self.REWRITE_MODES.items():
+            title_rewrite = self._rewrite_title_for_mode(title, topic, brand, page_type, mode_key)
+            h1_rewrite = self._rewrite_h1_for_mode(h1, topic, brand, page_type, mode_key)
+            meta_rewrite = self._rewrite_meta_for_mode(meta, topic, brand, page_type, mode_key)
+            intro_rewrite = self._rewrite_intro_for_mode(topic, brand, page_type, mode_key, paragraphs)
+            para_rewrites = self._rewrite_paragraphs_for_mode(paragraphs, topic, brand, mode_key)
+
+            score = self._mode_score(mode_key, content, title, h1, meta, paragraphs)
+
+            result[mode_key] = {
+                "label": mode_info["label"],
+                "score": score,
+                "title_rewrite": title_rewrite,
+                "h1_rewrite": h1_rewrite,
+                "intro_rewrite": intro_rewrite,
+                "meta_rewrite": meta_rewrite,
+                "paragraphs": para_rewrites,
+            }
+        return result
+
+    def _mode_score(self, mode: str, content: str, title: str, h1: str, meta: str, paragraphs: list[str]) -> int:
+        if not content:
+            return 20
+        base = 50
+        if mode == "seo":
+            if title and self._extract_keywords_from_text(title):
+                base += 10
+            stat_count = len(re.findall(r"\d+%", content))
+            base += min(15, stat_count * 3)
+            if re.search(r"\bhow to\b|\bwhat is\b", content, re.IGNORECASE):
+                base += 5
+        elif mode == "aeo_geo":
+            if re.search(r"\baccording to\b|\bresearch\b|\bstud", content, re.IGNORECASE):
+                base += 10
+            if re.search(r"\b\d{4}\b", content):
+                base += 5
+            if re.search(r"\bfaq\b|\bfrequently asked\b", content, re.IGNORECASE):
+                base += 8
+            sentences = self._split_sentences(content)
+            short = sum(1 for s in sentences if len(s.split()) < 20)
+            base += min(10, short)
+        elif mode == "readability":
+            words = content.split()
+            if words:
+                fk = self._compute_readability_score(content, words) * 100
+                base = int(fk * 0.8)
+        elif mode == "conversion":
+            cta = re.search(r"\b(get started|sign up|try free|book a demo|contact us|pricing)\b", content, re.IGNORECASE)
+            if cta:
+                base += 15
+            if re.search(r"\bfree\b|\btrial\b|\bguarantee\b", content, re.IGNORECASE):
+                base += 10
+        elif mode == "eeat":
+            base += min(20, self._count_eeat_signals(content) * 3)
+        elif mode == "voice_search":
+            sentences = self._split_sentences(content)
+            conversational = sum(1 for s in sentences if re.search(r"\b(you|your|we|our)\b", s, re.IGNORECASE))
+            base += min(15, int(conversational / max(len(sentences), 1) * 20))
+        elif mode == "featured_snippet":
+            if re.search(r"^\s*\d+[\.\)]\s", content, re.MULTILINE):
+                base += 10
+            if re.search(r"^\s*[-•]\s", content, re.MULTILINE):
+                base += 8
+        elif mode == "beginner_friendly":
+            words = content.split()
+            if words:
+                fk = self._compute_readability_score(content, words) * 100
+                base = int(fk * 0.7) + 15
+        elif mode == "executive_summary":
+            if re.search(r"\b roi \b|\b revenue \b|\b growth \b|\b result", content, re.IGNORECASE):
+                base += 12
+        elif mode == "technical":
+            tech_terms = len(re.findall(r"\bAPI\b|\bSDK\b|\bJSON\b|\bREST\b|\bwebhook\b|\bendpoint\b|\bdeploy\b", content, re.IGNORECASE))
+            base += min(15, tech_terms * 3)
+
+        return max(0, min(100, base))
+
+    def _extract_keywords_from_text(self, text: str) -> list[str]:
+        words = re.findall(r"\b[a-zA-Z]{4,}\b", text)
+        kw: list[str] = []
+        seen: set[str] = set()
+        for w in words:
+            wl = w.lower()
+            if wl not in self.STOP_WORDS and wl not in seen:
+                seen.add(wl)
+                kw.append(w)
+        return kw
+
+    def _rewrite_title_for_mode(self, title: str, topic: str, brand: str, page_type: str, mode: str) -> str:
+        primary_kw = self._extract_keywords_from_text(topic)
+        kw_str = primary_kw[0].lower() if primary_kw else topic.lower()
+
+        if mode == "seo":
+            return f"{topic} | {brand} - Complete Guide for 2025"
+        elif mode == "aeo_geo":
+            return f"{topic}: Definition, Benefits, and How It Works | {brand}"
+        elif mode == "readability":
+            return f"{topic}: A Simple Guide to Getting Started"
+        elif mode == "conversion":
+            return f"{topic} - Boost Your Revenue by 30% | Try {brand} Free"
+        elif mode == "eeat":
+            return f"{topic}: Expert Analysis and Data-Backed Insights | {brand}"
+        elif mode == "technical":
+            return f"{topic}: Technical Overview, Architecture & Implementation Guide"
+        elif mode == "executive_summary":
+            return f"{topic}: ROI Guide for Revenue Leaders | {brand}"
+        elif mode == "beginner_friendly":
+            return f"What Is {topic}? A Beginner-Friendly Guide (No Jargon)"
+        elif mode == "voice_search":
+            return f"What Is {topic} and How Does It Help My Business?"
+        elif mode == "featured_snippet":
+            return f"{topic}: Definition, Benefits, Features & Alternatives (2025)"
+        return title or f"{topic} | {brand}"
+
+    def _rewrite_h1_for_mode(self, h1: str, topic: str, brand: str, page_type: str, mode: str) -> str:
+        if mode == "seo":
+            return f"Complete Guide to {topic}: Everything You Need to Know"
+        elif mode == "aeo_geo":
+            return f"{topic}: How It Works, Key Benefits, and Real Results"
+        elif mode == "readability":
+            return f"All About {topic}: Simple Explanation"
+        elif mode == "conversion":
+            return f"Transform Your Revenue with {topic}"
+        elif mode == "eeat":
+            return f"{topic}: An Evidence-Based Deep Dive"
+        elif mode == "technical":
+            return f"{topic}: Architecture, Integration, and Best Practices"
+        elif mode == "executive_summary":
+            return f"{topic}: Strategic Overview for Decision Makers"
+        elif mode == "beginner_friendly":
+            return f"Understanding {topic}: The Complete Beginner Guide"
+        elif mode == "voice_search":
+            return f"How Does {topic} Work?"
+        elif mode == "featured_snippet":
+            return f"What Is {topic}? (Definition + Key Benefits)"
+        return h1 or topic
+
+    def _rewrite_meta_for_mode(self, meta: str, topic: str, brand: str, page_type: str, mode: str) -> str:
+        if mode == "seo":
+            return f"Learn everything about {topic} with this comprehensive guide. Features, benefits, comparisons, and expert insights. Start free with {brand}."
+        elif mode == "aeo_geo":
+            return f"{topic} explained: definition, how it works, benefits, features, and comparison with alternatives. Data-backed analysis with expert insights from {brand}."
+        elif mode == "readability":
+            return f"Not sure what {topic} is? This simple guide explains it in plain English. No jargon, just clear answers."
+        elif mode == "conversion":
+            return f"See how {topic} helps teams increase revenue by 30%. Free trial, no credit card required. Trusted by 500+ companies."
+        elif mode == "eeat":
+            return f"In-depth analysis of {topic} backed by research and expert experience. Compare features, read case studies, and see real results."
+        elif mode == "technical":
+            return f"Technical guide to {topic}: architecture overview, API integration, SDK setup, and production deployment best practices."
+        elif mode == "executive_summary":
+            return f"Executive briefing on {topic}: ROI analysis, strategic impact, and competitive positioning for revenue leaders."
+        elif mode == "beginner_friendly":
+            return f"New to {topic}? Start here. We explain what it is, why it matters, and how to get started, step by step."
+        elif mode == "voice_search":
+            return f"What is {topic}? How does it work? What are the benefits? Get answers to the most common questions about {topic}."
+        elif mode == "featured_snippet":
+            return f"{topic} is defined as a comprehensive solution for modern revenue teams. Learn the definition, key features, benefits, pricing, and top alternatives."
+        return meta or f"Learn about {topic} with {brand}. Features, benefits, and pricing."
+
+    def _rewrite_intro_for_mode(self, topic: str, brand: str, page_type: str, mode: str, paragraphs: list[str]) -> str:
+        current = paragraphs[0] if paragraphs else ""
+        if mode == "seo":
+            return f"In today's competitive landscape, {topic} has become essential for businesses looking to scale their revenue operations. This comprehensive guide covers everything from core features and benefits to implementation strategies and pricing, so you can make an informed decision about whether {topic} is the right solution for your team."
+        elif mode == "aeo_geo":
+            return f"{topic} is a {self._category_for_topic(topic, ' '.join(paragraphs))} designed to help businesses unify their revenue operations. According to industry research, organizations using {topic.lower()}-type platforms see 25-35% improvement in pipeline efficiency. Here's what you need to know about how it works, its key features, and how it compares to alternatives."
+        elif mode == "readability":
+            return f"Trying to figure out what {topic} is? Here's the short version: it's a tool that helps your sales and marketing teams work better together. In this guide, we'll walk you through everything in simple terms, no tech jargon required."
+        elif mode == "conversion":
+            return f"What if your revenue teams could close 30% more deals with half the manual work? That's exactly what {topic} delivers. Trusted by hundreds of companies, {topic} combines AI-powered automation with deep analytics to transform how you generate, manage, and close revenue. Start your free trial today."
+        elif mode == "eeat":
+            return f"After working extensively with {topic.lower()} and analyzing its impact across multiple organizations, we've found that it consistently delivers measurable results in pipeline growth and forecast accuracy. In this analysis, we draw on real deployment data, industry research, and hands-on experience to give you an honest assessment of what {topic} does well, where it falls short, and whether it fits your use case."
+        elif mode == "technical":
+            return f"{topic} provides a modern architecture for revenue operations, built on a RESTful API foundation with real-time event streaming and webhook-based integrations. This technical overview covers the system architecture, supported integration protocols, data models, and deployment options available for enterprise teams."
+        elif mode == "executive_summary":
+            return f"For revenue leaders evaluating {topic.lower()}, the key question is simple: does it deliver measurable ROI? Based on current market data and deployment outcomes, {topic} accelerates pipeline growth by 25-35%, improves forecast accuracy by 15-20%, and reduces manual revenue operations overhead by up to 40%. This briefing covers the strategic case for adoption."
+        elif mode == "beginner_friendly":
+            return f"Welcome! If you're new to {topic.lower()}, you're in the right place. We'll explain everything from scratch, what it is, why companies use it, and how you can get started, without any confusing technical language."
+        elif mode == "voice_search":
+            return f"Great question! {topic} is a tool that helps businesses manage their revenue operations more efficiently. Think of it as a smart assistant for your sales and marketing teams that automates repetitive tasks and provides insights to help you make better decisions."
+        elif mode == "featured_snippet":
+            return f"{topic} is a {self._category_for_topic(topic, ' '.join(paragraphs))} that helps businesses unify sales, marketing, and revenue operations on a single platform. Key benefits include AI-powered automation, real-time analytics, pipeline management, and CRM integration."
+        return current or f"Discover how {topic} can transform your revenue operations."
+
+    def _category_for_topic(self, topic: str, content: str = "") -> str:
+        topic_lower = topic.lower()
+        combined = f"{topic_lower} {(content[:500] if content else '').lower()}"
+        if any(kw in combined for kw in ["gtm", "revenue", "sales", "crm", "pipeline", "intelligence"]):
+            return "Go-to-market platform"
+        if any(kw in combined for kw in ["seo", "search", "marketing", "content"]):
+            return "Marketing platform"
+        if any(kw in combined for kw in ["ai", "machine learning", "automation"]):
+            return "AI-powered solution"
+        if any(kw in combined for kw in ["cloud", "hosting", "infrastructure"]):
+            return "Cloud infrastructure solution"
+        if any(kw in combined for kw in ["data", "analytics", "intelligence"]):
+            return "Data analytics platform"
+        return "software platform"
+
+    def _rewrite_paragraphs_for_mode(self, paragraphs: list[str], topic: str, brand: str, mode: str) -> list[dict[str, str]]:
+        result: list[dict[str, str]] = []
+        for i, para in enumerate(paragraphs[:8]):
+            rewritten = self._rewrite_single_paragraph(para, topic, brand, mode)
+            if rewritten != para:
+                improvement = f"Optimized for {self.REWRITE_MODES.get(mode, {}).get('label', mode)} mode"
+                if mode == "readability":
+                    improvement = "Simplified language, shorter sentences for clarity"
+                elif mode == "aeo_geo":
+                    improvement = "Added factual structure and citation-friendly phrasing"
+                elif mode == "seo":
+                    improvement = "Integrated keywords naturally while maintaining readability"
+                elif mode == "conversion":
+                    improvement = "Added benefit-focused language and action-oriented phrasing"
+                elif mode == "eeat":
+                    improvement = "Added authority signals, evidence references, and experience markers"
+                result.append({
+                    "current": para[:500],
+                    "rewritten": rewritten[:500],
+                    "improvement": improvement,
+                })
+        return result
+
+    def _rewrite_single_paragraph(self, para: str, topic: str, brand: str, mode: str) -> str:
+        if not para or len(para) < 30:
+            return para
+
+        sentences = self._split_sentences(para)
+        if not sentences:
+            return para
+
+        rewritten_sentences: list[str] = []
+        for sent in sentences:
+            rsent = sent
+            if mode == "readability":
+                rsent = self._simplify_sentence(sent)
+            elif mode == "voice_search":
+                if not re.search(r"\b(you|your|we|our)\b", sent, re.IGNORECASE):
+                    rsent = "You " + sent[0].lower() + sent[1:]
+            elif mode == "conversion":
+                if re.search(r"\bfeature\b|\bcapability\b", sent, re.IGNORECASE):
+                    rsent = re.sub(r"\bcapabilities?\b", "benefits", sent, flags=re.IGNORECASE)
+            elif mode == "executive_summary":
+                if len(sent.split()) > 20:
+                    words = sent.split()
+                    rsent = " ".join(words[:15]) + "."
+            rewritten_sentences.append(rsent)
+
+        result = " ".join(rewritten_sentences)
+        return result
+
+    def _simplify_sentence(self, sentence: str) -> str:
+        result = sentence
+        replacements = {
+            "implement": "set up",
+            "utilize": "use",
+            "facilitate": "help",
+            "demonstrate": "show",
+            "approximately": "about",
+            "subsequently": "then",
+            "furthermore": "also",
+            "nevertheless": "but",
+            "consequently": "so",
+            "leverage": "use",
+            "optimal": "best",
+            "methodology": "method",
+            "functionality": "feature",
+        }
+        for formal, simple in replacements.items():
+            result = re.sub(r"\b" + formal + r"\b", simple, result, flags=re.IGNORECASE)
+
+        if len(result.split()) > 25:
+            parts = re.split(r"\s*,\s*(?:which|that|who|where|when)\s+", result, maxsplit=1)
+            if len(parts) > 1:
+                result = parts[0] + ". " + parts[1][0].upper() + parts[1][1:]
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Missing section generation
+    # ------------------------------------------------------------------
+
+    def _generate_missing_sections(
+        self, title: str, h1: str, content: str, topic: str, brand: str,
+        page_type: str, word_count: int,
+    ) -> dict[str, Any]:
+        faqs = self._generate_faq_content(topic, brand, content, page_type)
+        comparison = self._generate_comparison_table(topic, brand, content, page_type)
+        lists = self._generate_lists(topic, brand, content, page_type)
+        glossary = self._generate_glossary(topic, brand, content, page_type)
+
+        sections: dict[str, Any] = {}
+        if faqs:
+            sections["faq"] = faqs
+        if comparison:
+            sections["comparison_table"] = comparison
+        if lists:
+            sections["lists"] = lists
+        if glossary:
+            sections["glossary"] = glossary
+
+        return sections
+
+    def _generate_faq_content(self, topic: str, brand: str, content: str, page_type: str) -> list[dict[str, str]]:
+        topic_lower = topic.lower()
+        brand_lower = brand.lower()
+        content_lower = content.lower() if content else ""
+
+        faqs: list[dict[str, str]] = []
+
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "crm", "pipeline", "datavi", "intelligence"]):
+            faqs = [
+                {
+                    "question": f"What is {topic}?",
+                    "answer": f"{topic} is an AI-powered {self._category_for_topic(topic, content)} that unifies sales, marketing, and revenue operations into a single intelligent system. It combines CRM enrichment, lead scoring, pipeline analytics, and AI-driven automation to help teams accelerate revenue growth.",
+                },
+                {
+                    "question": f"How does {topic} work?",
+                    "answer": f"{topic} works by ingesting data from your existing CRM, marketing tools, and sales platforms. Its AI agents analyze this data in real time, enriching records, scoring leads based on buying intent, identifying pipeline risks, and delivering actionable insights to your revenue teams.",
+                },
+                {
+                    "question": f"What are the main features of {topic}?",
+                    "answer": f"Key features include AI-powered CRM data enrichment, automated lead scoring with buying intent signals, real-time pipeline analytics, revenue forecasting, automated workflow orchestration, multi-source data integration, and executive dashboards with actionable recommendations.",
+                },
+                {
+                    "question": f"How does {topic} compare to traditional CRMs?",
+                    "answer": f"Unlike traditional CRMs that rely on manual data entry, {topic} automates data enrichment and provides AI-driven insights. While a CRM stores data, {topic} activates it by predicting buyer intent, identifying at-risk deals, and recommending next-best-actions for each opportunity.",
+                },
+                {
+                    "question": f"Who should use {topic}?",
+                    "answer": f"{topic} is designed for B2B revenue teams including VP of Sales, RevOps leaders, Marketing Operations, and CROs who want to unify their go-to-market data, improve forecast accuracy, and accelerate pipeline growth with AI-powered automation.",
+                },
+                {
+                    "question": f"What results can I expect from {topic}?",
+                    "answer": f"Organizations using {topic} typically report 25-35% improvement in pipeline growth, 15-25% improvement in forecast accuracy, 30% reduction in manual data entry, and 20-30% increase in lead-to-opportunity conversion rates within the first 90 days.",
+                },
+                {
+                    "question": f"Is there a free trial for {topic}?",
+                    "answer": f"Yes, {brand} offers a free trial that lets you experience {topic} capabilities with your own data. No credit card is required to get started, and onboarding support is included to help you see results quickly.",
+                },
+            ]
+        else:
+            faqs = [
+                {
+                    "question": f"What is {topic}?",
+                    "answer": f"{topic} is a {self._category_for_topic(topic, content)} designed to help businesses streamline their operations, improve efficiency, and achieve measurable results through modern technology and data-driven insights.",
+                },
+                {
+                    "question": f"How does {topic} work?",
+                    "answer": f"{topic} works by integrating with your existing tools and workflows. It analyzes your data, identifies patterns and opportunities, and provides actionable recommendations to help your team make better decisions faster.",
+                },
+                {
+                    "question": f"What are the benefits of {topic}?",
+                    "answer": f"Key benefits include improved operational efficiency, better data-driven decision-making, reduced manual work, enhanced team collaboration, and measurable ROI within the first quarter of implementation.",
+                },
+                {
+                    "question": f"How much does {topic} cost?",
+                    "answer": f"{brand} offers flexible pricing plans to fit different team sizes and budgets. Contact the sales team for a custom quote, or start with a free trial to evaluate {topic} with your own data and workflows.",
+                },
+                {
+                    "question": f"Is {topic} easy to set up?",
+                    "answer": f"Yes. {topic} is designed for quick deployment with guided onboarding. Most teams are fully operational within 1-2 weeks, with dedicated support available throughout the setup process.",
+                },
+            ]
+
+        content_lower_check = content_lower
+        for faq in faqs:
+            q_words = re.findall(r"\b[a-z]{4,}\b", faq["question"].lower())
+            in_content = sum(1 for w in q_words if w in content_lower_check)
+            if in_content >= len(q_words) * 0.5:
+                continue
+
+        return faqs[:7]
+
+    def _generate_comparison_table(self, topic: str, brand: str, content: str, page_type: str) -> dict[str, Any] | None:
+        if page_type not in ("PRODUCT", "LANDING", "BLOG"):
+            return None
+
+        topic_lower = topic.lower()
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "crm", "pipeline", "intelligence"]):
+            return {
+                "headers": ["Feature", topic[:25], "Salesforce", "HubSpot", "Clay"],
+                "rows": [
+                    ["AI-Powered CRM Enrichment", "Yes", "Limited", "No", "Yes"],
+                    ["Buying Intent Signals", "Yes", "No", "Partial", "No"],
+                    ["Automated Lead Scoring", "Yes (AI)", "Yes (Rules)", "Yes (ML)", "No"],
+                    ["Revenue Intelligence", "Yes", "Yes (Einstein)", "No", "No"],
+                    ["Real-Time Pipeline Analytics", "Yes", "Yes", "Yes", "Limited"],
+                    ["Multi-Source Data Fusion", "Yes", "Partial", "Partial", "Yes"],
+                    ["AI Agent Automation", "Yes", "No", "No", "No"],
+                    ["Time to Value", "Days", "Weeks", "Weeks", "Days"],
+                    ["Free Trial", "Yes", "No", "Free Tier", "Yes"],
+                ],
+            }
+        else:
+            return {
+                "headers": ["Feature", topic[:25], "Alternative A", "Alternative B"],
+                "rows": [
+                    ["Core Functionality", "Yes", "Yes", "Yes"],
+                    ["AI / ML Capabilities", "Yes", "Partial", "No"],
+                    ["Real-Time Analytics", "Yes", "Yes", "Limited"],
+                    ["Integration Support", "200+", "100+", "50+"],
+                    ["Free Trial", "Yes", "No", "Free Tier"],
+                    ["Enterprise Support", "Yes", "Yes", "Limited"],
+                ],
+            }
+
+    def _generate_lists(self, topic: str, brand: str, content: str, page_type: str) -> list[dict[str, Any]]:
+        lists: list[dict[str, Any]] = []
+
+        lists.append({
+            "title": f"Benefits of Using {topic}",
+            "items": [
+                "Unified data across all revenue teams eliminates silos and duplication",
+                "AI-powered automation reduces manual data entry by 30-50%",
+                "Real-time analytics provide actionable insights for faster decisions",
+                "Predictive lead scoring improves conversion rates by 20-35%",
+                "Automated pipeline alerts prevent deals from stalling",
+                "Executive dashboards provide a single source of truth for forecasting",
+            ],
+        })
+
+        lists.append({
+            "title": f"Getting Started with {topic}: Step by Step",
+            "items": [
+                "Sign up for a free trial and connect your CRM",
+                "Configure data sources and integration preferences",
+                "Let AI agents analyze your existing data (usually 24-48 hours)",
+                "Review AI-generated insights and enrichments",
+                "Set up automated workflows and alert rules",
+                "Track results and optimize based on initial outcomes",
+            ],
+        })
+
+        if page_type in ("PRODUCT", "DOCS"):
+            lists.append({
+                "title": f"Best Practices for {topic}",
+                "items": [
+                    "Start with a focused use case and expand gradually",
+                    "Ensure CRM data quality before connecting to maximize AI accuracy",
+                    "Set up automated alerts for high-intent buying signals",
+                    "Review AI recommendations weekly to build trust in the system",
+                    "Integrate with marketing automation for end-to-end GTM visibility",
+                    "Train your team on interpreting AI-generated insights",
+                ],
+            })
+
+        return lists
+
+    def _generate_glossary(self, topic: str, brand: str, content: str, page_type: str) -> list[dict[str, str]]:
+        topic_lower = topic.lower()
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "crm", "pipeline", "intelligence"]):
+            return [
+                {"term": "GTM Operating System", "definition": "A unified platform that combines all go-to-market functions — sales, marketing, and customer success — into a single intelligent system for managing revenue operations."},
+                {"term": "Revenue Intelligence", "definition": "The use of AI and data analytics to improve revenue-related decisions across sales, marketing, and customer success, including forecasting, pipeline management, and deal scoring."},
+                {"term": "RevOps", "definition": "Revenue Operations — the strategic alignment of sales, marketing, and customer success operations to maximize revenue growth and operational efficiency."},
+                {"term": "Buying Intent", "definition": "Behavioral signals indicating that a prospect is actively researching solutions and may be ready to purchase, such as website visits, content downloads, and competitor comparisons."},
+                {"term": "CRM Enrichment", "definition": "The process of automatically enhancing CRM records with additional firmographic, demographic, technographic, and behavioral data to improve lead quality and sales effectiveness."},
+                {"term": "Lead Scoring", "definition": "A methodology for ranking prospects based on their likelihood to convert, using demographic fit, behavioral signals, and AI-predicted buying intent."},
+                {"term": "Pipeline Analytics", "definition": "The analysis of sales pipeline data to identify trends, forecast revenue, detect stalled deals, and optimize the sales process for better conversion rates."},
+                {"term": "AI Agent", "definition": "An autonomous AI system that performs specific revenue operations tasks such as data enrichment, lead qualification, and outreach personalization without manual intervention."},
+            ]
+        return []
+
+    # ------------------------------------------------------------------
+    # E-E-A-T analysis
+    # ------------------------------------------------------------------
+
+    def _analyze_eeat(self, content: str, title: str, h1: str, topic: str, brand: str, page_type: str) -> dict[str, Any]:
+        content_lower = content.lower() if content else ""
+
+        has_author = bool(re.search(r"\b(written by|author|byline|about the author)\b", content_lower))
+        author_suggestion = "" if has_author else f"Add an author bio for {brand} with credentials, years of experience in {topic.lower()}, and links to professional profiles (LinkedIn, publications)."
+
+        ref_patterns = [r"\baccording to\b", r"\bresearch (?:from|by|shows)\b", r"\bstud(?:y|ies)\b", r"\breport (?:from|by)\b", r"\bsource[s]?:\b"]
+        ref_count = sum(len(re.findall(p, content_lower)) for p in ref_patterns)
+        has_refs = ref_count >= 2
+        ref_suggestions: list[str] = []
+        if not has_refs:
+            ref_suggestions = [
+                f"Cite industry research from Gartner, Forrester, or McKinsey on {topic.lower()} market trends",
+                f"Link to published case studies demonstrating measurable ROI from {brand} implementations",
+                f"Reference authoritative sources for any market size or growth statistics",
+            ]
+
+        stat_patterns = [r"\d+%", r"\$\d+", r"\d+x\b", r"\d{1,3}(?:,\d{3})+", r"\b(?:million|billion)\b"]
+        stat_count = sum(len(re.findall(p, content_lower)) for p in stat_patterns)
+        has_stats = stat_count >= 3
+        stat_suggestions: list[str] = []
+        if not has_stats:
+            stat_suggestions = [
+                f"Add specific ROI metrics (e.g., 'reduces manual data entry by 35%')",
+                f"Include industry statistics on {topic.lower()} adoption and market growth",
+                f"Reference customer success metrics (e.g., pipeline growth, conversion rate improvements)",
+            ]
+
+        quote_patterns = [r'["\u201c][^"\u201d]{30,}["\u201d]', r"\bsaid\b", r"\baccording to\b", r"\bexpert(?:s)?\b"]
+        quote_count = sum(len(re.findall(p, content_lower)) for p in quote_patterns)
+        has_quotes = quote_count >= 2
+        quote_suggestion = "" if has_quotes else f"Add expert quotes or testimonials from {brand} customers and industry practitioners to strengthen credibility."
+
+        signals = 0
+        if has_author:
+            signals += 2
+        if has_refs:
+            signals += 2
+        if has_stats:
+            signals += 2
+        if has_quotes:
+            signals += 2
+        if page_type in ("BLOG", "DOCS"):
+            exp_patterns = [r"\bin my (?:experience|opinion)\b", r"\bwe (?:found|tested|discovered)\b", r"\bour team\b", r"\bpersonally\b"]
+            exp_count = sum(len(re.findall(p, content_lower)) for p in exp_patterns)
+            if exp_count > 0:
+                signals += 2
+
+        overall_score = min(100, signals * 12 + 20)
+
+        return {
+            "author": {
+                "present": has_author,
+                "suggestion": author_suggestion,
+            },
+            "references": {
+                "present": has_refs,
+                "count": ref_count,
+                "suggestions": ref_suggestions,
+            },
+            "statistics": {
+                "present": has_stats,
+                "count": stat_count,
+                "suggestions": stat_suggestions,
+            },
+            "expert_quotes": {
+                "present": has_quotes,
+                "suggestion": quote_suggestion,
+            },
+            "overall_score": overall_score,
+        }
+
+    # ------------------------------------------------------------------
+    # Entity optimization
+    # ------------------------------------------------------------------
+
+    def _analyze_entities(self, title: str, h1: str, content: str, topic: str) -> dict[str, Any]:
         all_text = f"{title} {h1} {content}"
+        detected = self._extract_entities(all_text)
 
-        entities = self._extract_entities(all_text)
-        content_lower = content.lower()
+        detected_list: list[dict[str, str]] = []
+        seen_entities: set[str] = set()
+        for entity, etype in detected:
+            el = entity.lower()
+            if el not in seen_entities:
+                seen_entities.add(el)
+                count = all_text.lower().count(el)
+                detected_list.append({"entity": entity, "type": etype, "count": count})
 
-        for entity, etype in entities:
-            occurrences = content_lower.count(entity.lower())
-            if occurrences < 2:
-                importance = "high" if occurrences == 0 else "medium"
-                reason = (
-                    f"Entity '{entity}' ({etype}) appears only {occurrences} time(s); "
-                    "deeper coverage strengthens topical authority"
-                )
+        topic_entities = self._infer_topic_entities(topic, content)
+        missing: list[dict[str, str]] = []
+        for entity, etype, reason in topic_entities:
+            if entity.lower() not in seen_entities:
                 missing.append({"entity": entity, "type": etype, "reason": reason})
 
-        return missing[:20]
+        total_entities = len(detected_list) + len(missing)
+        coverage = len(detected_list) / max(total_entities, 1)
+        coverage_score = int(coverage * 100)
+
+        suggested_paragraph = self._generate_entity_paragraph(topic, missing[:5])
+
+        return {
+            "detected": detected_list[:20],
+            "missing": missing[:10],
+            "suggested_paragraph": suggested_paragraph,
+            "coverage_score": coverage_score,
+        }
+
+    def _infer_topic_entities(self, topic: str, content: str) -> list[tuple[str, str, str]]:
+        entities: list[tuple[str, str, str]] = []
+        topic_lower = topic.lower()
+
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "pipeline"]):
+            entities.extend([
+                ("Salesforce", "ORGANIZATION", "Major CRM competitor for comparison context"),
+                ("HubSpot", "ORGANIZATION", "Leading marketing/sales platform for competitive positioning"),
+                ("Clay", "ORGANIZATION", "Popular data enrichment tool used by target audience"),
+                ("Marketo", "ORGANIZATION", "Enterprise marketing automation for integration context"),
+                ("Gartner", "ORGANIZATION", "Authoritative research firm for credibility signals"),
+                ("Forrester", "ORGANIZATION", "Leading analyst firm for market validation"),
+                ("Chief Revenue Officer", "TITLE", "Target decision-maker persona"),
+                ("RevOps", "CONCEPT", "Core methodology aligned with topic"),
+                ("ABM", "CONCEPT", "Account-Based Marketing, related strategy"),
+                ("Intent Data", "CONCEPT", "Key differentiating concept"),
+            ])
+        elif any(kw in topic_lower for kw in ["seo", "search", "marketing"]):
+            entities.extend([
+                ("Google Search Console", "PRODUCT", "Essential tool for SEO practitioners"),
+                ("Ahrefs", "PRODUCT", "Leading SEO tool for competitive context"),
+                ("SEMrush", "PRODUCT", "Major SEO platform for comparison"),
+                ("Moz", "PRODUCT", "Established SEO authority"),
+                ("PageSpeed Insights", "PRODUCT", "Google's performance tool"),
+                ("Core Web Vitals", "CONCEPT", "Critical ranking factor"),
+                ("Schema.org", "ORGANIZATION", "Structured data standard"),
+            ])
+        else:
+            entities.extend([
+                ("API", "CONCEPT", "Integration concept likely relevant"),
+                ("Analytics", "CONCEPT", "Data-driven decision making"),
+                ("Automation", "CONCEPT", "Core efficiency concept"),
+                ("Integration", "CONCEPT", "Connectivity concept"),
+            ])
+
+        content_lower = content.lower() if content else ""
+        filtered: list[tuple[str, str, str]] = []
+        for e, etype, reason in entities:
+            if e.lower() not in content_lower:
+                filtered.append((e, etype, reason))
+        return filtered
+
+    def _generate_entity_paragraph(self, topic: str, missing_entities: list[dict[str, str]]) -> str:
+        if not missing_entities:
+            return ""
+        names = [e["entity"] for e in missing_entities[:3]]
+        others = len(missing_entities) - 3
+        topic_lower = topic.lower()
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales"]):
+            return (
+                f"When evaluating {topic.lower()}, it is important to consider how it compares to established platforms "
+                f"like {', '.join(names)}{' and others' if others > 0 else ''}. "
+                f"Unlike traditional CRM and marketing tools that operate in silos, {topic.lower()} unifies the entire "
+                f"go-to-market stack. Industry analysts at Gartner and Forrester have noted that the market is shifting "
+                f"toward integrated GTM operating systems, with the category expected to grow significantly through 2026. "
+                f"Organizations evaluating solutions should assess integration capabilities, AI maturity, and time-to-value "
+                f"when comparing {topic.lower()} against these alternatives."
+            )
+        return (
+            f"When considering {topic.lower()}, it is worth evaluating how it compares to solutions from "
+            f"{', '.join(names)}{' and others' if others > 0 else ''}. "
+            f"A comprehensive evaluation should include feature comparison, pricing models, integration capabilities, "
+            f"and vendor support quality. Industry benchmarks and user reviews can provide valuable context for making "
+            f"an informed decision about which solution best fits your specific requirements and budget."
+        )
+
+    # ------------------------------------------------------------------
+    # AI Overview preview
+    # ------------------------------------------------------------------
+
+    def _generate_ai_overview(
+        self, content: str, title: str, h1: str, topic: str, brand: str,
+        paragraphs: list[str],
+    ) -> dict[str, Any]:
+        content_lower = content.lower() if content else ""
+        sentences = self._split_sentences(content)
+
+        factual = [s for s in sentences if re.search(r"\d+%", s) or re.search(r"\baccording to\b", s, re.IGNORECASE)]
+        definition_sentence = ""
+        for s in sentences[:5]:
+            if re.search(r"\bis (?:a|an|the)\b", s, re.IGNORECASE):
+                definition_sentence = s
+                break
+
+        if definition_sentence:
+            current_answer = f"{definition_sentence} "
+        elif sentences:
+            current_answer = f"{sentences[0]} "
+        else:
+            current_answer = f"{title or topic} is a solution for businesses. "
+
+        if factual:
+            current_answer += factual[0]
+        else:
+            current_answer += f"It provides features and capabilities for teams looking to improve their operations."
+
+        has_citation_signals = bool(re.search(r"\baccording to\b|\bresearch\b|\bstud(?:y|ies)\b", content_lower))
+        citation_probability = 0.15
+        if has_citation_signals:
+            citation_probability += 0.20
+        if re.search(r"\d+%", content):
+            citation_probability += 0.15
+        if re.search(r"\bfaq\b|\bfrequently asked\b", content_lower):
+            citation_probability += 0.10
+        if len(content) > 2000:
+            citation_probability += 0.10
+        citation_probability = min(0.92, citation_probability)
+
+        topic_lower = topic.lower()
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "intelligence"]):
+            optimized_answer = (
+                f"{topic} is an AI-powered GTM operating system that unifies revenue operations across sales, marketing, and customer success. "
+                f"According to industry research, organizations using unified GTM platforms see 25-35% improvement in pipeline growth and "
+                f"15-25% better forecast accuracy. Key capabilities include AI-driven CRM enrichment, predictive lead scoring with buying intent signals, "
+                f"real-time pipeline analytics, and automated workflow orchestration. Unlike point solutions such as Salesforce, HubSpot, or Clay, "
+                f"{brand} provides a single platform that connects all revenue data sources and uses AI agents to automate repetitive tasks. "
+                f"Teams can typically deploy {brand} within days rather than weeks, with measurable ROI within the first 90 days."
+            )
+        else:
+            optimized_answer = (
+                f"{topic} is a {self._category_for_topic(topic, content)} designed to help businesses streamline operations and improve efficiency. "
+                f"Key features include data analytics, workflow automation, team collaboration tools, and integration with existing platforms. "
+                f"According to industry benchmarks, organizations using {topic.lower()}-type solutions see 20-30% improvement in operational efficiency. "
+                f"{brand} differentiates through ease of setup, comprehensive feature set, and dedicated customer support. "
+                f"Teams can typically get started within days with guided onboarding and see measurable results within the first quarter."
+            )
+
+        return {
+            "current_answer": current_answer[:500],
+            "optimized_answer": optimized_answer[:600],
+            "citation_probability": round(citation_probability, 2),
+        }
+
+    # ------------------------------------------------------------------
+    # Readability rewrite
+    # ------------------------------------------------------------------
+
+    def _generate_readability_rewrite(
+        self, content: str, paragraphs: list[str], topic: str, current_level: str,
+    ) -> dict[str, Any]:
+        optimized_paragraphs: list[str] = []
+        for para in paragraphs[:10]:
+            optimized_paragraphs.append(self._simplify_paragraph(para))
+
+        optimized_preview = " ".join(optimized_paragraphs[:5])
+        words = optimized_preview.split()
+        optimized_level = self._flesch_kincaid_level(optimized_preview, words) if words else current_level
+
+        return {
+            "current_level": current_level,
+            "optimized_level": optimized_level,
+            "optimized_preview": optimized_preview[:800],
+            "grade_score": self._compute_readability_score(optimized_preview, words) if words else 0,
+        }
+
+    def _simplify_paragraph(self, para: str) -> str:
+        sentences = self._split_sentences(para)
+        simplified: list[str] = []
+        for sent in sentences:
+            simplified.append(self._simplify_sentence(sent))
+        return " ".join(simplified)
+
+    # ------------------------------------------------------------------
+    # Internal link suggestions
+    # ------------------------------------------------------------------
+
+    def _suggest_internal_links(
+        self, content: str, topic: str, brand: str, page_type: str,
+        all_pages: list[dict[str, Any]] | None,
+    ) -> list[dict[str, str]]:
+        suggestions: list[dict[str, str]] = []
+        content_lower = content.lower() if content else ""
+
+        if all_pages:
+            for p in all_pages[:20]:
+                p_url = p.get("url", "")
+                p_title = p.get("title", "")
+                p_type = (p.get("page_type") or "").upper()
+                if not p_url:
+                    continue
+                p_words = set(re.findall(r"\b[a-z]{4,}\b", f"{p_title} {p.get('h1', '')}".lower()))
+                p_words -= self.STOP_WORDS
+                c_words = set(re.findall(r"\b[a-z]{4,}\b", content_lower))
+                c_words -= self.STOP_WORDS
+                overlap = p_words & c_words
+                if len(overlap) >= 2 and p_type in ("BLOG", "DOCS", "PRODUCT", "LANDING"):
+                    anchor = list(overlap)[:2]
+                    anchor_text = " ".join(anchor)
+                    suggestions.append({
+                        "anchor_text": f"{anchor_text.title()} guide",
+                        "destination": p_url,
+                        "reason": f"Related content about {' and '.join(anchor)}",
+                        "confidence": min(90, 60 + len(overlap) * 5),
+                        "placement": "within body content",
+                    })
+                    if len(suggestions) >= 8:
+                        break
+
+        topic_lower = topic.lower()
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "intelligence"]):
+            default_links = [
+                {"anchor_text": "revenue intelligence platform", "destination": "/platform", "reason": "Product page for users wanting to learn more", "confidence": 85, "placement": "introduction paragraph"},
+                {"anchor_text": "view pricing plans", "destination": "/pricing", "reason": "Conversion-oriented link for decision-stage readers", "confidence": 88, "placement": "mid-content or CTA section"},
+                {"anchor_text": "see a live demo", "destination": "/demo", "reason": "High-intent CTA for engaged readers", "confidence": 90, "placement": "after key benefits section"},
+                {"anchor_text": "AI GTM operating system", "destination": "/platform", "reason": "Core product positioning link", "confidence": 82, "placement": "first 200 words"},
+            ]
+        else:
+            default_links = [
+                {"anchor_text": f"learn more about {topic.lower()}", "destination": "/product", "reason": "Product information for interested readers", "confidence": 80, "placement": "within content"},
+                {"anchor_text": "view pricing", "destination": "/pricing", "reason": "Conversion opportunity", "confidence": 85, "placement": "after benefits section"},
+                {"anchor_text": "get started free", "destination": "/signup", "reason": "Low-friction conversion CTA", "confidence": 88, "placement": "conclusion or CTA section"},
+            ]
+
+        existing_urls = {s["destination"] for s in suggestions}
+        for link in default_links:
+            if link["destination"] not in existing_urls:
+                suggestions.append(link)
+                existing_urls.add(link["destination"])
+
+        return suggestions[:10]
+
+    # ------------------------------------------------------------------
+    # Schema generation
+    # ------------------------------------------------------------------
+
+    def _generate_schema(
+        self, title: str, h1: str, meta: str, url: str, topic: str,
+        brand: str, page_type: str, faqs: list[dict[str, str]],
+    ) -> dict[str, str]:
+        safe_url = url or "https://example.com"
+        safe_title = title or topic
+        safe_desc = meta or f"Learn about {topic} with {brand}. Features, benefits, and pricing."
+
+        faq_schema = ""
+        if faqs:
+            entities = []
+            for faq in faqs:
+                q_text = self._json_escape(faq.get("question", ""))
+                a_text = self._json_escape(faq.get("answer", ""))
+                entities.append(json.dumps({
+                    "@type": "Question",
+                    "name": q_text,
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": a_text,
+                    },
+                }, ensure_ascii=False))
+            faq_main = ",\n      ".join(entities)
+            faq_schema = (
+                '{\n'
+                '  "@context": "https://schema.org",\n'
+                '  "@type": "FAQPage",\n'
+                '  "mainEntity": [\n'
+                '    ' + faq_main + '\n'
+                '  ]\n'
+                '}'
+            )
+
+        article_schema = (
+            '{\n'
+            '  "@context": "https://schema.org",\n'
+            '  "@type": "Article",\n'
+            '  "headline": "' + self._json_escape(h1 or safe_title) + '",\n'
+            '  "description": "' + self._json_escape(safe_desc) + '",\n'
+            '  "author": {\n'
+            '    "@type": "Organization",\n'
+            '    "name": "' + self._json_escape(brand) + '"\n'
+            '  },\n'
+            '  "publisher": {\n'
+            '    "@type": "Organization",\n'
+            '    "name": "' + self._json_escape(brand) + '",\n'
+            '    "logo": {\n'
+            '      "@type": "ImageObject",\n'
+            '      "url": "https://example.com/logo.png"\n'
+            '    }\n'
+            '  },\n'
+            '  "url": "' + self._json_escape(safe_url) + '",\n'
+            '  "datePublished": "' + self._current_year() + '-01-01",\n'
+            '  "dateModified": "' + self._current_year() + '-01-01"\n'
+            '}'
+        )
+
+        breadcrumb_schema = (
+            '{\n'
+            '  "@context": "https://schema.org",\n'
+            '  "@type": "BreadcrumbList",\n'
+            '  "itemListElement": [\n'
+            '    {\n'
+            '      "@type": "ListItem",\n'
+            '      "position": 1,\n'
+            '      "name": "Home",\n'
+            '      "item": "https://example.com"\n'
+            '    },\n'
+            '    {\n'
+            '      "@type": "ListItem",\n'
+            '      "position": 2,\n'
+            '      "name": "' + self._json_escape(topic[:50]) + '",\n'
+            '      "item": "' + self._json_escape(safe_url) + '"\n'
+            '    }\n'
+            '  ]\n'
+            '}'
+        )
+
+        org_schema = (
+            '{\n'
+            '  "@context": "https://schema.org",\n'
+            '  "@type": "Organization",\n'
+            '  "name": "' + self._json_escape(brand) + '",\n'
+            '  "url": "https://example.com",\n'
+            '  "logo": "https://example.com/logo.png",\n'
+            '  "description": "' + self._json_escape(f'{brand} - {topic}') + '",\n'
+            '  "sameAs": [\n'
+            '    "https://twitter.com/' + brand.lower().replace(" ", "") + '",\n'
+            '    "https://linkedin.com/company/' + brand.lower().replace(" ", "") + '"\n'
+            '  ]\n'
+            '}'
+        )
+
+        software_schema = (
+            '{\n'
+            '  "@context": "https://schema.org",\n'
+            '  "@type": "SoftwareApplication",\n'
+            '  "name": "' + self._json_escape(brand) + '",\n'
+            '  "applicationCategory": "BusinessApplication",\n'
+            '  "operatingSystem": "Web-based",\n'
+            '  "description": "' + self._json_escape(safe_desc) + '",\n'
+            '  "offers": {\n'
+            '    "@type": "Offer",\n'
+            '    "price": "0",\n'
+            '    "priceCurrency": "USD",\n'
+            '    "description": "Free trial available"\n'
+            '  },\n'
+            '  "aggregateRating": {\n'
+            '    "@type": "AggregateRating",\n'
+            '    "ratingValue": "4.8",\n'
+            '    "ratingCount": "250"\n'
+            '  }\n'
+            '}'
+        )
+
+        return {
+            "faq": faq_schema,
+            "article": article_schema,
+            "breadcrumb": breadcrumb_schema,
+            "organization": org_schema,
+            "software": software_schema,
+        }
+
+    def _json_escape(self, text: str) -> str:
+        return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", "").strip()
+
+    def _current_year(self) -> str:
+        return "2025"
+
+    # ------------------------------------------------------------------
+    # Score predictions
+    # ------------------------------------------------------------------
+
+    def _predict_scores(
+        self, content_score: int, readability_score: float, content: str,
+        word_count: int, headings: list, page_type: str,
+    ) -> dict[str, Any]:
+        current_seo = content_score
+        current_chatgpt = max(20, content_score - 10)
+        current_gemini = max(25, content_score - 5)
+        current_perplexity = max(15, content_score - 15)
+        current_google_ai = max(20, content_score - 12)
+
+        boost_seo = 0
+        boost_chatgpt = 0
+        boost_gemini = 0
+        boost_perplexity = 0
+        boost_google_ai = 0
+
+        if word_count < self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL):
+            boost_seo += 12
+            boost_chatgpt += 8
+            boost_gemini += 10
+            boost_perplexity += 7
+            boost_google_ai += 9
+
+        stat_count = len(re.findall(r"\d+%", content)) if content else 0
+        if stat_count < 3:
+            boost_chatgpt += 8
+            boost_perplexity += 10
+            boost_google_ai += 6
+
+        if content:
+            faq_signal = re.search(r"\bfaq\b|\bfrequently asked\b", content, re.IGNORECASE)
+            if not faq_signal:
+                boost_chatgpt += 7
+                boost_perplexity += 5
+                boost_google_ai += 8
+
+            ref_signal = re.search(r"\baccording to\b|\bresearch\b", content, re.IGNORECASE)
+            if not ref_signal:
+                boost_perplexity += 10
+                boost_chatgpt += 6
+                boost_gemini += 5
+
+            cta_signal = re.search(r"\b(get started|sign up|try free|book a demo)\b", content, re.IGNORECASE)
+            if not cta_signal:
+                boost_seo += 3
+
+        heading_count = len(headings) if isinstance(headings, list) else 0
+        if heading_count < 3:
+            boost_seo += 5
+            boost_google_ai += 4
+
+        after_seo = min(98, current_seo + boost_seo)
+        after_chatgpt = min(97, current_chatgpt + boost_chatgpt)
+        after_gemini = min(96, current_gemini + boost_gemini)
+        after_perplexity = min(95, current_perplexity + boost_perplexity)
+        after_google_ai = min(98, current_google_ai + boost_google_ai)
+
+        return {
+            "current": {
+                "seo": max(0, current_seo),
+                "chatgpt": max(0, current_chatgpt),
+                "gemini": max(0, current_gemini),
+                "perplexity": max(0, current_perplexity),
+                "google_ai": max(0, current_google_ai),
+            },
+            "after_rewrite": {
+                "seo": max(0, after_seo),
+                "chatgpt": max(0, after_chatgpt),
+                "gemini": max(0, after_gemini),
+                "perplexity": max(0, after_perplexity),
+                "google_ai": max(0, after_google_ai),
+            },
+        }
+
+    # ------------------------------------------------------------------
+    # Implementation plan
+    # ------------------------------------------------------------------
+
+    def _build_implementation(
+        self, issues: list[dict[str, Any]], recommendations: list[dict[str, Any]],
+        missing_sections: dict[str, Any], eeat: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        tasks: list[dict[str, Any]] = []
+
+        critical = [i for i in issues if i.get("severity") == "critical"]
+        high = [i for i in issues if i.get("severity") == "high"]
+        medium = [i for i in issues if i.get("severity") == "medium"]
+
+        for issue in critical:
+            tasks.append({
+                "task": f"Fix: {issue['issue']} — {issue['fix']}",
+                "time": "10-30 min",
+                "difficulty": "Easy",
+                "owner": "SEO / Content",
+                "impact": "critical",
+                "confidence": 95,
+            })
+
+        for rec in recommendations[:5]:
+            section = rec.get("section", "")
+            tasks.append({
+                "task": f"Rewrite {section}: {rec.get('after', '')[:80]}",
+                "time": "30-60 min",
+                "difficulty": "Medium",
+                "owner": "Content",
+                "impact": "high",
+                "confidence": rec.get("confidence", 85),
+            })
+
+        if missing_sections.get("faq"):
+            tasks.append({
+                "task": f"Add FAQ section with {len(missing_sections['faq'])} questions and FAQPage schema",
+                "time": "30-45 min",
+                "difficulty": "Easy",
+                "owner": "Content / SEO",
+                "impact": "high",
+                "confidence": 94,
+            })
+
+        if missing_sections.get("comparison_table"):
+            tasks.append({
+                "task": "Add comparison table with competitors",
+                "time": "45-60 min",
+                "difficulty": "Medium",
+                "owner": "Content / Product Marketing",
+                "impact": "high",
+                "confidence": 90,
+            })
+
+        if missing_sections.get("glossary"):
+            tasks.append({
+                "task": f"Add glossary with {len(missing_sections['glossary'])} terms",
+                "time": "20-30 min",
+                "difficulty": "Easy",
+                "owner": "Content",
+                "impact": "medium",
+                "confidence": 82,
+            })
+
+        for issue in high:
+            tasks.append({
+                "task": f"Fix: {issue['issue']}",
+                "time": "30-60 min",
+                "difficulty": "Medium",
+                "owner": "Content / Developer",
+                "impact": "high",
+                "confidence": 88,
+            })
+
+        if not eeat.get("author", {}).get("present"):
+            tasks.append({
+                "task": "Add author bio with credentials and E-E-A-T signals",
+                "time": "15-20 min",
+                "difficulty": "Easy",
+                "owner": "Content",
+                "impact": "medium",
+                "confidence": 85,
+            })
+
+        for issue in medium[:5]:
+            tasks.append({
+                "task": f"Fix: {issue['issue']}",
+                "time": "1-2 hrs",
+                "difficulty": "Medium",
+                "owner": "Content / Marketing",
+                "impact": "medium",
+                "confidence": 78,
+            })
+
+        return tasks[:20]
+
+    # ------------------------------------------------------------------
+    # Before/after summary
+    # ------------------------------------------------------------------
+
+    def _build_before_after(
+        self, title: str, h1: str, meta: str, content: str,
+        paragraphs: list[str], rewrite_modes: dict[str, Any],
+        missing_sections: dict[str, Any], topic: str, brand: str,
+    ) -> list[dict[str, Any]]:
+        ba: list[dict[str, Any]] = []
+
+        seo_mode = rewrite_modes.get("seo", {})
+
+        if title != seo_mode.get("title_rewrite"):
+            ba.append({
+                "section": "Title Tag",
+                "current": title or "(missing)",
+                "recommended": seo_mode.get("title_rewrite", title),
+                "why_better": "Primary keyword placement, proper length, brand included, year tag for freshness",
+                "copy_ready": True,
+            })
+
+        if meta != seo_mode.get("meta_rewrite"):
+            ba.append({
+                "section": "Meta Description",
+                "current": meta or "(missing)",
+                "recommended": seo_mode.get("meta_rewrite", meta),
+                "why_better": "Keyword-rich, includes CTA, within SERP snippet length, compelling copy",
+                "copy_ready": True,
+            })
+
+        if h1 != seo_mode.get("h1_rewrite"):
+            ba.append({
+                "section": "H1 Heading",
+                "current": h1 or "(missing)",
+                "recommended": seo_mode.get("h1_rewrite", h1),
+                "why_better": "Aligned with title, natural keyword integration, clear value proposition",
+                "copy_ready": True,
+            })
+
+        first_para = paragraphs[0] if paragraphs else ""
+        intro_rewrite = seo_mode.get("intro_rewrite", "")
+        if intro_rewrite and first_para != intro_rewrite:
+            ba.append({
+                "section": "Introduction",
+                "current": first_para[:300] + ("..." if len(first_para) > 300 else ""),
+                "recommended": intro_rewrite[:300],
+                "why_better": "Leads with value proposition, keyword in first sentence, establishes relevance immediately",
+                "copy_ready": True,
+            })
+
+        if missing_sections.get("faq"):
+            faq_text = "\n\n".join(
+                f"**Q: {faq['question']}**\nA: {faq['answer']}"
+                for faq in missing_sections["faq"][:5]
+            )
+            ba.append({
+                "section": "FAQ Section",
+                "current": "(not present)",
+                "recommended": faq_text,
+                "why_better": "FAQs directly feed AI Overviews, ChatGPT answers, and Google rich results. FAQPage schema enables rich snippets.",
+                "copy_ready": True,
+            })
+
+        if missing_sections.get("comparison_table"):
+            comp = missing_sections["comparison_table"]
+            headers = " | ".join(comp.get("headers", []))
+            rows = "\n".join(" | ".join(row) for row in comp.get("rows", []))
+            table_text = f"{headers}\n{rows}"
+            ba.append({
+                "section": "Comparison Table",
+                "current": "(not present)",
+                "recommended": table_text,
+                "why_better": "Comparison tables are heavily extracted by AI platforms for product recommendations and featured snippets",
+                "copy_ready": True,
+            })
+
+        if missing_sections.get("lists"):
+            for lst in missing_sections["lists"][:2]:
+                items = "\n".join(f"- {item}" for item in lst.get("items", []))
+                ba.append({
+                    "section": f"List: {lst.get('title', 'Key Points')}",
+                    "current": "(not present)",
+                    "recommended": items,
+                    "why_better": "Structured lists improve scannability and qualify for featured snippet list results",
+                    "copy_ready": True,
+                })
+
+        if missing_sections.get("glossary"):
+            terms = "\n".join(
+                f"**{g['term']}**: {g['definition']}" for g in missing_sections["glossary"]
+            )
+            ba.append({
+                "section": "Glossary",
+                "current": "(not present)",
+                "recommended": terms,
+                "why_better": "Glossary terms are frequently extracted by AI platforms as definition snippets",
+                "copy_ready": True,
+            })
+
+        return ba
+
+    # ------------------------------------------------------------------
+    # Utility: entity extraction
+    # ------------------------------------------------------------------
 
     def _extract_entities(self, text: str) -> list[tuple[str, str]]:
         entities: list[tuple[str, str]] = []
 
-        person_pattern = re.compile(
-            r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b'
-        )
+        person_pattern = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b")
         for m in person_pattern.finditer(text):
             phrase = m.group(1)
             words_in = phrase.split()
-            if not all(w in self.STOP_WORDS for w in words_in):
+            if not all(w.lower() in self.STOP_WORDS for w in words_in):
                 entities.append((phrase, "PERSON_OR_ORG"))
 
         org_pattern = re.compile(
-            r'\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*(?:\s+(?:Inc|LLC|Corp|Ltd|Co|Group|Company|Foundation|Institute|Association|University|Studio))\.?)\b'
+            r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*"
+            r"(?:\s+(?:Inc|LLC|Corp|Ltd|Co|Group|Company|Foundation|Institute))\.?)\b"
         )
         for m in org_pattern.finditer(text):
             entities.append((m.group(1), "ORGANIZATION"))
 
         tech_pattern = re.compile(
-            r'\b(Python|JavaScript|TypeScript|React|Vue|Angular|Docker|Kubernetes|AWS|Azure|'
-            r'GCP|TensorFlow|PyTorch|Django|Flask|FastAPI|Node\.js|PostgreSQL|MySQL|Redis|'
-            r'MongoDB|GraphQL|REST|API|SDK|HTML|CSS|Git|Linux|Windows|macOS|SEO|HTML|CSS|'
-            r'JavaScript|C\+\+|Ruby|PHP|Rust|Go|Swift|Kotlin|Scala|R\b)'
+            r"\b(Python|JavaScript|TypeScript|React|Vue|Angular|Docker|Kubernetes|"
+            r"AWS|Azure|GCP|TensorFlow|PyTorch|Django|Flask|FastAPI|Node\.js|"
+            r"PostgreSQL|MySQL|Redis|MongoDB|GraphQL|REST|API|SDK|SEO|Git|Linux)\b"
         )
         for m in tech_pattern.finditer(text):
             entities.append((m.group(1), "TECHNOLOGY"))
@@ -260,1319 +1789,3 @@ class ContentIntelligenceDeep:
                 seen.add(key)
                 unique.append((e, t))
         return unique
-
-    def _extract_keywords(self, text: str) -> list[str]:
-        words = re.findall(r'\b[a-zA-Z]{4,}\b', text)
-        keywords: list[str] = []
-        seen: set[str] = set()
-        for w in words:
-            wl = w.lower()
-            if wl not in self.STOP_WORDS and wl not in seen:
-                seen.add(wl)
-                keywords.append(w)
-        return keywords
-
-    def _detect_missing_semantic(self, title: str, h1: str, content: str) -> list[dict[str, str]]:
-        missing: list[dict[str, str]] = []
-        keywords = self._extract_keywords(f"{title} {h1}")
-        content_lower = content.lower()
-
-        semantic_expansions: dict[str, list[str]] = {}
-        for kw in keywords[:8]:
-            base = kw.lower()
-            expansions = self._generate_semantic_variants(base)
-            semantic_expansions[base] = expansions
-
-        for base, variants in semantic_expansions.items():
-            for variant in variants:
-                if variant.lower() not in content_lower:
-                    missing.append({
-                        "keyword": variant,
-                        "relevance": f"Semantic variant of '{base}' to strengthen topical coverage",
-                    })
-        return missing[:15]
-
-    def _generate_semantic_variants(self, word: str) -> list[str]:
-        suffixes_map = {
-            "ing": ["tion", "ment", "ed", "er"],
-            "tion": ["ting", "tive", "tions"],
-            "ly": ["ness", "ty", "ble"],
-            "ness": ["ly", "less", "ful"],
-            "er": ["ing", "ation", "ed"],
-            "ful": ["ness", "less", "fully"],
-            "ive": ["ion", "ely", "eness"],
-        }
-        variants: list[str] = []
-        for suffix, replacements in suffixes_map.items():
-            if word.endswith(suffix):
-                stem = word[: -len(suffix)]
-                for rep in replacements:
-                    candidate = stem + rep
-                    if len(candidate) > 3:
-                        variants.append(candidate)
-                break
-        if len(word) > 5:
-            variants.append(word + "s")
-            variants.append(word + "ing")
-        return variants[:5]
-
-    def _generate_paa(self, title: str, h1: str, content: str) -> list[dict[str, str]]:
-        paa: list[dict[str, str]] = []
-        keywords = self._extract_keywords(f"{title} {h1}")
-        top_kw = keywords[:5] if keywords else ["this topic"]
-
-        templates = [
-            ("What is {kw} and why is it important?", "Provide a clear definition and explain its significance"),
-            ("How does {kw} work?", "Explain the mechanism or process behind {kw}"),
-            ("What are the benefits of {kw}?", "List 3-5 key benefits with supporting details"),
-            ("What are the best practices for {kw}?", "Provide actionable best practices with examples"),
-            ("How can I get started with {kw}?", "Offer a step-by-step beginner-friendly guide"),
-            ("What tools are available for {kw}?", "Recommend specific tools with brief comparisons"),
-            ("What are common mistakes with {kw}?", "Identify pitfalls and how to avoid them"),
-            ("How long does {kw} take?", "Provide realistic timeframes and factors affecting duration"),
-        ]
-
-        for kw in top_kw:
-            template = templates[len(paa) % len(templates)]
-            question = template[0].replace("{kw}", kw.lower())
-            answer_hint = template[1].replace("{kw}", kw.lower())
-            paa.append({"question": question, "answer_hint": answer_hint})
-            if len(paa) >= 5:
-                break
-        return paa
-
-    def _generate_faqs(self, title: str, h1: str, content: str) -> list[dict[str, str]]:
-        faqs: list[dict[str, str]] = []
-        keywords = self._extract_keywords(f"{title} {h1}")
-        top_kw = keywords[:5] if keywords else ["this topic"]
-
-        faq_templates = [
-            ("What is {kw}?", "{kw} refers to a concept or tool that helps achieve specific goals. It is widely used across industries."),
-            ("Why is {kw} important?", "{kw} is important because it directly impacts performance, efficiency, and results."),
-            ("How do I use {kw} effectively?", "Start with understanding your goals, then apply {kw} incrementally while measuring results."),
-            ("What are the alternatives to {kw}?", "Alternatives include several approaches depending on your budget, scale, and technical requirements."),
-            ("Can beginners use {kw}?", "Yes, beginners can start with {kw} by following structured guides and practicing regularly."),
-        ]
-
-        for kw in top_kw:
-            template = faq_templates[len(faqs) % len(faq_templates)]
-            question = template[0].replace("{kw}", kw.lower())
-            suggested_answer = template[1].replace("{kw}", kw.lower())
-            faqs.append({"question": question, "suggested_answer": suggested_answer})
-            if len(faqs) >= 5:
-                break
-        return faqs
-
-    # ------------------------------------------------------------------
-    # Structural gaps
-    # ------------------------------------------------------------------
-
-    def _check_tables(self, content: str, page_type: str) -> dict[str, Any]:
-        table_matches = re.findall(r'<table|^\|.*\|$', content, re.MULTILINE)
-        count = len(table_matches)
-        has_tables = count > 0
-        needed = not has_tables
-        if page_type in ("PRODUCT", "DOCS"):
-            reason = "Comparison or tabular data is expected for this page type"
-            suggestion = "Add comparison tables for features, pricing, or specifications"
-        else:
-            reason = "Tables help break down complex information for readers"
-            suggestion = "Consider adding a summary table for key data points or comparisons"
-        return {
-            "needed": needed,
-            "count": count,
-            "reason": reason,
-            "suggestion": suggestion,
-            "metric": {"current": count, "target": 2, "unit": "tables"},
-        }
-
-    def _check_examples(self, content: str, page_type: str) -> dict[str, Any]:
-        example_patterns = [
-            r'\bfor example\b', r'\bsuch as\b', r'\be\.g\.\b',
-            r'\bfor instance\b', r'\blike this\b', r'\bhere.s how\b',
-            r'\bsample\b', r'\bdemonstrat', r'\billustrat',
-        ]
-        count = 0
-        for pat in example_patterns:
-            count += len(re.findall(pat, content, re.IGNORECASE))
-
-        ideal_count = 3 if page_type == "DOCS" else 2
-        if count >= ideal_count:
-            status = "excellent"
-            suggestion = f"Found {count} example(s). Excellent use of practical examples."
-        elif count > 0:
-            status = "needs_improvement"
-            suggestion = f"Found {count} example(s). Add {ideal_count - count} more practical examples."
-        else:
-            status = "missing"
-            suggestion = "No examples found. Add practical code snippets or real-world scenarios."
-        return {
-            "needed": count < ideal_count,
-            "count": count,
-            "target": ideal_count,
-            "status": status,
-            "suggestion": suggestion,
-            "metric": {"current": count, "target": ideal_count, "unit": "examples"},
-        }
-
-    def _check_step_by_step(self, content: str, page_type: str) -> dict[str, Any]:
-        step_patterns = [
-            r'\bstep\s+\d', r'\bstep\s+one\b', r'\bstep\s+two\b',
-            r'\bfirst[,:]\s', r'\bsecond[,:]\s', r'\bthird[,:]\s',
-            r'\bphase\s+\d', r'\bstage\s+\d',
-        ]
-        has_steps = any(re.search(p, content, re.IGNORECASE) for p in step_patterns)
-        numbered = re.findall(r'^\s*\d+[\.\)]\s', content, re.MULTILINE)
-        has_steps = has_steps or len(numbered) >= 3
-
-        needed = not has_steps and page_type in ("BLOG", "DOCS", "PRODUCT")
-        return {
-            "needed": needed,
-            "suggestion": "Add a numbered step-by-step guide to improve scannability and completeness",
-        }
-
-    def _check_comparison(self, content: str, page_type: str) -> dict[str, Any]:
-        comp_patterns = [
-            r'\bvs\.?\b', r'\bversus\b', r'\bcompared to\b',
-            r'\bbetter than\b', r'\bworse than\b', r'\bpros?\s+and\s+cons?\b',
-            r'\badvantages?\b', r'\bdisadvantages?\b',
-        ]
-        has_comp = any(re.search(p, content, re.IGNORECASE) for p in comp_patterns)
-        needed = not has_comp and page_type in ("PRODUCT", "BLOG")
-        return {
-            "needed": needed,
-            "suggestion": "Add a comparison section (pros/cons, vs alternatives) to help readers make decisions",
-        }
-
-    def _check_glossary(self, content: str, page_type: str) -> dict[str, Any]:
-        terms: list[str] = []
-        glossary_pattern = re.compile(r'\*\*([A-Za-z ]+)\*\*[:\s]+([^\n]+)', re.MULTILINE)
-        for m in glossary_pattern.finditer(content):
-            terms.append(m.group(1).strip())
-
-        bold_defs = re.findall(r'<b>([^<]+)</b>\s*[-–—:]\s', content)
-        terms.extend(bold_defs)
-
-        needed = len(terms) == 0 and page_type in ("DOCS", "PRODUCT")
-        return {
-            "needed": needed,
-            "terms": terms,
-            "suggestion": (
-                f"Found {len(terms)} defined term(s). Add a glossary section defining "
-                "key jargon to improve accessibility for all reader levels"
-            ),
-        }
-
-    # ------------------------------------------------------------------
-    # Authority gaps
-    # ------------------------------------------------------------------
-
-    def _check_research(self, content: str) -> dict[str, Any]:
-        research_patterns = [
-            r'\bstud(?:y|ies)\b', r'\bresearch\b', r'\bfindings\b',
-            r'\baccording to\b', r'\bsurvey\b', r'\breport\b',
-            r'\bdata shows\b', r'\banalysis\b', r'\bexperiment\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in research_patterns)
-        needed = count < 2
-        return {
-            "needed": needed,
-            "suggestion": (
-                f"Found {count} research reference(s). Cite at least 2-3 credible studies "
-                "or reports to back up key claims"
-            ),
-        }
-
-    def _check_statistics(self, content: str) -> dict[str, Any]:
-        stat_patterns = [
-            r'\d+%', r'\$\d+', r'\d+x\b', r'\d+\.\d+',
-            r'\b\d{1,3}(?:,\d{3})+\b', r'\b(?:million|billion|thousand)\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in stat_patterns)
-        needed = count < 3
-        return {
-            "needed": needed,
-            "count": count,
-            "suggestion": (
-                f"Found {count} statistic(s). Add 3-5 data points with percentages, "
-                "dollar amounts, or numerical evidence to strengthen arguments"
-            ),
-        }
-
-    def _check_case_studies(self, content: str, page_type: str) -> dict[str, Any]:
-        case_patterns = [
-            r'\bcase stud', r'\breal.world example', r'\bsuccess stor',
-            r'\bcustomer story', r'\bimplementation story',
-        ]
-        has_cases = any(re.search(p, content, re.IGNORECASE) for p in case_patterns)
-        needed = not has_cases and page_type in ("PRODUCT", "BLOG", "LANDING")
-        return {
-            "needed": needed,
-            "suggestion": "Add 1-2 case studies or real-world success stories to build credibility",
-        }
-
-    def _check_citations(self, content: str) -> dict[str, Any]:
-        citation_patterns = [
-            r'\[\d+\]', r'\(\d{4}\)', r'\bvol\.\s*\d+', r'\bdoi:',
-            r'\barxiv:', r'\bpmid:', r'\bp\.\s*\d+',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in citation_patterns)
-        needed = count < 2
-        return {
-            "needed": needed,
-            "count": count,
-            "suggestion": (
-                f"Found {count} citation(s). Add formal citations or links to sources "
-                "for claims, statistics, and quoted information"
-            ),
-        }
-
-    def _check_external_links(self, external_links: list[str], word_count: int) -> dict[str, Any]:
-        if isinstance(external_links, list):
-            unique_urls = set()
-            for link in external_links:
-                if isinstance(link, dict):
-                    url = link.get("url", "") or link.get("href", "")
-                    if url: unique_urls.add(url.rstrip("/").lower())
-                elif isinstance(link, str):
-                    unique_urls.add(link.rstrip("/").lower())
-            count = len(unique_urls)
-        else:
-            count = 0
-        ideal = min(max(2, word_count // 500), 10)
-        if count >= ideal:
-            status = "excellent"
-            suggestion = f"Found {count} external link(s). Target of {ideal}+ met — excellent outbound linking."
-        elif count > 0:
-            status = "needs_improvement"
-            suggestion = f"Found {count} external link(s). Add {ideal - count} more outbound links to authoritative sources."
-        else:
-            status = "missing"
-            suggestion = "No external links found. Add links to authoritative sources to signal topical relevance."
-        return {
-            "needed": count < ideal,
-            "count": count,
-            "target": ideal,
-            "status": status,
-            "suggestion": suggestion,
-            "metric": {"current": count, "target": ideal, "unit": "links"},
-        }
-
-    def _check_internal_links(self, internal_links: list[str], word_count: int) -> dict[str, Any]:
-        if isinstance(internal_links, list):
-            unique_urls = set()
-            for link in internal_links:
-                if isinstance(link, dict):
-                    url = link.get("url", "") or link.get("href", "")
-                    if url: unique_urls.add(url.rstrip("/").lower())
-                elif isinstance(link, str):
-                    unique_urls.add(link.rstrip("/").lower())
-            count = len(unique_urls)
-        else:
-            count = 0
-        ideal = min(max(3, word_count // 400), 15)
-        if count >= ideal:
-            status = "excellent"
-            suggestion = f"Found {count} internal link(s). Target of {ideal}+ met — strong internal linking."
-        elif count > 0:
-            status = "needs_improvement"
-            suggestion = f"Found {count} internal link(s). Add {ideal - count} more internal links to related content."
-        else:
-            status = "missing"
-            suggestion = "No internal links found. Add links to related content to strengthen site architecture."
-        return {
-            "needed": count < ideal,
-            "count": count,
-            "target": ideal,
-            "status": status,
-            "suggestion": suggestion,
-            "metric": {"current": count, "target": ideal, "unit": "links"},
-        }
-
-    # ------------------------------------------------------------------
-    # Visual gaps
-    # ------------------------------------------------------------------
-
-    def _check_screenshots(self, images: list[dict], page_type: str) -> dict[str, Any]:
-        img_count = len(images) if isinstance(images, list) else 0
-        needed = img_count == 0 and page_type in ("DOCS", "PRODUCT", "BLOG")
-        return {
-            "needed": needed,
-            "suggestion": "Add screenshots or UI captures to visually demonstrate concepts or features",
-        }
-
-    def _check_diagrams(self, images: list[dict], content: str) -> dict[str, Any]:
-        diagram_keywords = ["diagram", "chart", "graph", "flow", "architecture", "wireframe"]
-        has_diagrams = any(
-            any(kw in (img.get("alt", "") if isinstance(img, dict) else "").lower() for kw in diagram_keywords)
-            for img in (images if isinstance(images, list) else [])
-        ) if images else False
-        diagram_in_text = any(kw in content.lower() for kw in diagram_keywords)
-        needed = not has_diagrams and not diagram_in_text
-        return {
-            "needed": needed,
-            "suggestion": "Add diagrams or flowcharts to visualize complex processes or relationships",
-        }
-
-    def _check_videos(self, content: str, page_type: str) -> dict[str, Any]:
-        video_patterns = [r'<iframe[^>]*youtube', r'<iframe[^>]*vimeo', r'\.mp4', r'\bvideo\b']
-        has_video = any(re.search(p, content, re.IGNORECASE) for p in video_patterns)
-        needed = not has_video and page_type in ("BLOG", "PRODUCT", "DOCS")
-        return {
-            "needed": needed,
-            "suggestion": "Embed a relevant video to increase engagement and time on page",
-        }
-
-    def _check_infographics(self, images: list[dict], page_type: str) -> dict[str, Any]:
-        infog_keywords = ["infographic", "visual guide", "overview"]
-        has_infog = False
-        if isinstance(images, list):
-            for img in images:
-                alt = img.get("alt", "") if isinstance(img, dict) else ""
-                if any(kw in alt.lower() for kw in infog_keywords):
-                    has_infog = True
-                    break
-        needed = not has_infog and page_type in ("BLOG", "LANDING")
-        return {
-            "needed": needed,
-            "suggestion": "Create an infographic summarizing key points for shareable visual content",
-        }
-
-    def _check_downloadables(self, content: str, page_type: str) -> dict[str, Any]:
-        dl_patterns = [r'\.pdf\b', r'\.xlsx?\b', r'\.csv\b', r'\.zip\b', r'\bdownload\b', r'\btemplate\b']
-        has_dl = any(re.search(p, content, re.IGNORECASE) for p in dl_patterns)
-        needed = not has_dl and page_type in ("BLOG", "PRODUCT", "DOCS")
-        types: list[str] = []
-        if not has_dl:
-            if page_type == "BLOG":
-                types = ["checklist", "template", "worksheet"]
-            elif page_type == "PRODUCT":
-                types = ["whitepaper", "case_study_pdf", "demo_request"]
-            elif page_type == "DOCS":
-                types = ["cheat_sheet", "code_sample", "config_template"]
-        return {
-            "needed": needed,
-            "types": types,
-            "suggestion": f"Offer downloadable assets ({', '.join(types) if types else 'PDF, template'}) to capture leads and add value",
-        }
-
-    # ------------------------------------------------------------------
-    # Trust gaps
-    # ------------------------------------------------------------------
-
-    def _check_cta(self, content: str, page_type: str) -> dict[str, Any]:
-        cta_patterns = [
-            r'\b(sign up|register|start free|get started|try free|book a demo|'
-            r'contact us|schedule|download|subscribe|buy now|order now|'
-            r'request a quote|join|learn more|see pricing)\b'
-        ]
-        has_cta = any(re.search(p, content, re.IGNORECASE) for p in cta_patterns)
-        if page_type == "LANDING":
-            cta_type = "conversion"
-        elif page_type == "PRODUCT":
-            cta_type = "trial_signup"
-        elif page_type == "BLOG":
-            cta_type = "newsletter_or_related"
-        else:
-            cta_type = "engagement"
-        return {
-            "needed": not has_cta,
-            "suggestion": f"Add a clear {cta_type} call-to-action to guide the reader toward the next step",
-            "cta_type": cta_type,
-        }
-
-    def _check_trust_signals(self, content: str, page_type: str) -> dict[str, Any]:
-        trust_patterns = [
-            r'\bssl\b', r'\bsecure\b', r'\bgdpr\b', r'\bcompliant\b',
-            r'\bcertified\b', r'\baccredited\b', r'\bguarantee\b',
-            r'\bmoney.back\b', r'\bfree trial\b', r'\bno credit card\b',
-            r'\bsoc\s*2\b', r'\biso\b', r'\btrusted by\b', r'\bsince \d{4}\b',
-        ]
-        found: list[str] = []
-        for p in trust_patterns:
-            m = re.search(p, content, re.IGNORECASE)
-            if m:
-                found.append(m.group(0))
-        needed = len(found) == 0 and page_type in ("PRODUCT", "LANDING")
-        return {
-            "needed": needed,
-            "signals": found,
-            "suggestion": (
-                f"Found {len(found)} trust signal(s). Add security badges, certifications, "
-                "guarantees, or compliance mentions to build user confidence"
-            ),
-        }
-
-    def _check_customer_logos(self, images: list[dict], content: str, page_type: str) -> dict[str, Any]:
-        logo_keywords = ["logo", "client", "customer", "partner", "trusted"]
-        has_logos = False
-        if isinstance(images, list):
-            for img in images:
-                alt = img.get("alt", "") if isinstance(img, dict) else ""
-                if any(kw in alt.lower() for kw in logo_keywords):
-                    has_logos = True
-                    break
-        if not has_logos:
-            has_logos = bool(re.search(r'\btrusted by\b|\bused by\b|\bclients include\b', content, re.IGNORECASE))
-        needed = not has_logos and page_type in ("PRODUCT", "LANDING")
-        return {
-            "needed": needed,
-            "suggestion": "Display customer or partner logos to leverage social proof",
-        }
-
-    def _check_testimonials(self, content: str, page_type: str) -> dict[str, Any]:
-        testimonial_patterns = [
-            r'\btestimon', r'\breview\b', r'\bfeedback\b',
-            r'\bsaid that\b', r'\bquote\b.*said',
-            r'["\u201c][^"\u201d]{20,}["\u201d]', r'\bsuccess story\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in testimonial_patterns)
-        needed = count == 0 and page_type in ("PRODUCT", "LANDING", "BLOG")
-        return {
-            "needed": needed,
-            "count": count,
-            "suggestion": (
-                f"Found {count} testimonial(s). Add 2-3 customer testimonials with names, "
-                "titles, and companies for authentic social proof"
-            ),
-        }
-
-    def _check_author_bio(self, content: str, page_type: str) -> dict[str, Any]:
-        bio_patterns = [
-            r'\babout the author\b', r'\bwritten by\b', r'\bauthor\b.*\bis a\b',
-            r'\bbio\b', r'\bprofile\b.*\bauthor\b',
-        ]
-        has_bio = any(re.search(p, content, re.IGNORECASE) for p in bio_patterns)
-        needed = not has_bio and page_type in ("BLOG", "DOCS")
-        return {
-            "needed": needed,
-            "suggestion": "Add an author bio with credentials, experience, and links to establish E-E-A-T",
-        }
-
-    def _check_update_history(self, content: str) -> dict[str, Any]:
-        update_patterns = [
-            r'\bupdated on\b', r'\blast updated\b', r'\bmodified\b',
-            r'\bversion \d', r'\bchangelog\b', r'\brevision\b',
-        ]
-        has_update = any(re.search(p, content, re.IGNORECASE) for p in update_patterns)
-        return {
-            "needed": not has_update,
-            "suggestion": "Add an 'Last updated' date to signal content freshness to readers and search engines",
-        }
-
-    # ------------------------------------------------------------------
-    # Product gaps
-    # ------------------------------------------------------------------
-
-    def _check_pricing(self, content: str, page_type: str) -> dict[str, Any]:
-        pricing_patterns = [
-            r'\$\d+', r'\bfree\b', r'\bpricing\b', r'\bplan\b.*\bfree\b',
-            r'\bsubscription\b', r'\bper month\b', r'\bper year\b',
-            r'\btier\b', r'\benterprise\b', r'\bstarter\b',
-        ]
-        has_pricing = any(re.search(p, content, re.IGNORECASE) for p in pricing_patterns)
-        needed = not has_pricing and page_type in ("PRODUCT", "LANDING")
-        return {
-            "needed": needed,
-            "suggestion": "Add pricing details, plan comparison, or a 'view pricing' link to reduce friction",
-        }
-
-    def _check_product_comparison(self, content: str, page_type: str) -> dict[str, Any]:
-        comp_patterns = [r'\bcompar', r'\balternative', r'\bvs\.?\b', r'\bother tools\b']
-        has_comp = any(re.search(p, content, re.IGNORECASE) for p in comp_patterns)
-        needed = not has_comp and page_type == "PRODUCT"
-        return {
-            "needed": needed,
-            "suggestion": "Add a product comparison table against top competitors to aid decision-making",
-        }
-
-    def _check_implementation_guide(self, content: str, page_type: str) -> dict[str, Any]:
-        impl_patterns = [
-            r'\bhow to (?:set up|install|configure|implement|integrate|get started)\b',
-            r'\bsetup guide\b', r'\bgetting started\b', r'\bquickstart\b',
-            r'\bonboarding\b', r'\bstep.by.step\b',
-        ]
-        has_impl = any(re.search(p, content, re.IGNORECASE) for p in impl_patterns)
-        needed = not has_impl and page_type in ("PRODUCT", "DOCS")
-        return {
-            "needed": needed,
-            "suggestion": "Add an implementation guide or getting-started walkthrough to reduce time-to-value",
-        }
-
-    def _check_schema(self, schema_markup: list[dict] | list[str], page_type: str) -> dict[str, Any]:
-        types_found: list[str] = []
-        if isinstance(schema_markup, list):
-            for item in schema_markup:
-                if isinstance(item, dict):
-                    t = item.get("@type", "")
-                    if t:
-                        types_found.append(t)
-                elif isinstance(item, str):
-                    types_found.append(item)
-
-        expected_map = {
-            "BLOG": ["Article", "BlogPosting", "FAQPage", "BreadcrumbList"],
-            "PRODUCT": ["Product", "Offer", "Review", "FAQPage"],
-            "LANDING": ["Organization", "FAQPage", "BreadcrumbList"],
-            "FAQ": ["FAQPage", "Question", "Answer"],
-            "DOCS": ["TechArticle", "HowTo", "BreadcrumbList"],
-        }
-        expected = expected_map.get(page_type, ["WebPage", "BreadcrumbList"])
-        missing_types = [t for t in expected if t not in types_found]
-        needed = len(missing_types) > 0
-        return {
-            "needed": needed,
-            "types": missing_types,
-            "suggestion": (
-                f"Missing schema types: {', '.join(missing_types) if missing_types else 'none'}. "
-                f"Add structured data for better rich snippet eligibility"
-            ),
-        }
-
-    # ------------------------------------------------------------------
-    # E-E-A-T gaps
-    # ------------------------------------------------------------------
-
-    def _check_author_credibility(self, content: str, page_type: str) -> dict[str, Any]:
-        cred_patterns = [
-            r'\b\d+ years?\s+(?:of\s+)?experience\b',
-            r'\b(certified|certification|credential)\b',
-            r'\bphd\b', r'\bmaster.s\b', r'\bbachelor.s\b',
-            r'\bexpert\b', r'\bspecialist\b', r'\bprofessional\b',
-            r'\bpublished\b', r'\bspeaker\b', r'\baward\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in cred_patterns)
-        needed = count == 0 and page_type in ("BLOG", "DOCS")
-        return {
-            "needed": needed,
-            "suggestion": (
-                f"Found {count} credibility signal(s). Add author credentials, years of experience, "
-                "certifications, or notable publications"
-            ),
-        }
-
-    def _check_first_hand_experience(self, content: str) -> dict[str, Any]:
-        experience_patterns = [
-            r'\bin my (?:experience|opinion|case|project)\b',
-            r'\bI (?:have|used|tried|tested|built|created|implemented)\b',
-            r'\bour team\b', r'\bwe (?:found|discovered|learned|tested)\b',
-            r'\bwhen I\b', r'\bour (?:company|team|research)\b',
-            r'\bpersonally\b', r'\bfirst.hand\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in experience_patterns)
-        needed = count < 2
-        return {
-            "needed": needed,
-            "suggestion": (
-                f"Found {count} first-hand experience signal(s). Share personal or team experiences "
-                "to demonstrate genuine expertise and satisfy Experience in E-E-A-T"
-            ),
-        }
-
-    def _check_balanced_viewpoint(self, content: str) -> dict[str, Any]:
-        positive_patterns = [
-            r'\b(excellent|amazing|perfect|best|greatest|incredible)\b',
-        ]
-        negative_patterns = [
-            r'\b(drawback|disadvantage|limitation|downside|weakness|not ideal|con)\b',
-            r'\bhowever\b', r'\bon the other hand\b', r'\btrade.off\b',
-        ]
-        pos_count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in positive_patterns)
-        neg_count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in negative_patterns)
-        ratio = pos_count / max(neg_count, 1)
-        needed = ratio > 4 or neg_count == 0
-        return {
-            "needed": needed,
-            "suggestion": (
-                f"Positive-to-critical ratio is {pos_count}:{neg_count}. "
-                "Include limitations, drawbacks, or alternatives for a balanced, trustworthy perspective"
-            ),
-        }
-
-    # ------------------------------------------------------------------
-    # Quality scores
-    # ------------------------------------------------------------------
-
-    def _compute_quality_scores(
-        self, content: str, words: list[str], headings: list[dict] | list[str], page_type: str
-    ) -> dict[str, Any]:
-        return {
-            "content_freshness": self._score_freshness(content),
-            "search_intent_match": self._score_intent_match(content, page_type),
-            "entity_coverage": self._score_entity_coverage(content),
-            "topical_authority": self._score_topical_authority(content),
-            "readability": self._score_readability(content, words),
-            "grammar_score": self._score_grammar(content),
-            "sentence_complexity": self._score_sentence_complexity(content),
-            "duplicate_paragraphs": self._count_duplicate_paragraphs(content),
-            "ai_detection_risk": self._score_ai_detection(content, words),
-            "citation_score": self._score_citations(content),
-            "originality_score": self._score_originality(content),
-            "content_completeness": 0.0,
-        }
-
-    def _score_freshness(self, content: str) -> float:
-        date_patterns = [
-            r'\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4}\b',
-            r'\b\d{4}[-/]\d{2}[-/]\d{2}\b',
-            r'\bupdated\b.*?\d{4}\b',
-            r'\b\d{1,2}/\d{1,2}/\d{4}\b',
-        ]
-        dates_found = []
-        for pat in date_patterns:
-            for m in re.finditer(pat, content, re.IGNORECASE):
-                dates_found.append(m.group(0))
-
-        if not dates_found:
-            return 0.4
-
-        years = []
-        for d in dates_found:
-            ym = re.search(r'\b(20\d{2})\b', d)
-            if ym:
-                years.append(int(ym.group(1)))
-        if not years:
-            return 0.5
-        max_year = max(years)
-        if max_year >= 2025:
-            return 0.95
-        elif max_year >= 2023:
-            return 0.75
-        elif max_year >= 2021:
-            return 0.5
-        return 0.3
-
-    def _score_intent_match(self, content: str, page_type: str) -> dict[str, Any]:
-        how_to = len(re.findall(r'\bhow to\b', content, re.IGNORECASE))
-        what_is = len(re.findall(r'\bwhat is\b', content, re.IGNORECASE))
-        why = len(re.findall(r'\bwhy\b', content, re.IGNORECASE))
-        buy = len(re.findall(r'\b(buy|purchase|order|pricing|discount)\b', content, re.IGNORECASE))
-        compare = len(re.findall(r'\b(compare|vs|versus|alternative)\b', content, re.IGNORECASE))
-
-        scores = {
-            "informational": how_to + what_is + why,
-            "transactional": buy,
-            "commercial": compare,
-        }
-        dominant = max(scores, key=lambda k: scores[k])
-        if scores[dominant] == 0:
-            return {"label": "unclear", "score": 0.2, "detail": "Could not determine dominant search intent"}
-        score_val = min(1.0, scores[dominant] / 5)
-        return {"label": dominant, "score": round(score_val, 2), "detail": f"Predominantly {dominant} content"}
-
-    def _score_entity_coverage(self, content: str) -> float:
-        entities = self._extract_entities(content)
-        unique_entities = set(e.lower() for e, _ in entities)
-        if not unique_entities:
-            return 0.0
-        word_count = len(content.split()) if content else 0
-        if word_count == 0:
-            return 0.0
-        coverage = min(len(unique_entities) / max(word_count / 200, 1), 1.0)
-        return round(coverage, 2)
-
-    def _score_topical_authority(self, content: str) -> float:
-        depth_signals = [
-            r'\b(for example|such as|e\.g\.)\b',
-            r'\b(according to|research shows|studies indicate)\b',
-            r'\b(step \d|phase \d|stage \d)\b',
-            r'\b(pros?|cons?|advantages?|disadvantages?)\b',
-            r'\bcomparison\b', r'\balternative\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in depth_signals)
-        word_count = len(content.split()) if content else 0
-        if word_count == 0:
-            return 0.0
-        score = min(count / max(word_count / 300, 1), 1.0)
-        return round(score, 2)
-
-    def _score_readability(self, content: str, words: list[str]) -> float:
-        if not words:
-            return 0.0
-        sentences = re.split(r'[.!?]+', content)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if not sentences:
-            return 0.0
-
-        total_words = len(words)
-        total_sentences = len(sentences)
-        syllable_count = sum(self._count_syllables(w) for w in words)
-
-        avg_words_per_sentence = total_words / total_sentences
-        avg_syllables_per_word = syllable_count / total_words
-
-        fk_score = 206.835 - 1.015 * avg_words_per_sentence - 84.6 * avg_syllables_per_word
-        fk_score = max(0.0, min(100.0, fk_score))
-
-        normalized = fk_score / 100.0
-        return round(normalized, 2)
-
-    def _count_syllables(self, word: str) -> int:
-        word = word.lower().strip()
-        if not word:
-            return 0
-        if len(word) <= 3:
-            return 1
-        vowels = "aeiouy"
-        count = 0
-        prev_vowel = False
-        for ch in word:
-            is_vowel = ch in vowels
-            if is_vowel and not prev_vowel:
-                count += 1
-            prev_vowel = is_vowel
-        if word.endswith("e") and count > 1:
-            count -= 1
-        return max(1, count)
-
-    def _score_grammar(self, content: str) -> float:
-        issues = 0
-        word_count = len(content.split()) if content else 0
-        if word_count == 0:
-            return 1.0
-
-        for pattern, _ in self.COMMON_GRAMMAR_ISSUES:
-            issues += len(pattern.findall(content))
-
-        double_space = len(re.findall(r'  +', content))
-        issues += double_space
-
-        score = max(0.0, 1.0 - (issues / max(word_count / 50, 1)))
-        return round(score, 2)
-
-    def _score_sentence_complexity(self, content: str) -> dict[str, Any]:
-        sentences = re.split(r'[.!?]+', content)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if not sentences:
-            return {"label": "simple", "score": 0.9, "detail": "No sentences to analyze"}
-
-        lengths = [len(s.split()) for s in sentences]
-        avg = sum(lengths) / len(lengths)
-        long_sentences = sum(1 for l in lengths if l > 25)
-        long_ratio = long_sentences / len(lengths)
-
-        if avg > 25 or long_ratio > 0.4:
-            return {"label": "complex", "score": 0.3, "detail": f"Average {avg:.0f} words/sentence, {long_ratio*100:.0f}% long sentences"}
-        elif avg > 18 or long_ratio > 0.2:
-            return {"label": "moderate", "score": 0.6, "detail": f"Average {avg:.0f} words/sentence, {long_ratio*100:.0f}% long sentences"}
-        return {"label": "simple", "score": 0.9, "detail": f"Average {avg:.0f} words/sentence, well-balanced"}
-
-    def _count_duplicate_paragraphs(self, content: str) -> int:
-        paragraphs = re.split(r'\n\s*\n', content)
-        paragraphs = [p.strip().lower() for p in paragraphs if len(p.strip()) > 50]
-        seen: dict[str, int] = {}
-        for p in paragraphs:
-            normalized = re.sub(r'\s+', ' ', p)
-            seen[normalized] = seen.get(normalized, 0) + 1
-        duplicates = sum(count - 1 for count in seen.values() if count > 1)
-        return duplicates
-
-    def _score_ai_detection(self, content: str, words: list[str]) -> dict[str, Any]:
-        if not words:
-            return {"label": "low", "score": 0.1, "detail": "Insufficient content to analyze"}
-
-        sentences = re.split(r'[.!?]+', content)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if len(sentences) < 5:
-            return {"label": "low", "score": 0.1, "detail": "Too few sentences for reliable detection"}
-
-        lengths = [len(s.split()) for s in sentences]
-        if lengths:
-            mean_len = sum(lengths) / len(lengths)
-            variance = sum((l - mean_len) ** 2 for l in lengths) / len(lengths)
-            std_dev = variance ** 0.5
-            uniformity = 1.0 - min(std_dev / mean_len, 1.0) if mean_len > 0 else 0
-        else:
-            uniformity = 0
-
-        content_lower = content.lower()
-        transition_count = sum(1 for t in self.TRANSITIONS if t in content_lower)
-        word_count = len(words)
-        transition_density = transition_count / max(word_count / 100, 1)
-
-        hedging_count = 0
-        for h in self.HEDGING:
-            hedging_count += content_lower.count(h)
-        hedging_density = hedging_count / max(word_count / 100, 1)
-
-        score = (uniformity * 0.4) + (min(transition_density, 1.0) * 0.3) + (min(hedging_density, 1.0) * 0.3)
-
-        if score > 0.7:
-            return {"label": "high", "score": round(score, 2), "detail": "High uniformity and transition density suggest AI-generated patterns"}
-        elif score > 0.4:
-            return {"label": "medium", "score": round(score, 2), "detail": "Some AI-like patterns detected but not conclusive"}
-        return {"label": "low", "score": round(score, 2), "detail": "Content appears natural with varied structure"}
-
-    def _score_citations(self, content: str) -> float:
-        citation_patterns = [
-            r'\[\d+\]', r'\(\d{4}\)', r'\bdoi:', r'\barxiv:',
-            r'\baccording to\b', r'\breference\b', r'\bsource\b',
-        ]
-        count = sum(len(re.findall(p, content, re.IGNORECASE)) for p in citation_patterns)
-        word_count = len(content.split()) if content else 1
-        score = min(count / max(word_count / 200, 1), 1.0)
-        return round(score, 2)
-
-    def _score_originality(self, content: str) -> float:
-        paragraphs = re.split(r'\n\s*\n', content)
-        paragraphs = [p.strip() for p in paragraphs if len(p.strip()) > 30]
-        if not paragraphs:
-            return 0.0
-
-        unique_patterns = 0
-        for p in paragraphs:
-            if not re.match(r'^[\s]*$', p):
-                sentences = re.split(r'[.!?]+', p)
-                sentences = [s.strip() for s in sentences if s.strip()]
-                if sentences:
-                    has_unique = any(
-                        not re.match(r'^\s*(the|a|an|it|this|that|in|on|at)\s', s, re.IGNORECASE)
-                        for s in sentences[:2]
-                    )
-                    if has_unique:
-                        unique_patterns += 1
-
-        if not paragraphs:
-            return 0.0
-        return round(unique_patterns / len(paragraphs), 2)
-
-    # ------------------------------------------------------------------
-    # Gap counting
-    # ------------------------------------------------------------------
-
-    def _count_gaps(self, gap_signals: dict[str, Any]) -> dict[str, int]:
-        critical_gaps = 0
-        high_gaps = 0
-        medium_gaps = 0
-        missing_element_count = 0
-
-        critical_checks = [
-            ("missing_topics", lambda v: len(v) > 0),
-            ("missing_entities", lambda v: len(v) > 0),
-            ("missing_cta", lambda v: v.get("needed", False)),
-            ("missing_schema", lambda v: v.get("needed", False)),
-            ("missing_internal_links", lambda v: v.get("needed", False)),
-            ("missing_external_links", lambda v: v.get("needed", False)),
-            ("missing_statistics", lambda v: v.get("needed", False)),
-            ("missing_author_credibility", lambda v: v.get("needed", False)),
-        ]
-
-        high_checks = [
-            ("missing_people_also_ask", lambda v: len(v) > 0),
-            ("missing_faqs", lambda v: len(v) > 0),
-            ("missing_examples", lambda v: v.get("needed", False)),
-            ("missing_step_by_step", lambda v: v.get("needed", False)),
-            ("missing_research", lambda v: v.get("needed", False)),
-            ("missing_citations", lambda v: v.get("needed", False)),
-            ("missing_testimonials", lambda v: v.get("needed", False)),
-            ("missing_trust_signals", lambda v: v.get("needed", False)),
-            ("missing_first_hand_experience", lambda v: v.get("needed", False)),
-            ("missing_balanced_viewpoint", lambda v: v.get("needed", False)),
-            ("missing_pricing_explanation", lambda v: v.get("needed", False)),
-            ("missing_author_bio", lambda v: v.get("needed", False)),
-        ]
-
-        medium_checks = [
-            ("missing_tables", lambda v: v.get("needed", False)),
-            ("missing_comparison", lambda v: v.get("needed", False)),
-            ("missing_glossary", lambda v: v.get("needed", False)),
-            ("missing_case_studies", lambda v: v.get("needed", False)),
-            ("missing_screenshots", lambda v: v.get("needed", False)),
-            ("missing_diagrams", lambda v: v.get("needed", False)),
-            ("missing_videos", lambda v: v.get("needed", False)),
-            ("missing_infographics", lambda v: v.get("needed", False)),
-            ("missing_downloadable_assets", lambda v: v.get("needed", False)),
-            ("missing_customer_logos", lambda v: v.get("needed", False)),
-            ("missing_update_history", lambda v: v.get("needed", False)),
-            ("missing_product_comparison", lambda v: v.get("needed", False)),
-            ("missing_implementation_guide", lambda v: v.get("needed", False)),
-            ("missing_semantic_keywords", lambda v: len(v) > 0),
-        ]
-
-        for key, check_fn in critical_checks:
-            val = gap_signals.get(key)
-            if val is not None and check_fn(val):
-                critical_gaps += 1
-                missing_element_count += 1
-
-        for key, check_fn in high_checks:
-            val = gap_signals.get(key)
-            if val is not None and check_fn(val):
-                high_gaps += 1
-                missing_element_count += 1
-
-        for key, check_fn in medium_checks:
-            val = gap_signals.get(key)
-            if val is not None and check_fn(val):
-                medium_gaps += 1
-                missing_element_count += 1
-
-        total = critical_gaps + high_gaps + medium_gaps
-
-        return {
-            "missing_element_count": missing_element_count,
-            "critical_gaps": critical_gaps,
-            "high_gaps": high_gaps,
-            "medium_gaps": medium_gaps,
-            "total_gaps": total,
-        }
-
-    # ------------------------------------------------------------------
-    # Competitor comparison
-    # ------------------------------------------------------------------
-
-    def _competitor_comparison(self, all_pages, content_text, word_count, schema_markup, headings, images, links_internal, links_external):
-        if not all_pages or len(all_pages) < 2:
-            return {}
-
-        other_pages = [p for p in all_pages if p.get("url", "") != ""]
-        if len(other_pages) < 2:
-            return {}
-
-        other_word_counts = []
-        other_schema_types = set()
-        other_heading_counts = []
-        other_image_counts = []
-        other_internal_counts = []
-        other_external_counts = []
-
-        for p in other_pages:
-            wc = p.get("word_count", 0) or 0
-            if wc > 0:
-                other_word_counts.append(wc)
-            for s in (p.get("schema_markup") or []):
-                if isinstance(s, dict) and "@type" in s:
-                    other_schema_types.add(s["@type"])
-            h = p.get("headings", [])
-            if isinstance(h, list):
-                other_heading_counts.append(len(h))
-            img = p.get("images", [])
-            if isinstance(img, list):
-                other_image_counts.append(len(img))
-            il = p.get("links_internal", [])
-            if isinstance(il, list):
-                other_internal_counts.append(len(il))
-            el = p.get("links_external", [])
-            if isinstance(el, list):
-                other_external_counts.append(len(el))
-
-        my_schema_types = set()
-        for s in (schema_markup or []):
-            if isinstance(s, dict) and "@type" in s:
-                my_schema_types.add(s["@type"])
-
-        avg_word = int(sum(other_word_counts) / max(len(other_word_counts), 1)) if other_word_counts else 0
-        avg_headings = int(sum(other_heading_counts) / max(len(other_heading_counts), 1)) if other_heading_counts else 0
-        avg_images = int(sum(other_image_counts) / max(len(other_image_counts), 1)) if other_image_counts else 0
-        avg_internal = int(sum(other_internal_counts) / max(len(other_internal_counts), 1)) if other_internal_counts else 0
-        avg_external = int(sum(other_external_counts) / max(len(other_external_counts), 1)) if other_external_counts else 0
-
-        return {
-            "word_count": {"you": word_count, "site_average": avg_word},
-            "headings": {"you": len(headings) if isinstance(headings, list) else 0, "site_average": avg_headings},
-            "images": {"you": len(images) if isinstance(images, list) else 0, "site_average": avg_images},
-            "internal_links": {"you": len(links_internal) if isinstance(links_internal, list) else 0, "site_average": avg_internal},
-            "external_links": {"you": len(links_external) if isinstance(links_external, list) else 0, "site_average": avg_external},
-            "schema_types": {"you": sorted(my_schema_types), "site_average": sorted(other_schema_types)},
-        }
-
-    # ------------------------------------------------------------------
-    # Impact prediction
-    # ------------------------------------------------------------------
-
-    def _predict_impact(self, gap_signals, word_count, page_type):
-        predictions = []
-
-        if gap_signals.get("missing_tables", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add comparison and data tables",
-                "seo_impact": "+2",
-                "ai_search_impact": "+7",
-                "conversion_impact": "+4",
-                "priority": "High",
-                "confidence": 92,
-                "reason": "Tables improve AI extraction and featured snippet eligibility. Competitor average is 3 tables.",
-            })
-
-        if gap_signals.get("missing_faqs", {}).get("needed"):
-            faqs = gap_signals.get("missing_faqs", {})
-            faq_count = len(faqs.get("questions", faqs.get("suggested_faqs", []))) if isinstance(faqs, dict) else 0
-            predictions.append({
-                "recommendation": f"Add FAQ section with {max(3, faq_count)} questions",
-                "seo_impact": "+4",
-                "ai_search_impact": "+10",
-                "conversion_impact": "+2",
-                "priority": "Critical",
-                "confidence": 96,
-                "reason": "FAQs directly feed Google AI Overview and ChatGPT answers. FAQPage schema triggers rich results.",
-            })
-
-        if gap_signals.get("missing_comparison", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add product comparison table",
-                "seo_impact": "+3",
-                "ai_search_impact": "+8",
-                "conversion_impact": "+6",
-                "priority": "High",
-                "confidence": 94,
-                "reason": "Comparison tables are heavily used by AI platforms for product recommendations.",
-            })
-
-        if gap_signals.get("missing_citations", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add primary source citations and references",
-                "seo_impact": "+3",
-                "ai_search_impact": "+12",
-                "conversion_impact": "+1",
-                "priority": "Critical",
-                "confidence": 97,
-                "reason": "Citations are the #1 factor for Perplexity and significantly boost ChatGPT citation probability.",
-            })
-
-        if gap_signals.get("missing_statistics", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add statistics and data points",
-                "seo_impact": "+2",
-                "ai_search_impact": "+8",
-                "conversion_impact": "+3",
-                "priority": "High",
-                "confidence": 91,
-                "reason": "Statistical evidence strengthens topical authority and AI extraction confidence.",
-            })
-
-        if gap_signals.get("missing_schema", {}).get("needed"):
-            missing_types = gap_signals["missing_schema"].get("types", [])
-            predictions.append({
-                "recommendation": f"Add missing schema types: {', '.join(missing_types[:3])}" if missing_types else "Add structured data",
-                "seo_impact": "+5",
-                "ai_search_impact": "+6",
-                "conversion_impact": "+2",
-                "priority": "High",
-                "confidence": 95,
-                "reason": "Schema markup enables rich results and helps AI platforms understand content structure.",
-            })
-
-        if gap_signals.get("missing_step_by_step", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add step-by-step guide or HowTo content",
-                "seo_impact": "+4",
-                "ai_search_impact": "+6",
-                "conversion_impact": "+3",
-                "priority": "Medium",
-                "confidence": 89,
-                "reason": "Step-by-step content qualifies for HowTo rich results and Google AI Overview extraction.",
-            })
-
-        if gap_signals.get("missing_author_bio", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add author bio with credentials",
-                "seo_impact": "+3",
-                "ai_search_impact": "+4",
-                "conversion_impact": "+1",
-                "priority": "Medium",
-                "confidence": 88,
-                "reason": "Author attribution strengthens E-E-A-T signals for both Google and AI platforms.",
-            })
-
-        if gap_signals.get("missing_case_studies", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add case study or success story",
-                "seo_impact": "+2",
-                "ai_search_impact": "+5",
-                "conversion_impact": "+9",
-                "priority": "High",
-                "confidence": 87,
-                "reason": "Case studies provide first-hand experience signals and social proof for conversions.",
-            })
-
-        if gap_signals.get("missing_trust_signals", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add trust signals (security badges, certifications, guarantees)",
-                "seo_impact": "+1",
-                "ai_search_impact": "+2",
-                "conversion_impact": "+8",
-                "priority": "Medium",
-                "confidence": 85,
-                "reason": "Trust signals improve conversion rates and demonstrate trustworthiness for E-E-A-T.",
-            })
-
-        if gap_signals.get("missing_internal_links", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add internal links to related content",
-                "seo_impact": "+4",
-                "ai_search_impact": "+3",
-                "conversion_impact": "+2",
-                "priority": "High",
-                "confidence": 93,
-                "reason": "Internal links distribute PageRank and help AI platforms understand site structure.",
-            })
-
-        if gap_signals.get("missing_external_links", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add links to authoritative external sources",
-                "seo_impact": "+3",
-                "ai_search_impact": "+5",
-                "conversion_impact": "+1",
-                "priority": "Medium",
-                "confidence": 90,
-                "reason": "Outbound links to authoritative sources signal topical relevance and trustworthiness.",
-            })
-
-        if gap_signals.get("missing_first_hand_experience", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add first-hand experience signals (personal anecdotes, team insights)",
-                "seo_impact": "+2",
-                "ai_search_impact": "+6",
-                "conversion_impact": "+4",
-                "priority": "High",
-                "confidence": 86,
-                "reason": "Experience is a key E-E-A-T signal. AI platforms prefer content with genuine expertise.",
-            })
-
-        if gap_signals.get("missing_balanced_viewpoint", {}).get("needed"):
-            predictions.append({
-                "recommendation": "Add balanced viewpoints (pros, cons, alternatives)",
-                "seo_impact": "+2",
-                "ai_search_impact": "+5",
-                "conversion_impact": "+3",
-                "priority": "Medium",
-                "confidence": 88,
-                "reason": "Claude heavily weights balanced analysis. AI platforms prefer nuanced content.",
-            })
-
-        if word_count < 500:
-            predictions.append({
-                "recommendation": f"Expand content from {word_count} to {self.IDEAL_WORDS.get(page_type, self.DEFAULT_IDEAL)} words",
-                "seo_impact": "+8",
-                "ai_search_impact": "+10",
-                "conversion_impact": "+3",
-                "priority": "Critical",
-                "confidence": 95,
-                "reason": "Thin content underperforms in both traditional SEO and AI search extraction.",
-            })
-
-        priority_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
-        predictions.sort(key=lambda x: priority_order.get(x["priority"], 3))
-        return predictions[:15]
-
-    # ------------------------------------------------------------------
-    # Implementation plan
-    # ------------------------------------------------------------------
-
-    def _build_implementation_plan(self, gap_signals, impact_predictions):
-        phases = {
-            "phase_1_today": [],
-            "phase_2_week": [],
-            "phase_3_month": [],
-        }
-
-        for pred in impact_predictions:
-            rec = pred["recommendation"]
-            conf = pred.get("confidence", 85)
-            entry = {"task": rec, "confidence": conf, "priority": pred["priority"]}
-
-            if pred["priority"] == "Critical":
-                entry["time"] = "10-30 min"
-                entry["difficulty"] = "Easy"
-                entry["owner"] = "SEO / Content"
-                phases["phase_1_today"].append(entry)
-            elif pred["priority"] == "High":
-                entry["time"] = "30-60 min"
-                entry["difficulty"] = "Medium"
-                entry["owner"] = "Content / Developer"
-                phases["phase_2_week"].append(entry)
-            else:
-                entry["time"] = "1-3 hrs"
-                entry["difficulty"] = "Medium"
-                entry["owner"] = "Content / Marketing"
-                phases["phase_3_month"].append(entry)
-
-        return {
-            "phase_1_today": {"label": "Critical — Fix Today", "tasks": phases["phase_1_today"]},
-            "phase_2_week": {"label": "High Priority — This Week", "tasks": phases["phase_2_week"]},
-            "phase_3_month": {"label": "Medium — This Month", "tasks": phases["phase_3_month"]},
-        }
-
-    # ------------------------------------------------------------------
-    # Generated missing content
-    # ------------------------------------------------------------------
-
-    def _generate_missing_content(self, title, h1, content, page_type, gap_signals):
-        generated = {}
-        topic = h1 or title or "this topic"
-
-        if gap_signals.get("missing_faqs", {}).get("needed"):
-            faqs = gap_signals.get("missing_faqs", {})
-            existing_faqs = faqs.get("questions", []) if isinstance(faqs, dict) else []
-            generated["faqs"] = [
-                {"question": f"What is {topic.lower()}?", "answer": f"{topic} is a comprehensive solution designed to help teams improve their workflows, increase efficiency, and achieve better results through AI-powered automation and intelligence."},
-                {"question": f"How does {topic.lower()} work?", "answer": f"{topic} works by leveraging AI algorithms to analyze data, identify patterns, and provide actionable insights. It integrates with your existing tools to deliver seamless automation."},
-                {"question": f"Who should use {topic.lower()}?", "answer": f"{topic} is ideal for B2B sales, marketing, and RevOps teams looking to unify their data, improve revenue intelligence, and accelerate pipeline growth."},
-                {"question": f"What are the benefits of {topic.lower()}?", "answer": f"Key benefits include improved data accuracy, faster pipeline growth, better lead scoring, AI-powered forecasting, and unified customer data across all revenue teams."},
-                {"question": f"How does {topic.lower()} compare to alternatives?", "answer": f"{topic} differentiates through AI-first design, unified GTM platform approach, and deeper integration capabilities compared to point solutions."},
-            ]
-
-        if gap_signals.get("missing_comparison", {}).get("needed"):
-            generated["comparison_table"] = {
-                "headers": ["Feature", topic[:20], "Competitor A", "Competitor B"],
-                "rows": [
-                    ["AI Agents", "✅", "❌", "❌"],
-                    ["Revenue Intelligence", "✅", "✅", "✅"],
-                    ["CRM Enrichment", "✅", "✅", "⚠️"],
-                    ["Lead Scoring", "✅", "✅", "❌"],
-                    ["Pipeline Analytics", "✅", "✅", "✅"],
-                ],
-            }
-
-        if gap_signals.get("missing_glossary", {}).get("needed") and page_type in ("DOCS", "PRODUCT"):
-            generated["glossary"] = [
-                {"term": "Revenue Intelligence", "definition": "The process of using AI and analytics to improve revenue decisions across sales, marketing, and customer success."},
-                {"term": "RevOps", "definition": "Revenue Operations — the alignment of sales, marketing, and customer success to maximize revenue growth."},
-                {"term": "Buying Intent", "definition": "Signals indicating that a prospect is actively researching a solution, indicating readiness to purchase."},
-                {"term": "Lead Enrichment", "definition": "The process of enhancing lead data with additional firmographic, demographic, and behavioral information."},
-                {"term": "GTM Operating System", "definition": "A unified platform that combines all go-to-market functions — sales, marketing, and customer success — into a single intelligent system."},
-            ]
-
-        if gap_signals.get("missing_statistics", {}).get("needed"):
-            generated["statistics"] = [
-                "Teams using AI-powered revenue intelligence see 15-25% improvement in forecast accuracy.",
-                "Organizations with unified GTM platforms report 30% faster pipeline growth.",
-                "AI-driven lead scoring increases conversion rates by 20-35% compared to manual methods.",
-            ]
-
-        if gap_signals.get("missing_step_by_step", {}).get("needed"):
-            generated["steps"] = [
-                "Connect your CRM and data sources to the platform.",
-                "Configure AI agents to automate data enrichment and lead scoring.",
-                "Set up revenue intelligence dashboards to track pipeline health.",
-                "Review AI-generated insights and take action on high-intent leads.",
-                "Measure results and optimize your GTM strategy based on data.",
-            ]
-
-        if gap_signals.get("missing_schema", {}).get("needed"):
-            schema_types = gap_signals["missing_schema"].get("types", [])
-            generated["schema_snippets"] = []
-            if "Organization" in schema_types or "BreadcrumbList" in schema_types:
-                generated["schema_snippets"].append({
-                    "type": "Organization",
-                    "json_ld": '{"@context":"https://schema.org","@type":"Organization","name":"' + (topic[:30]) + '","url":"https://example.com","logo":"https://example.com/logo.png","sameAs":["https://twitter.com/example","https://linkedin.com/company/example"]}',
-                })
-            if "FAQPage" in schema_types:
-                generated["schema_snippets"].append({
-                    "type": "FAQPage",
-                    "json_ld": '{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is ' + topic + '?","acceptedAnswer":{"@type":"Answer","text":"' + topic + ' is a comprehensive solution for revenue teams."}}]}',
-                })
-            if "BreadcrumbList" in schema_types:
-                generated["schema_snippets"].append({
-                    "type": "BreadcrumbList",
-                    "json_ld": '{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://example.com"},{"@type":"ListItem","position":2,"name":"' + topic[:20] + '","item":"https://example.com/current-page"}]}',
-                })
-
-        if gap_signals.get("missing_internal_links", {}).get("needed"):
-            generated["internal_links"] = [
-                {"anchor_text": f"Learn more about {topic.lower()}", "suggested_path": "/platform", "reason": "Product page relevance"},
-                {"anchor_text": "View pricing plans", "suggested_path": "/pricing", "reason": "Conversion opportunity"},
-                {"anchor_text": "See it in action", "suggested_path": "/demo", "reason": "CTA opportunity"},
-            ]
-
-        return generated

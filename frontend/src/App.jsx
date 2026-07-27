@@ -32,6 +32,11 @@ import AiVisibilityDeep from './pages/AiVisibilityDeep';
 import CompetitorDeep from './pages/CompetitorDeep';
 import AiRecommendations from './pages/AiRecommendations';
 import EnterprisePage from './pages/EnterprisePage';
+import AiBotIntelligence from './pages/AiBotIntelligence';
+import OffsiteAuthority from './pages/OffsiteAuthority';
+import SchemaIntelligence from './pages/SchemaIntelligence';
+import SpeedIntelligence from './pages/SpeedIntelligence';
+import PageIntelligenceV2 from './pages/PageIntelligenceV2';
 import './index.css';
 
 export default function App() {
@@ -70,6 +75,11 @@ export default function App() {
                 <Route path="/audit/:id/competitor-deep" element={<CompetitorDeep />} />
                 <Route path="/audit/:id/ai-recommendations" element={<AiRecommendations />} />
                 <Route path="/audit/:id/enterprise" element={<EnterprisePage />} />
+                <Route path="/audit/:id/ai-bots" element={<AiBotIntelligence />} />
+                <Route path="/audit/:id/offsite-authority" element={<OffsiteAuthority />} />
+                <Route path="/audit/:id/schema-intel" element={<SchemaIntelligence />} />
+                <Route path="/audit/:id/speed-intel" element={<SpeedIntelligence />} />
+                <Route path="/audit/:id/page-deep" element={<PageIntelligenceV2 />} />
                 <Route path="/audit/:id/chat" element={<AiChat />} />
                 <Route path="/audit/:id" element={<Dashboard />} />
               </Routes>
