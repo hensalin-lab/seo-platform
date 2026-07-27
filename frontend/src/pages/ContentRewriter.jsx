@@ -7,7 +7,7 @@ import {
   ExternalLink, Columns, Key, FileJson, Shield, Code, Gauge, Database,
   Users, MessageSquare, HelpCircle, Activity, Lightbulb, Zap, TrendingUp,
   Search, Layout, Clock, Image, Tag, ArrowRight, XCircle,
-  ListOrdered, Hash, AlignLeft, Quote, Video, Plus,
+  ListOrdered, Hash, AlignLeft, Quote, Video, Plus, FileText,
 } from 'lucide-react';
 
 const GOOGLE_TABS = [
@@ -1005,6 +1005,7 @@ export default function ContentRewriter() {
                   { key: 'links', label: 'Int. Links', icon: Link2 },
                   { key: 'serp', label: 'SERP Preview', icon: Target },
                   { key: 'readability', label: 'Readability', icon: Brain },
+                  { key: 'export', label: 'Export All', icon: Copy },
                 ].map(t => {
                   const Icon = t.icon;
                   return (
@@ -1098,6 +1099,143 @@ export default function ContentRewriter() {
                           {s.why && <div style={{ fontSize: 9, color: '#7c3aed', marginTop: 3 }}>Why: {s.why}</div>}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.h1_rewrite && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#e11d48', marginBottom: 4 }}>H1 REWRITE</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                        <div style={{ padding: 8, background: '#fef2f2', borderRight: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: 7, color: '#dc2626', fontWeight: 700, marginBottom: 2 }}>BEFORE</div>
+                          <div style={{ fontSize: 12, color: '#7f1d1d', fontWeight: 500 }}>{rewrite.ai_rewrite.h1_rewrite.before}</div>
+                        </div>
+                        <div style={{ padding: 8, background: '#f0fdf4' }}>
+                          <div style={{ fontSize: 7, color: '#059669', fontWeight: 700, marginBottom: 2 }}>AFTER</div>
+                          <div style={{ fontSize: 12, color: '#065f46', fontWeight: 600 }}>{rewrite.ai_rewrite.h1_rewrite.after}</div>
+                        </div>
+                      </div>
+                      {rewrite.ai_rewrite.h1_rewrite.reason && <div style={{ fontSize: 9, color: '#64748b', marginTop: 3 }}>Why: {rewrite.ai_rewrite.h1_rewrite.reason}</div>}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.intro_rewrite && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#0ea5e9', marginBottom: 4 }}>INTRODUCTION REWRITE</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                        <div style={{ padding: 8, background: '#fef2f2', borderRight: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: 7, color: '#dc2626', fontWeight: 700, marginBottom: 2 }}>BEFORE</div>
+                          <div style={{ fontSize: 10, color: '#7f1d1d', lineHeight: 1.5 }}>{rewrite.ai_rewrite.intro_rewrite.before}</div>
+                        </div>
+                        <div style={{ padding: 8, background: '#f0fdf4' }}>
+                          <div style={{ fontSize: 7, color: '#059669', fontWeight: 700, marginBottom: 2 }}>AFTER</div>
+                          <div style={{ fontSize: 10, color: '#065f46', lineHeight: 1.5 }}>{rewrite.ai_rewrite.intro_rewrite.after}</div>
+                        </div>
+                      </div>
+                      {rewrite.ai_rewrite.intro_rewrite.improvements?.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                          {rewrite.ai_rewrite.intro_rewrite.improvements.map((imp, i) => (
+                            <span key={i} style={{ fontSize: 8, padding: '2px 5px', borderRadius: 3, background: '#f0fdf4', color: '#059669', fontWeight: 600, border: '1px solid #bbf7d0' }}>{imp}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.entity_suggestions && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7950f2', marginBottom: 4 }}>ENTITY OPTIMIZATION</div>
+                      {rewrite.ai_rewrite.entity_suggestions.missing?.length > 0 && (
+                        <div style={{ marginBottom: 4 }}>
+                          <span style={{ fontSize: 9, color: '#64748b' }}>Missing entities: </span>
+                          {rewrite.ai_rewrite.entity_suggestions.missing.map((e, i) => (
+                            <span key={i} style={{ fontSize: 9, padding: '1px 4px', background: '#fef2f2', color: '#dc2626', borderRadius: 3, marginRight: 3, fontWeight: 600 }}>{e}</span>
+                          ))}
+                        </div>
+                      )}
+                      {rewrite.ai_rewrite.entity_suggestions.paragraph && (
+                        <div style={{ padding: '6px 8px', background: '#f5f3ff', borderRadius: 5, border: '1px solid #e9d5ff', fontSize: 10, color: '#4c1d95', lineHeight: 1.5 }}>
+                          Suggested paragraph: {rewrite.ai_rewrite.entity_suggestions.paragraph}
+                          <button onClick={() => navigator.clipboard?.writeText(rewrite.ai_rewrite.entity_suggestions.paragraph)}
+                            style={{ marginLeft: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><Copy size={9} /></button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.comparison_table && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4 }}>GENERATED COMPARISON TABLE</div>
+                      <div style={{ overflow: 'auto', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                              {(rewrite.ai_rewrite.comparison_table.headers || []).map((h, i) => (
+                                <th key={i} style={{ padding: '5px 8px', textAlign: 'left', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(rewrite.ai_rewrite.comparison_table.rows || []).map((row, ri) => (
+                              <tr key={ri} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                {row.map((cell, ci) => (
+                                  <td key={ci} style={{ padding: '4px 8px', color: '#475569' }}>{cell}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.ai_overview_optimization && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#4285f4', marginBottom: 4 }}>AI OVERVIEW OPTIMIZATION</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div style={{ padding: 8, background: '#fef2f2', borderRadius: 6, border: '1px solid #fecaca' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#dc2626', marginBottom: 2 }}>CURRENT AI ANSWER ({rewrite.ai_rewrite.ai_overview_optimization.citation_probability_current || 0}%)</div>
+                          <div style={{ fontSize: 10, color: '#7f1d1d', lineHeight: 1.5 }}>{rewrite.ai_rewrite.ai_overview_optimization.current_answer}</div>
+                        </div>
+                        <div style={{ padding: 8, background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: '#059669', marginBottom: 2 }}>OPTIMIZED AI ANSWER ({rewrite.ai_rewrite.ai_overview_optimization.citation_probability_optimized || 0}%)</div>
+                          <div style={{ fontSize: 10, color: '#065f46', lineHeight: 1.5 }}>{rewrite.ai_rewrite.ai_overview_optimization.optimized_answer}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.score_predictions && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>PREDICTED IMPROVEMENTS</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                        {[
+                          { label: 'SEO', current: rewrite.ai_rewrite.score_predictions.seo_current, after: rewrite.ai_rewrite.score_predictions.seo_after, color: '#3b82f6' },
+                          { label: 'AI Search', current: rewrite.ai_rewrite.score_predictions.ai_search_current, after: rewrite.ai_rewrite.score_predictions.ai_search_after, color: '#e64980' },
+                          { label: 'Readability', current: rewrite.ai_rewrite.score_predictions.readability_current, after: rewrite.ai_rewrite.score_predictions.readability_after, color: '#059669' },
+                        ].map((s, i) => (
+                          <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: '#64748b', marginBottom: 4 }}>{s.label}</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: '#94a3b8' }}>{s.current || '—'}</div>
+                            <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>→ {s.after || '—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rewrite.ai_rewrite.readability_rewrite && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#2563eb', marginBottom: 4 }}>READABILITY REWRITE</div>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 9, padding: '2px 6px', background: '#fef2f2', color: '#dc2626', borderRadius: 3, fontWeight: 600 }}>Current: {rewrite.ai_rewrite.readability_rewrite.current_level}</span>
+                        <span style={{ fontSize: 9, padding: '2px 6px', background: '#f0fdf4', color: '#059669', borderRadius: 3, fontWeight: 600 }}>Target: {rewrite.ai_rewrite.readability_rewrite.target_level}</span>
+                      </div>
+                      {rewrite.ai_rewrite.readability_rewrite.rewritten_intro && (
+                        <div style={{ padding: '6px 8px', background: '#eff6ff', borderRadius: 5, border: '1px solid #bfdbfe', fontSize: 10, color: '#1e40af', lineHeight: 1.5 }}>
+                          {rewrite.ai_rewrite.readability_rewrite.rewritten_intro}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1386,6 +1524,155 @@ export default function ContentRewriter() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {rightTab === 'export' && (
+                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>Export AI Rewrite Results</div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Copy all AI-generated content in your preferred format</p>
+                  {[
+                    {
+                      label: 'Copy as HTML',
+                      icon: Code,
+                      color: '#3b82f6',
+                      action: () => {
+                        const rw = rewrite?.ai_rewrite || {};
+                        let html = '';
+                        if (rw.title_suggestions?.length) html += `<h1>${rw.title_suggestions[0]}</h1>\n`;
+                        if (rw.meta_description_suggestions?.length) html += `<meta name="description" content="${rw.meta_description_suggestions[0]}">\n`;
+                        if (rw.faq_suggestions?.length) {
+                          html += '<section class="faq">\n<h2>FAQ</h2>\n';
+                          rw.faq_suggestions.forEach(f => { html += `<details><summary>${f.question}</summary><p>${f.answer || f.suggested_answer || ''}</p></details>\n`; });
+                          html += '</section>\n';
+                        }
+                        if (rw.rewrite_sections?.length) {
+                          rw.rewrite_sections.forEach(s => { html += `<section>\n<h2>${s.heading || 'Section'}</h2>\n<p>${s.rewritten || s.after || ''}</p>\n</section>\n`; });
+                        }
+                        if (rw.comparison_table) {
+                          html += '<table>\n<thead><tr>';
+                          (rw.comparison_table.headers || []).forEach(h => { html += `<th>${h}</th>`; });
+                          html += '</tr></thead>\n<tbody>';
+                          (rw.comparison_table.rows || []).forEach(row => { html += '<tr>'; row.forEach(c => { html += `<td>${c}</td>`; }); html += '</tr>\n'; });
+                          html += '</tbody></table>\n';
+                        }
+                        navigator.clipboard?.writeText(html);
+                      }
+                    },
+                    {
+                      label: 'Copy as Markdown',
+                      icon: Hash,
+                      color: '#8b5cf6',
+                      action: () => {
+                        const rw = rewrite?.ai_rewrite || {};
+                        let md = '';
+                        if (rw.title_suggestions?.length) md += `# ${rw.title_suggestions[0]}\n\n`;
+                        if (rw.meta_description_suggestions?.length) md += `> ${rw.meta_description_suggestions[0]}\n\n`;
+                        if (rw.rewrite_sections?.length) {
+                          rw.rewrite_sections.forEach(s => { md += `## ${s.heading || 'Section'}\n\n${s.rewritten || s.after || ''}\n\n`; });
+                        }
+                        if (rw.faq_suggestions?.length) {
+                          md += '## FAQ\n\n';
+                          rw.faq_suggestions.forEach(f => { md += `### ${f.question}\n${f.answer || f.suggested_answer || ''}\n\n`; });
+                        }
+                        if (rw.comparison_table) {
+                          const h = rw.comparison_table.headers || [];
+                          md += '| ' + h.join(' | ') + ' |\n| ' + h.map(() => '---').join(' | ') + ' |\n';
+                          (rw.comparison_table.rows || []).forEach(row => { md += '| ' + row.join(' | ') + ' |\n'; });
+                          md += '\n';
+                        }
+                        navigator.clipboard?.writeText(md);
+                      }
+                    },
+                    {
+                      label: 'Copy JSON-LD Schema',
+                      icon: FileJson,
+                      color: '#059669',
+                      action: () => {
+                        const schemas = rewrite?.ai_rewrite?.schema_suggestions || rewrite?.ai_keywords?.schema_suggestions || [];
+                        const jsonLd = schemas.map(s => s.json_ld || s.code || JSON.stringify(s, null, 2)).join('\n\n');
+                        navigator.clipboard?.writeText(jsonLd || 'No schema suggestions available');
+                      }
+                    },
+                    {
+                      label: 'Copy FAQ as Schema',
+                      icon: HelpCircle,
+                      color: '#d97706',
+                      action: () => {
+                        const faqs = rewrite?.ai_rewrite?.faq_suggestions || [];
+                        if (faqs.length === 0) { navigator.clipboard?.writeText('No FAQ suggestions available'); return; }
+                        const schema = {
+                          "@context": "https://schema.org",
+                          "@type": "FAQPage",
+                          "mainEntity": faqs.map(f => ({
+                            "@type": "Question",
+                            "name": f.question,
+                            "acceptedAnswer": { "@type": "Answer", "text": f.answer || f.suggested_answer || '' }
+                          }))
+                        };
+                        navigator.clipboard?.writeText(JSON.stringify(schema, null, 2));
+                      }
+                    },
+                    {
+                      label: 'Copy Titles + Meta',
+                      icon: Tag,
+                      color: '#e64980',
+                      action: () => {
+                        const rw = rewrite?.ai_rewrite || {};
+                        let text = '=== TITLE TAG OPTIONS ===\n';
+                        (rw.title_suggestions || []).forEach((t, i) => { text += `${i+1}. ${t}\n`; });
+                        text += '\n=== META DESCRIPTION OPTIONS ===\n';
+                        (rw.meta_description_suggestions || []).forEach((m, i) => { text += `${i+1}. ${m}\n`; });
+                        if (rw.h1_rewrite) text += `\n=== H1 REWRITE ===\nBefore: ${rw.h1_rewrite.before}\nAfter: ${rw.h1_rewrite.after}\n`;
+                        navigator.clipboard?.writeText(text);
+                      }
+                    },
+                    {
+                      label: 'Copy All Content',
+                      icon: FileText,
+                      color: '#20c997',
+                      action: () => {
+                        const rw = rewrite?.ai_rewrite || {};
+                        let text = '';
+                        if (rw.title_suggestions?.length) text += `TITLE: ${rw.title_suggestions[0]}\n`;
+                        if (rw.meta_description_suggestions?.length) text += `META: ${rw.meta_description_suggestions[0]}\n`;
+                        if (rw.h1_rewrite?.after) text += `H1: ${rw.h1_rewrite.after}\n`;
+                        if (rw.rewrite_sections?.length) {
+                          text += '\n--- REWRITTEN SECTIONS ---\n\n';
+                          rw.rewrite_sections.forEach(s => { text += `${s.heading || 'Section'}:\n${s.rewritten || s.after || ''}\n\n`; });
+                        }
+                        if (rw.faq_suggestions?.length) {
+                          text += '--- FAQ ---\n\n';
+                          rw.faq_suggestions.forEach(f => { text += `Q: ${f.question}\nA: ${f.answer || f.suggested_answer || ''}\n\n`; });
+                        }
+                        if (rw.internal_link_suggestions?.length) {
+                          text += '--- INTERNAL LINKS ---\n';
+                          rw.internal_link_suggestions.forEach(l => { text += `Link to: ${l.url || l.target_page || ''}\n`; });
+                        }
+                        if (rw.entity_suggestions?.missing?.length) {
+                          text += '--- ENTITY SUGGESTIONS ---\n';
+                          rw.entity_suggestions.missing.forEach(e => { text += `Add: ${e}\n`; });
+                        }
+                        navigator.clipboard?.writeText(text);
+                      }
+                    },
+                  ].map((btn, i) => {
+                    const Icon = btn.icon;
+                    return (
+                      <button key={i} onClick={btn.action} style={{
+                        display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px',
+                        background: btn.color + '08', border: `1px solid ${btn.color}30`, borderRadius: 8,
+                        cursor: 'pointer', marginBottom: 6, transition: 'all 0.15s ease',
+                      }}
+                        onMouseEnter={e => { e.currentTarget.style.background = btn.color + '15'; e.currentTarget.style.borderColor = btn.color + '60'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = btn.color + '08'; e.currentTarget.style.borderColor = btn.color + '30'; }}
+                      >
+                        <Icon size={16} color={btn.color} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', flex: 1, textAlign: 'left' }}>{btn.label}</span>
+                        <Copy size={14} color={btn.color} />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

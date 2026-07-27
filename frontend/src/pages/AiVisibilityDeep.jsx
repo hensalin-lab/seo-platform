@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
 import { Globe, MessageSquare, Search, Eye, Brain, AlertCircle, Zap, Target, Shield, TrendingUp,
-  CheckCircle, AlertTriangle, ChevronDown, BarChart3, Clock, ExternalLink, ArrowRight } from 'lucide-react';
+  CheckCircle, AlertTriangle, ChevronDown, BarChart3, Clock, ExternalLink, ArrowRight, Database } from 'lucide-react';
 
 const PLATFORMS = [
   { key: 'google_ai_overview', label: 'Google AI Overview', color: '#4285f4', icon: Globe },

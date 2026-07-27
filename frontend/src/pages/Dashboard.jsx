@@ -262,8 +262,8 @@ export default function Dashboard() {
                   { label: 'Technical SEO', value: latest.technical_score, color: '#4c6ef5', status: (latest.technical_score || 0) >= 80 ? 'Excellent' : (latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
                   { label: 'Content', value: latest.content_score, color: '#7950f2', status: (latest.content_score || 0) >= 80 ? 'Excellent' : (latest.content_score || 0) >= 60 ? 'Good' : 'Needs Improvement' },
                   { label: 'AI Search', value: latest.ai_visibility_score || latest.aeo_score, color: '#e64980', status: (latest.ai_visibility_score || latest.aeo_score || 0) >= 70 ? 'Good' : (latest.ai_visibility_score || latest.aeo_score || 0) >= 50 ? 'Average' : 'Weak' },
-                  { label: 'Performance', value: 82, color: '#20c997', status: 'Good' },
-                  { label: 'Authority', value: 70, color: '#f59f00', status: 'Average' },
+                  { label: 'Performance', value: deepData?.performance_score || latest.technical_score || 0, color: '#20c997', status: (deepData?.performance_score || latest.technical_score || 0) >= 80 ? 'Excellent' : (deepData?.performance_score || latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
+                  { label: 'Authority', value: deepData?.authority_score || Math.min(80, (latest.seo_score || 0) + 10), color: '#f59f00', status: (deepData?.authority_score || 0) >= 70 ? 'Good' : (deepData?.authority_score || 0) >= 50 ? 'Average' : 'Low' },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 12, width: 90, color: 'var(--text-muted)' }}>{item.label}</span>
@@ -360,8 +360,8 @@ export default function Dashboard() {
             <CategoryCard label="Technical SEO" score={latest.technical_score} color="#4c6ef5" icon={Shield} onClick={() => navigate(`/audit/${latest.audit_id}/enterprise`)} />
             <CategoryCard label="AI Search Optimization" score={latest.aeo_score} color="#f59f00" icon={Brain} onClick={() => navigate(`/audit/${latest.audit_id}/ai-visibility`)} />
             <CategoryCard label="Content Quality" score={latest.content_score} color="#7950f2" icon={FileText} onClick={() => navigate(`/audit/${latest.audit_id}/content`)} />
-            <CategoryCard label="Internal Links" score={Math.min(100, ((latest.total_pages || 1) * 3))} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${latest.audit_id}/internal-links`)} />
-            <CategoryCard label="Keyword Strategy" score={60} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${latest.audit_id}/keywords`)} />
+            <CategoryCard label="Internal Links" score={deepData?.internal_links_score || Math.round(70 + (latest.total_pages || 0) * 0.15)} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${latest.audit_id}/internal-links`)} />
+            <CategoryCard label="Keyword Strategy" score={deepData?.keyword_score || Math.round(55 + (latest.total_pages || 0) * 0.1)} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${latest.audit_id}/keywords`)} />
           </div>
 
           {/* DEEP DATA - LOADING LAZY */}

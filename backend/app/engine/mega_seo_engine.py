@@ -180,6 +180,15 @@ class MegaSEOEngine:
 
         issues.sort(key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x["severity"], 4))
 
+        seen_pairs: set[tuple[str, str]] = set()
+        deduped: list[dict] = []
+        for sig in signals:
+            pair = (sig.get("category", ""), sig.get("name", ""))
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                deduped.append(sig)
+        signals = deduped
+
         return {
             "overall_score": round(overall, 1),
             "signals_checked": len(signals),

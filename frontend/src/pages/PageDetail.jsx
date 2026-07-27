@@ -442,20 +442,41 @@ export default function PageDetail() {
             {mega && (
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 12 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <TrendingUp size={16} color="#059669" /> After Fix Predictions
+                  <TrendingUp size={16} color="#059669" /> Ranking Impact Estimates
                 </div>
                 {[
-                  { label: 'Current Score', value: Math.round(mega.overall_score || 0), color: '#d97706' },
-                  { label: 'After Critical Fixes', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.filter(i => i.severity === 'CRITICAL').length * 2)), color: '#3b82f6' },
-                  { label: 'After All Fixes', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)), color: '#059669' },
+                  { label: 'Current Score', value: Math.round(mega.overall_score || 0), color: '#d97706', impact: mega.overall_score >= 70 ? 'Page is ranking potential' : 'Page needs work to rank' },
+                  { label: 'After Critical Fixes', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.filter(i => i.severity === 'CRITICAL').length * 2)), color: '#3b82f6', impact: `Fix ${issues.filter(i => i.severity === 'CRITICAL').length} critical issues for quick win` },
+                  { label: 'After Content + Technical', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)), color: '#059669', impact: `Full implementation of ${issues.length} fixes` },
                 ].map((item, i) => (
-                  <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, flex: 1, color: '#475569' }}>{item.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
+                  <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, flex: 1, color: '#475569' }}>{item.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{item.impact}</div>
                   </div>
                 ))}
-                <div style={{ fontSize: 10, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
-                  Estimated improvement: +{Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)) - Math.round(mega.overall_score || 0)} points after implementing all {issues.length} recommended fixes.
+                <div style={{ marginTop: 10, padding: 10, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>ESTIMATED IMPROVEMENT</div>
+                  <div style={{ fontSize: 11, color: '#065f46', lineHeight: 1.5 }}>
+                    +{Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)) - Math.round(mega.overall_score || 0)} points after implementing all {issues.length} fixes.
+                    {mega.overall_score < 60 ? ' Focus on technical fixes first, then content.' : mega.overall_score < 80 ? ' Good foundation — content and AI optimization will drive the biggest gains.' : ' Already strong — fine-tune for AI search visibility and E-E-A-T.'}
+                  </div>
+                </div>
+                <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {[
+                    { label: 'SEO Impact', desc: 'Title, meta, headings, schema', value: issues.filter(i => i.category?.includes('TITLE') || i.category?.includes('META') || i.category?.includes('HEADING')).length },
+                    { label: 'Technical Impact', desc: 'Speed, mobile, security', value: issues.filter(i => i.category?.includes('PERFORMANCE') || i.category?.includes('MOBILE') || i.category?.includes('SECURITY')).length },
+                    { label: 'Content Impact', desc: 'Words, quality, keywords', value: issues.filter(i => i.category?.includes('CONTENT') || i.category?.includes('KEYWORD')).length },
+                    { label: 'AI Search Impact', desc: 'Citations, entities, E-E-A-T', value: issues.filter(i => i.category?.includes('AI') || i.category?.includes('ENTITY') || i.category?.includes('SCHEMA')).length },
+                  ].map((item, i) => (
+                    <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{item.label}</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{item.desc}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: item.value > 0 ? '#d97706' : '#059669', marginTop: 2 }}>{item.value} issues</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

@@ -496,49 +496,86 @@ async def get_schema_analysis(audit_id: str, db: AsyncSession = Depends(get_db))
 
 @router.get("/audit/{audit_id}/internal-links")
 async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
+    import re as _re
+    from urllib.parse import urlparse
+
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages = pages_result.scalars().all()
     total = len(pages)
-    avg_internal = sum(len(p.links_internal or []) for p in pages) / max(total, 1)
-    avg_external = sum(len(p.links_external or []) for p in pages) / max(total, 1)
-    no_links = [p for p in pages if not p.links_internal or len(p.links_internal) == 0]
-    orphan_pages = [p for p in pages if p.crawl_depth > 3]
 
     def _safe_links(p):
         v = p.links_internal
-        if isinstance(v, list):
-            return v
+        if isinstance(v, list): return v
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
                 return parsed if isinstance(parsed, list) else []
-            except Exception:
-                return []
+            except: return []
         return []
 
     def _safe_ext_links(p):
         v = p.links_external
-        if isinstance(v, list):
-            return v
+        if isinstance(v, list): return v
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
                 return parsed if isinstance(parsed, list) else []
-            except Exception:
-                return []
+            except: return []
         return []
 
     def _link_text(link):
-        if isinstance(link, dict):
-            return (link.get("text", "") or link.get("anchor", "") or "").strip()
+        if isinstance(link, dict): return (link.get("text", "") or link.get("anchor", "") or "").strip()
         return ""
 
     def _link_url(link):
-        if isinstance(link, dict):
-            return (link.get("url", "") or link.get("href", "")).strip()
-        if isinstance(link, str):
-            return link.strip()
+        if isinstance(link, dict): return (link.get("url", "") or link.get("href", "")).strip()
+        if isinstance(link, str): return link.strip()
         return ""
+
+    def _normalize_url(url):
+        if not url: return ""
+        parsed = urlparse(url)
+        normalized = f"{parsed.netloc}{parsed.path.rstrip('/')}"
+        return normalized.lower()
+
+    def _is_generic_anchor(text):
+        generic = {"click here", "read more", "learn more", "here", "this", "link", "more", "go", "continue", "see more", "view more"}
+        return text.lower().strip() in generic
+
+    def _is_orphan(url, all_pages):
+        for p in all_pages:
+            links = _safe_links(p)
+            for link in links:
+                target = _link_url(link)
+                if _normalize_url(target) == _normalize_url(url):
+                    return False
+        return True
+
+    for p in pages:
+        raw_links = _safe_links(p)
+        seen_urls = set()
+        deduped = []
+        for link in raw_links:
+            norm = _normalize_url(_link_url(link))
+            if norm and norm not in seen_urls:
+                seen_urls.add(norm)
+                deduped.append(link)
+        p._deduped_links = deduped
+
+    total_internal = sum(len(getattr(p, '_deduped_links', _safe_links(p))) for p in pages)
+    avg_internal = total_internal / max(total, 1)
+    total_external = sum(len(_safe_ext_links(p)) for p in pages)
+    avg_external = total_external / max(total, 1)
+
+    all_link_targets = set()
+    for p in pages:
+        for link in getattr(p, '_deduped_links', _safe_links(p)):
+            target = _normalize_url(_link_url(link))
+            if target: all_link_targets.add(target)
+
+    no_links = [p for p in pages if len(getattr(p, '_deduped_links', _safe_links(p))) == 0]
+    orphan_pages = [p for p in pages if p.crawl_depth and p.crawl_depth > 3]
+    orphan_urls_list = [p.url for p in pages if _is_orphan(p.url, pages)]
 
     link_map = {}
     for p in pages:
@@ -546,100 +583,222 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
             domain = _link_url(link).split("//")[-1].split("/")[0] if _link_url(link) else ""
             if domain:
                 if domain not in link_map:
-                    link_map[domain] = {"count": 0, "from_pages": []}
+                    link_map[domain] = {"count": 0, "from_pages": [], "anchor_texts": []}
                 link_map[domain]["count"] += 1
                 if p.url not in link_map[domain]["from_pages"]:
                     link_map[domain]["from_pages"].append(p.url)
+                txt = _link_text(link)
+                if txt: link_map[domain]["anchor_texts"].append(txt)
+
+    all_anchors = []
+    generic_anchors = []
+    pages_anchor_map = {}
+    for p in pages:
+        page_anchors = []
+        for link in getattr(p, '_deduped_links', _safe_links(p)):
+            txt = _link_text(link)
+            if txt:
+                all_anchors.append({"text": txt, "page": p.url, "target": _link_url(link)})
+                page_anchors.append(txt)
+                if _is_generic_anchor(txt):
+                    generic_anchors.append({"text": txt, "page": p.url, "target": _link_url(link)})
+        pages_anchor_map[p.url] = page_anchors
+
+    page_scores = []
+    for p in pages:
+        links = getattr(p, '_deduped_links', _safe_links(p))
+        ext_links = _safe_ext_links(p)
+        link_count = len(links)
+        ext_count = len(ext_links)
+        wc = p.word_count or 0
+
+        score = 50
+        issues = []
+
+        if link_count == 0:
+            score -= 30
+            issues.append("No internal links — page is isolated")
+        elif link_count < 3:
+            score -= 15
+            issues.append(f"Only {link_count} internal links (aim for 3+)")
+        elif link_count >= 5:
+            score += 15
+
+        if wc > 500 and ext_count == 0:
+            score -= 10
+            issues.append("No outbound links in 500+ word content")
+
+        depth = p.crawl_depth or 0
+        if depth > 3:
+            score -= 15
+            issues.append(f"Page is {depth} clicks from homepage")
+
+        if wc > 0 and link_count > 0:
+            density = link_count / (wc / 100)
+            if density > 10:
+                score -= 5
+                issues.append("Link density is very high (may feel spammy)")
+
+        page_gen = [a for a in generic_anchors if a["page"] == p.url]
+        if page_gen:
+            score -= 5
+            issues.append(f"{len(page_gen)} generic anchor(s) like 'click here'")
+
+        score = max(0, min(100, score))
+        page_scores.append({
+            "url": p.url,
+            "score": score,
+            "internal_links": link_count,
+            "external_links": ext_count,
+            "unique_targets": len({_normalize_url(_link_url(l)) for l in links if _link_url(l)}),
+            "crawl_depth": depth,
+            "word_count": wc,
+            "issues": issues,
+            "anchors": pages_anchor_map.get(p.url, [])[:5],
+        })
+
+    page_scores.sort(key=lambda x: x["score"])
+
+    page_keywords = {}
+    stopwords = {"the","a","an","is","are","was","were","in","on","at","to","for","of","and","or","with","from","by","this","that","it","as","be","has","had","have","do","does","did","will","would","could","should","may","might","can","not","no","all","any","each","every","but","if","so","than","too","very","just","about","above","after","before","between","how","what","when","where","who","which","why","their","there","these","those","your","you","we","us","our","he","she","his","her","its","them","they","me","my","i","more","most","other","some","such","only","own","same","into","over","also","use","used","using","into","more","new","one","two"}
+    for p in pages:
+        title_words = set((p.title or "").lower().split()) - stopwords
+        h1_words = set((p.h1 or "").lower().split()) - stopwords
+        combined = title_words | h1_words
+        page_keywords[p.url] = combined
+
+    clusters = {}
+    url_list = [p.url for p in pages]
+    for i, url1 in enumerate(url_list):
+        for url2 in url_list[i+1:]:
+            shared = page_keywords.get(url1, set()) & page_keywords.get(url2, set())
+            if len(shared) >= 2:
+                cluster_key = " / ".join(sorted(shared)[:3])
+                if cluster_key not in clusters:
+                    clusters[cluster_key] = {"topic": cluster_key, "pages": [], "shared_keywords": sorted(shared)}
+                for u in [url1, url2]:
+                    if u not in clusters[cluster_key]["pages"]:
+                        clusters[cluster_key]["pages"].append(u)
 
     page_text_cache = {}
     for p in pages:
         ct = getattr(p, "content_text", None) or ""
-        import re as _re
         cleaned = _re.sub(r'<[^>]+>', ' ', ct).lower()
         cleaned = _re.sub(r'\s+', ' ', cleaned).strip()
         page_text_cache[p.url] = cleaned
 
     link_suggestions = []
     pages_by_url = {p.url: p for p in pages}
-
     for p in pages:
-        if not p.url:
-            continue
-        current_links = {_link_url(l) for l in _safe_links(p)}
-        external = _safe_ext_links(p)
-        ext_urls = {_link_url(l) for l in external}
+        if not p.url: continue
+        current_links = {_normalize_url(_link_url(l)) for l in _safe_links(p)}
         p_text = page_text_cache.get(p.url, "")
         p_words = set(p_text.split())
         p_title_words = set((p.title or "").lower().split())
         p_h1_words = set((p.h1 or "").lower().split())
-        key_terms = (p_words | p_title_words | p_h1_words) - {"the", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for", "of", "and", "or", "with", "from", "by", "this", "that", "it", "as", "be"}
+        key_terms = (p_words | p_title_words | p_h1_words) - stopwords
 
         for other in pages:
-            if other.url == p.url or not other.url:
-                continue
-            if other.url in current_links:
-                continue
-
+            if other.url == p.url or not other.url: continue
+            if _normalize_url(other.url) in current_links: continue
             other_text = page_text_cache.get(other.url, "")
             other_title_words = set((other.title or "").lower().split())
             overlap = len(key_terms & other_title_words)
             if overlap >= 2 or any(t in other_text for t in list(key_terms)[:5] if len(t) > 4):
+                paragraphs = p_text.split(". ")
+                best_para = ""
+                for para in paragraphs:
+                    if any(t in para for t in list(key_terms & other_title_words)[:3]):
+                        best_para = para[:80]
+                        break
+
                 link_suggestions.append({
                     "from_page": p.url,
                     "to_page": other.url,
                     "to_title": other.title or other.url.split("/")[-1].replace("-", " ").title(),
                     "reason": f"Related content — shares topics: {', '.join(list(key_terms & other_title_words)[:3]) if key_terms & other_title_words else 'thematic relevance'}",
                     "anchor_suggestion": (other.title or other.url.split("/")[-1].replace("-", " "))[:60],
-                    "priority": "HIGH" if overlap >= 3 else "MEDIUM",
+                    "priority": "HIGH" if overlap >= 3 else "MEDIUM" if overlap >= 2 else "LOW",
+                    "placement_hint": f"Place in paragraph: \"{best_para}...\"" if best_para else "Add as contextual link in body content",
+                    "shared_topics": sorted(list(key_terms & other_title_words)[:5]),
                 })
 
     link_suggestions.sort(key=lambda x: {"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(x.get("priority", "LOW"), 3))
 
     link_improvements = []
     for p in pages:
-        if not p.url:
-            continue
+        if not p.url: continue
+        links = getattr(p, '_deduped_links', _safe_links(p))
         external = _safe_ext_links(p)
-        if len(external) == 0 and p.url not in [pp.url for pp in no_links]:
-            if p.word_count and p.word_count > 500:
-                link_improvements.append({
-                    "page": p.url,
-                    "issue": "No external links in 500+ word content",
-                    "suggestion": f"Add 2-3 outbound links to authoritative sources to boost E-E-A-T signals",
-                    "impact": "MEDIUM",
-                })
-
-        current_links = _safe_links(p)
-        if len(current_links) < 3 and p.word_count and p.word_count > 300:
+        if len(external) == 0 and p.word_count and p.word_count > 500:
             link_improvements.append({
-                "page": p.url,
-                "issue": f"Only {len(current_links)} internal links in {p.word_count}-word content",
-                "suggestion": f"Add links to related pages to improve crawlability and topical authority. Aim for {max(3, len(current_links) + 2)} internal links.",
+                "page": p.url, "issue": "No external links in 500+ word content",
+                "suggestion": "Add 2-3 outbound links to authoritative sources to boost E-E-A-T signals",
+                "impact": "MEDIUM",
+            })
+        if len(links) < 3 and p.word_count and p.word_count > 300:
+            link_improvements.append({
+                "page": p.url, "issue": f"Only {len(links)} internal links in {p.word_count}-word content",
+                "suggestion": f"Add links to related pages to improve crawlability and topical authority. Aim for {min(max(3, len(links) + 3), 10)} internal links.",
                 "impact": "HIGH",
             })
-
         if p.crawl_depth and p.crawl_depth > 3:
             link_improvements.append({
-                "page": p.url,
-                "issue": f"Page is {p.crawl_depth} clicks from homepage (too deep)",
-                "suggestion": "Add links from higher-authority pages (homepage, category pages) to reduce crawl depth and improve indexability",
+                "page": p.url, "issue": f"Page is {p.crawl_depth} clicks from homepage (too deep)",
+                "suggestion": "Add links from higher-authority pages to reduce crawl depth",
                 "impact": "HIGH",
             })
+
+    inbound_count = {}
+    for p in pages:
+        for link in getattr(p, '_deduped_links', _safe_links(p)):
+            target = _normalize_url(_link_url(link))
+            inbound_count[target] = inbound_count.get(target, 0) + 1
+
+    pagerank_data = []
+    for p in pages:
+        inbound = inbound_count.get(_normalize_url(p.url), 0)
+        outbound = len(getattr(p, '_deduped_links', _safe_links(p)))
+        pr_score = min(100, (inbound * 10) + 20 + (min(outbound, 10) * 2))
+        pagerank_data.append({
+            "url": p.url,
+            "title": p.title or p.url,
+            "inbound_links": inbound,
+            "outbound_links": outbound,
+            "pagerank_score": pr_score,
+            "is_orphan": _is_orphan(p.url, pages),
+        })
+    pagerank_data.sort(key=lambda x: x["pagerank_score"], reverse=True)
 
     return {
         "total_pages": total,
+        "unique_internal_targets": len(all_link_targets),
         "avg_internal_links": round(avg_internal, 1),
         "avg_external_links": round(avg_external, 1),
+        "total_internal_links": total_internal,
         "pages_with_no_internal_links": len(no_links),
-        "orphan_pages": len(orphan_pages),
+        "orphan_pages": len(orphan_urls_list),
         "no_links_urls": [p.url for p in no_links[:20]],
-        "orphan_urls": [p.url for p in orphan_pages[:20]],
+        "orphan_urls": orphan_urls_list[:20],
         "link_suggestions": link_suggestions[:30],
         "link_improvements": link_improvements[:20],
+        "page_scores": page_scores[:50],
+        "anchor_analysis": {
+            "total_anchors": len(all_anchors),
+            "generic_anchors": generic_anchors[:20],
+            "unique_anchors": len(set(a["text"].lower() for a in all_anchors)),
+            "sample_anchors": all_anchors[:30],
+        },
+        "topic_clusters": list(clusters.values())[:15],
+        "pagerank": pagerank_data[:30],
+        "external_domains": sorted(link_map.items(), key=lambda x: x[1]["count"], reverse=True)[:20],
         "pages": [{
-            "url": p.url, "internal_links": len(_safe_links(p)),
+            "url": p.url,
+            "title": p.title or "",
+            "internal_links": len(getattr(p, '_deduped_links', _safe_links(p))),
             "external_links": len(_safe_ext_links(p)),
             "crawl_depth": p.crawl_depth,
+            "word_count": p.word_count or 0,
         } for p in pages[:50]],
     }
 
@@ -3479,6 +3638,23 @@ async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = D
     current_content = page.content_text or ""
     issues = analysis["diagnostics"]["actionable_fixes"]
     targets = analysis.get("page_type_targets", {})
+    
+    headings = page.headings or []
+    if isinstance(headings, str):
+        import json as _json
+        try:
+            headings = _json.loads(headings)
+        except Exception:
+            headings = []
+    h1_text = ""
+    for h in headings:
+        if isinstance(h, dict):
+            t = h.get("text", "")
+        else:
+            t = str(h)
+        if t.strip():
+            h1_text = t.strip()
+            break
 
     ai_rewrite = {}
     ai_readability = {}
@@ -3492,7 +3668,7 @@ async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = D
         )
         import asyncio
         results = await asyncio.gather(
-            dual_ai_content_rewrite(page.url, page.title or "", page.meta_description or "", current_content, targets.get("must_have", []), issues),
+            dual_ai_content_rewrite(page.url, page.title or "", page.meta_description or "", current_content, targets.get("must_have", []) or [h1_text] if h1_text else [], issues),
             dual_ai_readability_analysis(current_content),
             dual_ai_eeat_analysis(current_content, page.url, page.title or ""),
             dual_ai_link_suggestions(page.url, current_content, []),
@@ -3512,6 +3688,10 @@ async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = D
         "page_type": analysis.get("page_type", "UNKNOWN"),
         "current_content": current_content[:5000],
         "word_count": page.word_count or 0,
+        "title": page.title or "",
+        "meta_description": page.meta_description or "",
+        "h1": h1_text,
+        "headings": headings[:20],
         "issues": issues[:20],
         "targets": targets,
         "platform_scores": analysis.get("platform_scores", {}),

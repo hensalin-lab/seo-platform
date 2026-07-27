@@ -528,8 +528,18 @@ class ContentIntelligenceDeep:
         }
 
     def _check_external_links(self, external_links: list[str], word_count: int) -> dict[str, Any]:
-        count = len(external_links) if isinstance(external_links, list) else 0
-        ideal = max(2, word_count // 500)
+        if isinstance(external_links, list):
+            unique_urls = set()
+            for link in external_links:
+                if isinstance(link, dict):
+                    url = link.get("url", "") or link.get("href", "")
+                    if url: unique_urls.add(url.rstrip("/").lower())
+                elif isinstance(link, str):
+                    unique_urls.add(link.rstrip("/").lower())
+            count = len(unique_urls)
+        else:
+            count = 0
+        ideal = min(max(2, word_count // 500), 10)
         if count >= ideal:
             status = "excellent"
             suggestion = f"Found {count} external link(s). Target of {ideal}+ met — excellent outbound linking."
@@ -549,8 +559,18 @@ class ContentIntelligenceDeep:
         }
 
     def _check_internal_links(self, internal_links: list[str], word_count: int) -> dict[str, Any]:
-        count = len(internal_links) if isinstance(internal_links, list) else 0
-        ideal = max(3, word_count // 400)
+        if isinstance(internal_links, list):
+            unique_urls = set()
+            for link in internal_links:
+                if isinstance(link, dict):
+                    url = link.get("url", "") or link.get("href", "")
+                    if url: unique_urls.add(url.rstrip("/").lower())
+                elif isinstance(link, str):
+                    unique_urls.add(link.rstrip("/").lower())
+            count = len(unique_urls)
+        else:
+            count = 0
+        ideal = min(max(3, word_count // 400), 15)
         if count >= ideal:
             status = "excellent"
             suggestion = f"Found {count} internal link(s). Target of {ideal}+ met — strong internal linking."
@@ -922,7 +942,7 @@ class ContentIntelligenceDeep:
             return 0.5
         return 0.3
 
-    def _score_intent_match(self, content: str, page_type: str) -> str:
+    def _score_intent_match(self, content: str, page_type: str) -> dict[str, Any]:
         how_to = len(re.findall(r'\bhow to\b', content, re.IGNORECASE))
         what_is = len(re.findall(r'\bwhat is\b', content, re.IGNORECASE))
         why = len(re.findall(r'\bwhy\b', content, re.IGNORECASE))
@@ -936,8 +956,9 @@ class ContentIntelligenceDeep:
         }
         dominant = max(scores, key=lambda k: scores[k])
         if scores[dominant] == 0:
-            return "unclear"
-        return dominant
+            return {"label": "unclear", "score": 0.2, "detail": "Could not determine dominant search intent"}
+        score_val = min(1.0, scores[dominant] / 5)
+        return {"label": dominant, "score": round(score_val, 2), "detail": f"Predominantly {dominant} content"}
 
     def _score_entity_coverage(self, content: str) -> float:
         entities = self._extract_entities(content)
@@ -1019,11 +1040,11 @@ class ContentIntelligenceDeep:
         score = max(0.0, 1.0 - (issues / max(word_count / 50, 1)))
         return round(score, 2)
 
-    def _score_sentence_complexity(self, content: str) -> str:
+    def _score_sentence_complexity(self, content: str) -> dict[str, Any]:
         sentences = re.split(r'[.!?]+', content)
         sentences = [s.strip() for s in sentences if s.strip()]
         if not sentences:
-            return "simple"
+            return {"label": "simple", "score": 0.9, "detail": "No sentences to analyze"}
 
         lengths = [len(s.split()) for s in sentences]
         avg = sum(lengths) / len(lengths)
@@ -1031,10 +1052,10 @@ class ContentIntelligenceDeep:
         long_ratio = long_sentences / len(lengths)
 
         if avg > 25 or long_ratio > 0.4:
-            return "complex"
+            return {"label": "complex", "score": 0.3, "detail": f"Average {avg:.0f} words/sentence, {long_ratio*100:.0f}% long sentences"}
         elif avg > 18 or long_ratio > 0.2:
-            return "moderate"
-        return "simple"
+            return {"label": "moderate", "score": 0.6, "detail": f"Average {avg:.0f} words/sentence, {long_ratio*100:.0f}% long sentences"}
+        return {"label": "simple", "score": 0.9, "detail": f"Average {avg:.0f} words/sentence, well-balanced"}
 
     def _count_duplicate_paragraphs(self, content: str) -> int:
         paragraphs = re.split(r'\n\s*\n', content)
@@ -1046,14 +1067,14 @@ class ContentIntelligenceDeep:
         duplicates = sum(count - 1 for count in seen.values() if count > 1)
         return duplicates
 
-    def _score_ai_detection(self, content: str, words: list[str]) -> str:
+    def _score_ai_detection(self, content: str, words: list[str]) -> dict[str, Any]:
         if not words:
-            return "low"
+            return {"label": "low", "score": 0.1, "detail": "Insufficient content to analyze"}
 
         sentences = re.split(r'[.!?]+', content)
         sentences = [s.strip() for s in sentences if s.strip()]
         if len(sentences) < 5:
-            return "low"
+            return {"label": "low", "score": 0.1, "detail": "Too few sentences for reliable detection"}
 
         lengths = [len(s.split()) for s in sentences]
         if lengths:
@@ -1077,10 +1098,10 @@ class ContentIntelligenceDeep:
         score = (uniformity * 0.4) + (min(transition_density, 1.0) * 0.3) + (min(hedging_density, 1.0) * 0.3)
 
         if score > 0.7:
-            return "high"
+            return {"label": "high", "score": round(score, 2), "detail": "High uniformity and transition density suggest AI-generated patterns"}
         elif score > 0.4:
-            return "medium"
-        return "low"
+            return {"label": "medium", "score": round(score, 2), "detail": "Some AI-like patterns detected but not conclusive"}
+        return {"label": "low", "score": round(score, 2), "detail": "Content appears natural with varied structure"}
 
     def _score_citations(self, content: str) -> float:
         citation_patterns = [

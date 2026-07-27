@@ -237,11 +237,64 @@ async def quad_ai_analyze_seo(url, title, meta_desc, content, headings, signals)
 
 
 async def quad_ai_content_rewrite(url, title, meta_desc, content, target_keywords, issues):
-    sys = """Content strategist and SEO copywriter. Return JSON:
-{"rewrite_sections":[{"section":"...","current_text":"...","improved_text":"...","reason":"...","keyword_placement":"...","impact":"high|medium|low"}],"new_content_suggestions":[{"section":"...","content":"...","why":"..."}],"title_suggestions":["..."],"meta_description_suggestions":["..."],"faq_suggestions":[{"question":"...","answer":"..."}],"schema_suggestions":["..."],"internal_link_suggestions":["..."]}"""
-    issues_text = "\n".join([f"- [{i.get('severity','?')}] {i.get('issue', i.get('signal_name','?'))}" for i in (issues or [])[:20]])
-    user = f"URL: {url}\nTitle: {title}\nMeta: {meta_desc}\nWords: {len(content.split())}\nKeywords: {', '.join(target_keywords or [])}\nIssues:\n{issues_text}\nContent: {content[:2000]}"
-    return await _run_all(sys, user, 3000)
+    sys = """You are an expert SEO copywriter and content optimizer. Generate a COMPLETE content rewrite package.
+
+Return this EXACT JSON structure:
+{
+  "title_suggestions": ["Better Title 1 | Brand", "Title 2 with keyword | Brand"],
+  "meta_description_suggestions": ["Compelling 150-char meta description with keyword..."],
+  "h1_rewrite": {"before": "current H1", "after": "optimized H1 with primary keyword", "reason": "why this improves SEO"},
+  "intro_rewrite": {"before": "current intro paragraph", "after": "AI-optimized intro paragraph that includes primary keyword naturally, answers search intent, and is citable by AI platforms", "improvements": ["+SEO keyword placement", "+AI citation readiness", "+Entity recognition"]},
+  "rewrite_sections": [
+    {"section": "Section Name", "current_text": "what's there now", "improved_text": "optimized version", "reason": "why this improves", "keyword_placement": "where keyword fits", "impact": "high|medium|low", "improvements": ["+12 SEO", "+8 AI Search"]}
+  ],
+  "new_content_suggestions": [
+    {"section": "FAQ Section", "content": "Generated FAQ content with Q&A pairs", "why": "AI platforms extract FAQs into answers", "type": "faq|table|list|comparison|glossary|step|statistics"}
+  ],
+  "faq_suggestions": [{"question": "What is...?", "answer": "Definitive answer..."}],
+  "comparison_table": {"headers": ["Feature", "Your Product", "Competitor"], "rows": [["Feature 1", "Yes", "No"]]},
+  "schema_suggestions": ["JSON-LD schema string..."],
+  "entity_suggestions": {"detected": ["Entity1", "Entity2"], "missing": ["Entity3"], "paragraph": "Suggested paragraph incorporating missing entities..."},
+  "readability_rewrite": {"current_level": "Grade 12", "target_level": "Grade 8", "rewritten_intro": "Simplified version..."},
+  "internal_link_suggestions": [{"anchor_text": "keyword", "destination": "/page", "reason": "contextual relevance"}],
+  "ai_overview_optimization": {"current_answer": "what AI would say now", "optimized_answer": "what AI would say after rewrite", "citation_probability_current": 30, "citation_probability_optimized": 75},
+  "score_predictions": {"seo_current": 0, "seo_after": 0, "ai_search_current": 0, "ai_search_after": 0, "readability_current": 0, "readability_after": 0}
+}
+
+CRITICAL RULES:
+- Generate ACTUAL replacement content, not placeholders
+- Every rewrite MUST include the original text and the improved version
+- Generate 3-5 title suggestions, 3 meta descriptions, 5+ FAQ items
+- Generate at least 3 paragraph rewrites with specific improvements
+- Generate comparison tables if product/service page
+- Generate entity optimization paragraph with missing entities
+- Predict scores before and after
+- Never return empty arrays - always generate real content"""
+
+    h1 = ""
+    headings = content[:500].split("\n")
+    for h in headings:
+        if h.strip() and len(h.strip()) < 100:
+            h1 = h.strip()
+            break
+
+    first_300 = " ".join(content.split()[:300])
+    issues_text = "\n".join([f"- [{i.get('severity','?')}] {i.get('issue', i.get('signal_name','?'))}" for i in (issues or [])[:15]])
+    user = f"""URL: {url}
+Title: {title}
+H1: {h1}
+Meta Description: {meta_desc}
+Target Keywords: {', '.join(target_keywords or [])}
+Word Count: {len(content.split())}
+
+First 300 words of content:
+{first_300}
+
+Known Issues:
+{issues_text}
+
+Generate a complete content optimization package with actual before/after rewrites for every element."""
+    return await _run_all(sys, user, 4000)
 
 
 async def quad_ai_search_optimization(url, title, content, signals):
