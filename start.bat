@@ -1,26 +1,13 @@
 @echo off
-echo ===================================
-echo  AI SEO Intelligence Platform v2.0
-echo ===================================
+echo Starting Backend on port 8001...
+start "Backend" cmd /k "cd /d %~dp0backend & C:\Users\hemal\AppData\Local\Python\bin\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"
+timeout /t 3
+echo Starting Frontend on port 5173...
+start "Frontend" cmd /k "cd /d %~dp0frontend & npm run dev"
 echo.
-
-echo [1/2] Starting Backend...
-cd backend
-pip install -r requirements.txt --quiet 2>nul
-start "SEO Backend" cmd /k "python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
-cd ..
-
-echo [2/2] Starting Frontend...
-cd frontend
-npm install --silent 2>nul
-start "SEO Frontend" cmd /k "npm run dev"
-cd ..
-
-echo.
-echo ===================================
-echo  Platform Starting...
-echo  Backend:  http://localhost:8000
+echo ============================================
+echo  Backend:  http://localhost:8001
 echo  Frontend: http://localhost:5173
-echo  API Docs: http://localhost:8000/docs
-echo ===================================
+echo ============================================
+echo Open http://localhost:5173 in your browser
 pause
