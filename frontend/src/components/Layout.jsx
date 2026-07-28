@@ -1,16 +1,23 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2,
   Gauge, BookOpen, Key, Globe, MessageSquare, Users,
   ExternalLink, Shield, Activity, Lightbulb, GitCompare,
   Filter, Edit3, Eye, Layers, Brain, Zap, Sparkles,
-  Bot, Award, FileCode, Cpu
+  Bot, Award, FileCode, Cpu, Camera, Smartphone, MapPin,
+  FileSearch, HeartPulse, TrendingUp, BarChart2,
+  Megaphone, Flag, RefreshCw, ShieldAlert, Network,
+  Hash, MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck,
+  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User
 } from 'lucide-react';
 
 const MAIN_NAV = [
   { path: '/new', icon: Plus, label: 'New Audit' },
   { path: '/history', icon: FileText, label: 'History' },
+  { path: '/portfolio', icon: FolderOpen, label: 'Portfolio' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const AUDIT_NAV = [
@@ -18,6 +25,8 @@ const AUDIT_NAV = [
     label: 'OVERVIEW',
     items: [
       { suffix: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { suffix: '/compare', icon: GitCompare, label: 'Audit Compare' },
+      { suffix: '/report', icon: FileSearch, label: 'Audit Report' },
     ],
   },
   {
@@ -26,6 +35,12 @@ const AUDIT_NAV = [
       { suffix: '/seo', icon: Search, label: 'SEO Analysis' },
       { suffix: '/page-detail', icon: Layers, label: 'Page Intelligence' },
       { suffix: '/page-deep', icon: Layers, label: 'Page Deep Dive' },
+      { suffix: '/page-speed', icon: Gauge, label: 'Page Speed' },
+      { suffix: '/page-experience', icon: HeartPulse, label: 'Page Experience' },
+      { suffix: '/image-seo', icon: Camera, label: 'Image SEO' },
+      { suffix: '/mobile-seo', icon: Smartphone, label: 'Mobile SEO' },
+      { suffix: '/sitemap-robots', icon: Globe, label: 'Sitemap & Robots' },
+      { suffix: '/security-headers', icon: ShieldAlert, label: 'Security Headers' },
       { suffix: '/speed', icon: Gauge, label: 'Speed & CWV' },
       { suffix: '/speed-intel', icon: Cpu, label: 'Speed Intelligence' },
       { suffix: '/internal-links', icon: Link2, label: 'Internal Links' },
@@ -38,6 +53,11 @@ const AUDIT_NAV = [
       { suffix: '/keywords', icon: Key, label: 'Keywords' },
       { suffix: '/content-intel', icon: BookOpen, label: 'Content Intelligence' },
       { suffix: '/content-rewrite', icon: Edit3, label: 'Content Rewriter' },
+      { suffix: '/content-quality', icon: BarChart2, label: 'Content Quality' },
+      { suffix: '/content-revival', icon: RefreshCw, label: 'Content Revival' },
+      { suffix: '/content-opportunities', icon: TrendingUp, label: 'Content Opportunities' },
+      { suffix: '/keyword-opportunities', icon: Hash, label: 'Keyword Opportunities' },
+      { suffix: '/blog-ai', icon: PenTool, label: 'Blog AI' },
     ],
   },
   {
@@ -48,6 +68,11 @@ const AUDIT_NAV = [
       { suffix: '/ai-bots', icon: Bot, label: 'AI Bot Access' },
       { suffix: '/eeat', icon: Activity, label: 'E-E-A-T' },
       { suffix: '/serp-preview', icon: Eye, label: 'SERP & AI Preview' },
+      { suffix: '/ai-roadmap', icon: Flag, label: 'AI Roadmap' },
+      { suffix: '/ai-suggestions', icon: Star, label: 'AI Suggestions' },
+      { suffix: '/social-seo', icon: Megaphone, label: 'Social SEO' },
+      { suffix: '/citations', icon: MessageCircle, label: 'Citations' },
+      { suffix: '/local-seo', icon: MapPin, label: 'Local SEO' },
     ],
   },
   {
@@ -58,6 +83,10 @@ const AUDIT_NAV = [
       { suffix: '/offsite-authority', icon: Award, label: 'Off-Site Authority' },
       { suffix: '/remediation', icon: Filter, label: 'Remediation Feed' },
       { suffix: '/roadmap', icon: GitCompare, label: 'Roadmap' },
+      { suffix: '/recommendations-list', icon: ClipboardList, label: 'Recommendations' },
+      { suffix: '/competitor-gap', icon: Network, label: 'Competitor Gap' },
+      { suffix: '/backlinks', icon: Link2, label: 'Backlinks' },
+      { suffix: '/seo-health', icon: ShieldCheck, label: 'SEO Health' },
     ],
   },
   {
@@ -89,6 +118,10 @@ export default function Layout({ children }) {
     if (!isReport) {
       if (location.pathname === '/new') return 'New Audit';
       if (location.pathname === '/history') return 'Audit History';
+      if (location.pathname === '/portfolio') return 'Portfolio Dashboard';
+      if (location.pathname === '/settings') return 'Settings';
+      if (location.pathname === '/login') return 'Sign In';
+      if (location.pathname === '/register') return 'Sign Up';
       return 'SEO Platform';
     }
     const path = location.pathname;
@@ -122,6 +155,30 @@ export default function Layout({ children }) {
     if (path.endsWith('/page-deep')) return 'Page Deep Dive';
     if (path.endsWith('/progress')) return 'Audit Progress';
     if (path.endsWith('/pages')) return 'Page Analysis';
+    if (path.endsWith('/compare')) return 'Audit Compare';
+    if (path.endsWith('/report')) return 'Audit Report';
+    if (path.endsWith('/backlinks')) return 'Backlink Profile';
+    if (path.endsWith('/blog-ai')) return 'Blog AI';
+    if (path.endsWith('/citations')) return 'Citation Analysis';
+    if (path.endsWith('/competitor-gap')) return 'Competitor Gap';
+    if (path.endsWith('/content-opportunities')) return 'Content Opportunities';
+    if (path.endsWith('/content-quality')) return 'Content Quality';
+    if (path.endsWith('/content-revival')) return 'Content Revival';
+    if (path.endsWith('/image-seo')) return 'Image SEO';
+    if (path.endsWith('/keyword-opportunities')) return 'Keyword Opportunities';
+    if (path.endsWith('/local-seo')) return 'Local SEO';
+    if (path.endsWith('/mobile-seo')) return 'Mobile SEO';
+    if (path.endsWith('/page-experience')) return 'Page Experience';
+    if (path.endsWith('/page-improvements')) return 'Page Improvements';
+    if (path.endsWith('/page-intel-detail')) return 'Page Intelligence Detail';
+    if (path.endsWith('/page-speed')) return 'Page Speed';
+    if (path.endsWith('/recommendations-list')) return 'Recommendations';
+    if (path.endsWith('/security-headers')) return 'Security Headers';
+    if (path.endsWith('/seo-health')) return 'SEO Health';
+    if (path.endsWith('/sitemap-robots')) return 'Sitemap & Robots';
+    if (path.endsWith('/social-seo')) return 'Social SEO';
+    if (path.endsWith('/ai-roadmap')) return 'AI Roadmap';
+    if (path.endsWith('/ai-suggestions')) return 'AI Suggestions';
     return 'Report';
   };
 
@@ -163,7 +220,25 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.5 }}>
+          {(() => { const { user, isAuthenticated, logout } = useAuth(); return isAuthenticated && user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff' }}>
+                {user.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username || user.email}</div>
+                <div style={{ fontSize: 10, color: 'var(--sidebar-text)', opacity: 0.5 }}>{user.role}</div>
+              </div>
+              <button onClick={logout} style={{ background: 'none', border: 'none', color: 'var(--sidebar-text)', cursor: 'pointer', padding: 4, opacity: 0.6 }} title="Sign out">
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <Link to="/login" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 6, color: 'var(--sidebar-text)', textDecoration: 'none', fontSize: 12 }}>
+              <LogIn size={14} /> Sign In
+            </Link>
+          ); })()}
+          <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.5, marginTop: 4 }}>
             SEO Intel v2.0
           </div>
         </div>

@@ -10,11 +10,26 @@ from app.config import settings
 from app.database import init_db
 from app.api.audit import router as audit_router
 from app.api.status import router as status_router
+from app.api.auth import router as auth_router
+from app.api.webhooks import router as webhook_router
+from app.api.scheduled import router as scheduled_router
+from app.api.whitelabel import router as whitelabel_router
+from app.api.oauth import router as oauth_router
+from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
+def _rate_limit_key(request: Request) -> str:
+    """Use user ID if authenticated, else IP address."""
+    user_id = getattr(request.state, "user_id", None)
+    if user_id:
+        return f"user:{user_id}"
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_rate_limit_key, default_limits=["200/minute"])
 
 
 @asynccontextmanager
@@ -38,12 +53,19 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "PUT"],
+    allow_methods=["GET", "POST", "DELETE", "PUT", "PATCH"],
     allow_headers=["*"],
 )
 
+app.add_middleware(AuthMiddleware)
+
 app.include_router(audit_router)
 app.include_router(status_router)
+app.include_router(auth_router)
+app.include_router(webhook_router)
+app.include_router(scheduled_router)
+app.include_router(whitelabel_router)
+app.include_router(oauth_router)
 
 
 @app.get("/api/health")

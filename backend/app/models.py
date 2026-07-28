@@ -45,6 +45,7 @@ class Audit(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     pages = relationship("Page", back_populates="audit", cascade="all, delete-orphan")
     issues = relationship("Issue", back_populates="audit", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", back_populates="audit", cascade="all, delete-orphan")
@@ -307,3 +308,99 @@ class ChatMessage(Base):
     role = Column(String, default="user")
     content = Column(Text, default="")
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (
+        Index("ix_users_email", "email", unique=True),
+        Index("ix_users_username", "username", unique=True),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    email = Column(String, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(String, default="VIEWER")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    updated_at = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
+    api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    webhooks = relationship("Webhook", back_populates="user", cascade="all, delete-orphan")
+    scheduled_audits = relationship("ScheduledAudit", back_populates="user", cascade="all, delete-orphan")
+    white_label = relationship("WhiteLabelSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class APIKey(Base):
+    __tablename__ = "api_keys"
+    __table_args__ = (
+        Index("ix_api_keys_key", "key", unique=True),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    key = Column(String, unique=True, nullable=False)
+    name = Column(String, default="")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    user = relationship("User", back_populates="api_keys")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+    __table_args__ = (
+        Index("ix_sessions_token", "token", unique=True),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    token = Column(String, unique=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    ip_address = Column(String, default="")
+    user_agent = Column(String, default="")
+    user = relationship("User", back_populates="sessions")
+
+
+class Webhook(Base):
+    __tablename__ = "webhooks"
+    __table_args__ = (
+        Index("ix_webhooks_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    url = Column(String, nullable=False)
+    events = Column(JSON, default=list)
+    secret = Column(String, default="")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    last_triggered_at = Column(DateTime, nullable=True)
+    user = relationship("User", back_populates="webhooks")
+
+
+class ScheduledAudit(Base):
+    __tablename__ = "scheduled_audits"
+    __table_args__ = (
+        Index("ix_scheduled_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    website_url = Column(String, nullable=False)
+    competitor_url = Column(String, nullable=True)
+    frequency = Column(String, default="weekly")
+    next_run = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    user = relationship("User", back_populates="scheduled_audits")
+
+
+class WhiteLabelSettings(Base):
+    __tablename__ = "whitelabel_settings"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), unique=True)
+    company_name = Column(String, default="")
+    logo_url = Column(String, default="")
+    primary_color = Column(String, default="#3B82F6")
+    secondary_color = Column(String, default="#1E293B")
+    custom_domain = Column(String, default="")
+    is_active = Column(Boolean, default=False)
+    user = relationship("User", back_populates="white_label")

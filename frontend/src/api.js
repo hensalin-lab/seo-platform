@@ -2,12 +2,13 @@ const API_BASE = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || '') + '/api'
   : '/api';
 
+let _authToken = null;
+
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+  const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -94,6 +95,35 @@ export const api = {
   cancelAudit: (id) => request(`/audit/${id}/cancel`, { method: 'POST' }),
   rerunAudit: (id) => request(`/audit/${id}/rerun`, { method: 'POST' }),
   exportCsv: (id, type = 'issues') => `${API_BASE}/audit/${id}/export/csv?type=${type}`,
+
+  // Auth
+  register: (email, username, password) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, username, password }) }),
+  login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  getMe: () => request('/auth/me'),
+  updateMe: (data) => request('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
+  changePassword: (currentPassword, newPassword) => request('/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) }),
+  createApiKey: (name) => request('/auth/api-keys', { method: 'POST', body: JSON.stringify({ name }) }),
+  listApiKeys: () => request('/auth/api-keys'),
+  revokeApiKey: (id) => request(`/auth/api-keys/${id}`, { method: 'DELETE' }),
+
+  // Webhooks
+  createWebhook: (url, events) => request('/webhooks', { method: 'POST', body: JSON.stringify({ url, events }) }),
+  listWebhooks: () => request('/webhooks'),
+  deleteWebhook: (id) => request(`/webhooks/${id}`, { method: 'DELETE' }),
+  testWebhook: (id, payload) => request(`/webhooks/${id}/test`, { method: 'POST', body: JSON.stringify({ payload }) }),
+
+  // Scheduled
+  createScheduled: (data) => request('/scheduled', { method: 'POST', body: JSON.stringify(data) }),
+  listScheduled: () => request('/scheduled'),
+  updateScheduled: (id, data) => request(`/scheduled/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteScheduled: (id) => request(`/scheduled/${id}`, { method: 'DELETE' }),
+
+  // White label
+  getWhiteLabel: () => request('/whitelabel'),
+  updateWhiteLabel: (data) => request('/whitelabel', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // OAuth
+  googleAuth: () => `${API_BASE}/oauth/google`,
   getEnterpriseAudit: (id) => request(`/audit/${id}/enterprise`),
   getEnterprisePage: (idx, id) => request(`/audit/${id}/enterprise/${idx}`),
   getRemediationFeed: (id, params = {}) => {
@@ -131,4 +161,5 @@ export const api = {
   getPageIntelligenceV2: (id, idx) => request(`/audit/${id}/page-intelligence-v2/${idx}`),
   getEnterpriseDashboard: (id) => request(`/audit/${id}/enterprise-dashboard`),
   request,
+  setToken: (token) => { _authToken = token; },
 };

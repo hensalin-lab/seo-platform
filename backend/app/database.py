@@ -29,6 +29,7 @@ async def init_db():
         CompetitorData, AuditHistory, PageAnalysisRecord,
         KeywordRecord, RoadmapRecord, ChatMessage,
         RoadmapItem, KeywordData, ContentData, AIVisibilityData,
+        User, APIKey, Session, Webhook, ScheduledAudit, WhiteLabelSettings,
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

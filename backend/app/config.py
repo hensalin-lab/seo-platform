@@ -61,6 +61,18 @@ class Settings(BaseSettings):
     AI_MAX_RETRIES: int = 3
     ANALYSIS_TIMEOUT: int = 600
 
+    JWT_SECRET_KEY: str = "seo-platform-jwt-secret-change-in-production-2024"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8001/api/oauth/callback"
+
+    PAGESPEED_API_KEY: str = ""
+
+    WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
+
     LOG_LEVEL: str = "INFO"
 
     class Config:

@@ -81,11 +81,13 @@ def _generate_fallback_recommendations(issues, website_url):
 
 @router.post("/audit/start", response_model=AuditStartResponse)
 async def start_audit(request: Request, req: AuditRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    user_id = getattr(request.state, "user_id", None)
     audit = Audit(
         website_url=req.website_url.rstrip("/"),
         competitor_url=req.competitor_url.rstrip("/") if req.competitor_url else None,
         status=AuditStatus.QUEUED.value,
         progress=0,
+        user_id=user_id,
     )
     db.add(audit)
     await db.commit()
@@ -95,13 +97,15 @@ async def start_audit(request: Request, req: AuditRequest, background_tasks: Bac
 
 
 @router.get("/audit/history")
-async def get_history(limit: int = 20, db: AsyncSession = Depends(get_db)):
+async def get_history(request: Request, limit: int = 20, db: AsyncSession = Depends(get_db)):
+    user_id = getattr(request.state, "user_id", None)
     stmt = (
         select(Audit, AuditScore)
         .outerjoin(AuditScore, Audit.id == AuditScore.audit_id)
-        .order_by(Audit.created_at.desc())
-        .limit(limit)
     )
+    if user_id:
+        stmt = stmt.where(Audit.user_id == user_id)
+    stmt = stmt.order_by(Audit.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     rows = result.all()
     return [{

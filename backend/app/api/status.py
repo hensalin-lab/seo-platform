@@ -1,7 +1,7 @@
 import logging
 import json
 import datetime as _dt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -3420,11 +3420,13 @@ async def compare_audits(audit_id: str, other_audit_id: str, db: AsyncSession = 
 
 
 @router.get("/portfolio")
-async def get_portfolio(db: AsyncSession = Depends(get_db)):
+async def get_portfolio(request: Request, db: AsyncSession = Depends(get_db)):
     """Portfolio dashboard: all audits with scores, trends, and health overview."""
-    audits_r = await db.execute(
-        select(Audit).where(Audit.status == "COMPLETED").order_by(Audit.created_at.desc())
-    )
+    user_id = getattr(request.state, "user_id", None)
+    stmt = select(Audit).where(Audit.status == "COMPLETED")
+    if user_id:
+        stmt = stmt.where(Audit.user_id == user_id)
+    audits_r = await db.execute(stmt.order_by(Audit.created_at.desc()))
     audits = audits_r.scalars().all()
 
     portfolio = []
@@ -5205,3 +5207,69 @@ async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSessio
     resp = engine.analyze(page_dict, all_pages=all_pages_dicts)
     _cache_set(cache_key, resp)
     return resp
+
+
+@router.get("/audit/{audit_id}/page-speed-live")
+async def get_page_speed_live(audit_id: str, url: str = "", strategy: str = "mobile", db: AsyncSession = Depends(get_db)):
+    from app.engine.pagespeed_engine import PageSpeedEngine
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    target_url = url or audit.website_url
+    cache_key = f"pagespeed:{audit_id}:{target_url}:{strategy}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+    engine = PageSpeedEngine()
+    data = await engine.analyze(target_url, strategy)
+    _cache_set(cache_key, data)
+    return data
+
+
+@router.get("/audit/{audit_id}/ga4-traffic")
+async def get_ga4_traffic(audit_id: str, property_id: str = "", days: int = 28, db: AsyncSession = Depends(get_db)):
+    from app.engine.ga4_engine import GA4Engine
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    ga_property = property_id or audit.ga_property or ""
+    cache_key = f"ga4:{audit_id}:{ga_property}:{days}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+    engine = GA4Engine()
+    data = await engine.get_organic_traffic(ga_property, days)
+    _cache_set(cache_key, data)
+    return data
+
+
+@router.get("/audit/{audit_id}/ga4-top-pages")
+async def get_ga4_top_pages(audit_id: str, property_id: str = "", days: int = 28, db: AsyncSession = Depends(get_db)):
+    from app.engine.ga4_engine import GA4Engine
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    engine = GA4Engine()
+    return await engine.get_top_pages(property_id or audit.ga_property or "", days)
+
+
+@router.get("/audit/{audit_id}/historical")
+async def get_historical_trends(audit_id: str, db: AsyncSession = Depends(get_db)):
+    from app.engine.historical_tracker import HistoricalTracker
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    cache_key = f"historical:{audit_id}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+    tracker = HistoricalTracker(db)
+    data = await tracker.get_trends(audit.website_url)
+    regressions = await tracker.detect_regressions(audit.website_url)
+    data["regressions"] = regressions
+    _cache_set(cache_key, data)
+    return data
