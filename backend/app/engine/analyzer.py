@@ -809,6 +809,7 @@ class AnalyzerEngine:
     def _analyze_content_intelligence(self, pages, result, all_text):
         thin_pages = [p for p in pages if 0 < p.word_count < 300 and p.status_code == 200]
         all_counted = [p for p in pages if p.word_count > 0 and p.status_code == 200]
+        word_counts = [p.word_count for p in all_counted]
         thin = len(thin_pages)
 
         sid = self._sid()
