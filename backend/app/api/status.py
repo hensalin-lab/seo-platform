@@ -3012,8 +3012,8 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
                 logger.warning(f"OpenAI suggestions failed: {e}")
         if not suggestions:
             gemini = GeminiEngine()
-                suggestions = await gemini.generate_suggestions(audit_data)
-                provider = "gemini"
+            suggestions = await gemini.generate_suggestions(audit_data)
+            provider = "gemini"
     result = {"audit_id": audit_id, "suggestions": suggestions, "provider": provider}
     _cache_set(cache_key, result)
     return result
