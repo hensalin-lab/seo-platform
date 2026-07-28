@@ -1,16 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3 } from 'lucide-react';
+import AnimatedNumber from '../components/AnimatedNumber';
+import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 
 const SCORE_FIELDS = [
-  { key: 'overall_score', label: 'Overall', color: '#6366f1' },
-  { key: 'seo_score', label: 'SEO', color: '#8b5cf6' },
-  { key: 'technical_score', label: 'Technical', color: '#06b6d4' },
-  { key: 'aeo_score', label: 'AEO', color: '#f59e0b' },
-  { key: 'geo_score', label: 'GEO', color: '#10b981' },
-  { key: 'content_score', label: 'Content', color: '#ec4899' },
-  { key: 'ai_visibility_score', label: 'AI Visibility', color: '#f43f5e' },
+  { key: 'overall_score', label: 'Overall', color: '#6366f1', icon: '📊' },
+  { key: 'seo_score', label: 'SEO', color: '#8b5cf6', icon: '🔍' },
+  { key: 'technical_score', label: 'Technical', color: '#06b6d4', icon: '⚙️' },
+  { key: 'aeo_score', label: 'AEO', color: '#f59e0b', icon: '🤖' },
+  { key: 'geo_score', label: 'GEO', color: '#10b981', icon: '🌍' },
+  { key: 'content_score', label: 'Content', color: '#ec4899', icon: '📝' },
+  { key: 'ai_visibility_score', label: 'AI Visibility', color: '#f43f5e', icon: '🧠' },
 ];
 
 function MiniChart({ data, field, color, width = 200, height = 60 }) {
@@ -34,11 +35,12 @@ function MiniChart({ data, field, color, width = 200, height = 60 }) {
         </linearGradient>
       </defs>
       <polygon points={areaPoints} fill={`url(#grad-${field})`} />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 2px 4px ${color}40)` }} />
       {values.map((v, i) => {
         const x = (i / (values.length - 1)) * (width - 20) + 10;
         const y = height - 10 - ((v - min) / range) * (height - 20);
-        return <circle key={i} cx={x} cy={y} r="3" fill={color} stroke="#fff" strokeWidth="1.5" />;
+        const isLast = i === values.length - 1;
+        return <circle key={i} cx={x} cy={y} r={isLast ? 4.5 : 3} fill={color} stroke="#fff" strokeWidth={isLast ? 2 : 1.5} style={isLast ? { filter: `drop-shadow(0 0 6px ${color}60)` } : {}} />;
       })}
     </svg>
   );
@@ -47,8 +49,8 @@ function MiniChart({ data, field, color, width = 200, height = 60 }) {
 function TrendArrow({ current, previous }) {
   if (!previous || previous === 0) return <Minus size={14} style={{ color: '#9ca3af' }} />;
   const diff = current - previous;
-  if (diff > 2) return <TrendingUp size={14} style={{ color: '#22c55e' }} />;
-  if (diff < -2) return <TrendingDown size={14} style={{ color: '#ef4444' }} />;
+  if (diff > 2) return <ArrowUpRight size={14} style={{ color: '#22c55e', fontWeight: 700 }} />;
+  if (diff < -2) return <ArrowDownRight size={14} style={{ color: '#ef4444', fontWeight: 700 }} />;
   return <Minus size={14} style={{ color: '#9ca3af' }} />;
 }
 
@@ -76,7 +78,15 @@ export default function Trends() {
     }));
   }, [audits]);
 
-  if (loading) return <div className="page-content"><div className="loading-overlay"><div className="spinner" /><p>Loading trends...</p></div></div>;
+  if (loading) return (
+    <div className="page-content">
+      <div className="shimmer shimmer-title" style={{ width: '30%', marginBottom: 8 }} />
+      <div className="shimmer shimmer-text" style={{ width: '50%', marginBottom: 24 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+        {[1,2,3,4,5,6,7].map(i => <div key={i} className="shimmer" style={{ height: 180, borderRadius: 'var(--radius)' }} />)}
+      </div>
+    </div>
+  );
 
   if (audits.length < 2) {
     return (
@@ -88,7 +98,7 @@ export default function Trends() {
           </div>
           <p>Track your SEO scores over time across multiple audits</p>
         </div>
-        <div className="empty-state" style={{ padding: '60px' }}>
+        <div className="empty-state animate-in" style={{ padding: '60px' }}>
           <Calendar size={48} style={{ color: 'var(--text-muted)' }} />
           <h3 style={{ color: 'var(--text)' }}>Need at least 2 audits</h3>
           <p style={{ color: 'var(--text-muted)' }}>Run more audits to see score trends over time</p>
@@ -109,38 +119,44 @@ export default function Trends() {
       </div>
 
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           {stats.map(f => (
-            <div key={f.key} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px', transition: 'transform 0.2s, box-shadow 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+            <div key={f.key} className="card hover-lift" style={{ cursor: 'default', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${f.color}, ${f.color}88)`, opacity: 0.8 }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{f.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 16 }}>{f.icon}</span>
+                  {f.label}
+                </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <TrendArrow current={f.current} previous={f.previous} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: f.diff > 0 ? '#22c55e' : f.diff < 0 ? '#ef4444' : '#9ca3af' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: f.diff > 0 ? '#22c55e' : f.diff < 0 ? '#ef4444' : '#9ca3af' }}>
                     {f.diff > 0 ? '+' : ''}{f.diff.toFixed(1)}
                   </span>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px' }}>
-                <span style={{ fontSize: 32, fontWeight: 700, color: f.color }}>{f.current.toFixed(0)}</span>
+                <span style={{ fontSize: 36, fontWeight: 800, color: f.color, lineHeight: 1 }}>
+                  <AnimatedNumber value={f.current} duration={1200} />
+                </span>
                 <span style={{ fontSize: 13, color: '#9ca3af' }}>→</span>
                 <span style={{ fontSize: 18, fontWeight: 500, color: '#9ca3af' }}>{f.previous.toFixed(0)}</span>
               </div>
-              <MiniChart data={audits} field={f.key} color={f.color} width={260} height={50} />
+              <MiniChart data={audits} field={f.key} color={f.color} width={260} height={55} />
             </div>
           ))}
         </div>
       )}
 
-      <div className="card">
+      <div className="card animate-in" style={{ animationDelay: '300ms' }}>
         <div className="card-header">
-          <Calendar size={18} style={{ color: 'var(--accent)' }} />
-          <h3>Audit Timeline</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={18} style={{ color: 'var(--accent)' }} />
+            <h3>Audit Timeline</h3>
+          </div>
         </div>
         <div className="table-container">
-          <table className="data-table">
+          <table>
             <thead>
               <tr>
                 <th>Date</th>
