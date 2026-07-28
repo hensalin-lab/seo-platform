@@ -2937,6 +2937,11 @@ async def get_seo_health(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/audit/{audit_id}/ai-suggestions")
 async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession = Depends(get_db)):
+    cache_key = f"ai_suggestions:{audit_id}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     from app.engine.gemini_engine import GeminiEngine
     from app.engine.openai_engine import openai_engine
 
@@ -2999,9 +3004,11 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
                 logger.warning(f"OpenAI suggestions failed: {e}")
         if not suggestions:
             gemini = GeminiEngine()
-            suggestions = await gemini.generate_suggestions(audit_data)
-            provider = "gemini"
-    return {"audit_id": audit_id, "suggestions": suggestions, "provider": provider}
+                suggestions = await gemini.generate_suggestions(audit_data)
+                provider = "gemini"
+    result = {"audit_id": audit_id, "suggestions": suggestions, "provider": provider}
+    _cache_set(cache_key, result)
+    return result
 
 
 @router.get("/audit/{audit_id}/keywords-enhanced")
@@ -3219,6 +3226,11 @@ async def get_keywords_enhanced(audit_id: str, days: int = 28, db: AsyncSession 
 @router.get("/audit/{audit_id}/keyword-research")
 async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)):
     """Complete keyword research: clusters, questions, LSI, entities, cannibalization, suggestions."""
+    cache_key = f"kw_research:{audit_id}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     from app.engine.keyword_research import KeywordResearchEngine
     from app.engine.crawler import PageData
 
@@ -3270,6 +3282,7 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
 
     research["summary"]["total_internal_keywords"] = len(internal_kws)
 
+    _cache_set(cache_key, research)
     return research
 
 
@@ -3432,6 +3445,11 @@ async def get_content_audit(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/blog-ai")
 async def get_blog_ai(audit_id: str, db: AsyncSession = Depends(get_db)):
     """Blog AI: ideas, content calendar, internal linking, featured snippets, repurposing."""
+    cache_key = f"blog_ai:{audit_id}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     from app.engine.blog_ai import BlogAIEngine
     from app.engine.keyword_research import KeywordResearchEngine
     from app.engine.crawler import PageData
@@ -3479,6 +3497,7 @@ async def get_blog_ai(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     blog_engine = BlogAIEngine()
     result = blog_engine.analyze(pages=page_objects, keyword_research=kw_research)
+    _cache_set(cache_key, result)
     return result
 
 
@@ -4224,12 +4243,17 @@ async def get_competitor_deep(audit_id: str, page_idx: int, db: AsyncSession = D
     comp_result = await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))
     comp_data = comp_result.scalar_one_or_none()
 
-    comp_pages = []
+    page_adapters = [PageAdapter(pages[page_idx])]
+
+    comp_dict = {}
     if comp_data and comp_data.backlink_gap:
-        comp_pages = comp_data.backlink_gap
+        if isinstance(comp_data.backlink_gap, dict):
+            comp_dict = comp_data.backlink_gap
+        elif isinstance(comp_data.backlink_gap, list) and comp_data.backlink_gap:
+            comp_dict = {"competitor": comp_data.backlink_gap}
 
     engine = CompetitorIntelligenceEngine()
-    return engine.analyze(PageAdapter(pages[page_idx]), comp_pages)
+    return engine.analyze(page_adapters, comp_dict)
 
 
 @router.get("/audit/{audit_id}/competitor-deep-by-url")
@@ -4251,12 +4275,17 @@ async def get_competitor_deep_by_url(audit_id: str, url: str, db: AsyncSession =
     comp_result = await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))
     comp_data = comp_result.scalar_one_or_none()
 
-    comp_pages = []
+    page_adapters = [PageAdapter(page)]
+
+    comp_dict = {}
     if comp_data and comp_data.backlink_gap:
-        comp_pages = comp_data.backlink_gap
+        if isinstance(comp_data.backlink_gap, dict):
+            comp_dict = comp_data.backlink_gap
+        elif isinstance(comp_data.backlink_gap, list) and comp_data.backlink_gap:
+            comp_dict = {"competitor": comp_data.backlink_gap}
 
     engine = CompetitorIntelligenceEngine()
-    return engine.analyze(PageAdapter(page), comp_pages)
+    return engine.analyze(page_adapters, comp_dict)
 
 
 @router.get("/audit/{audit_id}/dashboard-deep")
@@ -4781,6 +4810,30 @@ async def get_ai_content_suggestion(audit_id: str, page_idx: int, section: str =
     return suggestion
 
 
+@router.get("/mega-analysis/{audit_id}/by-url")
+async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = Depends(get_db)):
+    import hashlib
+    cache_key = f"mega_url:{audit_id}:{hashlib.md5(url.encode()).hexdigest()}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    from app.engine.mega_seo_engine import MegaSEOEngine
+
+    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    page = next((p for p in pages if p.url == url), None)
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    engine = MegaSEOEngine()
+    result = engine.analyze(page, all_pages=pages)
+    result["page_url"] = page.url
+    result["page_title"] = page.title
+    result["word_count"] = page.word_count or 0
+    _cache_set(cache_key, result)
+    return result
+
+
 @router.get("/mega-analysis/{audit_id}/{page_idx}")
 async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
     cache_key = f"mega:{audit_id}:{page_idx}"
@@ -4817,30 +4870,6 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
     except Exception:
         pass
 
-    _cache_set(cache_key, result)
-    return result
-
-
-@router.get("/mega-analysis/{audit_id}/by-url")
-async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = Depends(get_db)):
-    import hashlib
-    cache_key = f"mega_url:{audit_id}:{hashlib.md5(url.encode()).hexdigest()}"
-    cached = _cache_get(cache_key)
-    if cached:
-        return cached
-
-    from app.engine.mega_seo_engine import MegaSEOEngine
-
-    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
-    page = next((p for p in pages if p.url == url), None)
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-
-    engine = MegaSEOEngine()
-    result = engine.analyze(page, all_pages=pages)
-    result["page_url"] = page.url
-    result["page_title"] = page.title
-    result["word_count"] = page.word_count or 0
     _cache_set(cache_key, result)
     return result
 
