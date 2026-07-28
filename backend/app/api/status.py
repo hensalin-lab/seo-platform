@@ -1128,14 +1128,55 @@ async def get_content_analysis(audit_id: str, db: AsyncSession = Depends(get_db)
 async def get_conversion_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages = pages_result.scalars().all()
+    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
+    all_issues = issues_result.scalars().all()
+
+    cta_signals = []
+    trust_signals = []
+    form_issues = []
+    speed_issues = []
+
+    for p in pages:
+        title = (p.title or "").lower()
+        content = (p.content_text or "").lower()[:5000]
+        word_count = p.word_count or 0
+
+        cta_words = ["buy", "sign up", "register", "contact", "demo", "trial", "start", "get", "download", "subscribe", "book", "schedule", "pricing"]
+        has_cta = any(w in content for w in cta_words)
+        if not has_cta and word_count > 300:
+            cta_signals.append({"url": p.url, "issue": "No clear call-to-action detected", "severity": "HIGH"})
+
+        trust_words = ["testimonial", "review", "case study", "certified", "partner", "client", "customer", "trusted", "award", "guarantee"]
+        has_trust = any(w in content for w in trust_words)
+        if not has_trust and word_count > 300:
+            trust_signals.append({"url": p.url, "issue": "Missing trust signals", "severity": "MEDIUM"})
+
+        form_words = ["form", "input", "submit", "field", "email", "phone", "signup"]
+        has_form = any(w in content for w in form_words)
+        if has_form and word_count < 100:
+            form_issues.append({"url": p.url, "issue": "Form page has thin content", "severity": "HIGH"})
+
+        if p.response_time_ms and p.response_time_ms > 3000:
+            speed_issues.append({"url": p.url, "issue": f"Slow page ({p.response_time_ms}ms) hurts conversions", "severity": "HIGH", "response_time_ms": p.response_time_ms})
+
+    total = len(pages)
+    cta_count = len(cta_signals)
+    trust_count = len(trust_signals)
+    conv_score = max(0, round(100 - (cta_count * 5 + trust_count * 3 + len(form_issues) * 8 + len(speed_issues) * 6) / max(total, 1) * 100, 1))
+
     return {
-        "pages_analyzed": len(pages),
-        "recommendations": [
-            "Add clear CTAs above the fold on all landing pages",
-            "Ensure mobile-friendly forms with minimal fields",
-            "Add trust signals (testimonials, reviews, certifications)",
-            "Optimize page load speed for conversion pages",
-        ],
+        "conversion_score": conv_score,
+        "pages_analyzed": total,
+        "cta_issues": cta_signals[:20],
+        "trust_issues": trust_signals[:20],
+        "form_issues": form_issues[:10],
+        "speed_issues": speed_issues[:10],
+        "summary": {
+            "pages_without_cta": cta_count,
+            "pages_without_trust_signals": trust_count,
+            "form_issues": len(form_issues),
+            "slow_conversion_pages": len(speed_issues),
+        },
     }
 
 

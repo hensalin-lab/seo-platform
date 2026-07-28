@@ -71,7 +71,16 @@ app.include_router(oauth_router)
 @app.get("/api/health")
 @limiter.exempt
 async def health():
-    return {"status": "healthy", "version": settings.APP_VERSION, "database": "connected"}
+    try:
+        from app.database import async_session
+        from sqlalchemy import text
+        async with async_session() as db:
+            await db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        logger.warning(f"Health check DB error: {e}")
+        db_status = "disconnected"
+    return {"status": "healthy" if db_status == "connected" else "degraded", "version": settings.APP_VERSION, "database": db_status}
 
 
 @app.get("/")

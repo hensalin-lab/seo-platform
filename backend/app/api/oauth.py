@@ -94,13 +94,3 @@ async def google_callback(code: str = "", state: str = "", db: AsyncSession = De
             "expires_in": tokens.get("expires_in"),
         },
     }
-
-
-@router.get("/gsc/properties")
-async def get_gsc_properties(user: User = Depends(get_current_active_user)):
-    return {"properties": [], "note": "Connect via Google OAuth first"}
-
-
-@router.get("/gsc/overview")
-async def gsc_overview(property_url: str = "", days: int = 28, user: User = Depends(get_current_active_user)):
-    return {"property": property_url, "summary": {}, "note": "GSC data available after Google OAuth connection"}
