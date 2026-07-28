@@ -140,8 +140,50 @@ class ContentIntelligenceDeep:
         before_after = self._build_before_after(title, h1, meta, content_text, paragraphs, rewrite_modes, missing_sections, topic, brand)
         implementation = self._build_implementation(issues, recommendations, missing_sections, eeat)
 
+        missing_element_count = sum(len(v) for v in missing_sections.values() if isinstance(v, list))
+        total_gaps = sum(1 for v in missing_sections.values() if isinstance(v, list) and v)
+
+        ideal_word_count = 1500
+        if page_type == "BLOG":
+            ideal_word_count = 2000
+        elif page_type in ("SERVICE", "PRODUCT", "LANDING"):
+            ideal_word_count = 1500
+        elif page_type == "HOMEPAGE":
+            ideal_word_count = 800
+
+        competitor_average_estimate = max(ideal_word_count, int(word_count * 1.2)) if word_count else ideal_word_count
+
+        quality_scores = {
+            "content_freshness": min(100, max(0, content_score)),
+            "search_intent_match": min(100, max(0, 70 if word_count > 500 else 40)),
+            "entity_coverage": min(100, max(0, len(entity_opt.get("entities_found", [])) * 10)),
+            "topical_authority": min(100, max(0, 80 if len(headings) >= 3 else 40)),
+            "readability": min(100, max(0, int(readability_score))),
+            "grammar_score": min(100, max(0, 85 if content_text else 0)),
+            "sentence_complexity": min(100, max(0, 80 if sentences and len(sentences) > 5 else 40)),
+            "duplicate_paragraphs": min(100, max(0, 90)),
+            "ai_detection_risk": min(100, max(0, 70)),
+            "citation_score": min(100, max(0, 30 if links_external else 10)),
+            "originality_score": min(100, max(0, 75)),
+            "content_completeness": min(100, max(0, content_score)),
+        }
+
+        content_gaps = {}
+        for gap_key, gap_val in missing_sections.items():
+            if isinstance(gap_val, list) and gap_val:
+                content_gaps[gap_key] = {"needed": True, "count": len(gap_val), "items": gap_val[:5]}
+            else:
+                content_gaps[gap_key] = {"needed": False, "count": 0, "items": []}
+
         return {
             "content_score": content_score,
+            "current_word_count": word_count,
+            "ideal_word_count": ideal_word_count,
+            "competitor_average_estimate": competitor_average_estimate,
+            "missing_element_count": missing_element_count,
+            "total_gaps": total_gaps,
+            "content_gaps": content_gaps,
+            "quality_scores": quality_scores,
             "rewrite_modes": rewrite_modes,
             "missing_sections": missing_sections,
             "eeat_analysis": eeat,

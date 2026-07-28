@@ -1091,8 +1091,16 @@ async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
             "fix": enhanced_fix or i.fix or "",
         })
 
+    total_pages = eeat_signals.get("total_pages", 1) or 1
+    experience_pct = min(100, eeat_signals.get("expertise_signals", 0) / total_pages * 100)
+    expertise_pct = min(100, eeat_signals.get("author_signals", 0) / total_pages * 100)
+    authority_pct = min(100, eeat_signals.get("source_signals", 0) / total_pages * 100)
+    trust_pct = min(100, eeat_signals.get("trust_signals", 0) / total_pages * 100)
+    date_pct = min(100, eeat_signals.get("date_signals", 0) / total_pages * 100)
+    eeat_computed = round(experience_pct * 0.2 + expertise_pct * 0.25 + authority_pct * 0.25 + trust_pct * 0.15 + date_pct * 0.15)
+
     return {
-        "eeat_score": scores.seo_score if scores else 0,
+        "eeat_score": eeat_computed,
         "signals": eeat_signals,
         "issues": enhanced_issues,
     }
@@ -4253,7 +4261,19 @@ async def get_competitor_deep(audit_id: str, page_idx: int, db: AsyncSession = D
             comp_dict = {"competitor": comp_data.backlink_gap}
 
     engine = CompetitorIntelligenceEngine()
-    return engine.analyze(page_adapters, comp_dict)
+    try:
+        return engine.analyze(page_adapters, comp_dict)
+    except Exception as e:
+        logger.exception(f"competitor-deep failed: {e}")
+        my_profile = engine.crawler.analyze_competitor(page_adapters, "")
+        return {
+            "my_profile": my_profile,
+            "competitors": {},
+            "gaps": {},
+            "competitive_position": {},
+            "dimensions_analyzed": [],
+            "error": str(e),
+        }
 
 
 @router.get("/audit/{audit_id}/competitor-deep-by-url")
@@ -4826,7 +4846,11 @@ async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Page not found")
 
     engine = MegaSEOEngine()
-    result = engine.analyze(page, all_pages=pages)
+    try:
+        result = engine.analyze(page, all_pages=pages)
+    except Exception as e:
+        logger.exception(f"mega-analysis by-url failed: {e}")
+        result = {"signals": [], "all_signals": [], "issues": [], "error": str(e)}
     result["page_url"] = page.url
     result["page_title"] = page.title
     result["word_count"] = page.word_count or 0
