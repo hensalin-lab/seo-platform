@@ -3067,7 +3067,7 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
             links_internal = json.loads(links_internal) if links_internal.strip() else []
         if isinstance(links_external, str):
             links_external = json.loads(links_external) if links_external.strip() else []
-        headings = p.headings or []
+        headings = p.headers or []
         if isinstance(headings, str):
             headings = json.loads(headings) if headings.strip() else []
         images = p.images or []
@@ -3077,22 +3077,22 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
         if isinstance(schema, str):
             schema = json.loads(schema) if schema.strip() else []
 
-        page_objects.append(PageData(
-            url=p.url,
-            status_code=p.status_code or 200,
-            title=p.title or "",
-            h1=p.h1 or "",
-            meta_description=p.meta_description or "",
-            content_text=p.content_text or "",
-            word_count=p.word_count or 0,
-            headings=headings,
-            links_internal=links_internal,
-            links_external=links_external,
-            images=images,
-            schema_markup=schema,
-            load_time=p.load_time or 0.0,
-            page_size=p.page_size or 0,
-        ))
+        pd = PageData()
+        pd.url = p.url
+        pd.status_code = p.status_code or 200
+        pd.title = p.title or ""
+        pd.h1 = p.h1 or ""
+        pd.meta_description = p.meta_description or ""
+        pd.content_text = p.content_text or ""
+        pd.word_count = p.word_count or 0
+        pd.headings = headings
+        pd.links_internal = links_internal
+        pd.links_external = links_external
+        pd.images = images
+        pd.schema_markup = schema
+        pd.response_time_ms = p.response_time_ms or 0
+        pd.page_type = getattr(p, 'page_type', '') or ''
+        page_objects.append(pd)
 
     engine = KeywordResearchEngine()
     research = engine.analyze(pages=page_objects, competitor_pages=None, gsc_data=None)
@@ -3120,7 +3120,7 @@ async def get_content_audit(audit_id: str, db: AsyncSession = Depends(get_db)):
     for p in pages:
         content_text = p.content_text or ""
         word_count = p.word_count or 0
-        headings = p.headings or []
+        headings = p.headers or []
         if isinstance(headings, str):
             headings = json.loads(headings) if headings.strip() else []
         links_internal = p.links_internal or []
@@ -3276,7 +3276,7 @@ async def get_blog_ai(audit_id: str, db: AsyncSession = Depends(get_db)):
             links_internal = json.loads(links_internal) if links_internal.strip() else []
         if isinstance(links_external, str):
             links_external = json.loads(links_external) if links_external.strip() else []
-        headings = p.headings or []
+        headings = p.headers or []
         if isinstance(headings, str):
             headings = json.loads(headings) if headings.strip() else []
         images = p.images or []
@@ -3286,13 +3286,22 @@ async def get_blog_ai(audit_id: str, db: AsyncSession = Depends(get_db)):
         if isinstance(schema, str):
             schema = json.loads(schema) if schema.strip() else []
 
-        page_objects.append(PageData(
-            url=p.url, status_code=p.status_code or 200, title=p.title or "",
-            h1=p.h1 or "", meta_description=p.meta_description or "",
-            content_text=p.content_text or "", word_count=p.word_count or 0,
-            headings=headings, links_internal=links_internal, links_external=links_external,
-            images=images, schema_markup=schema, load_time=p.load_time or 0.0, page_size=p.page_size or 0,
-        ))
+        pd = PageData()
+        pd.url = p.url
+        pd.status_code = p.status_code or 200
+        pd.title = p.title or ""
+        pd.h1 = p.h1 or ""
+        pd.meta_description = p.meta_description or ""
+        pd.content_text = p.content_text or ""
+        pd.word_count = p.word_count or 0
+        pd.headings = headings
+        pd.links_internal = links_internal
+        pd.links_external = links_external
+        pd.images = images
+        pd.schema_markup = schema
+        pd.response_time_ms = p.response_time_ms or 0
+        pd.page_type = getattr(p, 'page_type', '') or ''
+        page_objects.append(pd)
 
     kw_engine = KeywordResearchEngine()
     kw_research = kw_engine.analyze(pages=page_objects)
@@ -3319,7 +3328,7 @@ async def get_page_improvements(audit_id: str, db: AsyncSession = Depends(get_db
             links_internal = json.loads(links_internal) if links_internal.strip() else []
         if isinstance(links_external, str):
             links_external = json.loads(links_external) if links_external.strip() else []
-        headings = p.headings or []
+        headings = p.headers or []
         if isinstance(headings, str):
             headings = json.loads(headings) if headings.strip() else []
         images = p.images or []
@@ -3329,13 +3338,22 @@ async def get_page_improvements(audit_id: str, db: AsyncSession = Depends(get_db
         if isinstance(schema, str):
             schema = json.loads(schema) if schema.strip() else []
 
-        page_objects.append(PageData(
-            url=p.url, status_code=p.status_code or 200, title=p.title or "",
-            h1=p.h1 or "", meta_description=p.meta_description or "",
-            content_text=p.content_text or "", word_count=p.word_count or 0,
-            headings=headings, links_internal=links_internal, links_external=links_external,
-            images=images, schema_markup=schema, load_time=p.load_time or 0.0, page_size=p.page_size or 0,
-        ))
+        pd = PageData()
+        pd.url = p.url
+        pd.status_code = p.status_code or 200
+        pd.title = p.title or ""
+        pd.h1 = p.h1 or ""
+        pd.meta_description = p.meta_description or ""
+        pd.content_text = p.content_text or ""
+        pd.word_count = p.word_count or 0
+        pd.headings = headings
+        pd.links_internal = links_internal
+        pd.links_external = links_external
+        pd.images = images
+        pd.schema_markup = schema
+        pd.response_time_ms = p.response_time_ms or 0
+        pd.page_type = getattr(p, 'page_type', '') or ''
+        page_objects.append(pd)
 
     engine = PageImprovementEngine()
     result = engine.analyze(pages=page_objects)

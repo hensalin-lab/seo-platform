@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
+import DataSourceBadge from '../components/DataSourceBadge'
 import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown } from 'lucide-react'
 
 function KeywordTable({ keywords, search }) {
@@ -38,7 +39,7 @@ function KeywordTable({ keywords, search }) {
             <tr style={{ background: '#f8fafc' }}>
               {[
                 { key: 'keyword', label: 'Keyword', width: '25%' },
-                { key: 'frequency', label: 'Volume' },
+                { key: 'frequency', label: 'Frequency' },
                 { key: 'type', label: 'Type' },
                 { key: 'intent', label: 'Intent' },
                 { key: 'difficulty', label: 'Difficulty' },
@@ -111,7 +112,7 @@ function TopicClusters({ clusters }) {
                 {cl.topic_authority} Authority
               </span>
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{cl.keyword_count} keywords · {cl.total_frequency} total volume</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{cl.keyword_count} keywords · {cl.total_frequency} total frequency</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {cl.keywords.slice(0, 8).map((kw, j) => (
                 <span key={j} style={{ fontSize: 11, padding: '2px 8px', background: '#f1f5f9', borderRadius: 4, color: '#475569' }}>{kw}</span>
@@ -199,7 +200,7 @@ function QuickWins({ keywords }) {
             <ArrowUpRight size={14} color="#059669" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>{kw.keyword}</div>
-              <div style={{ fontSize: 11, color: '#059669' }}>Volume: {kw.frequency || kw.volume || '—'} · {kw.difficulty || 'MEDIUM'} difficulty</div>
+              <div style={{ fontSize: 11, color: '#059669' }}>Frequency: {kw.frequency || kw.volume || '—'} · {kw.difficulty || 'MEDIUM'} difficulty</div>
             </div>
           </div>
         ))}
@@ -245,13 +246,16 @@ export default function KeywordStrategy() {
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Key size={24} color="#3b82f6" /> Keyword Strategy
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>Ahrefs-level keyword research — volume, difficulty, intent, and opportunities</p>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+            Keyword analysis from crawled content — frequency, intent, and topic clusters
+            <DataSourceBadge source="crawler" size="xs" />
+          </p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
             { label: 'Total Keywords', value: summary.total_keywords || allKeywords.length, icon: Key, color: '#3b82f6' },
-            { label: 'Total Volume', value: totalVolume.toLocaleString(), icon: BarChart3, color: '#8b5cf6' },
+            { label: 'Total Frequency', value: totalVolume.toLocaleString(), icon: BarChart3, color: '#8b5cf6' },
             { label: 'High Opportunity', value: highOpp, icon: Target, color: '#059669' },
             { label: 'Cannibalization', value: summary.cannibalization_issues || research?.cannibalization?.length || 0, icon: AlertTriangle, color: '#dc2626' },
           ].map((s, i) => {

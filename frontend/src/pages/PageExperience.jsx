@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 import { Activity, AlertTriangle, CheckCircle, XCircle, Gauge, Zap } from 'lucide-react';
 
 export default function PageExperience() {
@@ -64,9 +65,11 @@ export default function PageExperience() {
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <Activity size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Page Experience</h1>
+          <h1>Crawler Performance Metrics</h1>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
-        <p>Core Web Vitals detail, UX signals, and performance metrics</p>
+        <p>Performance signals detected by our crawler — response times, resource sizes, and layout stability</p>
+        <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Note: Response times are measured by our crawler, not real users. For field data, use Google CrUX or PageSpeed Insights.</p>
       </div>
 
       <div className="score-grid">

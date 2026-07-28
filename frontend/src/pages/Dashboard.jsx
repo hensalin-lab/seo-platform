@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 import { BarChart3, TrendingUp, Globe, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, Clock, ChevronRight, Target } from 'lucide-react';
 import PdfDownloadButton from '../components/PdfDownloadButton';
 
@@ -371,16 +372,16 @@ export default function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <AlertTriangle size={16} style={{ color: '#fa5252' }} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Top Issues</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>More Issues</span>
                 </div>
                 {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/issues`)}>View All</button>}
               </div>
               {deepLoading && !deepData && <InlineLoader text="Loading issues..." />}
-              {deepData?.top_issues?.slice(0, 5).map((issue, i) => (
+              {deepData?.top_issues?.filter(i => i.severity !== 'CRITICAL').slice(0, 5).map((issue, i) => (
                 <QuickIssueRow key={i} issue={issue} />
               ))}
-              {!deepLoading && deepData && (!deepData.top_issues || deepData.top_issues.length === 0) && (
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '12px 0' }}>No critical issues</div>
+              {!deepLoading && deepData && (!deepData.top_issues || deepData.top_issues.filter(i => i.severity !== 'CRITICAL').length === 0) && (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '12px 0' }}>No additional issues — great!</div>
               )}
             </div>
 

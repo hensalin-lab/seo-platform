@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 import { Shield, CheckCircle, XCircle, Award, BookOpen, Users, Star, AlertTriangle, Target, Search } from 'lucide-react';
 
 export default function EeatAnalysis() {
@@ -99,8 +100,11 @@ export default function EeatAnalysis() {
         <div className="card-header">
           <Shield size={20} />
           <div>
-            <h2 className="card-title">E-E-A-T Analysis</h2>
-            <p className="card-subtitle">Expertise, Experience, Authoritativeness & Trustworthiness</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 className="card-title">E-E-A-T Analysis</h2>
+              <DataSourceBadge source="heuristic" size="xs" />
+            </div>
+            <p className="card-subtitle">Expertise, Experience, Authoritativeness & Trustworthiness — analyzed from page content heuristics</p>
           </div>
         </div>
       </div>

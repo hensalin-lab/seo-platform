@@ -409,7 +409,7 @@ class KeywordResearchEngine:
             if len(cluster_kws) >= 2:
                 pages_in_cluster = []
                 for kw in cluster_kws:
-                    pages_in_cluster.extend(kw.get("pages_using", []))
+                    pages_in_cluster.append(kw.get("pages_using", 0))
 
                 clusters.append({
                     "root_keyword": root.title(),

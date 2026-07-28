@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
+import DataSourceBadge from '../components/DataSourceBadge'
 import { Users, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react'
 
 export default function CompetitorAnalysis() {
@@ -25,8 +26,11 @@ export default function CompetitorAnalysis() {
   return (
     <div>
       <div className="page-header">
-        <h1>Competitor Analysis</h1>
-        <p>Keyword gaps and competitive advantages</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1>Competitor Analysis</h1>
+          <DataSourceBadge source="crawler" size="xs" />
+        </div>
+        <p>Keyword gaps and competitive advantages from crawled competitor data</p>
       </div>
 
       {!competitor.competitor_url ? (

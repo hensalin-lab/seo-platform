@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Bot, Sparkles, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Zap, Target, Info, Shield, Brain, FileText, Link2, Quote } from 'lucide-react';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -213,6 +214,7 @@ export default function AiVisibility() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <ScoreRing score={score} size={160} />
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Visibility Score</span>
+          <DataSourceBadge source="simulated" size="xs" />
         </div>
         <div style={{ flex: 1, minWidth: 300 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
@@ -235,11 +237,12 @@ export default function AiVisibility() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <Bot size={18} color="var(--accent, #3b82f6)" />
           <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text, #111827)', margin: 0 }}>Platform Readiness</h2>
+          <DataSourceBadge source="simulated" size="xs" />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-          <PlatformBar name="ChatGPT" score={chatgptScore} color="#10a37f" description="Likelihood ChatGPT cites your content" />
-          <PlatformBar name="Gemini" score={geminiScore} color="#4285f4" description="Visibility in Google AI Overviews" />
-          <PlatformBar name="Perplexity" score={perplexityScore} color="#20b2aa" description="Citation rate in Perplexity AI search" />
+          <PlatformBar name="ChatGPT" score={chatgptScore} color="#10a37f" description="Likelihood ChatGPT cites your content — estimated from content signals" />
+          <PlatformBar name="Gemini" score={geminiScore} color="#4285f4" description="Visibility in Google AI Overviews — estimated from content signals" />
+          <PlatformBar name="Perplexity" score={perplexityScore} color="#20b2aa" description="Citation rate in Perplexity — estimated from content signals" />
         </div>
       </div>
 

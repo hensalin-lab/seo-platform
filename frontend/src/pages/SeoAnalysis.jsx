@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 import { Search, ChevronDown, AlertTriangle, CheckCircle, Code, Target, BarChart3, Globe, Brain, RefreshCw, Filter } from 'lucide-react';
 
 function ScoreRing({ score, size = 100, stroke = 8, label }) {
@@ -157,8 +158,9 @@ export default function SeoAnalysis() {
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Search size={24} color="#3b82f6" /> SEO Signal Analysis
+            <DataSourceBadge source="crawler" size="xs" />
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked across 25 categories. Each with detailed explanation and fix.</p>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked across 25 categories. All data from on-page HTML crawl.</p>
         </div>
 
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}

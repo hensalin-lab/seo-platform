@@ -212,11 +212,13 @@ export default function SpeedAnalysis() {
         <div style={{ display: 'flex', gap: 20, marginBottom: 20, alignItems: 'center' }}>
           <PerformanceScoreRing score={data.perfScore || 0} />
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
               <CategoryScore label="Performance" score={data.perfScore || 0} icon={Gauge} />
-              <CategoryScore label="Accessibility" score={Math.round(85 + Math.min(15, (data.totalPages || 0) * 0.03))} icon={CheckCircle} />
-              <CategoryScore label="Best Practices" score={Math.round(80 + Math.min(15, (data.totalPages || 0) * 0.04))} icon={CheckCircle} />
-              <CategoryScore label="SEO" score={Math.round(88 + Math.min(10, (data.totalPages || 0) * 0.02))} icon={TrendingUp} />
+              <div style={{ padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
+                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+                  Accessibility, Best Practices, and SEO scores require Lighthouse. Connect Google PageSpeed Insights API or run Lighthouse for real data.
+                </div>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#64748b' }}>
               {data.avgResponseTime > 0 && <span>Avg Response: <strong>{data.avgResponseTime}ms</strong></span>}

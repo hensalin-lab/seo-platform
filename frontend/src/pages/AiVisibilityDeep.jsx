@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 import { Globe, MessageSquare, Search, Eye, Brain, AlertCircle, Zap, Target, Shield, TrendingUp,
   CheckCircle, AlertTriangle, ChevronDown, BarChart3, Clock, ExternalLink, ArrowRight, Database } from 'lucide-react';
 
@@ -109,8 +110,9 @@ export default function AiVisibilityDeep() {
         <div style={{ marginBottom: 16 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Brain size={20} color="#e64980" /> AI Search Intelligence
+            <DataSourceBadge source="simulated" size="xs" />
           </h2>
-          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Per-platform scoring, citation analysis, hallucination risk, and optimization simulator</p>
+          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Estimated per-platform scoring based on content signals — connect real AI APIs for measured data</p>
         </div>
 
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}

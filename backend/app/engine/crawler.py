@@ -41,6 +41,7 @@ class PageData:
         self.robots_meta: str = ""
         self.language: str = ""
         self.https: bool = False
+        self.page_type: str = ""
 
 
 class CrawlerEngine:

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
+import DataSourceBadge from '../components/DataSourceBadge';
 import { Gauge, Zap, AlertTriangle, Shield, Clock, Smartphone, Monitor } from 'lucide-react';
 
 function ScoreRing({ score, size = 80, label }) {
@@ -82,6 +83,10 @@ export default function SpeedIntelligence() {
 
   return (
     <div style={{ padding: '0 24px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Speed Intelligence</div>
+        <DataSourceBadge source="estimated" size="xs" />
+      </div>
       <div style={{ marginBottom: 16 }}>
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
           style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>

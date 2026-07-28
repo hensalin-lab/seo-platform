@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
+import DataSourceBadge from '../components/DataSourceBadge'
 import { BookOpen, FileText, AlertTriangle, CheckCircle, ArrowRight, Image, Link2 } from 'lucide-react'
 
 function TabBar({ tabs, active, onChange }) {
@@ -107,8 +108,11 @@ export default function ContentAnalysis() {
   return (
     <div>
       <div className="page-header">
-        <h1>Content Analysis</h1>
-        <p>Content quality, word counts, and optimization opportunities</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1>Content Analysis</h1>
+          <DataSourceBadge source="crawler" size="xs" />
+        </div>
+        <p>Content quality, word counts, and optimization opportunities from crawled data</p>
       </div>
 
       <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
