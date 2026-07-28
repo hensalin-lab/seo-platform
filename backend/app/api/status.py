@@ -4353,8 +4353,8 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
         "website_url": audit.website_url,
         "health_scores": {
             "seo_health": scores.seo_score if scores else 0,
-            "ai_search_health": avg(ai_scores) if ai_scores else (scores.ai_visibility_score if scores else 0),
-            "content_health": avg(content_scores) if content_scores else (scores.content_score if scores else 0),
+            "ai_search_health": scores.ai_visibility_score if scores else 0,
+            "content_health": scores.content_score if scores else 0,
             "technical_health": scores.technical_score if scores else 0,
             "eeat_score": geo_score,
             "aeo_score": aeo_score_val,
