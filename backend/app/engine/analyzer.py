@@ -121,10 +121,54 @@ class AnalysisResult:
 class AnalyzerEngine:
     SIGNAL_ID_COUNTER = 1000
 
+    @staticmethod
+    def _detect_page_type(page):
+        url = (page.url or "").lower()
+        title = (page.title or "").lower()
+        h1 = (page.h1 or "").lower()
+        content = (page.content_text or "").lower()[:2000]
+        slug = url.split("//")[-1].split("?")[0].rstrip("/").rsplit("/", 1)[-1] if "/" in url else ""
+
+        if any(k in url for k in ["/blog", "/post", "/article", "/news", "/journal"]):
+            return "BLOG"
+        if any(k in url for k in ["/product", "/item", "/shop", "/buy", "/store", "/collection"]):
+            return "PRODUCT"
+        if any(k in url for k in ["/category", "/tag", "/topics", "/collections"]):
+            return "CATEGORY"
+        if any(k in url for k in ["/about", "/team", "/company", "/mission", "/story"]):
+            return "ABOUT"
+        if any(k in url for k in ["/contact", "/support", "/help", "/help-center"]):
+            return "CONTACT"
+        if any(k in url for k in ["/pricing", "/plans", "/enterprise"]):
+            return "PRICING"
+        if any(k in url for k in ["/case-study", "/case-studies", "/portfolio", "/work"]):
+            return "CASE_STUDY"
+        if any(k in url for k in ["/faq", "/questions", "/answers"]):
+            return "FAQ"
+        if any(k in url for k in ["/docs", "/documentation", "/guide", "/tutorial", "/learn"]):
+            return "DOCS"
+        if slug in ("", "index.html", "index.php", "home"):
+            return "HOMEPAGE"
+        if any(k in title for k in ["blog", "article", "post", "news"]):
+            return "BLOG"
+        if any(k in title for k in ["product", "feature", "solution"]):
+            return "PRODUCT"
+        if any(k in content for k in ["add to cart", "buy now", "pricing", "checkout"]):
+            return "PRODUCT"
+        if any(k in content for k in ["contact us", "get in touch", "reach out"]):
+            return "CONTACT"
+        if page.word_count and page.word_count > 1500 and len(page.headings) >= 5:
+            return "CONTENT"
+        return "PAGE"
+
     def analyze_pages(self, pages):
         result = AnalysisResult()
         if not pages:
             return result
+
+        for page in pages:
+            if not getattr(page, 'page_type', None) or page.page_type in ("UNKNOWN", "other", ""):
+                page.page_type = self._detect_page_type(page)
 
         all_text = " ".join(p.content_text for p in pages if p.content_text)
         all_titles = [p.title for p in pages if p.title]
@@ -184,14 +228,14 @@ class AnalyzerEngine:
         has_canonical = bool(page.canonical)
         result.add_signal(sid, "Canonical Tag", "TECHNICAL", 1.0 if has_canonical else 0.2, 0.9, "Has canonical" if has_canonical else "Missing canonical tag", page.url, page.url)
         if not has_canonical:
-            result.add_issue(page.url, "TECHNICAL", "HIGH", sid, "Missing Canonical", "No canonical tag found", "Search engines may index duplicate versions", f'<link rel="canonical" href="{page.url}" />')
+            result.add_issue(page.url, "TECHNICAL", "HIGH", sid, "Missing Canonical", f"No canonical tag on {page.url}", "Search engines may index duplicate versions", f'<link rel="canonical" href="{page.url}" />')
 
         sid = self._sid()
         robots_clean = page.robots_meta.lower().replace(" ", "") if page.robots_meta else ""
         is_indexable = "noindex" not in robots_clean
         result.add_signal(sid, "Indexability", "TECHNICAL", 1.0 if is_indexable else 0.0, 1.0, f"{'Indexable' if is_indexable else 'Noindex detected'}", page.url, page.url)
         if not is_indexable:
-            result.add_issue(page.url, "TECHNICAL", "HIGH", sid, "Noindex Tag", "Page has noindex directive", "Page will not appear in search results", "Remove noindex if page should be indexed")
+            result.add_issue(page.url, "TECHNICAL", "HIGH", sid, "Noindex Tag", f"Page {page.url} has noindex directive", "Page will not appear in search results", "Remove noindex if page should be indexed")
 
         sid = self._sid()
         has_robots_meta = bool(page.robots_meta)
@@ -213,7 +257,7 @@ class AnalyzerEngine:
         sid = self._sid()
         result.add_signal(sid, "Title Tag Exists", "SEO", 1.0 if page.title else 0.0, 1.0, f"Title: {page.title[:80]}" if page.title else "Missing title tag", page.url, page.url)
         if not page.title:
-            result.add_issue(page.url, "SEO", "CRITICAL", sid, "Missing Title", "No title tag found", "Title is the #1 on-page ranking factor", "Add a unique, keyword-rich title (50-60 chars)")
+            result.add_issue(page.url, "SEO", "CRITICAL", sid, "Missing Title", f"No title tag on {page.url}", "Title is the #1 on-page ranking factor", "Add a unique, keyword-rich title (50-60 chars)")
 
         sid = self._sid()
         result.add_signal(sid, "Title Length", "SEO", 1.0 if 30 <= title_len <= 60 else (0.7 if 20 <= title_len <= 70 else 0.3), 0.9, f"{title_len} characters", page.url, page.url)
@@ -225,7 +269,7 @@ class AnalyzerEngine:
         sid = self._sid()
         result.add_signal(sid, "Title Uniqueness", "SEO", 1.0 if all_titles.count(page.title) <= 1 else 0.3, 0.8, "Unique" if all_titles.count(page.title) <= 1 else f"Duplicate of {all_titles.count(page.title) - 1} other pages", page.url, page.url)
         if all_titles.count(page.title) > 1 and page.title:
-            result.add_issue(page.url, "SEO", "HIGH", sid, "Duplicate Title", f"Title appears on {all_titles.count(page.title)} pages", "Duplicate titles confuse search engines about page relevance", "Write a unique title for each page")
+            result.add_issue(page.url, "SEO", "HIGH", sid, "Duplicate Title", f"Title '{page.title[:60]}' appears on {all_titles.count(page.title)} pages", "Duplicate titles confuse search engines about page relevance", "Write a unique title for each page")
 
         sid = self._sid()
         result.add_signal(sid, "Title Keyword Presence", "SEO", 1.0 if page.title and any(e.lower() in page.title.lower() for e in list(entities.keys())[:20]) else 0.4, 0.7, "Contains domain entities" if page.title else "No entities in title", page.url, page.url)
@@ -234,7 +278,7 @@ class AnalyzerEngine:
         sid = self._sid()
         result.add_signal(sid, "Meta Description Exists", "SEO", 1.0 if page.meta_description else 0.0, 1.0, f"Description: {page.meta_description[:80]}..." if page.meta_description else "Missing meta description", page.url, page.url)
         if not page.meta_description:
-            result.add_issue(page.url, "SEO", "HIGH", sid, "Missing Meta Description", "No meta description found", "Google auto-generates descriptions, missing CTR opportunity", "Write compelling 150-160 char description with CTA")
+            result.add_issue(page.url, "SEO", "HIGH", sid, "Missing Meta Description", f"No meta description on {page.url}", "Google auto-generates descriptions, missing CTR opportunity", "Write compelling 150-160 char description with CTA")
 
         sid = self._sid()
         result.add_signal(sid, "Meta Description Length", "SEO", 1.0 if 120 <= desc_len <= 160 else (0.6 if 80 <= desc_len <= 200 else 0.2), 0.8, f"{desc_len} characters", page.url, page.url)
@@ -245,9 +289,10 @@ class AnalyzerEngine:
         sid = self._sid()
         result.add_signal(sid, "H1 Tag", "SEO", 1.0 if len(h1s) == 1 else (0.5 if len(h1s) > 1 else 0.0), 1.0, f"{len(h1s)} H1 tags", page.url, page.url)
         if len(h1s) == 0:
-            result.add_issue(page.url, "SEO", "HIGH", sid, "Missing H1", "No H1 tag found", "H1 is a primary on-page signal for topic relevance", "Add one H1 with primary keyword")
+            result.add_issue(page.url, "SEO", "HIGH", sid, "Missing H1", f"No H1 tag on {page.url}", "H1 is a primary on-page signal for topic relevance", "Add one H1 with primary keyword")
         elif len(h1s) > 1:
-            result.add_issue(page.url, "SEO", "MEDIUM", sid, "Multiple H1 Tags", f"{len(h1s)} H1 tags found", "Multiple H1s dilute topic focus", "Keep only one H1 per page, convert others to H2")
+            h1_texts = ", ".join(h["text"][:40] for h in h1s[:3])
+            result.add_issue(page.url, "SEO", "MEDIUM", sid, "Multiple H1 Tags", f"{len(h1s)} H1 tags on {page.url}: {h1_texts}", "Multiple H1s dilute topic focus", "Keep only one H1 per page, convert others to H2")
 
         h2s = [h for h in page.headings if h["level"] == "H2"]
         sid = self._sid()
@@ -376,7 +421,7 @@ class AnalyzerEngine:
         has_faq_section = bool(re.search(r'frequently.asked|faq|common.questions', (page.content_text or "").lower()))
         result.add_signal(sid, "FAQ Schema", "AEO", 1.0 if faq_schema else (0.5 if has_faq_section else 0.0), 1.0, "FAQPage schema found" if faq_schema else ("FAQ section exists" if has_faq_section else "No FAQ schema"), page.url, page.url)
         if not faq_schema and page.word_count > 500:
-            result.add_issue(page.url, "AEO", "HIGH", sid, "Missing FAQ Schema", "No FAQPage JSON-LD detected", "FAQ schema enables rich results and AI answer extraction", "Add FAQPage schema with 4-6 Q&As")
+            result.add_issue(page.url, "AEO", "HIGH", sid, "Missing FAQ Schema", f"No FAQPage JSON-LD on {page.url}", "FAQ schema enables rich results and AI answer extraction", "Add FAQPage schema with 4-6 Q&As")
 
         sid = self._sid()
         result.add_signal(sid, "FAQ Section Content", "AEO", 1.0 if has_faq_section else 0.0, 0.8, "FAQ section in content" if has_faq_section else "No FAQ section", page.url, page.url)
@@ -423,7 +468,7 @@ class AnalyzerEngine:
         has_author_entity = any(isinstance(s, dict) and s.get("@type") in ("Person", "Organization") for s in page.schema_markup)
         result.add_signal(sid, "Author Schema", "GEO", 1.0 if has_author_entity else 0.2, 0.8, "Author/Org schema present" if has_author_entity else "No author schema", page.url, page.url)
         if not has_author_entity and page.word_count > 500:
-            result.add_issue(page.url, "GEO", "MEDIUM", sid, "Missing Author Schema", "No Person or Organization schema", "Author entities help AI systems attribute expertise", "Add author Person schema with name, URL, sameAs")
+            result.add_issue(page.url, "GEO", "MEDIUM", sid, "Missing Author Schema", f"No Person or Organization schema on {page.url}", "Author entities help AI systems attribute expertise", "Add author Person schema with name, URL, sameAs")
 
         sid = self._sid()
         has_org_schema = any(isinstance(s, dict) and s.get("@type") == "Organization" for s in page.schema_markup)
@@ -579,27 +624,36 @@ class AnalyzerEngine:
         result.add_signal(sid, "Meta Description Coverage", "SEO", desc_count / total, 0.8, f"{desc_count}/{total} have descriptions", "", "")
 
         sid = self._sid()
-        broken = sum(1 for p in pages if p.status_code >= 400)
+        broken_pages = [p for p in pages if p.status_code >= 400]
+        broken = len(broken_pages)
         result.add_signal(sid, "Broken Page Rate", "SEO", 1.0 - (broken / max(len(pages), 1)), 0.9, f"{broken} broken pages out of {len(pages)}", "", "")
         if broken > 0:
-            result.add_issue("", "SEO", "HIGH", sid, "Broken Pages", f"{broken} pages return errors", "Broken pages waste crawl budget and hurt site quality", "Fix or redirect broken URLs")
+            broken_urls = ", ".join(p.url for p in broken_pages[:5])
+            more = f" and {broken - 5} more" if broken > 5 else ""
+            result.add_issue(broken_pages[0].url if broken_pages else "", "SEO", "HIGH", sid, "Broken Pages", f"{broken} pages return errors: {broken_urls}{more}", "Broken pages waste crawl budget and hurt site quality", "Fix or redirect broken URLs")
 
         sid = self._sid()
         dup_hashes = {}
         for p in all_pages:
             if p.content_hash:
                 dup_hashes.setdefault(p.content_hash, []).append(p.url)
-        dup_count = sum(len(v) - 1 for v in dup_hashes.values() if len(v) > 1)
+        dup_groups = [v for v in dup_hashes.values() if len(v) > 1]
+        dup_count = sum(len(v) - 1 for v in dup_groups)
         result.add_signal(sid, "Duplicate Content Rate", "SEO", 1.0 - (dup_count / total), 0.8, f"{dup_count} duplicate pages", "", "")
         if dup_count > 0:
-            result.add_issue("", "SEO", "MEDIUM", sid, "Duplicate Content", f"{dup_count} pages share identical content", "Duplicate content dilutes ranking signals", "Add canonical tags or merge duplicate pages")
+            first_group = dup_groups[0] if dup_groups else []
+            dup_urls = ", ".join(first_group[:3])
+            more = f" and {dup_count - 3} more duplicates" if dup_count > 3 else ""
+            result.add_issue(first_group[0] if first_group else "", "SEO", "MEDIUM", sid, "Duplicate Content", f"{dup_count} pages share identical content: {dup_urls}{more}", "Duplicate content dilutes ranking signals", "Add canonical tags or merge duplicate pages")
 
         sid = self._sid()
         word_counts = [p.word_count for p in all_pages if p.word_count > 0]
         avg_words = sum(word_counts) / len(word_counts) if word_counts else 0
         result.add_signal(sid, "Average Content Depth", "CONTENT", 1.0 if avg_words >= 1000 else (0.8 if avg_words >= 600 else (0.5 if avg_words >= 300 else 0.2)), 0.8, f"Avg: {int(avg_words)} words", "", "")
         if avg_words < 400 and total > 3:
-            result.add_issue("", "CONTENT", "HIGH", sid, "Shallow Site Content", f"Average {int(avg_words)} words per page", "Sites with thin content struggle to rank", "Expand key pages to 1000+ words")
+            thin_site = [p for p in all_pages if 0 < p.word_count < 300]
+            thin_url = thin_site[0].url if thin_site else (all_pages[0].url if all_pages else "")
+            result.add_issue(thin_url, "CONTENT", "HIGH", sid, "Shallow Site Content", f"Average {int(avg_words)} words per page across {total} pages", "Sites with thin content struggle to rank", "Expand key pages to 1000+ words")
 
         sid = self._sid()
         result.add_signal(sid, "HTTPS Adoption", "SEO", sum(1 for p in all_pages if p.https) / total, 0.9, f"{sum(1 for p in all_pages if p.https)}/{total} HTTPS", "", "")
@@ -673,7 +727,8 @@ class AnalyzerEngine:
         about_pages = sum(1 for p in pages if "/about" in p.url.lower())
         result.add_signal(sid, "About Page Existence", "GEO", 1.0 if about_pages > 0 else 0.0, 0.9, f"{'Has about page' if about_pages else 'No about page'}", "", "")
         if about_pages == 0:
-            result.add_issue("", "GEO", "HIGH", sid, "Missing About Page", "No about page found", "About pages are critical for E-E-A-T and AI trust signals", "Create comprehensive About page with team, mission, and credentials")
+            first_url = pages[0].url if pages else ""
+            result.add_issue(first_url, "GEO", "HIGH", sid, "Missing About Page", "No about page found on site", "About pages are critical for E-E-A-T and AI trust signals", "Create comprehensive About page with team, mission, and credentials")
 
         sid = self._sid()
         contact_pages = sum(1 for p in pages if "/contact" in p.url.lower())
@@ -733,13 +788,16 @@ class AnalyzerEngine:
         result.add_signal(sid, "Robots.txt Presence", "AI_SEARCH", 1.0 if has_robots else 0.2, 0.6, "robots.txt found" if has_robots else "robots.txt not found in crawl", "", "")
 
     def _analyze_content_intelligence(self, pages, result, all_text):
-        word_counts = sorted([p.word_count for p in pages if p.word_count > 0])
-        thin = sum(1 for wc in word_counts if wc < 300)
+        thin_pages = [p for p in pages if 0 < p.word_count < 300 and p.status_code == 200]
+        all_counted = [p for p in pages if p.word_count > 0 and p.status_code == 200]
+        thin = len(thin_pages)
 
         sid = self._sid()
-        result.add_signal(sid, "Thin Content Pages", "CONTENT", 1.0 - (thin / max(len(word_counts), 1)), 0.8, f"{thin} pages under 300 words", "", "")
-        if thin > len(word_counts) * 0.3:
-            result.add_issue("", "CONTENT", "HIGH", sid, "High Thin Content Rate", f"{thin}/{len(word_counts)} pages are thin", "Thin content pages dilute site quality signals", "Expand or remove thin content pages")
+        result.add_signal(sid, "Thin Content Pages", "CONTENT", 1.0 - (thin / max(len(all_counted), 1)), 0.8, f"{thin} pages under 300 words", "", "")
+        if thin > 0:
+            thin_urls = ", ".join(p.url for p in thin_pages[:5])
+            more = f" and {thin - 5} more" if thin > 5 else ""
+            result.add_issue(thin_pages[0].url if thin_pages else "", "CONTENT", "CRITICAL" if thin > len(all_counted) * 0.3 else "HIGH", sid, "Thin Content Pages", f"{thin}/{len(all_counted)} pages have fewer than 300 words: {thin_urls}{more}", "Thin pages rarely rank and dilute site quality", "Expand each to 800+ words or remove/consolidate")
 
         sid = self._sid()
         long_form = sum(1 for wc in word_counts if wc >= 1500)

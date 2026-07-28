@@ -188,22 +188,43 @@ async def get_audit_recommendations(audit_id: str, offset: int = 0, limit: int =
 
 @router.get("/audit/{audit_id}/competitor")
 async def get_competitor_data(audit_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))
-    comp = result.scalar_one_or_none()
-    if not comp:
-        return {"message": "No competitor analysis available"}
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    comp_result = await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))
+    comp = comp_result.scalar_one_or_none()
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    analysis = {}
+    if pages:
+        try:
+            from app.engine.competitor_intelligence import CompetitorIntelligenceEngine
+            from app.engine.crawler import PageData
+            engine = CompetitorIntelligenceEngine()
+            best_page = max(pages, key=lambda p: p.word_count or 0)
+            pa = PageAdapter(best_page)
+            comp_url = comp.competitor_url if comp and comp.competitor_url else ""
+            analysis = engine.analyze(pa, [comp_url] if comp_url else [])
+        except Exception:
+            analysis = {}
+
     return {
-        "competitor_url": comp.competitor_url,
-        "keyword_opportunities": comp.keyword_opportunities or [],
-        "content_opportunities": comp.content_opportunities or [],
-        "entity_gaps": comp.entity_gaps or [],
-        "topic_gaps": comp.topic_gaps or [],
-        "seo_comparison": comp.seo_comparison or {},
-        "strengths": comp.strengths or [],
-        "weaknesses": comp.weaknesses or [],
-        "winning_strategy": comp.winning_strategy or [],
-        "backlink_gap": comp.backlink_gap or [],
-        "serp_gap": comp.serp_gap or [],
+        "competitor_url": comp.competitor_url if comp else "",
+        "keyword_opportunities": (comp.keyword_opportunities if comp else []) or [],
+        "content_opportunities": (comp.content_opportunities if comp else []) or [],
+        "entity_gaps": (comp.entity_gaps if comp else []) or [],
+        "topic_gaps": (comp.topic_gaps if comp else []) or [],
+        "seo_comparison": (comp.seo_comparison if comp else {}) or {},
+        "strengths": (comp.strengths if comp else []) or [],
+        "weaknesses": (comp.weaknesses if comp else []) or [],
+        "winning_strategy": (comp.winning_strategy if comp else []) or [],
+        "backlink_gap": (comp.backlink_gap if comp else []) or [],
+        "serp_gap": (comp.serp_gap if comp else []) or [],
+        "intelligence_analysis": analysis,
     }
 
 
@@ -445,25 +466,56 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
     )
     ai_issues = issues_result.scalars().all()
 
-    groq_visibility = {}
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    all_pages = list(pages_result.scalars().all())
+
+    platform_scores_accumulator = {"chatgpt": [], "gemini": [], "perplexity": []}
+    platform_details = {}
+
     try:
         from app.engine.dual_ai import dual_ai_search_optimization
-        pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-        first_page = pages_result.scalars().first()
-        if first_page:
-            pa = PageAdapter(first_page)
-            groq_visibility = await dual_ai_search_optimization(pa.url, pa.title or "", pa.content_text or [], [])
+        for page_obj in all_pages[:20]:
+            try:
+                pa = PageAdapter(page_obj)
+                content_str = pa.content_text if isinstance(pa.content_text, str) else " ".join(pa.content_text) if pa.content_text else ""
+                vis = await dual_ai_search_optimization(pa.url, pa.title or "", content_str, "")
+                for platform in ["chatgpt", "gemini", "perplexity"]:
+                    score = vis.get("platform_scores", {}).get(platform, {}).get("score", 0)
+                    if score > 0:
+                        platform_scores_accumulator[platform].append(score)
+                if not platform_details:
+                    platform_details = vis
+            except Exception:
+                continue
     except Exception:
         pass
 
+    avg = lambda lst: round(sum(lst) / len(lst), 1) if lst else 0
+    chatgpt_avg = avg(platform_scores_accumulator["chatgpt"])
+    gemini_avg = avg(platform_scores_accumulator["gemini"])
+    perplexity_avg = avg(platform_scores_accumulator["perplexity"])
+
+    has_schema = sum(1 for p in all_pages if p.schema_markup)
+    has_citations = sum(1 for p in all_pages if any(kw in (p.content_text or "").lower() for kw in ["source:", "according to", "research", "study"]))
+    has_fresh = sum(1 for p in all_pages if any(yr in (p.content_text or "") for yr in ["2025", "2026"]))
+
+    signal_scores = {}
+    for k, v in (scores.signals if scores else {}).items():
+        if isinstance(v, dict) and v.get("category") == "AI_SEARCH":
+            signal_scores[k] = v
+
     result = {
         "ai_visibility_score": scores.ai_visibility_score if scores else 0,
-        "chatgpt_visibility": groq_visibility.get("platform_scores", {}).get("chatgpt", {}).get("score", 0),
-        "gemini_visibility": groq_visibility.get("platform_scores", {}).get("gemini", {}).get("score", 0),
-        "perplexity_visibility": groq_visibility.get("platform_scores", {}).get("perplexity", {}).get("score", 0),
-        "ai_platform_visibility": groq_visibility,
+        "chatgpt_visibility": chatgpt_avg,
+        "gemini_visibility": gemini_avg,
+        "perplexity_visibility": perplexity_avg,
+        "pages_analyzed": min(len(all_pages), 20),
+        "pages_with_schema": has_schema,
+        "pages_with_citations": has_citations,
+        "pages_with_fresh_content": has_fresh,
+        "ai_platform_visibility": platform_details,
         "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "impact": i.impact, "fix": i.fix} for i in ai_issues],
-        "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict) and v.get("category") == "AI_SEARCH"},
+        "signals": signal_scores,
     }
     _cache_set(cache_key, result)
     return result
@@ -2215,57 +2267,63 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
     )
     seo_issues = issues_result.scalars().all()
 
-    all_external = []
+    all_outbound = []
     for p in pages:
         for link in (p.links_external or []):
             if isinstance(link, dict):
-                all_external.append({"url": link.get("url", link.get("href", "")), "text": link.get("text", ""), "page": p.url})
+                all_outbound.append({"url": link.get("url", link.get("href", "")), "text": link.get("text", ""), "page": p.url, "rel": link.get("rel", "")})
             elif isinstance(link, str):
-                all_external.append({"url": link, "text": "", "page": p.url})
+                all_outbound.append({"url": link, "text": "", "page": p.url, "rel": ""})
 
-    referring_domains = {}
-    for link in all_external:
+    linked_domains = {}
+    for link in all_outbound:
         domain = link["url"].split("//")[-1].split("/")[0] if link["url"] else ""
         if domain:
-            referring_domains.setdefault(domain, []).append(link)
+            linked_domains.setdefault(domain, []).append(link)
 
     anchor_text_dist = {}
-    for link in all_external:
+    for link in all_outbound:
         text = (link.get("text") or "no text").strip()[:50]
         anchor_text_dist[text] = anchor_text_dist.get(text, 0) + 1
 
-    no_follow_count = sum(1 for link in all_external if "nofollow" in str(link).lower())
-    do_follow_count = len(all_external) - no_follow_count
+    no_follow_count = sum(1 for link in all_outbound if "nofollow" in str(link.get("rel", "")).lower())
+    do_follow_count = len(all_outbound) - no_follow_count
 
-    score = 50
-    if len(referring_domains) > 10:
-        score += 15
-    if len(all_external) > 20:
-        score += 10
-    if no_follow_count / max(len(all_external), 1) < 0.5:
-        score += 10
-    score = min(score, 100)
+    outbound_score = 50
+    if len(linked_domains) > 10:
+        outbound_score += 15
+    if len(all_outbound) > 20:
+        outbound_score += 10
+    if no_follow_count / max(len(all_outbound), 1) < 0.5:
+        outbound_score += 10
+    outbound_score = min(outbound_score, 100)
+
+    broken_outbound = []
+    for link in all_outbound:
+        if link["url"] and any(kw in link["url"].lower() for kw in ["404", "error", "broken", "not-found"]):
+            broken_outbound.append(link)
 
     return {
-        "backlink_score": score,
-        "total_backlinks": len(all_external),
-        "referring_domains": len(referring_domains),
+        "backlink_score": outbound_score,
+        "outbound_link_count": len(all_outbound),
+        "linked_domains": len(linked_domains),
         "dofollow_count": do_follow_count,
         "nofollow_count": no_follow_count,
-        "top_referring_domains": sorted(
-            [{"domain": d, "count": len(links)} for d, links in referring_domains.items()],
+        "top_linked_domains": sorted(
+            [{"domain": d, "count": len(links)} for d, links in linked_domains.items()],
             key=lambda x: x["count"], reverse=True
         )[:20],
         "anchor_text_distribution": sorted(
             [{"text": t, "count": c} for t, c in anchor_text_dist.items()],
             key=lambda x: x["count"], reverse=True
         )[:20],
-        "pages_with_most_external_links": sorted(
+        "pages_with_most_outbound_links": sorted(
             [{"url": p.url, "count": len(p.links_external or [])} for p in pages if p.links_external],
             key=lambda x: x["count"], reverse=True
         )[:10],
         "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in seo_issues[:20]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict) and v.get("category") == "SEO"},
+        "note": "This site cannot analyze inbound backlinks without third-party API access (Ahrefs, Moz, etc.). These are outbound link metrics from your own pages.",
     }
 
 
@@ -4125,23 +4183,24 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
         ai_scores = []
         content_scores = []
 
-        for page in pages[:5]:
+        sample = pages[:min(len(pages), 20)]
+        for page in sample:
             pa = PageAdapter(page)
             try:
                 pi = page_intel.analyze(pa)
-                page_scores.append(pi.get("overall_score", 50))
+                page_scores.append(pi.get("overall_score", 0))
             except Exception:
-                page_scores.append(50)
+                pass
             try:
                 ai = ai_deep.analyze(pa)
-                ai_scores.append(ai.get("overall_ai_score", 50))
+                ai_scores.append(ai.get("overall_ai_score", 0))
             except Exception:
-                ai_scores.append(50)
+                pass
             try:
                 cd = content_deep.analyze(pa)
-                content_scores.append(cd.get("quality_scores", {}).get("content_completeness", 50))
+                content_scores.append(cd.get("quality_scores", {}).get("content_completeness", 0))
             except Exception:
-                content_scores.append(50)
+                pass
 
         return page_scores, ai_scores, content_scores
 
@@ -4151,7 +4210,7 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
         log.exception("Score computation failed")
         page_scores, ai_scores, content_scores = [], [], []
 
-    avg = lambda lst: round(sum(lst) / max(len(lst), 1), 1) if lst else 50
+    avg = lambda lst: round(sum(lst) / len(lst), 1) if lst else 0
 
     issue_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
     for issue in issues:
@@ -4173,23 +4232,28 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
             "description": getattr(issue, 'description', ''),
         })
 
+    geo_score = scores.geo_score if scores else 0
+    aeo_score_val = scores.aeo_score if scores else 0
+
     resp = {
         "audit_id": audit_id,
         "website_url": audit.website_url,
         "health_scores": {
-            "seo_health": scores.seo_score if scores else 50,
-            "ai_search_health": avg(ai_scores),
-            "content_health": avg(content_scores),
-            "technical_health": scores.technical_score if scores else 50,
-            "eeat_score": scores.aeo_score if scores else 50,
-            "page_intelligence": avg(page_scores),
+            "seo_health": scores.seo_score if scores else 0,
+            "ai_search_health": avg(ai_scores) if ai_scores else (scores.ai_visibility_score if scores else 0),
+            "content_health": avg(content_scores) if content_scores else (scores.content_score if scores else 0),
+            "technical_health": scores.technical_score if scores else 0,
+            "eeat_score": geo_score,
+            "aeo_score": aeo_score_val,
+            "page_intelligence": avg(page_scores) if page_scores else 0,
         },
-        "overall_score": scores.overall_score if scores else 50,
+        "overall_score": scores.overall_score if scores else 0,
         "total_pages": len(pages),
         "total_issues": len(issues),
         "issue_summary": issue_counts,
         "page_type_distribution": page_type_dist,
         "recent_issues": recent_issues,
+        "pages_analyzed_for_scores": len(page_scores),
         "alerts": list(filter(None, [
             {"type": "critical", "message": f"{issue_counts['CRITICAL']} critical issues need immediate attention"} if issue_counts['CRITICAL'] > 0 else None,
             {"type": "warning", "message": f"{issue_counts['HIGH']} high-priority issues found"} if issue_counts['HIGH'] > 0 else None,
