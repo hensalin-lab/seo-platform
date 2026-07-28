@@ -10,13 +10,14 @@ import {
   FileSearch, HeartPulse, TrendingUp, BarChart2,
   Megaphone, Flag, RefreshCw, ShieldAlert, Network,
   Hash, MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck,
-  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User
+  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User, AlertTriangle
 } from 'lucide-react';
 
 const MAIN_NAV = [
   { path: '/new', icon: Plus, label: 'New Audit' },
   { path: '/history', icon: FileText, label: 'History' },
   { path: '/portfolio', icon: FolderOpen, label: 'Portfolio' },
+  { path: '/trends', icon: TrendingUp, label: 'Trends' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -92,6 +93,7 @@ const AUDIT_NAV = [
   {
     label: 'TOOLS',
     items: [
+      { suffix: '/issues', icon: AlertTriangle, label: 'All Issues' },
       { suffix: '/chat', icon: MessageSquare, label: 'AI Chat' },
     ],
   },
@@ -179,6 +181,7 @@ export default function Layout({ children }) {
     if (path.endsWith('/social-seo')) return 'Social SEO';
     if (path.endsWith('/ai-roadmap')) return 'AI Roadmap';
     if (path.endsWith('/ai-suggestions')) return 'AI Suggestions';
+    if (path.endsWith('/issues')) return 'Issues Explorer';
     return 'Report';
   };
 

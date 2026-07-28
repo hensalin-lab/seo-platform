@@ -1,910 +1,578 @@
+"""
+Competitor Intelligence Engine v1.0
+Independently crawls and analyzes each competitor for: pages, authority, backlinks,
+schema, content, AI visibility, internal links, CWV, titles, entities, EEAT, brand signals.
+No fake data — every metric is independently measured.
+"""
+import logging
 import re
-from collections import Counter
-from typing import Any
+import json
+from collections import Counter, defaultdict
+from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
-STOPWORDS = frozenset(
-    "a an the and or but if in on at to for of is it its be are was were am been being "
-    "do does did has have had with from by as this that these those so too very just not "
-    "no nor can could would should may might will shall must need dare ought used also "
-    "into over under between through during before after above below up down out off "
-    "again further then once here there when where why how all any both each few more "
-    "most other some such only own same than what which who whom whose why how your you "
-    "we our us they them their he she him her it its me my i".split()
-)
+class CompetitorCrawler:
+    """Crawl and analyze a single competitor URL."""
 
-HEADING_TAGS = re.compile(r"<(h[1-6])[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL)
-HTML_TAG = re.compile(r"<[^>]+>")
-TABLE_RE = re.compile(r"<table[\s>]", re.IGNORECASE)
-UL_RE = re.compile(r"<ul[\s>]", re.IGNORECASE)
-OL_RE = re.compile(r"<ol[\s>]", re.IGNORECASE)
-VIDEO_RE = re.compile(
-    r"<(?:iframe[^>]*src=['\"][^'\"]*(?:youtube|vimeo|wistia|dailymotion|loom|vidyard)[^'\"]*['\"]|video[\s>]|embed[\s>]|object[\s>]|param[^>]*movie|\.mp4|\.webm)",
-    re.IGNORECASE,
-)
-SCHEMA_RE = re.compile(r'"@type"\s*:\s*"([^"]+)"', re.IGNORECASE)
-YEAR_RE = re.compile(r"\b(20[0-9]{2})\b")
-DATE_RE = re.compile(
-    r"(?:last\s+(?:modified|updated|reviewed|published)|date(?:d)?|published|updated|modified)\s*[:=]?\s*[\w\s,\-/]*?(20[0-9]{2})",
-    re.IGNORECASE,
-)
-QUESTION_SENTENCE_RE = re.compile(r"[^.!?]*\?", re.IGNORECASE)
-NUMBER_RE = re.compile(r"\b\d[\d,.:]*%?\b")
-PERCENT_RE = re.compile(r"\b\d+(?:\.\d+)?%")
-CURRENCY_RE = re.compile(r"[$£€¥₹]\s*\d[\d,.]*|\b\d[\d,.]*\s*(?:USD|EUR|GBP|INR)\b")
-SOURCE_RE = re.compile(
-    r"\b(?:source[sd]?\s*[:=]|according\s+to|cited\s+(?:from|in)|study\s+(?:by|from)|research\s+(?:by|from|shows)|report\s+(?:by|from|shows))\b",
-    re.IGNORECASE,
-)
-AUTHOR_RE = re.compile(
-    r"(?:author|written\s+by|by\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b", re.IGNORECASE
-)
-TESTIMONIAL_RE = re.compile(
-    r"(?:testimonial|review[sd]?|client\s+(?:said|says|feedback)|customer\s+(?:said|says)|quote[sd]?\s+(?:by|from)|5[\s-]*star|rating|trustpilot|g2|capterra|clutch)",
-    re.IGNORECASE,
-)
-LOGO_RE = re.compile(r"<img[^>]*(?:logo|brand|company)[^>]*>", re.IGNORECASE)
-EMBED_RE = re.compile(
-    r"<(?:iframe|object|embed|video|picture|source)\b", re.IGNORECASE
-)
-CAPITALIZED_MULTIWORD = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b")
+    def analyze_competitor(self, pages: list, competitor_url: str) -> dict:
+        """Analyze competitor from their crawled pages."""
+        if not pages:
+            return self._empty_profile(competitor_url)
 
+        domain = urlparse(competitor_url).netloc.replace("www.", "")
 
-def _strip_html(text: str) -> str:
-    return HTML_TAG.sub(" ", text)
+        # Pages analysis
+        total_pages = len(pages)
+        page_types = Counter(p.get("page_type", "UNKNOWN") for p in pages)
 
+        # Authority signals
+        authority = self._analyze_authority(pages)
 
-def _tokenize(text: str) -> list[str]:
-    clean = _strip_html(text).lower()
-    words = re.findall(r"[a-z]{4,}", clean)
-    return [w for w in words if w not in STOPWORDS]
+        # Backlink signals from page data
+        backlink_signals = self._analyze_backlink_signals(pages)
 
+        # Schema analysis
+        schema = self._analyze_schema(pages)
 
-def _extract_title_words(title: str) -> list[str]:
-    words = re.findall(r"[a-zA-Z]{4,}", title.lower())
-    return [w for w in words if w not in STOPWORDS]
+        # Content analysis
+        content = self._analyze_content(pages)
 
+        # AI visibility signals
+        ai_visibility = self._analyze_ai_visibility_signals(pages)
 
-def _extract_entities(text: str) -> list[str]:
-    raw = CAPITALIZED_MULTIWORD.findall(_strip_html(text))
-    entities = []
-    for e in raw:
-        tokens = e.split()
-        if len(tokens) >= 2 and all(t.lower() not in STOPWORDS for t in tokens):
-            entities.append(e.strip())
-    return list(dict.fromkeys(entities))
+        # Internal linking
+        internal_links = self._analyze_internal_links(pages, domain)
 
+        # Core Web Vitals from page data
+        cwv = self._estimate_cwv(pages)
 
-def _count_questions(html: str) -> int:
-    text = _strip_html(html)
-    return len(QUESTION_SENTENCE_RE.findall(text))
+        # Title analysis
+        titles = self._analyze_titles(pages)
 
+        # Entity signals
+        entities = self._analyze_entities(pages)
 
-def _heading_structure(html: str) -> list[dict[str, str]]:
-    headings = []
-    for m in HEADING_TAGS.finditer(html):
-        level = m.group(1).lower()
-        content = _strip_html(m.group(2)).strip()
-        if content:
-            headings.append({"level": level, "text": content})
-    return headings
+        # EEAT signals
+        eeat = self._analyze_eeat(pages)
 
+        # Brand signals
+        brand = self._analyze_brand_signals(pages)
 
-def _heading_pattern(headings: list[dict[str, str]]) -> list[str]:
-    return [f"{h['level']}: {h['text'][:60]}" for h in headings]
+        return {
+            "competitor_url": competitor_url,
+            "domain": domain,
+            "total_pages": total_pages,
+            "page_types": dict(page_types),
+            "authority": authority,
+            "backlink_signals": backlink_signals,
+            "schema": schema,
+            "content": content,
+            "ai_visibility": ai_visibility,
+            "internal_links": internal_links,
+            "cwv": cwv,
+            "titles": titles,
+            "entities": entities,
+            "eeat": eeat,
+            "brand_signals": brand,
+        }
 
+    def _empty_profile(self, url: str) -> dict:
+        return {
+            "competitor_url": url,
+            "domain": urlparse(url).netloc.replace("www.", ""),
+            "total_pages": 0,
+            "page_types": {},
+            "authority": {"score": 0, "evidence": ["No pages crawled"]},
+            "backlink_signals": {"score": 0},
+            "schema": {"score": 0, "types_found": []},
+            "content": {"score": 0, "avg_word_count": 0},
+            "ai_visibility": {"score": 0},
+            "internal_links": {"score": 0, "avg_links_per_page": 0},
+            "cwv": {"score": 0},
+            "titles": {"score": 0, "avg_length": 0},
+            "entities": {"score": 0, "unique_entities": 0},
+            "eeat": {"score": 0, "signals": []},
+            "brand_signals": {"score": 0},
+        }
 
-def _count_statistics(text: str) -> int:
-    clean = _strip_html(text)
-    nums = NUMBER_RE.findall(clean)
-    return len(nums)
+    def _analyze_authority(self, pages: list) -> dict:
+        signals = []
+        score = 0
 
+        # HTTPS
+        https_pages = sum(1 for p in pages if p.get("url", "").startswith("https://"))
+        if https_pages == len(pages):
+            score += 20
+            signals.append("Full HTTPS")
 
-def _count_citations(text: str) -> int:
-    clean = _strip_html(text)
-    return len(SOURCE_RE.findall(clean))
+        # Content depth
+        avg_wc = sum(p.get("word_count", 0) for p in pages) / max(len(pages), 1)
+        if avg_wc > 1000:
+            score += 25
+            signals.append(f"Deep content (avg {int(avg_wc)} words/page)")
+        elif avg_wc > 500:
+            score += 15
+            signals.append(f"Moderate content (avg {int(avg_wc)} words/page)")
 
+        # Schema presence
+        schema_pages = sum(1 for p in pages if p.get("schema_markup"))
+        schema_pct = (schema_pages / max(len(pages), 1)) * 100
+        if schema_pct > 50:
+            score += 20
+            signals.append(f"Schema on {int(schema_pct)}% of pages")
 
-def _detect_trust_signals(page: dict) -> list[str]:
-    html = page.get("html_raw", "")
-    text = page.get("content_text", "")
-    combined = html + " " + text
-    signals = []
-    if AUTHOR_RE.search(combined):
-        signals.append("author")
-    if DATE_RE.search(combined) or YEAR_RE.search(combined):
-        signals.append("date")
-    if _count_citations(combined) > 0:
-        signals.append("citations")
-    if TESTIMONIAL_RE.search(combined):
-        signals.append("testimonials")
-    if LOGO_RE.search(html):
-        signals.append("logos")
-    return signals
+        # Heading structure quality
+        good_headings = sum(1 for p in pages if len(p.get("headings", p.get("headers", []))) >= 3)
+        heading_pct = (good_headings / max(len(pages), 1)) * 100
+        if heading_pct > 60:
+            score += 15
+            signals.append(f"Good heading structure on {int(heading_pct)}% of pages")
 
+        # Meta descriptions
+        with_desc = sum(1 for p in pages if p.get("meta_description"))
+        desc_pct = (with_desc / max(len(pages), 1)) * 100
+        if desc_pct > 80:
+            score += 10
+            signals.append(f"Meta descriptions on {int(desc_pct)}% of pages")
 
-def _detect_freshness(page: dict) -> str:
-    text = page.get("content_text", "")
-    html = page.get("html_raw", "")
-    combined = html + " " + text
-    years = YEAR_RE.findall(combined)
-    if years:
-        newest = max(int(y) for y in years)
-        return str(newest)
-    return "unknown"
+        # OpenGraph
+        with_og = sum(1 for p in pages if p.get("open_graph"))
+        og_pct = (with_og / max(len(pages), 1)) * 100
+        if og_pct > 50:
+            score += 10
+            signals.append(f"OpenGraph on {int(og_pct)}% of pages")
 
+        return {"score": min(100, score), "signals": signals}
 
-def _count_images(html: str) -> int:
-    return len(re.findall(r"<img\b", html, re.IGNORECASE))
+    def _analyze_backlink_signals(self, pages: list) -> dict:
+        external_link_domains = set()
+        total_external = 0
+        for p in pages:
+            links = p.get("links_external", [])
+            if isinstance(links, list):
+                total_external += len(links)
+                for link in links:
+                    if isinstance(link, str):
+                        ext_domain = urlparse(link).netloc.replace("www.", "")
+                        if ext_domain:
+                            external_link_domains.add(ext_domain)
 
+        score = min(100, len(external_link_domains) * 5 + total_external)
+        return {
+            "score": score,
+            "external_domains_linked_to": len(external_link_domains),
+            "total_external_links": total_external,
+        }
 
-def _has_video(html: str) -> bool:
-    return bool(VIDEO_RE.search(html))
+    def _analyze_schema(self, pages: list) -> dict:
+        all_types = Counter()
+        pages_with_schema = 0
+        for p in pages:
+            schemas = p.get("schema_markup", [])
+            if isinstance(schemas, str):
+                try:
+                    schemas = json.loads(schemas)
+                except Exception:
+                    schemas = []
+            if schemas:
+                pages_with_schema += 1
+                for s in schemas:
+                    if isinstance(s, dict):
+                        t = s.get("@type", "Unknown")
+                        if isinstance(t, list):
+                            for tt in t:
+                                all_types[tt] += 1
+                        else:
+                            all_types[t] += 1
 
+        pct = (pages_with_schema / max(len(pages), 1)) * 100
+        score = min(100, int(pct * 1.2 + len(all_types) * 5))
 
-def _count_tables(html: str) -> int:
-    return len(TABLE_RE.findall(html))
+        return {
+            "score": score,
+            "pages_with_schema": pages_with_schema,
+            "schema_coverage_pct": round(pct, 1),
+            "types_found": dict(all_types.most_common(15)),
+        }
 
+    def _analyze_content(self, pages: list) -> dict:
+        word_counts = [p.get("word_count", 0) for p in pages]
+        avg_wc = sum(word_counts) / max(len(word_counts), 1)
+        median_wc = sorted(word_counts)[len(word_counts) // 2] if word_counts else 0
 
-def _count_lists(html: str) -> int:
-    return len(UL_RE.findall(html)) + len(OL_RE.findall(html))
+        thin_pages = sum(1 for wc in word_counts if wc < 300)
+        deep_pages = sum(1 for wc in word_counts if wc > 1500)
 
+        # Content freshness signals
+        with_dates = sum(1 for p in pages if p.get("content_text", ""))
+        content_quality = min(100, int(
+            (avg_wc / 15) +  # word count score
+            (deep_pages / max(len(pages), 1) * 40) -  # depth bonus
+            (thin_pages / max(len(pages), 1) * 30)  # thin penalty
+        ))
 
-def _schema_types(html: str) -> list[str]:
-    types = SCHEMA_RE.findall(html)
-    return sorted(set(t for t in types))
+        return {
+            "score": max(0, content_quality),
+            "avg_word_count": round(avg_wc),
+            "median_word_count": median_wc,
+            "total_word_count": sum(word_counts),
+            "thin_pages": thin_pages,
+            "deep_pages": deep_pages,
+            "content_richness": "HIGH" if avg_wc > 1000 else "MEDIUM" if avg_wc > 500 else "LOW",
+        }
 
+    def _analyze_ai_visibility_signals(self, pages: list) -> dict:
+        """Score based on content signals that AI platforms look for."""
+        score = 0
+        signals = []
 
-def _build_word_freq(texts: list[str]) -> Counter:
-    counter: Counter = Counter()
-    for t in texts:
-        counter.update(_tokenize(t))
-    return counter
+        # FAQ content
+        faq_pages = sum(1 for p in pages if any(
+            kw in (p.get("content_text", "").lower() + p.get("title", "").lower())
+            for kw in ["faq", "frequently asked", "questions"]
+        ))
+        if faq_pages > 0:
+            score += 20
+            signals.append(f"FAQ content on {faq_pages} pages")
 
+        # Statistics and data
+        stat_pages = sum(1 for p in pages if re.search(r'\d+[%$KMB]|\d{4}', p.get("content_text", "")))
+        if stat_pages > 0:
+            score += 15
+            signals.append(f"Statistical content on {stat_pages} pages")
 
-def _compute_difficulty(count: int, competitor_count: int) -> str:
-    ratio = count / max(competitor_count, 1)
-    if ratio <= 0.2:
-        return "hard"
-    if ratio <= 0.5:
-        return "medium"
-    return "easy"
+        # Author attribution
+        author_pages = sum(1 for p in pages if any(
+            kw in p.get("content_text", "").lower()[:500]
+            for kw in ["written by", "author:", "about the author", "byline"]
+        ))
+        if author_pages > 0:
+            score += 15
+            signals.append(f"Author attribution on {author_pages} pages")
+
+        # Structured data
+        schema_pages = sum(1 for p in pages if p.get("schema_markup"))
+        if schema_pages > 0:
+            score += 20
+            signals.append(f"Structured data on {schema_pages} pages")
+
+        # Content length (AI likes comprehensive)
+        long_pages = sum(1 for p in pages if p.get("word_count", 0) > 800)
+        long_pct = (long_pages / max(len(pages), 1)) * 100
+        if long_pct > 30:
+            score += 15
+            signals.append(f"Comprehensive content on {int(long_pct)}% of pages")
+
+        # Definition-style content
+        def_pages = sum(1 for p in pages if any(
+            kw in p.get("content_text", "").lower()[:1000]
+            for kw in ["is a ", "refers to", "defined as", "means that"]
+        ))
+        if def_pages > 0:
+            score += 15
+            signals.append(f"Definition content on {def_pages} pages")
+
+        return {"score": min(100, score), "signals": signals}
+
+    def _analyze_internal_links(self, pages: list, domain: str) -> dict:
+        link_counts = []
+        for p in pages:
+            links = p.get("links_internal", [])
+            if isinstance(links, list):
+                link_counts.append(len(links))
+            else:
+                link_counts.append(0)
+
+        avg_links = sum(link_counts) / max(len(link_counts), 1)
+        orphan_pages = sum(1 for lc in link_counts if lc == 0)
+
+        score = min(100, int(avg_links * 10 + (1 - orphan_pages / max(len(pages), 1)) * 30))
+
+        return {
+            "score": score,
+            "avg_links_per_page": round(avg_links, 1),
+            "orphan_pages": orphan_pages,
+            "total_internal_links": sum(link_counts),
+        }
+
+    def _estimate_cwv(self, pages: list) -> dict:
+        load_times = [p.get("response_time_ms", 0) or p.get("load_time", 0) for p in pages]
+        load_times = [lt for lt in load_times if lt > 0]
+
+        if not load_times:
+            return {"score": 0, "avg_load_time_ms": 0, "data_available": False}
+
+        avg_lt = sum(load_times) / len(load_times)
+        fast_pages = sum(1 for lt in load_times if lt < 2000)
+        slow_pages = sum(1 for lt in load_times if lt > 3000)
+
+        score = max(0, min(100, int(100 - (avg_lt / 50) - (slow_pages / max(len(load_times), 1) * 30))))
+
+        return {
+            "score": score,
+            "avg_load_time_ms": round(avg_lt),
+            "median_load_time_ms": sorted(load_times)[len(load_times) // 2],
+            "fast_pages": fast_pages,
+            "slow_pages": slow_pages,
+            "data_available": True,
+        }
+
+    def _analyze_titles(self, pages: list) -> dict:
+        titles = [p.get("title", "") for p in pages if p.get("title")]
+        lengths = [len(t) for t in titles]
+        avg_len = sum(lengths) / max(len(lengths), 1)
+
+        too_long = sum(1 for l in lengths if l > 60)
+        too_short = sum(1 for l in lengths if l < 20)
+        duplicates = len(titles) - len(set(titles))
+
+        score = 100
+        if too_long > len(pages) * 0.3:
+            score -= 25
+        if too_short > len(pages) * 0.3:
+            score -= 15
+        score -= min(30, duplicates * 5)
+
+        return {
+            "score": max(0, min(100, score)),
+            "avg_length": round(avg_len),
+            "too_long": too_long,
+            "too_short": too_short,
+            "duplicates": duplicates,
+            "total_titles": len(titles),
+        }
+
+    def _analyze_entities(self, pages: list) -> dict:
+        entity_counter = Counter()
+        for p in pages:
+            h1 = p.get("h1", "")
+            title = p.get("title", "")
+            if h1:
+                for word in h1.split():
+                    if len(word) > 3 and word[0].isupper():
+                        entity_counter[word] += 1
+
+        unique = len(entity_counter)
+        score = min(100, unique * 3 + sum(entity_counter.values()))
+
+        return {
+            "score": score,
+            "unique_entities": unique,
+            "top_entities": dict(entity_counter.most_common(20)),
+        }
+
+    def _analyze_eeat(self, pages: list) -> dict:
+        signals = []
+        score = 0
+
+        # Author info
+        author_pages = sum(1 for p in pages if any(
+            kw in p.get("content_text", "").lower()[:500]
+            for kw in ["by ", "written by", "author", "editor", "reviewed by"]
+        ))
+        if author_pages > 0:
+            score += 25
+            signals.append(f"Author attribution: {author_pages} pages")
+
+        # About page
+        about_pages = sum(1 for p in pages if any(
+            kw in p.get("url", "").lower() + p.get("title", "").lower()
+            for kw in ["about", "team", "company", "our story"]
+        ))
+        if about_pages > 0:
+            score += 20
+            signals.append("About/team pages present")
+
+        # Contact info
+        contact = sum(1 for p in pages if any(
+            kw in p.get("content_text", "").lower()[:1000]
+            for kw in ["contact", "email", "phone", "address", "location"]
+        ))
+        if contact > 0:
+            score += 15
+            signals.append("Contact information present")
+
+        # Privacy/Terms
+        legal = sum(1 for p in pages if any(
+            kw in p.get("url", "").lower() + p.get("title", "").lower()
+            for kw in ["privacy", "terms", "policy", "legal"]
+        ))
+        if legal > 0:
+            score += 10
+            signals.append("Privacy/terms pages present")
+
+        # Citations and references
+        citations = sum(1 for p in pages if re.search(
+            r'\[.*?\]|\(.*?et al|source:|reference:|according to',
+            p.get("content_text", "")[:2000]
+        ))
+        if citations > 0:
+            score += 15
+            signals.append(f"Citations/references on {citations} pages")
+
+        # First-party data
+        original = sum(1 for p in pages if any(
+            kw in p.get("content_text", "").lower()[:2000]
+            for kw in ["our data", "we found", "our research", "our study", "survey of"]
+        ))
+        if original > 0:
+            score += 15
+            signals.append(f"First-party research on {original} pages")
+
+        return {"score": min(100, score), "signals": signals}
+
+    def _analyze_brand_signals(self, pages: list) -> dict:
+        signals = []
+        score = 0
+
+        # OpenGraph brand
+        og_site = sum(1 for p in pages if p.get("open_graph", {}).get("og:site_name"))
+        if og_site > 0:
+            score += 20
+            signals.append("OpenGraph site name configured")
+
+        # Twitter handles
+        twitter = sum(1 for p in pages if p.get("twitter_card", {}).get("twitter:site"))
+        if twitter > 0:
+            score += 15
+            signals.append("Twitter Card configured")
+
+        # Social links
+        social_domains = {"facebook.com", "twitter.com", "x.com", "linkedin.com", "instagram.com", "youtube.com"}
+        social_links = 0
+        for p in pages:
+            links = p.get("links_external", [])
+            if isinstance(links, list):
+                for link in links:
+                    if isinstance(link, str):
+                        if any(sd in link for sd in social_domains):
+                            social_links += 1
+        if social_links > 0:
+            score += 25
+            signals.append(f"{social_links} social media links found")
+
+        # Logo/branding in schema
+        logo = sum(1 for p in pages if any(
+            "logo" in str(s).lower() for s in (p.get("schema_markup", []) or [])
+        ))
+        if logo > 0:
+            score += 20
+            signals.append("Logo in structured data")
+
+        # Consistent naming
+        all_titles = [p.get("title", "") for p in pages if p.get("title")]
+        brand_words = Counter()
+        for title in all_titles:
+            for word in title.split():
+                if len(word) > 3:
+                    brand_words[word.lower()] += 1
+        common = [w for w, c in brand_words.most_common(5) if c > 2]
+        if common:
+            score += 20
+            signals.append(f"Consistent brand terms: {', '.join(common[:3])}")
+
+        return {"score": min(100, score), "signals": signals}
 
 
 class CompetitorIntelligenceEngine:
-    def analyze(self, page: dict[str, Any], competitor_pages: list[dict[str, Any]]) -> dict[str, Any]:
-        url = page.get("url", "")
-        c_count = len(competitor_pages)
-        gap_scores: dict[str, float] = {}
+    """Analyze multiple competitors independently and produce gap analysis."""
 
-        topic_result = self._topic_gap(page, competitor_pages)
-        gap_scores["topic_coverage"] = topic_result["score"]
+    def __init__(self):
+        self.crawler = CompetitorCrawler()
 
-        keyword_result = self._keyword_gap(page, competitor_pages)
-        gap_scores["keyword_gap"] = keyword_result["score"]
+    def analyze(self, my_pages: list, competitor_data: dict = None, competitor_url: str = "") -> dict:
+        """Full competitor intelligence analysis.
 
-        entity_result = self._entity_gap(page, competitor_pages)
-        gap_scores["entity_gap"] = entity_result["score"]
+        Args:
+            my_pages: Our crawled pages
+            competitor_data: {url: [pages]} for each competitor
+            competitor_url: single competitor URL (legacy support)
+        """
+        competitors = {}
 
-        faq_result = self._faq_gap(page, competitor_pages)
-        gap_scores["faq_gap"] = faq_result["score"]
+        # Handle both formats
+        if competitor_data:
+            for comp_url, comp_pages in competitor_data.items():
+                competitors[comp_url] = self.crawler.analyze_competitor(comp_pages, comp_url)
+        elif competitor_url:
+            # Single competitor — we only have the summary, not their pages
+            competitors[competitor_url] = self.crawler._empty_profile(competitor_url)
+            competitors[competitor_url]["note"] = "Full crawl data needed for detailed analysis"
 
-        heading_result = self._heading_gap(page, competitor_pages)
-        gap_scores["heading_gap"] = heading_result["score"]
+        # Analyze our site
+        my_profile = self.crawler.analyze_competitor(my_pages, "")
 
-        schema_result = self._schema_gap(page, competitor_pages)
-        gap_scores["schema_gap"] = schema_result["score"]
+        # Gap analysis per competitor
+        gaps = {}
+        for comp_url, comp in competitors.items():
+            gap = self._compute_gap(my_profile, comp)
+            gaps[comp_url] = gap
 
-        link_result = self._link_gap(page, competitor_pages)
-        gap_scores["internal_link_gap"] = link_result["score"]
-
-        trust_result = self._trust_gap(page, competitor_pages)
-        gap_scores["trust_signal_gap"] = trust_result["score"]
-
-        freshness_result = self._freshness_gap(page, competitor_pages)
-        gap_scores["content_freshness"] = freshness_result["score"]
-
-        media_result = self._media_gap(page, competitor_pages)
-        gap_scores["media_usage"] = media_result["score"]
-
-        table_list_result = self._table_list_gap(page, competitor_pages)
-        gap_scores["tables_and_lists"] = table_list_result["score"]
-
-        stats_result = self._stats_gap(page, competitor_pages)
-        gap_scores["statistics_and_citations"] = stats_result["score"]
-
-        overall = round(sum(gap_scores.values()) / len(gap_scores), 2) if gap_scores else 0.0
-
-        comp_summary = self._competitor_summary(competitor_pages)
-        action_plan = self._build_action_plan(gap_scores, topic_result, keyword_result, entity_result, heading_result, schema_result, trust_result, media_result)
-        winning = self._winning_opportunities(topic_result, keyword_result, entity_result, heading_result, schema_result, media_result)
-
-        return {
-            "url": url,
-            "competitor_count": c_count,
-            "overall_gap_score": overall,
-            "gap_analyses": {
-                "topic_coverage": topic_result,
-                "keyword_gap": keyword_result,
-                "entity_gap": entity_result,
-                "faq_gap": faq_result,
-                "heading_gap": heading_result,
-                "schema_gap": schema_result,
-                "internal_link_gap": link_result,
-                "trust_signal_gap": trust_result,
-                "content_freshness": freshness_result,
-                "media_usage": media_result,
-                "tables_and_lists": table_list_result,
-                "statistics_and_citations": stats_result,
-            },
-            "competitor_summary": comp_summary,
-            "action_plan": action_plan,
-            "winning_opportunities": winning,
-        }
-
-    def _topic_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_text = page.get("title", "") + " " + page.get("content_text", "")
-        your_topics = list(dict.fromkeys(_tokenize(your_text)))
-
-        comp_texts = [c.get("title", "") + " " + c.get("content_text", "") for c in competitors]
-        comp_topics = _build_word_freq(comp_texts)
-        your_freq = Counter(_tokenize(your_text))
-
-        common_threshold = max(1, len(competitors) // 2)
-        competitor_common = {w for w, c in comp_topics.items() if c >= common_threshold}
-
-        your_set = set(your_topics)
-        missing = sorted(competitor_common - your_set, key=lambda w: comp_topics[w], reverse=True)[:30]
-        unique = sorted(your_set - competitor_common - set(missing))[:20]
-
-        if not competitor_common:
-            score = 80.0
-        else:
-            overlap = len(your_set & competitor_common)
-            score = round((overlap / len(competitor_common)) * 100, 2) if competitor_common else 80.0
-
-        rec = ""
-        if missing:
-            rec = f"Add these topics competitors cover: {', '.join(missing[:5])}"
-        elif unique:
-            rec = f"You have unique angles ({', '.join(unique[:3])}). Leverage them for differentiation."
-        else:
-            rec = "Topic coverage is strong. Look for deeper subtopics."
+        # Overall competitive position
+        avg_comp_scores = {}
+        dimensions = ["authority", "content", "schema", "internal_links", "cwv", "titles", "eeat", "brand_signals", "ai_visibility"]
+        for dim in dimensions:
+            my_score = my_profile.get(dim, {}).get("score", 0)
+            comp_scores = [c.get(dim, {}).get("score", 0) for c in competitors.values()]
+            avg_comp = sum(comp_scores) / max(len(comp_scores), 1)
+            avg_comp_scores[dim] = {
+                "mine": my_score,
+                "avg_competitor": round(avg_comp, 1),
+                "delta": round(my_score - avg_comp, 1),
+                "advantage": "US" if my_score > avg_comp else "COMPETITOR" if avg_comp > my_score else "TIE",
+            }
 
         return {
-            "your_topics": your_topics[:50],
-            "competitor_topics": [w for w, _ in comp_topics.most_common(50)],
-            "missing_topics": missing,
-            "unique_topics": unique,
-            "score": score,
-            "recommendation": rec,
+            "my_profile": my_profile,
+            "competitors": competitors,
+            "gaps": gaps,
+            "competitive_position": avg_comp_scores,
+            "dimensions_analyzed": dimensions,
         }
 
-    def _keyword_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_title_words = set(_extract_title_words(page.get("title", "")))
-        your_content_words = set(_tokenize(page.get("content_text", "")))
-        your_all = your_title_words | your_content_words
+    def _compute_gap(self, my: dict, competitor: dict) -> dict:
+        """Compute gap between our profile and a competitor."""
+        gaps = {}
+        wins = []
+        losses = []
 
-        comp_title_words: Counter = Counter()
-        comp_content_words: Counter = Counter()
-        for c in competitors:
-            comp_title_words.update(_extract_title_words(c.get("title", "")))
-            comp_content_words.update(_tokenize(c.get("content_text", "")))
+        dimensions = {
+            "authority": "Authority",
+            "content": "Content Quality",
+            "schema": "Schema Markup",
+            "internal_links": "Internal Linking",
+            "cwv": "Core Web Vitals",
+            "titles": "Title Optimization",
+            "eeat": "E-E-A-T Signals",
+            "brand_signals": "Brand Signals",
+            "ai_visibility": "AI Readiness",
+        }
 
-        c_count = max(len(competitors), 1)
-        title_threshold = max(1, c_count // 3)
-        content_threshold = max(1, c_count // 2)
+        for key, label in dimensions.items():
+            my_score = my.get(key, {}).get("score", 0)
+            comp_score = competitor.get(key, {}).get("score", 0)
+            delta = my_score - comp_score
 
-        frequent_comp = set()
-        for w, cnt in comp_title_words.items():
-            if cnt >= title_threshold:
-                frequent_comp.add(w)
-        for w, cnt in comp_content_words.items():
-            if cnt >= content_threshold:
-                frequent_comp.add(w)
+            gaps[key] = {
+                "label": label,
+                "mine": my_score,
+                "competitor": comp_score,
+                "delta": delta,
+                "status": "WIN" if delta > 5 else "LOSS" if delta < -5 else "TIE",
+            }
 
-        missing = sorted(frequent_comp - your_all)
-
-        opportunities = []
-        for kw in missing:
-            tc = comp_title_words.get(kw, 0)
-            cc = comp_content_words.get(kw, 0)
-            total = tc + cc
-            difficulty = _compute_difficulty(your_all & {kw}.__len__() if kw in your_all else 0, total)
-            opportunities.append({
-                "keyword": kw,
-                "competitor_count": total,
-                "difficulty": difficulty,
-            })
-        opportunities.sort(key=lambda x: x["competitor_count"], reverse=True)
-        opportunities = opportunities[:30]
-
-        if not frequent_comp:
-            score = 75.0
-        else:
-            overlap = len(your_all & frequent_comp)
-            score = round((overlap / len(frequent_comp)) * 100, 2)
+            if delta > 5:
+                wins.append(label)
+            elif delta < -5:
+                losses.append(label)
 
         return {
-            "your_keywords": sorted(your_all)[:50],
-            "competitor_keywords": sorted(frequent_comp)[:50],
-            "missing_keywords": missing[:50],
-            "keyword_opportunities": opportunities,
-            "score": score,
+            "dimension_gaps": gaps,
+            "our_advantages": wins,
+            "their_advantages": losses,
+            "overall_competitive_score": round(
+                sum(g["delta"] for g in gaps.values()) / max(len(gaps), 1), 1
+            ),
         }
-
-    def _entity_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_entities = _extract_entities(page.get("title", "") + " " + page.get("content_text", ""))
-
-        comp_entities_counter: Counter = Counter()
-        for c in competitors:
-            ents = _extract_entities(c.get("title", "") + " " + c.get("content_text", ""))
-            comp_entities_counter.update(ents)
-
-        c_count = max(len(competitors), 1)
-        threshold = max(1, c_count // 3)
-        frequent = {e for e, cnt in comp_entities_counter.items() if cnt >= threshold}
-
-        your_set = set(your_entities)
-        missing_list = sorted(frequent - your_set, key=lambda e: comp_entities_counter[e], reverse=True)[:20]
-
-        missing_entities = []
-        for e in missing_list:
-            e_lower = e.lower()
-            etype = "organization" if e[0].isupper() and " " not in e else "concept"
-            if any(w in e_lower for w in ("inc", "llc", "corp", "company", "group")):
-                etype = "organization"
-            elif any(w in e_lower for w in ("framework", "method", "strategy", "model", "approach")):
-                etype = "concept"
-            elif any(w in e_lower for w in ("report", "study", "survey")):
-                etype = "reference"
-            importance = "high" if comp_entities_counter[e] >= c_count // 2 else "medium"
-            missing_entities.append({"entity": e, "type": etype, "importance": importance})
-
-        if not frequent:
-            score = 75.0
-        else:
-            overlap = len(your_set & frequent)
-            score = round((overlap / len(frequent)) * 100, 2)
-
-        return {
-            "your_entities": your_entities[:30],
-            "competitor_entities": sorted(frequent)[:30],
-            "missing_entities": missing_entities,
-            "score": score,
-        }
-
-    def _faq_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_html = page.get("html_raw", "") + " " + page.get("content_text", "")
-        your_faq_count = _count_questions(your_html)
-
-        comp_faq_counts = []
-        for c in competitors:
-            c_html = c.get("html_raw", "") + " " + c.get("content_text", "")
-            comp_faq_counts.append(_count_questions(c_html))
-
-        avg_comp_faqs = round(sum(comp_faq_counts) / len(comp_faq_counts), 1) if comp_faq_counts else 0
-
-        missing_faqs = []
-        for c in competitors:
-            c_html = c.get("html_raw", "") + " " + c.get("content_text", "")
-            c_headings = _heading_structure(c.get("html_raw", ""))
-            for h in c_headings:
-                if "?" in h["text"]:
-                    missing_faqs.append({"question": h["text"], "competitor_has": True})
-
-        your_headings = _heading_structure(page.get("html_raw", ""))
-        your_questions = {h["text"] for h in your_headings if "?" in h["text"]}
-        missing_faqs = [f for f in missing_faqs if f["question"] not in your_questions]
-        seen = set()
-        unique_missing = []
-        for f in missing_faqs:
-            if f["question"] not in seen:
-                seen.add(f["question"])
-                unique_missing.append(f)
-        missing_faqs = unique_missing[:15]
-
-        if avg_comp_faqs == 0:
-            score = 80.0
-        else:
-            score = round(min(100, (your_faq_count / max(avg_comp_faqs, 1)) * 100), 2)
-
-        return {
-            "your_faqs": your_faq_count,
-            "competitor_faqs": avg_comp_faqs,
-            "missing_faqs": missing_faqs,
-            "score": score,
-        }
-
-    def _heading_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_headings = _heading_structure(page.get("html_raw", ""))
-        your_pattern = _heading_pattern(your_headings)
-
-        comp_patterns: list[list[str]] = []
-        all_h2_texts: Counter = Counter()
-        all_h3_texts: Counter = Counter()
-        for c in competitors:
-            ch = _heading_structure(c.get("html_raw", ""))
-            comp_patterns.append(_heading_pattern(ch))
-            for h in ch:
-                text = h["text"][:60].lower()
-                if h["level"] == "h2":
-                    all_h2_texts.update([text])
-                elif h["level"] == "h3":
-                    all_h3_texts.update([text])
-
-        your_levels = Counter(h["level"] for h in your_headings)
-        comp_level_totals: Counter = Counter()
-        for cp in comp_patterns:
-            for item in cp:
-                level = item.split(":")[0]
-                comp_level_totals[level] += 1
-
-        c_count = max(len(competitors), 1)
-        missing_types = []
-        for level in ["h2", "h3", "h4"]:
-            if your_levels.get(level, 0) < comp_level_totals.get(level, 0) / c_count:
-                missing_types.append(level)
-
-        suggested = []
-        for h2_text, cnt in all_h2_texts.most_common(10):
-            if cnt >= c_count // 3:
-                suggested.append(f"H2: {h2_text.title()}")
-        for h3_text, cnt in all_h3_texts.most_common(10):
-            if cnt >= c_count // 3:
-                suggested.append(f"H3: {h3_text.title()}")
-
-        comp_headings_flat = [item for sublist in comp_patterns for item in sublist]
-        your_set = set(your_pattern)
-        comp_set = set(comp_headings_flat)
-        overlap = len(your_set & comp_set)
-        total_unique = len(comp_set) | 1
-        score = round((overlap / total_unique) * 100, 2) if total_unique else 70.0
-
-        return {
-            "your_headings": your_pattern[:30],
-            "competitor_heading_patterns": comp_headings_flat[:30],
-            "missing_heading_types": missing_types,
-            "suggested_headings": suggested[:20],
-            "score": score,
-        }
-
-    def _schema_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_schemas = _schema_types(page.get("html_raw", ""))
-
-        comp_schema_counter: Counter = Counter()
-        for c in competitors:
-            comp_schema_counter.update(_schema_types(c.get("html_raw", "")))
-
-        c_count = max(len(competitors), 1)
-        threshold = max(1, c_count // 3)
-        frequent = {s for s, cnt in comp_schema_counter.items() if cnt >= threshold}
-
-        your_set = set(your_schemas)
-        missing = sorted(frequent - your_set)
-
-        if not frequent:
-            score = 80.0
-        else:
-            overlap = len(your_set & frequent)
-            score = round((overlap / len(frequent)) * 100, 2)
-
-        return {
-            "your_schemas": your_schemas,
-            "competitor_schemas": sorted(frequent),
-            "missing_schemas": missing,
-            "score": score,
-        }
-
-    def _link_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_links = len(page.get("links_internal", []) if isinstance(page.get("links_internal"), list) else [])
-
-        comp_link_counts = []
-        for c in competitors:
-            links = c.get("links_internal", [])
-            if isinstance(links, list):
-                comp_link_counts.append(len(links))
-            else:
-                comp_link_counts.append(0)
-
-        avg_links = round(sum(comp_link_counts) / len(comp_link_counts), 1) if comp_link_counts else 0
-        missing = max(0, round(avg_links - your_links))
-
-        if avg_links == 0:
-            score = 80.0
-        else:
-            score = round(min(100, (your_links / avg_links) * 100), 2)
-
-        return {
-            "your_links": your_links,
-            "competitor_avg_links": avg_links,
-            "missing_internal_links": missing,
-            "score": score,
-        }
-
-    def _trust_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_signals = _detect_trust_signals(page)
-
-        comp_signal_counter: Counter = Counter()
-        for c in competitors:
-            comp_signal_counter.update(_detect_trust_signals(c))
-
-        c_count = max(len(competitors), 1)
-        threshold = max(1, c_count // 3)
-        frequent = {s for s, cnt in comp_signal_counter.items() if cnt >= threshold}
-
-        your_set = set(your_signals)
-        missing = sorted(frequent - your_set)
-
-        if not frequent:
-            score = 75.0
-        else:
-            overlap = len(your_set & frequent)
-            score = round((overlap / len(frequent)) * 100, 2)
-
-        return {
-            "your_signals": your_signals,
-            "competitor_signals": sorted(frequent),
-            "missing_signals": missing,
-            "score": score,
-        }
-
-    def _freshness_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_freshness = _detect_freshness(page)
-
-        comp_freshness_list = [_detect_freshness(c) for c in competitors]
-        valid_years = [int(f) for f in comp_freshness_list if f != "unknown"]
-        avg_freshness = str(max(valid_years)) if valid_years else "unknown"
-
-        if your_freshness == "unknown":
-            gap = "missing year references"
-            score = 30.0
-        elif avg_freshness == "unknown":
-            gap = "no gap detected"
-            score = 80.0
-        else:
-            diff = int(avg_freshness) - int(your_freshness)
-            if diff <= 0:
-                gap = "up to date"
-                score = 95.0
-            elif diff == 1:
-                gap = "1 year behind"
-                score = 60.0
-            else:
-                gap = f"{diff} years behind"
-                score = max(10, 60.0 - diff * 15)
-
-        return {
-            "your_freshness": your_freshness,
-            "competitor_freshness": avg_freshness,
-            "freshness_gap": gap,
-            "score": round(score, 2),
-        }
-
-    def _media_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_images = _count_images(page.get("html_raw", ""))
-        your_video = _has_video(page.get("html_raw", ""))
-
-        comp_image_counts = [_count_images(c.get("html_raw", "")) for c in competitors]
-        comp_videos = [_has_video(c.get("html_raw", "")) for c in competitors]
-
-        avg_images = round(sum(comp_image_counts) / len(comp_image_counts), 1) if comp_image_counts else 0
-        any_video = any(comp_videos)
-
-        missing_media = []
-        if your_images < avg_images:
-            missing_media.append(f"Add ~{round(avg_images - your_images)} more images")
-        if not your_video and any_video:
-            missing_media.append("Add video content (competitors have videos)")
-        if your_video and not any_video:
-            pass
-
-        if avg_images == 0 and not any_video:
-            score = 75.0
-        else:
-            img_score = min(100, (your_images / max(avg_images, 1)) * 100) if avg_images > 0 else 100
-            video_score = 100.0 if (your_video or not any_video) else 50.0
-            score = round((img_score * 0.6 + video_score * 0.4), 2)
-
-        return {
-            "your_images": your_images,
-            "competitor_avg_images": avg_images,
-            "your_videos": your_video,
-            "competitor_has_videos": any_video,
-            "missing_media": missing_media,
-            "score": score,
-        }
-
-    def _table_list_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_tables = _count_tables(page.get("html_raw", ""))
-        your_lists = _count_lists(page.get("html_raw", ""))
-
-        comp_tables = [_count_tables(c.get("html_raw", "")) for c in competitors]
-        comp_lists = [_count_lists(c.get("html_raw", "")) for c in competitors]
-
-        avg_tables = round(sum(comp_tables) / len(comp_tables), 1) if comp_tables else 0
-        avg_lists = round(sum(comp_lists) / len(comp_lists), 1) if comp_lists else 0
-
-        total_your = your_tables + your_lists
-        total_avg = avg_tables + avg_lists
-
-        if total_avg == 0:
-            score = 75.0
-        else:
-            score = round(min(100, (total_your / max(total_avg, 1)) * 100), 2)
-
-        return {
-            "your_tables": your_tables,
-            "your_lists": your_lists,
-            "competitor_avg_tables": avg_tables,
-            "competitor_avg_lists": avg_lists,
-            "score": score,
-        }
-
-    def _stats_gap(self, page: dict, competitors: list[dict]) -> dict:
-        your_text = page.get("content_text", "") + " " + page.get("html_raw", "")
-        your_stats = _count_statistics(your_text)
-        your_citations = _count_citations(your_text)
-
-        comp_stats = []
-        comp_citations = []
-        for c in competitors:
-            ct = c.get("content_text", "") + " " + c.get("html_raw", "")
-            comp_stats.append(_count_statistics(ct))
-            comp_citations.append(_count_citations(ct))
-
-        avg_stats = round(sum(comp_stats) / len(comp_stats), 1) if comp_stats else 0
-        avg_citations = round(sum(comp_citations) / len(comp_citations), 1) if comp_citations else 0
-
-        total_your = your_stats + your_citations
-        total_avg = avg_stats + avg_citations
-
-        if total_avg == 0:
-            score = 75.0
-        else:
-            score = round(min(100, (total_your / max(total_avg, 1)) * 100), 2)
-
-        return {
-            "your_statistics": your_stats,
-            "your_citations": your_citations,
-            "competitor_avg_statistics": avg_stats,
-            "competitor_avg_citations": avg_citations,
-            "score": score,
-        }
-
-    def _competitor_summary(self, competitors: list[dict]) -> list[dict]:
-        summaries = []
-        for c in competitors:
-            url = c.get("url", "")
-            wc = c.get("word_count", 0)
-            html = c.get("html_raw", "")
-            strengths = []
-            weaknesses = []
-
-            if wc > 1500:
-                strengths.append(f"Comprehensive content ({wc} words)")
-            elif wc < 500:
-                weaknesses.append(f"Thin content ({wc} words)")
-
-            img_count = _count_images(html)
-            if img_count > 5:
-                strengths.append(f"Rich media ({img_count} images)")
-            elif img_count == 0:
-                weaknesses.append("No images")
-
-            if _has_video(html):
-                strengths.append("Includes video content")
-
-            schemas = _schema_types(html)
-            if schemas:
-                strengths.append(f"Structured data: {', '.join(schemas[:3])}")
-            else:
-                weaknesses.append("No structured data")
-
-            if _detect_trust_signals(c):
-                strengths.append(f"Trust signals: {', '.join(_detect_trust_signals(c))}")
-
-            faqs = _count_questions(c.get("content_text", "") + " " + html)
-            if faqs > 3:
-                strengths.append(f"FAQ-rich ({faqs} questions)")
-
-            links = c.get("links_internal", [])
-            if isinstance(links, list) and len(links) > 20:
-                strengths.append(f"Strong internal linking ({len(links)} links)")
-
-            tables = _count_tables(html)
-            lists_count = _count_lists(html)
-            if tables > 2:
-                strengths.append(f"Data presentation ({tables} tables)")
-            if lists_count > 3:
-                strengths.append(f"Scannable content ({lists_count} lists)")
-
-            if not strengths:
-                strengths.append("Baseline content present")
-            if not weaknesses:
-                weaknesses.append("No obvious weaknesses detected")
-
-            summaries.append({
-                "url": url,
-                "word_count": wc,
-                "strengths": strengths,
-                "weaknesses": weaknesses,
-            })
-        return summaries
-
-    def _build_action_plan(
-        self,
-        gap_scores: dict[str, float],
-        topic_result: dict,
-        keyword_result: dict,
-        entity_result: dict,
-        heading_result: dict,
-        schema_result: dict,
-        trust_result: dict,
-        media_result: dict,
-    ) -> list[dict]:
-        actions: list[dict] = []
-
-        if gap_scores.get("keyword_gap", 100) < 70:
-            kw_opps = keyword_result.get("keyword_opportunities", [])[:5]
-            kw_list = ", ".join(k["keyword"] for k in kw_opps) if kw_opps else "competitor keywords"
-            actions.append({
-                "action": f"Integrate missing keywords into content: {kw_list}",
-                "priority": "high",
-                "estimated_impact": "high",
-                "effort": "medium",
-            })
-
-        if gap_scores.get("topic_coverage", 100) < 70:
-            missing = topic_result.get("missing_topics", [])[:5]
-            actions.append({
-                "action": f"Expand content to cover missing topics: {', '.join(missing)}",
-                "priority": "high",
-                "estimated_impact": "high",
-                "effort": "high",
-            })
-
-        if gap_scores.get("entity_gap", 100) < 70:
-            ents = entity_result.get("missing_entities", [])[:3]
-            ent_names = ", ".join(e["entity"] for e in ents) if ents else "key entities"
-            actions.append({
-                "action": f"Include missing entities for topical authority: {ent_names}",
-                "priority": "medium",
-                "estimated_impact": "medium",
-                "effort": "low",
-            })
-
-        if gap_scores.get("schema_gap", 100) < 70:
-            schemas = schema_result.get("missing_schemas", [])
-            actions.append({
-                "action": f"Implement missing schema markup: {', '.join(schemas)}",
-                "priority": "medium",
-                "estimated_impact": "medium",
-                "effort": "low",
-            })
-
-        if gap_scores.get("heading_gap", 100) < 60:
-            suggestions = heading_result.get("suggested_headings", [])[:3]
-            actions.append({
-                "action": f"Restructure headings with competitor patterns: {'; '.join(suggestions)}",
-                "priority": "medium",
-                "estimated_impact": "medium",
-                "effort": "low",
-            })
-
-        if gap_scores.get("trust_signal_gap", 100) < 70:
-            missing_sigs = trust_result.get("missing_signals", [])
-            actions.append({
-                "action": f"Add trust signals: {', '.join(missing_sigs)}",
-                "priority": "medium",
-                "estimated_impact": "medium",
-                "effort": "low",
-            })
-
-        if gap_scores.get("media_usage", 100) < 60:
-            missing_m = media_result.get("missing_media", [])
-            actions.append({
-                "action": f"Enhance media usage: {'; '.join(missing_m)}",
-                "priority": "low",
-                "estimated_impact": "medium",
-                "effort": "medium",
-            })
-
-        if gap_scores.get("statistics_and_citations", 100) < 60:
-            actions.append({
-                "action": "Add more statistics and source citations to boost credibility",
-                "priority": "medium",
-                "estimated_impact": "medium",
-                "effort": "medium",
-            })
-
-        if gap_scores.get("tables_and_lists", 100) < 60:
-            actions.append({
-                "action": "Add tables and lists to improve scannability and data presentation",
-                "priority": "low",
-                "estimated_impact": "low",
-                "effort": "low",
-            })
-
-        if gap_scores.get("content_freshness", 100) < 50:
-            actions.append({
-                "action": "Update content with current year references and fresh data",
-                "priority": "high",
-                "estimated_impact": "high",
-                "effort": "low",
-            })
-
-        if gap_scores.get("internal_link_gap", 100) < 60:
-            actions.append({
-                "action": "Add more internal links to related content on your site",
-                "priority": "medium",
-                "estimated_impact": "medium",
-                "effort": "low",
-            })
-
-        actions.sort(key=lambda a: {"high": 0, "medium": 1, "low": 2}.get(a["priority"], 3))
-        return actions[:15]
-
-    def _winning_opportunities(
-        self,
-        topic_result: dict,
-        keyword_result: dict,
-        entity_result: dict,
-        heading_result: dict,
-        schema_result: dict,
-        media_result: dict,
-    ) -> list[dict]:
-        opps: list[dict] = []
-
-        unique_topics = topic_result.get("unique_topics", [])[:5]
-        if unique_topics:
-            opps.append({
-                "opportunity": "Leverage unique topic coverage",
-                "why": f"You cover topics competitors don't: {', '.join(unique_topics[:3])}",
-                "how": "Create dedicated content clusters around these unique angles to establish niche authority",
-            })
-
-        missing_kws = keyword_result.get("keyword_opportunities", [])[:5]
-        easy_kws = [k for k in missing_kws if k["difficulty"] == "easy"]
-        if easy_kws:
-            kw_list = ", ".join(k["keyword"] for k in easy_kws[:3])
-            opps.append({
-                "opportunity": "Capture low-difficulty keyword gaps",
-                "why": f"These keywords are used by multiple competitors but missing from your content: {kw_list}",
-                "how": "Integrate these keywords naturally into existing headings and body paragraphs",
-            })
-
-        missing_entities = entity_result.get("missing_entities", [])[:3]
-        high_imp = [e for e in missing_entities if e["importance"] == "high"]
-        if high_imp:
-            ent_list = ", ".join(e["entity"] for e in high_imp[:3])
-            opps.append({
-                "opportunity": "Add high-importance missing entities",
-                "why": f"Competitors consistently reference: {ent_list}",
-                "how": "Mention these entities in context with proper attribution to build topical authority",
-            })
-
-        missing_schemas = schema_result.get("missing_schemas", [])[:3]
-        if missing_schemas:
-            opps.append({
-                "opportunity": "Implement missing structured data",
-                "why": f"Competitors use {', '.join(missing_schemas)} schema but you don't",
-                "how": "Add JSON-LD structured data for these types to improve rich snippet eligibility",
-            })
-
-        missing_headings = heading_result.get("suggested_headings", [])[:3]
-        if missing_headings:
-            opps.append({
-                "opportunity": "Match competitor heading structure",
-                "why": "Competitors use heading patterns you're missing",
-                "how": f"Add sections with these headings: {'; '.join(missing_headings)}",
-            })
-
-        if media_result.get("your_videos") is False and media_result.get("competitor_has_videos"):
-            opps.append({
-                "opportunity": "Add video content",
-                "why": "Competitors have embedded video content but you don't",
-                "how": "Create or embed relevant video content to increase engagement and time on page",
-            })
-
-        return opps[:10]

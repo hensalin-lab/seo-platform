@@ -233,7 +233,7 @@ export default function Dashboard() {
                   else if (content < 60) weaknesses.push('content quality is below average')
                   if (ai >= 70) strengths.push('solid AI search presence')
                   else if (ai < 50) weaknesses.push('AI search visibility is weak')
-                  const highPriCount = deepData?.top_issues?.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').length || 0
+                  const highPriCount = deepData?.issue_summary?.CRITICAL + deepData?.issue_summary?.HIGH || deepData?.top_issues?.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').length || 0
                   const estAfter = Math.min(98, Math.round(latest.overall_score || 0) + Math.round(highPriCount * 1.5))
                   return (
                     <>
@@ -263,8 +263,8 @@ export default function Dashboard() {
                   { label: 'Technical SEO', value: latest.technical_score, color: '#4c6ef5', status: (latest.technical_score || 0) >= 80 ? 'Excellent' : (latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
                   { label: 'Content', value: latest.content_score, color: '#7950f2', status: (latest.content_score || 0) >= 80 ? 'Excellent' : (latest.content_score || 0) >= 60 ? 'Good' : 'Needs Improvement' },
                   { label: 'AI Search', value: latest.ai_visibility_score || latest.aeo_score, color: '#e64980', status: (latest.ai_visibility_score || latest.aeo_score || 0) >= 70 ? 'Good' : (latest.ai_visibility_score || latest.aeo_score || 0) >= 50 ? 'Average' : 'Weak' },
-                  { label: 'Performance', value: deepData?.performance_score || latest.technical_score || 0, color: '#20c997', status: (deepData?.performance_score || latest.technical_score || 0) >= 80 ? 'Excellent' : (deepData?.performance_score || latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
-                  { label: 'Authority', value: deepData?.authority_score || Math.min(80, (latest.seo_score || 0) + 10), color: '#f59f00', status: (deepData?.authority_score || 0) >= 70 ? 'Good' : (deepData?.authority_score || 0) >= 50 ? 'Average' : 'Low' },
+                  { label: 'Performance', value: deepData?.health_scores?.technical_health || deepData?.performance_score || latest.technical_score || 0, color: '#20c997', status: (deepData?.health_scores?.technical_health || deepData?.performance_score || latest.technical_score || 0) >= 80 ? 'Excellent' : (deepData?.health_scores?.technical_health || deepData?.performance_score || latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
+                  { label: 'Authority', value: deepData?.health_scores?.eeat_score || deepData?.authority_score || Math.min(80, (latest.seo_score || 0) + 10), color: '#f59f00', status: (deepData?.health_scores?.eeat_score || deepData?.authority_score || 0) >= 70 ? 'Good' : (deepData?.health_scores?.eeat_score || deepData?.authority_score || 0) >= 50 ? 'Average' : 'Low' },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 12, width: 90, color: 'var(--text-muted)' }}>{item.label}</span>
@@ -300,22 +300,21 @@ export default function Dashboard() {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#fa5252', marginBottom: 6 }}>Fix Today</div>
-                {deepData?.top_issues?.filter(i => i.severity === 'CRITICAL').slice(0, 3).map((issue, i) => (
+                {deepData?.action_center?.immediate?.slice(0, 3).map((issue, i) => (
                   <QuickIssueRow key={i} issue={issue} />
                 ))}
-                {(!deepData?.top_issues || deepData.top_issues.filter(i => i.severity === 'CRITICAL').length === 0) && (
+                {(!deepData?.action_center?.immediate || deepData.action_center.immediate.length === 0) && (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0' }}>No critical issues — great!</div>
                 )}
               </div>
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#f59f00', marginBottom: 6 }}>This Week</div>
-                {deepData?.recommendations?.slice(0, 3).map((rec, i) => (
+                {deepData?.action_center?.this_week?.slice(0, 3).map((rec, i) => (
                   <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border-light)', fontSize: 13 }}>
-                    {rec.title || rec.recommendation || rec.action || 'Recommendation'}
-                    {rec.time && <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8 }}>{rec.time}</span>}
+                    {rec.action || rec.title || rec.recommendation || 'Recommendation'}
                   </div>
                 ))}
-                {!deepLoading && deepData && (!deepData.recommendations || deepData.recommendations.length === 0) && (
+                {!deepLoading && deepData && (!deepData.action_center?.this_week || deepData.action_center.this_week.length === 0) && (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0' }}>No pending recommendations</div>
                 )}
               </div>
@@ -377,10 +376,13 @@ export default function Dashboard() {
                 {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/issues`)}>View All</button>}
               </div>
               {deepLoading && !deepData && <InlineLoader text="Loading issues..." />}
-              {deepData?.top_issues?.filter(i => i.severity !== 'CRITICAL').slice(0, 5).map((issue, i) => (
+              {deepData?.action_center?.this_month?.slice(0, 5).map((issue, i) => (
                 <QuickIssueRow key={i} issue={issue} />
               ))}
-              {!deepLoading && deepData && (!deepData.top_issues || deepData.top_issues.filter(i => i.severity !== 'CRITICAL').length === 0) && (
+              {(!deepData?.action_center?.this_month || deepData.action_center.this_month.length === 0) && deepData?.recent_issues?.filter(i => i.severity !== 'CRITICAL').slice(0, 5).map((issue, i) => (
+                <QuickIssueRow key={i} issue={issue} />
+              ))}
+              {!deepLoading && deepData && (!deepData.action_center?.this_month && (!deepData.recent_issues || deepData.recent_issues.filter(i => i.severity !== 'CRITICAL').length === 0)) && (
                 <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '12px 0' }}>No additional issues — great!</div>
               )}
             </div>
@@ -395,18 +397,19 @@ export default function Dashboard() {
                 {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/recommendations`)}>View All</button>}
               </div>
               {deepLoading && !deepData && <InlineLoader text="Loading recommendations..." />}
-              {deepData?.recommendations?.slice(0, 5).map((rec, i) => (
+              {deepData?.action_center?.this_week?.slice(0, 5).map((rec, i) => (
                 <div key={i} style={{ padding: '10px 0', borderBottom: i < 4 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{rec.title || rec.recommendation || rec.action || rec.fix || 'Recommendation'}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', gap: 8 }}>
-                    {rec.impact && <span>Impact: {rec.impact}</span>}
-                    {rec.effort && <span>Effort: {rec.effort}</span>}
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{rec.action || rec.title || rec.recommendation || rec.fix || 'Recommendation'}</div>
                 </div>
               ))}
-              {!deepLoading && deepData && (!deepData.recommendations || deepData.recommendations.length === 0) && (
+              {(!deepData?.action_center?.this_week || deepData.action_center.this_week.length === 0) && deepData?.recent_issues?.slice(0, 5).map((rec, i) => (
+                <div key={i} style={{ padding: '10px 0', borderBottom: i < 4 ? '1px solid var(--border)' : 'none' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{rec.description || 'Issue'}</div>
+                </div>
+              ))}
+              {!deepLoading && deepData && (!deepData.action_center?.this_week || deepData.action_center.this_week.length === 0) && (!deepData.recent_issues || deepData.recent_issues.length === 0) && (
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
-                  Run a full audit to get AI-powered recommendations
+                  No recommendations yet
                 </div>
               )}
             </div>
@@ -421,13 +424,13 @@ export default function Dashboard() {
                 {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/content`)}>View All</button>}
               </div>
               {deepLoading && !deepData && <InlineLoader text="Loading content analysis..." />}
-              {deepData?.content_gaps?.slice(0, 5).map((gap, i) => (
+              {deepData?.recent_issues?.filter(i => i.category === 'CONTENT').slice(0, 5).map((gap, i) => (
                 <div key={i} style={{ padding: '10px 0', borderBottom: i < 4 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{gap.topic || gap.keyword || gap.gap || gap.title || 'Gap'}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{gap.reason || gap.description || ''}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{gap.description || 'Content issue'}</div>
+                  {gap.page_url && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{gap.page_url}</div>}
                 </div>
               ))}
-              {!deepLoading && deepData && (!deepData.content_gaps || deepData.content_gaps.length === 0) && (
+              {!deepLoading && deepData && (!deepData.recent_issues || deepData.recent_issues.filter(i => i.category === 'CONTENT').length === 0) && (
                 <div style={{ padding: '8px 0' }}>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Suggested content topics:</div>
                   {['Revenue Intelligence Guide', 'AI GTM Platform Comparison', 'RevOps Automation Best Practices', 'Lead Enrichment Software Review', 'AI Sales Intelligence Overview'].map((topic, i) => (

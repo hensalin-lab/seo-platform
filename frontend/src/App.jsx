@@ -67,6 +67,8 @@ import SitemapRobots from './pages/SitemapRobots';
 import SocialSeo from './pages/SocialSeo';
 import AiRoadmap from './pages/AiRoadmap';
 import AiSuggestions from './pages/AiSuggestions';
+import IssuesExplorer from './pages/IssuesExplorer';
+import Trends from './pages/Trends';
 import './index.css';
 
 export default function App() {
@@ -138,6 +140,8 @@ export default function App() {
                   <Route path="/audit/:id/social-seo" element={<ProtectedRoute><SocialSeo /></ProtectedRoute>} />
                   <Route path="/audit/:id/ai-roadmap" element={<ProtectedRoute><AiRoadmap /></ProtectedRoute>} />
                   <Route path="/audit/:id/ai-suggestions" element={<ProtectedRoute><AiSuggestions /></ProtectedRoute>} />
+                  <Route path="/audit/:id/issues" element={<ProtectedRoute><IssuesExplorer /></ProtectedRoute>} />
+                  <Route path="/trends" element={<ProtectedRoute><Trends /></ProtectedRoute>} />
                   <Route path="/audit/:id/chat" element={<ProtectedRoute><AiChat /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                   <Route path="/audit/:id" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

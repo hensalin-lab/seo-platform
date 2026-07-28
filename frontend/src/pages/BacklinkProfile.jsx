@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
-import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3 } from 'lucide-react';
+import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3, Info } from 'lucide-react';
 
 export default function BacklinkProfile() {
   const { id } = useParams();
@@ -59,9 +59,10 @@ export default function BacklinkProfile() {
   }
 
   const score = data.backlink_score ?? 0;
-  const topDomains = data.top_referring_domains || [];
+  const topDomains = data.top_linked_domains || data.top_referring_domains || [];
   const anchors = data.anchor_text_distribution || [];
-  const pageLinks = data.pages_with_most_external_links || [];
+  const pageLinks = data.pages_with_most_outbound_links || data.pages_with_most_external_links || [];
+  const note = data.note || '';
 
   const getScoreColor = (s) => {
     if (s >= 80) return 'score-excellent';
@@ -75,9 +76,15 @@ export default function BacklinkProfile() {
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <Link size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Backlink Profile</h1>
+          <h1>Outbound Link Profile</h1>
         </div>
-        <p>Analyze your backlink profile, referring domains, and anchor text distribution</p>
+        <p>Analyze your outbound links, linked domains, and anchor text distribution</p>
+        {note && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 12px', background: 'rgba(var(--accent-rgb, 99, 102, 241), 0.1)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <Info size={14} />
+            <span>{note}</span>
+          </div>
+        )}
       </div>
 
       <div className="score-grid">
@@ -90,13 +97,13 @@ export default function BacklinkProfile() {
           </div>
         </div>
         <div className="score-card">
-          <div className="label">Total Backlinks</div>
-          <div className="score" style={{ color: 'var(--accent)' }}>{data.total_backlinks ?? 0}</div>
+          <div className="label">Total Outbound Links</div>
+          <div className="score" style={{ color: 'var(--accent)' }}>{data.outbound_link_count ?? data.total_backlinks ?? 0}</div>
           <div className="out-of">external links</div>
         </div>
         <div className="score-card">
-          <div className="label">Referring Domains</div>
-          <div className="score" style={{ color: 'var(--green)' }}>{data.referring_domains ?? 0}</div>
+          <div className="label">Linked Domains</div>
+          <div className="score" style={{ color: 'var(--green)' }}>{data.linked_domains ?? data.referring_domains ?? 0}</div>
           <div className="out-of">unique domains</div>
         </div>
         <div className="score-card">
@@ -110,7 +117,7 @@ export default function BacklinkProfile() {
         <div className="card">
           <div className="card-header">
             <Globe size={18} style={{ color: 'var(--accent)' }} />
-            <h3>Top Referring Domains</h3>
+            <h3>Top Linked Domains</h3>
           </div>
           <div className="table-container">
             <table className="data-table">
@@ -164,7 +171,7 @@ export default function BacklinkProfile() {
         <div className="card">
           <div className="card-header">
             <AlertTriangle size={18} style={{ color: 'var(--yellow)' }} />
-            <h3>Backlink Issues</h3>
+            <h3>Link Issues</h3>
             <span className="badge badge-yellow">{data.issues.length}</span>
           </div>
           {data.issues.map((issue, idx) => (

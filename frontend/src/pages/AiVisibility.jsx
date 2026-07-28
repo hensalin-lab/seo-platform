@@ -195,6 +195,10 @@ export default function AiVisibility() {
   const chatgptScore = data.chatgpt_visibility ?? data.chatgpt_readiness ?? 0;
   const geminiScore = data.gemini_visibility ?? data.gemini_readiness ?? 0;
   const perplexityScore = data.perplexity_visibility ?? data.perplexity_readiness ?? 0;
+  const pagesAnalyzed = data.pages_analyzed ?? 0;
+  const pagesWithSchema = data.pages_with_schema ?? 0;
+  const pagesWithCitations = data.pages_with_citations ?? 0;
+  const pagesWithFresh = data.pages_with_fresh_content ?? 0;
 
   const criticalCount = issues.filter(i => (i.severity || '').toUpperCase() === 'CRITICAL').length;
   const highCount = issues.filter(i => (i.severity || '').toUpperCase() === 'HIGH').length;
@@ -222,7 +226,10 @@ export default function AiVisibility() {
               { label: 'Total Issues', value: issues.length, color: issues.length > 0 ? 'var(--red, #ef4444)' : 'var(--green, #22c55e)' },
               { label: 'Critical', value: criticalCount, color: 'var(--red, #ef4444)' },
               { label: 'High', value: highCount, color: 'var(--yellow, #f59e0b)' },
-              { label: 'Signals Analyzed', value: Object.keys(signals).length, color: 'var(--cyan, #0891b2)' },
+              { label: 'Pages Analyzed', value: pagesAnalyzed, color: 'var(--accent, #6366f1)' },
+              { label: 'Schema Coverage', value: pagesWithSchema, color: 'var(--cyan, #0891b2)' },
+              { label: 'Citation-Ready', value: pagesWithCitations, color: 'var(--green, #22c55e)' },
+              { label: 'Fresh Content', value: pagesWithFresh, color: 'var(--blue, #3b82f6)' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '14px 14px', background: 'var(--bg, #f9fafb)', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid var(--border-light, #f3f4f6)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted, #6b7280)', fontWeight: 500, marginBottom: 4 }}>{s.label}</div>

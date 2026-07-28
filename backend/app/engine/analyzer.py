@@ -61,6 +61,7 @@ class AnalysisResult:
         self.keyword_data = []
         self.content_opportunities = []
         self.roadmap = {"immediate": [], "week1": [], "month1": [], "month3": []}
+        self.canonicalization = {}
 
     def add_signal(self, id, name, category, score, weight, description, detail="", page_url=""):
         self.signals.append(Signal(id, name, category, score, weight, description, detail, page_url))
@@ -166,9 +167,27 @@ class AnalyzerEngine:
         if not pages:
             return result
 
+        from app.engine.url_canonicalization import URLCanonicalizer
+        canonicalizer = URLCanonicalizer()
+        page_dicts = []
+        for p in pages:
+            page_dicts.append({
+                "url": p.url, "title": p.title or "", "h1": p.h1 or "",
+                "canonical": p.canonical or "", "status_code": p.status_code,
+                "word_count": p.word_count or 0, "content_text": p.content_text or "",
+            })
+        canonical_result = canonicalizer.analyze(page_dicts)
+        result.canonicalization = {
+            "summary": canonical_result.get("summary", {}),
+            "issues": canonical_result.get("canonicalization_issues", {}),
+            "duplicate_groups": canonical_result.get("duplicate_groups", []),
+            "redirect_chains": canonical_result.get("redirect_chains", []),
+        }
+
         for page in pages:
             if not getattr(page, 'page_type', None) or page.page_type in ("UNKNOWN", "other", ""):
                 page.page_type = self._detect_page_type(page)
+            page._normalized_url = canonicalizer.normalize(page.url)
 
         all_text = " ".join(p.content_text for p in pages if p.content_text)
         all_titles = [p.title for p in pages if p.title]

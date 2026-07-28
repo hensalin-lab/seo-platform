@@ -166,14 +166,36 @@ async def get_audit_issues(audit_id: str, category: str = None, severity: str = 
 @router.get("/audit/{audit_id}/recommendations")
 async def get_audit_recommendations(audit_id: str, offset: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
+    from app.engine.confidence_engine import RecommendationConfidenceEngine
     count_query = select(func.count()).select_from(Recommendation).where(Recommendation.audit_id == audit_id)
     total = (await db.execute(count_query)).scalar() or 0
-    result = await db.execute(
+    recs_result = await db.execute(
         select(Recommendation).where(Recommendation.audit_id == audit_id)
         .order_by(Recommendation.priority).offset(offset).limit(limit)
     )
-    return {
-        "items": [{
+    recs = recs_result.scalars().all()
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+    pages_by_url = {p.url: p for p in pages}
+
+    conf_engine = RecommendationConfidenceEngine()
+    enriched = []
+    for r in recs:
+        page_obj = pages_by_url.get(r.page_url)
+        page_dict = {}
+        if page_obj:
+            page_dict = {
+                "title": page_obj.title or "", "meta_description": page_obj.meta_description or "",
+                "h1": page_obj.h1 or "", "word_count": page_obj.word_count or 0,
+                "content_text": page_obj.content_text or "", "images": page_obj.images or [],
+                "links_internal": page_obj.links_internal or [], "headings": page_obj.headers or [],
+                "response_time_ms": page_obj.response_time_ms or 0,
+            }
+        rec_dict = {"category": r.category or "", "issue": r.issue or "", "priority": r.priority or ""}
+        enriched_rec = conf_engine.enrich_recommendations([rec_dict], page_dict)
+        conf = enriched_rec[0] if enriched_rec else {}
+        enriched.append({
             "id": r.id, "page_url": r.page_url, "category": r.category, "priority": r.priority,
             "issue": r.issue, "current_problem": r.current_problem,
             "why_it_matters": r.why_it_matters, "exact_fix": r.exact_fix,
@@ -181,9 +203,12 @@ async def get_audit_recommendations(audit_id: str, offset: int = 0, limit: int =
             "suggested_content": r.suggested_content, "suggested_heading": r.suggested_heading,
             "keywords": r.keywords or [], "expected_impact": r.expected_impact,
             "difficulty": r.difficulty, "ai_generated": bool(r.ai_generated),
-        } for r in result.scalars().all()],
-        "total": total, "offset": offset, "limit": limit,
-    }
+            "confidence": conf.get("confidence", 0),
+            "confidence_tier": conf.get("confidence_tier", "UNCERTAIN"),
+            "confidence_breakdown": conf.get("confidence_breakdown", {}),
+            "evidence": conf.get("evidence", []),
+        })
+    return {"items": enriched, "total": total, "offset": offset, "limit": limit}
 
 
 @router.get("/audit/{audit_id}/competitor")
@@ -543,6 +568,53 @@ async def get_schema_analysis(audit_id: str, db: AsyncSession = Depends(get_db))
             "schema_count": len(p.schema_markup or []),
             "schemas": p.schema_markup or [],
         } for p in pages[:50]],
+    }
+
+
+@router.get("/audit/{audit_id}/canonicalization")
+async def get_canonicalization(audit_id: str, db: AsyncSession = Depends(get_db)):
+    from app.engine.url_canonicalization import URLCanonicalizer
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+    if not pages:
+        raise HTTPException(status_code=404, detail="No pages found")
+    page_dicts = [{
+        "url": p.url, "title": p.title or "", "h1": p.h1 or "",
+        "canonical": p.canonical or "", "status_code": p.status_code,
+        "word_count": p.word_count or 0, "content_text": p.content_text or "",
+    } for p in pages]
+    canonicalizer = URLCanonicalizer()
+    result = canonicalizer.analyze(page_dicts)
+    return {
+        "summary": result.get("summary", {}),
+        "canonicalization_issues": result.get("canonicalization_issues", {}),
+        "duplicate_groups": result.get("duplicate_groups", [])[:20],
+        "redirect_chains": result.get("redirect_chains", [])[:20],
+    }
+
+
+@router.get("/audit/{audit_id}/confidence")
+async def get_confidence_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
+    from app.engine.confidence_engine import RecommendationConfidenceEngine
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
+    issues = issues_result.scalars().all()
+    engine = RecommendationConfidenceEngine()
+    page_dicts = []
+    for p in pages[:30]:
+        page_dicts.append({
+            "title": p.title or "", "meta_description": p.meta_description or "",
+            "h1": p.h1 or "", "word_count": p.word_count or 0,
+            "content_text": p.content_text or "", "images": p.images or [],
+            "links_internal": p.links_internal or [], "headings": p.headers or [],
+            "response_time_ms": p.response_time_ms or 0,
+            "issues": [{"category": i.category, "issue": i.signal_name} for i in issues if i.page_url == p.url],
+        })
+    analysis = engine.analyze(page_dicts)
+    return {
+        "summary": analysis.get("summary", {}),
+        "confidence_distribution": analysis.get("confidence_distribution", {}),
     }
 
 
