@@ -271,7 +271,7 @@ export default function PageDetail() {
       if (megaRes.status === 'fulfilled') setMega(megaRes.value);
       setPageLoading(false);
     }).catch(() => setPageLoading(false));
-  }, [id, selectedIdx]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading pages...</p></div>;
   if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No pages found</div>;
