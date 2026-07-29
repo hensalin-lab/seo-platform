@@ -34,7 +34,7 @@ const AUDIT_NAV = [
     label: 'ANALYSIS',
     items: [
       { suffix: '/seo', icon: Search, label: 'SEO Analysis' },
-      { suffix: '/page-detail', icon: Layers, label: 'Page Intelligence' },
+      { suffix: '/page-detail', icon: Layers, label: 'Page Analysis' },
       { suffix: '/page-deep', icon: Layers, label: 'Page Deep Dive' },
       { suffix: '/page-speed', icon: Gauge, label: 'Page Speed' },
       { suffix: '/page-experience', icon: HeartPulse, label: 'Page Experience' },
@@ -79,12 +79,12 @@ const AUDIT_NAV = [
   {
     label: 'ENTERPRISE',
     items: [
-      { suffix: '/recommendations-deep', icon: Zap, label: 'Recommendations' },
+      { suffix: '/recommendations-deep', icon: Zap, label: 'Smart Recommendations' },
       { suffix: '/competitor-deep', icon: Users, label: 'Competitor Intel' },
       { suffix: '/offsite-authority', icon: Award, label: 'Off-Site Authority' },
       { suffix: '/remediation', icon: Filter, label: 'Remediation Feed' },
       { suffix: '/roadmap', icon: GitCompare, label: 'Roadmap' },
-      { suffix: '/recommendations-list', icon: ClipboardList, label: 'Recommendations' },
+      { suffix: '/recommendations-list', icon: ClipboardList, label: 'Quick Fixes' },
       { suffix: '/competitor-gap', icon: Network, label: 'Competitor Gap' },
       { suffix: '/backlinks', icon: Link2, label: 'Backlinks' },
       { suffix: '/seo-health', icon: ShieldCheck, label: 'SEO Health' },
@@ -129,7 +129,7 @@ export default function Layout({ children }) {
     const path = location.pathname;
     if (path.endsWith('/dashboard')) return 'Dashboard';
     if (path.endsWith('/seo')) return 'SEO Analysis';
-    if (path.endsWith('/page-detail')) return 'Page Intelligence';
+    if (path.endsWith('/page-detail')) return 'Page Analysis';
     if (path.endsWith('/gsc')) return 'Search Console';
     if (path.endsWith('/schema')) return 'Schema';
     if (path.endsWith('/internal-links')) return 'Internal Links';
@@ -141,7 +141,7 @@ export default function Layout({ children }) {
     if (path.endsWith('/ai-deep')) return 'AI Search Deep';
     if (path.endsWith('/eeat')) return 'E-E-A-T';
     if (path.endsWith('/recommendations')) return 'Recommendations';
-    if (path.endsWith('/recommendations-deep')) return 'Deep Recommendations';
+    if (path.endsWith('/recommendations-deep')) return 'Smart Recommendations';
     if (path.endsWith('/competitor')) return 'Competitors';
     if (path.endsWith('/competitor-deep')) return 'Competitor Intel';
     if (path.endsWith('/roadmap')) return 'Roadmap';
@@ -174,7 +174,7 @@ export default function Layout({ children }) {
     if (path.endsWith('/page-improvements')) return 'Page Improvements';
     if (path.endsWith('/page-intel-detail')) return 'Page Intelligence Detail';
     if (path.endsWith('/page-speed')) return 'Page Speed';
-    if (path.endsWith('/recommendations-list')) return 'Recommendations';
+    if (path.endsWith('/recommendations-list')) return 'Quick Fixes';
     if (path.endsWith('/security-headers')) return 'Security Headers';
     if (path.endsWith('/seo-health')) return 'SEO Health';
     if (path.endsWith('/sitemap-robots')) return 'Sitemap & Robots';

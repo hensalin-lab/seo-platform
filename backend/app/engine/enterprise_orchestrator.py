@@ -33,19 +33,40 @@ class EnterpriseOrchestrator:
         )
         page_type = classification["page_type"]
 
-        classic_result = self.classic.analyze(page)
-        ai_geo_result = self.ai_geo.analyze(page)
-        content_result = self.content.analyze(page)
+        engine_status = {"classic": "ok", "ai_geo": "ok", "content": "ok"}
+        try:
+            classic_result = self.classic.analyze(page)
+        except Exception as e:
+            logger.error(f"ClassicSEOEngine failed for {page.url}: {e}")
+            classic_result = {"issues": [], "signals_checked": 0, "category_scores": {}}
+            engine_status["classic"] = f"failed: {e}"
+        try:
+            ai_geo_result = self.ai_geo.analyze(page)
+        except Exception as e:
+            logger.error(f"AIGeoEngine failed for {page.url}: {e}")
+            ai_geo_result = {"issues": [], "signals_checked": 0, "category_scores": {}}
+            engine_status["ai_geo"] = f"failed: {e}"
+        try:
+            content_result = self.content.analyze(page)
+        except Exception as e:
+            logger.error(f"ContentIntelligenceV2 failed for {page.url}: {e}")
+            content_result = {"issues": [], "signals_checked": 0, "category_scores": {}}
+            engine_status["content"] = f"failed: {e}"
 
-        all_issues = classic_result["issues"] + ai_geo_result["issues"] + content_result["issues"]
-        all_issues.sort(key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x["severity"], 4))
+        all_issues = classic_result.get("issues", []) + ai_geo_result.get("issues", []) + content_result.get("issues", [])
+        all_issues.sort(key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 4))
 
-        classic_score = classic_result.get("technical_score", 50)
-        ai_geo_score = ai_geo_result.get("geo_score", 50)
-        content_score = content_result.get("content_score", 50)
-        eeat_score = content_result.get("category_scores", {}).get("eeat", 50)
+        classic_score = classic_result.get("technical_score") if "technical_score" in classic_result else None
+        ai_geo_score = ai_geo_result.get("geo_score") if "geo_score" in ai_geo_result else None
+        content_score = content_result.get("content_score") if "content_score" in content_result else None
+        eeat_score = content_result.get("category_scores", {}).get("eeat") if content_result.get("category_scores") else None
 
-        overall = (classic_score * 0.30 + ai_geo_score * 0.25 + content_score * 0.25 + eeat_score * 0.20)
+        valid_scores = [s for s in [classic_score, ai_geo_score, content_score, eeat_score] if s is not None]
+        if valid_scores:
+            overall = sum(valid_scores) / len(valid_scores)
+        else:
+            overall = 0
+            logger.warning(f"No valid engine scores for {page.url}, overall=0")
 
         diagnostics = {
             "why_not_ranking": ai_geo_result.get("why_not_ranking", []),
@@ -55,26 +76,31 @@ class EnterpriseOrchestrator:
 
         page_type_targets = self._get_page_type_targets(page_type)
 
+        cat_scores_classic = classic_result.get("category_scores", {})
+        cat_scores_ai = ai_geo_result.get("category_scores", {})
+        cat_scores_content = content_result.get("category_scores", {})
+
         return {
             "url": page.url,
             "page_type": page_type,
+            "_engine_status": engine_status,
             "overall_health_score": round(overall, 1),
             "scores": {
-                "classic_seo": round(classic_score, 1),
-                "technical": round(classic_result.get("category_scores", {}).get("indexability", 50), 1),
-                "eeat": round(eeat_score, 1),
-                "ai_search_geo": round(ai_geo_score, 1),
-                "content_quality": round(content_score, 1),
-                "readability": round(content_result.get("category_scores", {}).get("readability", 50), 1),
+                "classic_seo": round(classic_score, 1) if classic_score is not None else 0,
+                "technical": round(cat_scores_classic.get("indexability", 0), 1),
+                "eeat": round(eeat_score, 1) if eeat_score is not None else 0,
+                "ai_search_geo": round(ai_geo_score, 1) if ai_geo_score is not None else 0,
+                "content_quality": round(content_score, 1) if content_score is not None else 0,
+                "readability": round(cat_scores_content.get("readability", 0), 1),
             },
             "platform_scores": ai_geo_result.get("platform_scores", {}),
             "diagnostics": diagnostics,
             "page_type_targets": page_type_targets,
             "signals_checked": classic_result.get("signals_checked", 0) + ai_geo_result.get("signals_checked", 0) + content_result.get("signals_checked", 0),
             "category_scores": {
-                **classic_result.get("category_scores", {}),
-                **ai_geo_result.get("category_scores", {}),
-                **content_result.get("category_scores", {}),
+                **cat_scores_classic,
+                **cat_scores_ai,
+                **cat_scores_content,
             },
         }
 

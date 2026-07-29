@@ -3001,19 +3001,32 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
         logger.warning(f"DualAI suggestions failed: {e}")
 
     if not suggestions:
-        from app.engine.gemini_engine import GeminiEngine
         from app.engine.openai_engine import openai_engine
-        if openai_engine.available:
+        if openai_engine and openai_engine.available:
             try:
-                suggestions = await openai_engine.generate_suggestions(audit_data)
-                if suggestions:
+                openai_sugg = await openai_engine.generate_suggestions(audit_data)
+                if openai_sugg and isinstance(openai_sugg, dict) and openai_sugg.get("executive_summary"):
+                    suggestions = openai_sugg
                     provider = "openai"
             except Exception as e:
                 logger.warning(f"OpenAI suggestions failed: {e}")
-        if not suggestions:
+    if not suggestions:
+        from app.engine.gemini_engine import GeminiEngine
+        try:
             gemini = GeminiEngine()
-            suggestions = await gemini.generate_suggestions(audit_data)
-            provider = "gemini"
+            gemini_sugg = await gemini.generate_suggestions(audit_data)
+            if gemini_sugg and isinstance(gemini_sugg, dict) and gemini_sugg.get("executive_summary"):
+                suggestions = gemini_sugg
+                provider = "gemini"
+        except Exception as e:
+            logger.warning(f"Gemini suggestions failed: {e}")
+    if not suggestions:
+        suggestions = {
+            "executive_summary": "AI suggestions are not available. No API key configured or all AI providers unreachable. The rule-based engine results are shown instead.",
+            "provider_unavailable": True,
+            "ai_status": "unavailable",
+        }
+        provider = "unavailable"
     result = {"audit_id": audit_id, "suggestions": suggestions, "provider": provider}
     _cache_set(cache_key, result)
     return result

@@ -128,6 +128,15 @@ class MegaSEOEngine:
         signals += self._mobile_first_signals(html, resp_ms)
         signals += self._technical_integrity_signals(html, status, url, robots_meta, is_indexable)
 
+        seen_ids: set[str] = set()
+        deduped: list[dict] = []
+        for sig in signals:
+            sig_id = sig.get("id", "")
+            if sig_id and sig_id not in seen_ids:
+                seen_ids.add(sig_id)
+                deduped.append(sig)
+        signals = deduped
+
         cat_scores = {}
         for cat in self.CATEGORIES:
             cat_sigs = [s for s in signals if s["category"] == cat]
@@ -179,15 +188,6 @@ class MegaSEOEngine:
                 })
 
         issues.sort(key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x["severity"], 4))
-
-        seen_pairs: set[tuple[str, str]] = set()
-        deduped: list[dict] = []
-        for sig in signals:
-            pair = (sig.get("category", ""), sig.get("name", ""))
-            if pair not in seen_pairs:
-                seen_pairs.add(pair)
-                deduped.append(sig)
-        signals = deduped
 
         return {
             "overall_score": round(overall, 1),
@@ -340,6 +340,13 @@ class MegaSEOEngine:
                     heading_list.append({"tag": "h", "text": h})
 
         h1_text = h1 or (heading_list[0].get("text", "") if heading_list and heading_list[0].get("tag", "").startswith("h1") else "")
+
+        h1_tag_count = sum(1 for h in heading_list if isinstance(h, dict) and h.get("tag", "").startswith("h1"))
+        if h1_tag_count > 1:
+            sigs.append(self._s("H001", "Multiple H1 Tags Found", "headings", "fail", "HIGH",
+                f"This page has {h1_tag_count} H1 tags. Use exactly one H1 per page.",
+                "Multiple H1s confuse Google's content hierarchy analysis and can dilute your primary keyword signal. The HTML spec allows multiple H1s, but SEO best practice is exactly one.",
+                f"Convert {h1_tag_count-1} of the H1 tags to H2 headings. Keep only the most important one as H1.", "", "Easy"))
 
         if not h1_text:
             sigs.append(self._s("H001", "Missing H1 Tag", "headings", "fail", "CRITICAL",
