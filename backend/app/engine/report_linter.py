@@ -140,7 +140,11 @@ def _check_fabrication_guard(report: dict, errors: list[ReportLinterError]):
 
 def _check_fix_code_uniqueness(report: dict, errors: list[ReportLinterError]):
     issues = report.get("issues", [])
-    fix_codes = [i.get("fix_code", i.get("id", "")) for i in issues if i.get("fix_code", i.get("id", ""))]
+    fix_codes = []
+    for i in issues:
+        fc = i.get("fix_code") or i.get("signal_id") or i.get("id", "")
+        if fc:
+            fix_codes.append(fc)
     if len(fix_codes) != len(set(fix_codes)):
         _assert_no_error(report, errors, "fix_code_uniqueness", False, "Duplicate fix codes found")
 

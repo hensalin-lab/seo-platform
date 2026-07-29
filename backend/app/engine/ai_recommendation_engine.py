@@ -56,8 +56,12 @@ class AIRecommendationEngine:
             return None
 
     async def analyze_page(self, page_data: dict, audit_data: dict = None) -> dict:
-        system_prompt = """SEO expert. Analyze the page and return JSON ONLY:
-{"google_likes":[{"element":"...","why":"...","strength":"strong|moderate|weak"}],"google_dislikes":[{"element":"...","why":"...","severity":"critical|high|medium|low","fix":"..."}],"content_recommendations":[{"section":"...","current":"...","recommended":"...","reason":"...","priority":"high|medium|low"}],"title_tag":{"current":"...","recommended":"...","why":"..."},"meta_description":{"current":"...","recommended":"...","why":"..."},"schema_recommendations":[{"type":"...","why":"..."}],"ai_search_optimization":{"citation_readiness":"score/100","entity_coverage":"score/100","answer_completeness":"score/100","tips":["..."]},"eeat_improvements":[{"signal":"...","current_state":"...","recommended_action":"...","impact":"high|medium|low"}],"technical_fixes":[{"issue":"...","current":"...","recommended":"...","priority":"critical|high|medium|low"}],"competitor_insights":{"what_top_rankers_do_differently":["..."],"content_gaps_to_fill":["..."]},"estimated_impact":{"traffic_increase":"...","ranking_potential":"...","time_to_see_results":"..."},"executive_summary":"2-3 sentence summary"}"""
+        system_prompt = """CRITICAL RULE: NEVER fabricate data. Only use the provided page data. If data is missing, output empty arrays/null. NEVER make up competitor data, traffic estimates, or ranking positions.
+
+Return ONLY valid JSON exactly matching this schema:
+{"google_likes":[{"element":"...","why":"...","strength":"strong|moderate|weak"}],"google_dislikes":[{"element":"...","why":"...","severity":"critical|high|medium|low","fix":"..."}],"content_recommendations":[{"section":"...","current":"...","recommended":"...","reason":"...","priority":"high|medium|low"}],"title_tag":{"current":"...","recommended":"...","why":"..."},"meta_description":{"current":"...","recommended":"...","why":"..."},"schema_recommendations":[{"type":"...","why":"..."}],"ai_search_optimization":{"citation_readiness":"score/100","entity_coverage":"score/100","answer_completeness":"score/100","tips":["..."]},"eeat_improvements":[{"signal":"...","current_state":"...","recommended_action":"...","impact":"high|medium|low"}],"technical_fixes":[{"issue":"...","current":"...","recommended":"...","priority":"critical|high|medium|low"}],"competitor_insights":{"what_top_rankers_do_differently":["..."],"content_gaps_to_fill":["..."]},"estimated_impact":{"traffic_increase":"Available only if provided","ranking_potential":"Available only if provided","time_to_see_results":"Available only if provided"},"executive_summary":"2-3 sentence summary"}
+
+RULE: Set any field to empty array [] or null or "Not available from provided data" when the data is not in the input."""
 
         page_summary = f"URL: {page_data.get('url', 'N/A')}\nTitle: {page_data.get('title', 'N/A')}\nMeta: {page_data.get('meta_description', 'N/A')}\nH1: {page_data.get('h1', 'N/A')}\nWords: {page_data.get('word_count', 0)}\nType: {page_data.get('page_type', 'UNKNOWN')}\nImages: {page_data.get('image_count', 0)} ({page_data.get('images_without_alt', 0)} missing alt)\nLinks: {page_data.get('internal_link_count', 0)} internal, {page_data.get('external_link_count', 0)} external\nSchema: {json.dumps(page_data.get('schema_types', []))}\nHeadings: {json.dumps(page_data.get('headings', [])[:10])}\nContent preview: {page_data.get('content_text', '')[:1500]}"
 
@@ -70,8 +74,12 @@ class AIRecommendationEngine:
         return self._fallback_analysis(page_data)
 
     async def analyze_global(self, site_data: dict) -> dict:
-        system_prompt = """SEO strategist. Analyze this website and return JSON ONLY:
-{"executive_summary":"2-3 sentences","site_health_grade":"A-F with explanation","google_likes":[{"element":"...","why":"..."}],"google_dislikes":[{"element":"...","why":"...","fix":"..."}],"content_strategy":{"strengths":["..."],"weaknesses":["..."],"content_calendar_suggestions":[{"topic":"...","keywords":["..."],"type":"blog|landing","priority":"high|medium|low","estimated_traffic":"..."}]},"technical_seo_priorities":[{"issue":"...","impact":"...","fix":"...","priority":"critical|high|medium|low"}],"ai_search_strategy":{"platform_optimizations":{"google_ai_overview":["..."],"chatgpt":["..."],"perplexity":["..."],"gemini":["..."]}},"eeat_strategy":[{"signal":"...","current_score":"...","target_score":"...","action_plan":"..."}],"competitor_positioning":{"your_advantages":["..."],"your_gaps":["..."],"quick_wins":["..."]},"90_day_action_plan":[{"week":"...","action":"...","expected_impact":"..."}],"kpis_to_track":[{"metric":"...","current_baseline":"...","target":"...","timeframe":"..."}]}"""
+        system_prompt = """CRITICAL RULE: NEVER fabricate data. Only use the provided site data. NEVER make up traffic estimates, competitor data, or benchmark numbers. Output empty arrays for unavailable data.
+
+Return ONLY valid JSON matching this schema:
+{"executive_summary":"2-3 sentences","site_health_grade":"A-F with explanation","google_likes":[{"element":"...","why":"..."}],"google_dislikes":[{"element":"...","why":"...","fix":"..."}],"content_strategy":{"strengths":["..."],"weaknesses":["..."],"content_calendar_suggestions":[{"topic":"...","keywords":["..."],"type":"blog|landing","priority":"high|medium|low","estimated_traffic":"Only if provided in input"}]},"technical_seo_priorities":[{"issue":"...","impact":"...","fix":"...","priority":"critical|high|medium|low"}],"ai_search_strategy":{"platform_optimizations":{"google_ai_overview":["..."],"chatgpt":["..."],"perplexity":["..."],"gemini":["..."]}},"eeat_strategy":[{"signal":"...","current_score":"...","target_score":"...","action_plan":"..."}],"competitor_positioning":{"your_advantages":["..."],"your_gaps":["..."],"quick_wins":["..."]},"90_day_action_plan":[{"week":"...","action":"...","expected_impact":"..."}],"kpis_to_track":[{"metric":"...","current_baseline":"...","target":"...","timeframe":"..."}]}
+
+RULE: Set any field to empty array [] or null when the data is not available in the input."""
 
         site_summary = f"URL: {site_data.get('url', 'N/A')}\nPages: {site_data.get('total_pages', 0)}\nScore: {site_data.get('overall_score', 'N/A')}\nPage types: {json.dumps(site_data.get('page_type_distribution', {}))}\nIssues: {json.dumps(site_data.get('issue_summary', {}))}\nScores: {json.dumps(site_data.get('scores', {}))}\nThin pages: {site_data.get('thin_content_pages', 0)}\nAvg words: {site_data.get('avg_word_count', 0)}\nTop issues: {json.dumps(site_data.get('top_issues', [])[:8])}"
 
@@ -81,7 +89,9 @@ class AIRecommendationEngine:
         return self._fallback_global_analysis(site_data)
 
     async def generate_content_suggestion(self, page_data: dict, section: str) -> dict:
-        system_prompt = """SEO content writer. Generate optimized content. Return JSON ONLY:
+        system_prompt = """CRITICAL RULE: Only use provided page data. NEVER fabricate keywords, traffic data, or competitor references. Output empty arrays if no data available.
+
+Return ONLY valid JSON:
 {"suggested_content":"...","keywords_included":["..."],"word_count":150,"why_this_works":"..."}"""
 
         user_prompt = f"Page: {page_data.get('url', '')} ({page_data.get('page_type', '')})\nTitle: {page_data.get('title', '')}\nSection: {section}\nCurrent: {page_data.get('current_section_content', '')[:500]}\nGenerate SEO-optimized content for this section."
@@ -90,7 +100,9 @@ class AIRecommendationEngine:
         return result or {"suggested_content": "AI unavailable", "keywords_included": [], "word_count": 0, "why_this_works": "N/A"}
 
     async def generate_link_suggestions(self, page_url: str, page_content: str, all_pages: list) -> dict:
-        system_prompt = """Internal linking expert. Return JSON ONLY:
+        system_prompt = """CRITICAL RULE: Only use provided page list. NEVER fabricate backlink opportunities, traffic data, or competitor info. Only suggest internal links between existing pages in the provided list.
+
+Return ONLY valid JSON:
 {"suggested_links":[{"anchor_text":"...","source_page":"...","target_page":"...","context":"...","why":"...","priority":"high|medium|low"}],"backlink_opportunities":[{"topic":"...","source_type":"...","how_to_get":"...","estimated_difficulty":"easy|medium|hard"}],"internal_link_improvements":[{"current_link":"...","better_anchor":"...","why":"..."}]}"""
 
         pages_summary = [{"url": p.get("url", ""), "title": p.get("title", ""), "type": p.get("page_type", "")} for p in all_pages[:30]]

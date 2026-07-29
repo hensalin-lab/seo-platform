@@ -4599,12 +4599,24 @@ async def get_ai_recommendations_global(audit_id: str, db: AsyncSession = Depend
 
     most_affected = sorted(issues_by_page.items(), key=lambda x: x[1], reverse=True)[:10]
 
-    seo_score = scores.seo_score if scores else 50
-    tech_score = scores.technical_score if scores else 50
-    aeo_score = scores.aeo_score if scores else 50
-    geo_score = scores.geo_score if scores else 50
-    ai_score = scores.ai_visibility_score if scores else 50
-    overall = scores.overall_score if scores else 50
+    if scores:
+        seo_score = scores.seo_score
+        tech_score = scores.technical_score
+        aeo_score = scores.aeo_score
+        geo_score = scores.geo_score
+        ai_score = scores.ai_visibility_score
+        overall = scores.overall_score
+    else:
+        total_issues = sum(issue_summary.values())
+        seo_w = issue_summary.get("CRITICAL", 0) * 15 + issue_summary.get("HIGH", 0) * 8 + issue_summary.get("MEDIUM", 0) * 3
+        seo_score = max(10, min(100, round(100 - (seo_w / max(len(pages), 1) * 5))))
+        tech_pct = (1 - no_schema / max(len(pages), 1)) * 40 + (hasHTTPS := "https" in (audit.website_url or "")) * 20
+        tech_score = round(min(100, tech_pct + (1 - thin / max(len(pages), 1)) * 40))
+        avg_wc = round(total_wc / max(len(pages), 1))
+        aeo_score = round(min(100, (avg_wc / 1500) * 40 + (1 - thin / max(len(pages), 1)) * 30 + (1 - no_schema / max(len(pages), 1)) * 30))
+        geo_score = round(min(100, (1 - no_og / max(len(pages), 1)) * 30 + (1 - no_schema / max(len(pages), 1)) * 30 + (avg_wc / 1000) * 40))
+        ai_score = round(min(100, (1 - thin / max(len(pages), 1)) * 35 + (1 - no_schema / max(len(pages), 1)) * 35 + (avg_wc / 2000) * 30))
+        overall = round((seo_score + tech_score + aeo_score + geo_score + ai_score) / 5)
 
     grade = "F" if overall < 40 else "D" if overall < 55 else "C" if overall < 70 else "B" if overall < 85 else "A"
     grade_explanation = {
@@ -4913,6 +4925,10 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
     result["page_title"] = page.title
     result["word_count"] = page.word_count or 0
 
+    from app.engine.report_linter import lint_report
+    linter_errors = lint_report(result)
+    result["linter_errors"] = [{"check": e.check_name, "detail": e.detail} for e in linter_errors]
+
     try:
         from app.engine.dual_ai import dual_ai_analyze_seo, dual_ai_search_optimization
         import asyncio
@@ -5033,6 +5049,9 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     prioritized_fixes = sorted(unique_fixes.values(), key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x["severity"], 4))
 
+    from app.engine.report_linter import lint_report
+    linter_errors = lint_report({"all_signals": [], "issues": all_issues, "pages_analyzed": [{"url": r["page_url"]} for r in all_results]})
+
     resp = {
         "total_pages": len(pages),
         "total_signals": sum(r["signals_checked"] for r in all_results),
@@ -5043,6 +5062,7 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
         "page_scores": all_results,
         "prioritized_fixes": prioritized_fixes,
         "all_issues": all_issues[:500],
+        "linter_errors": [{"check": e.check_name, "detail": e.detail} for e in linter_errors],
     }
     _cache_set(cache_key, resp)
     return resp

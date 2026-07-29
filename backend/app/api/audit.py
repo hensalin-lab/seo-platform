@@ -467,15 +467,26 @@ async def run_audit_task(audit_id: str):
                     logger.error(f"Enterprise analysis failed for {sp.url}: {e}")
 
             for issue in enterprise_issues:
+                issue_id = issue.get("id", "")
+                sig_name = issue.get("signal_name") or issue.get("element") or issue_id
+                desc = issue.get("description") or issue.get("issue") or issue.get("what_wrong", "")
+                impact_val = issue.get("impact") or issue.get("expected_impact") or issue.get("impact_score", "")
+                if isinstance(impact_val, (int, float)):
+                    impact_val = {"score": impact_val, "description": ["Lowest priority", "Lower priority", "Moderate priority", "High priority", "Highest priority"][min(int(impact_val / 20), 4)] if 0 <= impact_val <= 100 else str(impact_val)}
+                fix_text = issue.get("fix") or issue.get("how_to_fix") or issue.get("exact_fix", "")
+                rc = issue.get("root_cause") or issue.get("what_wrong") or desc
+                fc = issue.get("fix_code", "")
+                if not fc:
+                    fc = f"FIX-{issue.get('signal_id', 0):04d}" if issue.get("signal_id") else issue_id
                 db.add(Issue(
                     audit_id=audit_id, page_url=issue.get("page_url", ""),
                     category=issue.get("category", ""), severity=issue.get("severity", "LOW"),
-                    signal_id=issue.get("signal_id", 0), signal_name=issue.get("id", ""),
-                    description=issue.get("issue", ""), impact=issue.get("expected_impact", ""),
-                    fix=issue.get("fix", issue.get("exact_fix", "")),
+                    signal_id=issue.get("signal_id", 0), signal_name=sig_name,
+                    description=desc, impact=str(impact_val) if not isinstance(impact_val, str) else impact_val,
+                    fix=fix_text,
                     effort=issue.get("effort", "MEDIUM"),
-                    root_cause=issue.get("what_wrong", ""),
-                    fix_code=f"FIX-{issue.get('id', '0000')}",
+                    root_cause=rc,
+                    fix_code=fc,
                     snapshot_hash=issue.get("snapshot_hash", ""),
                     pages_affected=1,
                 ))

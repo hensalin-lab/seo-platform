@@ -201,7 +201,7 @@ class MegaSEOEngine:
             "top_fixes": issues[:10],
         }
 
-    def _s(self, id, name, cat, status, severity, what_wrong, why, fix, impact="Moderate", effort="Easy", code="", before="", after=""):
+    def _s(self, id, name, cat, status, severity, what_wrong, why, fix, impact="Measurable ranking improvement", effort="Easy", code="", before="", after=""):
         return {
             "id": id, "name": name, "category": cat, "status": status, "severity": severity,
             "what_wrong": what_wrong, "why_it_matters": why, "how_to_fix": fix,
@@ -343,7 +343,7 @@ class MegaSEOEngine:
 
         h1_tag_count = sum(1 for h in heading_list if isinstance(h, dict) and h.get("tag", "").startswith("h1"))
         if h1_tag_count > 1:
-            sigs.append(self._s("H001", "Multiple H1 Tags Found", "headings", "fail", "HIGH",
+            sigs.append(self._s("H010", "Multiple H1 Tags Found", "headings", "fail", "HIGH",
                 f"This page has {h1_tag_count} H1 tags. Use exactly one H1 per page.",
                 "Multiple H1s confuse Google's content hierarchy analysis and can dilute your primary keyword signal. The HTML spec allows multiple H1s, but SEO best practice is exactly one.",
                 f"Convert {h1_tag_count-1} of the H1 tags to H2 headings. Keep only the most important one as H1.", "", "Easy"))
@@ -1043,7 +1043,7 @@ class MegaSEOEngine:
         elif wc >= 800:
             sigs.append(self._s("AC002", "Adequate Content Length", "content_quality", "pass", "LOW", f"{wc} words - good baseline content.", "", "", "", "Easy"))
         elif wc >= 300:
-            sigs.append(self._s("AC003", "Content Needs Expansion", "content_quality", "warn", "MEDIUM", f"{wc} words is below the 1500-word average for top-ranking pages.", "Longer content ranks for more keywords and provides more value.", "Add 500-1000 more words of expert content.", "Moderate", "Medium"))
+            sigs.append(self._s("AC003", "Content Needs Expansion", "content_quality", "warn", "MEDIUM", f"{wc} words is below the 1500-word average for top-ranking pages.", "Longer content ranks for more keywords and provides more value.", "Add 500-1000 more words of expert content.", "Improved keyword rankings from expanded topical coverage", "Medium"))
         else:
             sigs.append(self._s("AC004", "Thin Content", "content_quality", "fail", "HIGH", f"Only {wc} words. Google penalizes thin content.", "Pages under 300 words rarely rank. Expand significantly.", "Add comprehensive content, examples, and data.", "High", "Medium"))
 
@@ -1428,7 +1428,7 @@ class MegaSEOEngine:
             elif flesch < 50:
                 sigs.append(self._s("RD009", "Difficult Reading Level", "readability", "warn", "LOW",
                     f"Flesch Reading Ease score is {flesch:.0f}. Content is fairly difficult to read.",
-                    "Consider simplifying for a broader audience.", "Aim for a score of 50-70 for general web content.", "Moderate", "Medium"))
+                    "Consider simplifying for a broader audience.", "Aim for a score of 50-70 for general web content.", "Higher engagement from easier-to-read content", "Medium"))
             else:
                 sigs.append(self._s("RD010", "Good Reading Level", "readability", "pass", "LOW", "", "", "", "", "Easy"))
         return sigs

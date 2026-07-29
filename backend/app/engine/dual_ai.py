@@ -229,8 +229,12 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000)
 # ============================================================
 
 async def quad_ai_analyze_seo(url, title, meta_desc, content, headings, signals):
-    sys = """SEO expert analyst. Return JSON:
-{"executive_summary":"...","google_likes":[{"element":"...","why":"..."}],"google_dislikes":[{"element":"...","why":"...","fix":"..."}],"content_recommendations":[{"title":"...","action":"...","priority":"high|medium|low"}],"technical_fixes":[{"issue":"...","fix":"...","code":"..."}],"keyword_strategy":{"primary_kw":"...","missing_kws":["..."],"suggestions":["..."]},"quick_wins":["..."],"long_term_strategy":["..."],"competitor_gap":["..."]}"""
+    sys = """CRITICAL RULE: NEVER fabricate data. Use ONLY the provided signals and content. Only use provided URL, title, meta_desc. NEVER make up competitor data, traffic numbers, or ranking positions. Output empty arrays for unavailable data.
+
+Return ONLY valid JSON:
+{"executive_summary":"...","google_likes":[{"element":"...","why":"..."}],"google_dislikes":[{"element":"...","why":"...","fix":"..."}],"content_recommendations":[{"title":"...","action":"...","priority":"high|medium|low"}],"technical_fixes":[{"issue":"...","fix":"...","code":"..."}],"keyword_strategy":{"primary_kw":"...","missing_kws":["..."],"suggestions":["..."]},"quick_wins":["..."],"long_term_strategy":["..."],"competitor_gap":["..."]}
+
+RULE: If signals are empty, only comment on what can be determined from content alone."""
     sigs = "\n".join([f"- [{s.get('status','?')}] {s.get('name','?')}: {s.get('what_wrong','OK')}" for s in (signals or [])[:50]])
     user = f"URL: {url}\nTitle: {title}\nMeta: {meta_desc}\nWords: {len(content.split())}\nSignals:\n{sigs}"
     return await _run_all(sys, user, 3000)
@@ -298,7 +302,9 @@ Generate a complete content optimization package with actual before/after rewrit
 
 
 async def quad_ai_search_optimization(url, title, content, signals):
-    sys = """AI search optimization expert for ChatGPT, Perplexity, Gemini, Claude, Google AI Overview. Return JSON:
+    sys = """CRITICAL RULE: NEVER fabricate platform-specific scores. Score only what can be determined from the provided content and signals. NEVER make up competition data. Output lowest score (25) for unavailable signals.
+
+Return ONLY valid JSON:
 {"overall_ai_score":75,"platform_scores":{"chatgpt":{"score":70,"reasons":["..."],"fixes":["..."]},"perplexity":{"score":80,"reasons":["..."],"fixes":["..."]},"gemini":{"score":75,"reasons":["..."],"fixes":["..."]},"claude":{"score":85,"reasons":["..."],"fixes":["..."]},"google_ai_overview":{"score":70,"reasons":["..."],"fixes":["..."]}},"improvement_actions":[{"action":"...","platforms_affected":["..."],"priority":"high|medium|low"}],"citation_signals":{"has_statistics":true,"has_expert_quotes":false,"has_definitions":true},"content_gaps_for_ai":["..."],"entity_optimization":["..."]}"""
     sigs = "\n".join([f"- [{s.get('status','?')}] {s.get('category','?')}: {s.get('name','?')}" for s in (signals or [])[:50]])
     user = f"URL: {url}\nTitle: {title}\nWords: {len(content.split())}\nContent: {content[:2000]}\nSignals:\n{sigs}"
@@ -306,7 +312,9 @@ async def quad_ai_search_optimization(url, title, content, signals):
 
 
 async def quad_ai_page_recommendations(page_data, signals, cat_scores):
-    sys = """Senior SEO consultant. Provide code-level recommendations. Return JSON:
+    sys = """CRITICAL RULE: NEVER fabricate data. Use ONLY the provided page_data and signals. Only generate fixes for issues with real data in the input. NEVER make up scores, competitor data, or traffic estimates. Output empty arrays for unavailable data.
+
+Return ONLY valid JSON:
 {"executive_summary":"...","critical_fixes":[{"issue":"...","what_wrong":"...","why_it_matters":"...","how_to_fix":"...","before_code":"...","after_code":"...","impact":"high|medium|low","effort":"low|medium|high"}],"content_improvements":[{"area":"...","current":"...","improved":"...","reason":"..."}],"technical_fixes":[{"issue":"...","fix":"...","code_example":"..."}],"seo_score_prediction":{"current":0,"after_fixes":0},"priority_ranking":["Most important fixes in order"]}"""
     failing = [s for s in (signals or []) if s.get("status") in ("fail", "warn")]
     sig_text = "\n".join([f"- [{s.get('status')}] {s.get('name','?')}: {s.get('what_wrong','')}" for s in failing[:40]])
