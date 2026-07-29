@@ -420,6 +420,9 @@ async def run_audit_task(audit_id: str):
             from app.engine.crawl_snapshot import CrawlSnapshot, build_snapshots
             import json
 
+            pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+            pages_saved = pages_result.scalars().all()
+
             snapshots = build_snapshots(pages_saved)
 
             for snap in snapshots:
@@ -431,10 +434,6 @@ async def run_audit_task(audit_id: str):
             classic_engine = ClassicSEOEngine()
             ai_geo_engine = AIGeoEngine()
             content_v2_engine = ContentIntelligenceV2()
-
-            pages_saved = []
-            pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-            pages_saved = pages_result.scalars().all()
 
             enterprise_issues = []
             for sp in pages_saved:
