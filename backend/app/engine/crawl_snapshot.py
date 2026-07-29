@@ -183,6 +183,17 @@ class CrawlSnapshot:
         d["normalized_url"] = self._normalized_url
         return d
 
+    def __getattr__(self, name: str) -> Any:
+        _MISSING = object()
+        val = self.get(name, _MISSING)
+        if val is not _MISSING:
+            return val
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
+
+
+def page_to_snapshot(page) -> CrawlSnapshot:
+    return CrawlSnapshot(page)
+
 
 def build_snapshots(pages: list) -> list[CrawlSnapshot]:
     seen: set[str] = set()

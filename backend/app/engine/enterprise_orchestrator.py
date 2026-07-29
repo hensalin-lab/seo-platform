@@ -175,6 +175,16 @@ class EnterpriseOrchestrator:
         return targets.get(page_type, {"min_words": 800, "must_have": ["quality content", "internal links", "schema"], "ideal_words": 1500})
 
     def generate_enterprise_payload(self, pages, website_url):
+        from app.engine.crawl_snapshot import _normalize_url
+        seen_urls: set[str] = set()
+        deduped_pages = []
+        for p in pages:
+            norm = _normalize_url(getattr(p, 'url', p.get('url', '') if isinstance(p, dict) else ''))
+            if norm not in seen_urls:
+                seen_urls.add(norm)
+                deduped_pages.append(p)
+        pages = deduped_pages
+
         page_results = []
         all_issues = []
         all_why_not_ranking = []
@@ -237,3 +247,44 @@ class EnterpriseOrchestrator:
             pt = pr.get("page_type", "UNKNOWN")
             dist[pt] = dist.get(pt, 0) + 1
         return dist
+
+    def generate_expanded_report(self, pages, website_url, competitor_data=None):
+        base = self.generate_enterprise_payload(pages, website_url)
+        all_issues = base["diagnostics"]["actionable_fixes"]
+
+        seo_issues = [i for i in all_issues if i.get("category", "").lower() in ("title_tag","meta_tags","headings","url_structure","open_graph","canonical","keyword_optimization")]
+        technical_issues = [i for i in all_issues if i.get("category", "").lower() in ("page_speed","security","crawlability","indexability","mobile_optimization","core_web_vitals_detailed","technical_integrity")]
+        content_issues = [i for i in all_issues if i.get("category", "").lower() in ("content_quality","content_structure","readability","entity_optimization","keyword_optimization","content_freshness")]
+        ai_geo_issues = [i for i in all_issues if i.get("category", "").lower() in ("schema_markup","ai_search_readiness","structured_data_richness","eeat","entity_optimization")]
+
+        quick_wins = sorted([i for i in all_issues if i.get("effort", "").upper() in ("EASY",)], key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 4))[:5]
+
+        top_10 = sorted(all_issues, key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 4))[:10]
+
+        base["executive_summary"] = {
+            "total_issues_found": len(all_issues),
+            "critical_count": base["summary"]["critical_fixes"],
+            "high_count": base["summary"]["high_fixes"],
+            "medium_count": base["summary"]["medium_fixes"],
+            "low_count": base["summary"]["low_fixes"],
+            "top_10_opportunities": [{"signal_name": i.get("signal_name", i.get("issue", "")), "severity": i.get("severity", ""), "category": i.get("category", ""), "effort": i.get("effort", "MEDIUM")} for i in top_10],
+            "quick_wins_under_30min": [{"signal_name": i.get("signal_name", i.get("issue", "")), "severity": i.get("severity", ""), "category": i.get("category", "")} for i in quick_wins],
+        }
+        base["section_rollups"] = {
+            "technical_fixes": [{"signal_name": i.get("signal_name", i.get("issue", "")), "severity": i.get("severity", ""), "fix": i.get("fix", i.get("exact_fix", "")), "effort": i.get("effort", "MEDIUM")} for i in technical_issues[:15]],
+            "content_fixes": [{"signal_name": i.get("signal_name", i.get("issue", "")), "severity": i.get("severity", ""), "fix": i.get("fix", i.get("exact_fix", "")), "effort": i.get("effort", "MEDIUM")} for i in content_issues[:15]],
+            "seo_fixes": [{"signal_name": i.get("signal_name", i.get("issue", "")), "severity": i.get("severity", ""), "fix": i.get("fix", i.get("exact_fix", "")), "effort": i.get("effort", "MEDIUM")} for i in seo_issues[:15]],
+            "ai_geo_fixes": [{"signal_name": i.get("signal_name", i.get("issue", "")), "severity": i.get("severity", ""), "fix": i.get("fix", i.get("exact_fix", "")), "effort": i.get("effort", "MEDIUM")} for i in ai_geo_issues[:15]],
+        }
+        base["roadmaps"] = {
+            "30_day_action_plan": base["summary"].get("critical_fixes", 0) + base["summary"].get("high_fixes", 0),
+            "90_day_roadmap": base["summary"].get("medium_fixes", 0) + base["summary"].get("low_fixes", 0),
+        }
+        if competitor_data:
+            base["competitor_gaps"] = {
+                "strengths": competitor_data.get("strengths", [])[:5],
+                "weaknesses": competitor_data.get("weaknesses", [])[:5],
+                "note": competitor_data.get("_note", "Competitor data derived from real crawl comparison"),
+                "source": competitor_data.get("_source", "competitor_crawl"),
+            }
+        return base

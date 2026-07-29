@@ -24,6 +24,7 @@ class AuditStatus(str, enum.Enum):
     AI_ANALYSIS = "AI_ANALYSIS"
     ROADMAP_GENERATION = "ROADMAP_GENERATION"
     REPORT_GENERATION = "REPORT_GENERATION"
+    REPORT_QA = "REPORT_QA"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
@@ -104,6 +105,7 @@ class Page(Base):
     page_type = Column(String, default="UNKNOWN")
     context_issues = Column(JSON, default=list)
     signals = Column(JSON, default=dict)
+    snapshot_hash = Column(String, default="")
     audit = relationship("Audit", back_populates="pages")
 
 
@@ -126,8 +128,27 @@ class Issue(Base):
     description = Column(Text, default="")
     impact = Column(Text, default="")
     fix = Column(Text, default="")
+    effort = Column(String, default="MEDIUM")
+    root_cause = Column(Text, default="")
+    fix_code = Column(String, default="")
+    snapshot_hash = Column(String, default="")
+    pages_affected = Column(Integer, default=1)
     detected_at = Column(DateTime, default=_dt.datetime.utcnow)
     audit = relationship("Audit", back_populates="issues")
+
+    def to_business_schema(self):
+        return {
+            "issue_name": self.signal_name,
+            "severity": self.severity,
+            "category": self.category,
+            "what_is_wrong": self.description,
+            "root_cause": self.root_cause or "detected by rule-based analysis (platform-agnostic)",
+            "impact": self.impact,
+            "exact_pages_affected": self.pages_affected or 1,
+            "exact_fix": self.fix,
+            "effort": self.effort or "MEDIUM",
+            "fix_code": self.fix_code or f"FIX-{self.signal_id:04d}",
+        }
 
 
 class Recommendation(Base):
@@ -255,6 +276,17 @@ class AuditHistory(Base):
     total_pages = Column(Integer, default=0)
     total_issues = Column(Integer, default=0)
     status = Column(String, default="COMPLETED")
+    linter_warnings = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class AuditLinterResult(Base):
+    __tablename__ = "audit_linter_results"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    passed = Column(Integer, default=0)
+    failed = Column(Integer, default=0)
+    details = Column(JSON, default=list)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
 
 

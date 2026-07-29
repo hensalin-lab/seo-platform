@@ -466,10 +466,10 @@ export default function PageDetail() {
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   {[
-                    { label: 'SEO Impact', desc: 'Title, meta, headings, schema', value: issues.filter(i => i.category?.includes('TITLE') || i.category?.includes('META') || i.category?.includes('HEADING')).length },
-                    { label: 'Technical Impact', desc: 'Speed, mobile, security', value: issues.filter(i => i.category?.includes('PERFORMANCE') || i.category?.includes('MOBILE') || i.category?.includes('SECURITY')).length },
-                    { label: 'Content Impact', desc: 'Words, quality, keywords', value: issues.filter(i => i.category?.includes('CONTENT') || i.category?.includes('KEYWORD')).length },
-                    { label: 'AI Search Impact', desc: 'Citations, entities, E-E-A-T', value: issues.filter(i => i.category?.includes('AI') || i.category?.includes('ENTITY') || i.category?.includes('SCHEMA')).length },
+                    { label: 'SEO Impact', desc: 'Title, meta, headings, schema', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['title_tag','meta_tags','headings','url_structure','open_graph','canonical'].some(x => c.includes(x)); }).length },
+                    { label: 'Technical Impact', desc: 'Speed, mobile, security', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['page_speed','security','crawlability','indexability','mobile','core_web_vitals','technical'].some(x => c.includes(x)); }).length },
+                    { label: 'Content Impact', desc: 'Words, quality, keywords', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['content','keyword','readability','entity'].some(x => c.includes(x)); }).length },
+                    { label: 'AI Search Impact', desc: 'Citations, entities, E-E-A-T', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['ai','schema','structured_data','eeat','entity'].some(x => c.includes(x)); }).length },
                   ].map((item, i) => (
                     <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{item.label}</div>

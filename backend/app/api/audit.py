@@ -9,7 +9,7 @@ from slowapi import Limiter
 from app.database import get_db
 from app.models import (
     Audit, AuditStatus, Page, Issue, Recommendation,
-    CompetitorData, AuditScore, AuditHistory,
+    CompetitorData, AuditScore, AuditHistory, AuditLinterResult,
     PageAnalysisRecord, KeywordRecord, RoadmapRecord,
 )
 from app.schemas import AuditRequest, AuditStartResponse
@@ -396,6 +396,8 @@ async def run_audit_task(audit_id: str):
                         ci.get("impact", ""), ci.get("fix", ""),
                     )
 
+                from app.engine.crawl_snapshot import CrawlSnapshot
+                page_snap = CrawlSnapshot(page)
                 db.add(Page(
                     audit_id=audit_id, url=page.url, status_code=page.status_code,
                     title=page.title, meta_description=page.meta_description,
@@ -409,10 +411,22 @@ async def run_audit_task(audit_id: str):
                     twitter_card=page.twitter_card, crawl_depth=page.crawl_depth,
                     response_time_ms=page.response_time_ms, content_hash=page.content_hash,
                     page_type=page_type, context_issues=ctx_issues,
+                    snapshot_hash=page_snap.snapshot_hash,
                 ))
             await db.commit()
 
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 52, "Running enterprise engine analysis...")
+
+            from app.engine.crawl_snapshot import CrawlSnapshot, build_snapshots
+            import json
+
+            snapshots = build_snapshots(pages_saved)
+
+            for snap in snapshots:
+                for sp in pages_saved:
+                    if snap.url == sp.url or snap.get("url") == sp.url:
+                        sp.snapshot_hash = snap.snapshot_hash
+                        break
 
             classic_engine = ClassicSEOEngine()
             ai_geo_engine = AIGeoEngine()
@@ -425,17 +439,21 @@ async def run_audit_task(audit_id: str):
             enterprise_issues = []
             for sp in pages_saved:
                 try:
-                    classic_result = classic_engine.analyze(sp)
-                    ai_geo_result = ai_geo_engine.analyze(sp)
-                    content_v2_result = content_v2_engine.analyze(sp)
+                    snap_for_page = CrawlSnapshot(sp)
+                    classic_result = classic_engine.analyze(snap_for_page)
+                    ai_geo_result = ai_geo_engine.analyze(snap_for_page)
+                    content_v2_result = content_v2_engine.analyze(snap_for_page)
                     for issue in classic_result.get("issues", []):
                         issue["page_url"] = sp.url
+                        issue["snapshot_hash"] = snap_for_page.snapshot_hash
                         enterprise_issues.append(issue)
                     for issue in ai_geo_result.get("issues", []):
                         issue["page_url"] = sp.url
+                        issue["snapshot_hash"] = snap_for_page.snapshot_hash
                         enterprise_issues.append(issue)
                     for issue in content_v2_result.get("issues", []):
                         issue["page_url"] = sp.url
+                        issue["snapshot_hash"] = snap_for_page.snapshot_hash
                         enterprise_issues.append(issue)
                 except Exception as e:
                     logger.error(f"Enterprise analysis failed for {sp.url}: {e}")
@@ -444,9 +462,14 @@ async def run_audit_task(audit_id: str):
                 db.add(Issue(
                     audit_id=audit_id, page_url=issue.get("page_url", ""),
                     category=issue.get("category", ""), severity=issue.get("severity", "LOW"),
-                    signal_id=0, signal_name=issue.get("id", ""),
-                    description=issue.get("issue", ""), impact=issue.get("fix", ""),
-                    fix=issue.get("fix", ""),
+                    signal_id=issue.get("signal_id", 0), signal_name=issue.get("id", ""),
+                    description=issue.get("issue", ""), impact=issue.get("expected_impact", ""),
+                    fix=issue.get("fix", issue.get("exact_fix", "")),
+                    effort=issue.get("effort", "MEDIUM"),
+                    root_cause=issue.get("what_wrong", ""),
+                    fix_code=f"FIX-{issue.get('id', '0000')}",
+                    snapshot_hash=issue.get("snapshot_hash", ""),
+                    pages_affected=1,
                 ))
             await db.commit()
 
@@ -457,6 +480,9 @@ async def run_audit_task(audit_id: str):
                     signal_id=issue.get("signal_id", 0), signal_name=issue.get("signal_name", ""),
                     description=issue.get("description", ""), impact=issue.get("impact", ""),
                     fix=issue.get("fix", ""),
+                    effort=issue.get("effort", "MEDIUM"),
+                    fix_code=f"FIX-{issue.get('signal_id', 0):04d}",
+                    pages_affected=1,
                 ))
             await db.commit()
 
@@ -475,39 +501,95 @@ async def run_audit_task(audit_id: str):
             await update_status(AuditStatus.GEO_ANALYSIS.value, 60, "GEO analysis complete")
             await update_status(AuditStatus.CONTENT_ANALYSIS.value, 65, "Content analysis complete")
 
+            await update_status(AuditStatus.COMPETITOR_ANALYSIS.value, 70, "Analyzing competitors...")
+
             competitor_data = None
+            comp_discovery_info = {"source": "not_available", "note": "No competitor URL or SERP API configured"}
+
+            competitor_urls = []
             if competitor_url:
-                await update_status(AuditStatus.COMPETITOR_ANALYSIS.value, 70, "Analyzing competitor...")
-                comp_crawler = CrawlerEngine()
+                competitor_urls.append(competitor_url)
+            else:
                 try:
-                    comp_pages = await comp_crawler.crawl(competitor_url, max_pages=50)
+                    from app.engine.competitor_discovery import discover_competitors
+                    first_page = pages[0] if pages else None
+                    keyword = getattr(first_page, 'title', '') or domain or ""
+                    discovered = await discover_competitors(website_url, keyword.split(" -")[0] if " -" in keyword else keyword)
+                    comp_discovery_info = discovered
+                    competitor_urls = [c["url"] for c in discovered.get("competitors", [])[:3]]
+                    if competitor_urls:
+                        logger.info(f"Discovered {len(competitor_urls)} competitors from {discovered.get('source', 'unknown')}")
+                        comp_discovery_info["competitor_count"] = len(competitor_urls)
                 except Exception as e:
-                    logger.error(f"Competitor crawl failed: {e}")
-                    comp_pages = []
+                    logger.warning(f"Competitor discovery failed: {e}")
+
+            if competitor_urls:
+                comp_crawler = CrawlerEngine()
+                comp_engine = CompetitorEngine()
+                all_comp_pages = {}
+                try:
+                    for cu in competitor_urls:
+                        try:
+                            comp_pages = await comp_crawler.crawl(cu, max_pages=20)
+                            if comp_pages:
+                                comp_snapshots = build_snapshots(comp_pages)
+                                all_comp_pages[cu] = comp_snapshots
+                        except Exception as e:
+                            logger.warning(f"Competitor crawl failed for {cu}: {e}")
+                            all_comp_pages[cu] = []
                 finally:
                     await comp_crawler.close()
 
-                comp_engine = CompetitorEngine()
-                try:
-                    competitor_data = comp_engine.analyze(pages, comp_pages)
-                except Exception as e:
-                    logger.error(f"Competitor analysis failed: {e}")
-                    competitor_data = comp_engine._empty_result()
+                for cu, comp_pages_list in all_comp_pages.items():
+                    if not comp_pages_list:
+                        continue
+                    try:
+                        comp_raw = [s.to_dict() for s in comp_pages_list]
+                        comp_result = comp_engine.analyze(pages, comp_raw)
+                        competitor_data = {
+                            "keyword_opportunities": comp_result.get("keyword_opportunities", []),
+                            "content_opportunities": comp_result.get("content_opportunities", []),
+                            "entity_gaps": comp_result.get("entity_gaps", []),
+                            "topic_gaps": comp_result.get("topic_gaps", []),
+                            "seo_comparison": comp_result.get("seo_comparison", {}),
+                            "strengths": comp_result.get("strengths", []),
+                            "weaknesses": comp_result.get("weaknesses", []),
+                            "winning_strategy": comp_result.get("winning_strategy", []),
+                            "backlink_gap": comp_result.get("backlink_gap", []),
+                            "serp_gap": comp_result.get("serp_gap", []),
+                            "_note": f"Real crawl data from {cu}",
+                            "_source": "competitor_crawl",
+                            "_competitor_url": cu,
+                        }
+                    except Exception as e:
+                        logger.error(f"Competitor analysis failed for {cu}: {e}")
+                        competitor_data = {
+                            "_note": f"Competitor analysis not available for {cu}",
+                            "_source": "unavailable",
+                            "_competitor_url": cu,
+                        }
 
-                db.add(CompetitorData(
-                    audit_id=audit_id, competitor_url=competitor_url,
-                    keyword_opportunities=competitor_data.get("keyword_opportunities", []),
-                    content_opportunities=competitor_data.get("content_opportunities", []),
-                    entity_gaps=competitor_data.get("entity_gaps", []),
-                    topic_gaps=competitor_data.get("topic_gaps", []),
-                    seo_comparison=competitor_data.get("seo_comparison", {}),
-                    strengths=competitor_data.get("strengths", []),
-                    weaknesses=competitor_data.get("weaknesses", []),
-                    winning_strategy=competitor_data.get("winning_strategy", []),
-                    backlink_gap=competitor_data.get("backlink_gap", []),
-                    serp_gap=competitor_data.get("serp_gap", []),
-                ))
-                await db.commit()
+                    if competitor_data:
+                        db.add(CompetitorData(
+                            audit_id=audit_id, competitor_url=cu,
+                            keyword_opportunities=competitor_data.get("keyword_opportunities", []),
+                            content_opportunities=competitor_data.get("content_opportunities", []),
+                            entity_gaps=competitor_data.get("entity_gaps", []),
+                            topic_gaps=competitor_data.get("topic_gaps", []),
+                            seo_comparison=competitor_data.get("seo_comparison", {}),
+                            strengths=competitor_data.get("strengths", []),
+                            weaknesses=competitor_data.get("weaknesses", []),
+                            winning_strategy=competitor_data.get("winning_strategy", []),
+                            backlink_gap=competitor_data.get("backlink_gap", []),
+                            serp_gap=competitor_data.get("serp_gap", []),
+                        ))
+                        await db.commit()
+
+            if not competitor_data or competitor_data.get("_source") == "unavailable":
+                competitor_data = competitor_data or {}
+                competitor_data.setdefault("_note", comp_discovery_info.get("note", "Competitor data not available"))
+                competitor_data.setdefault("_source", comp_discovery_info.get("source", "unavailable"))
+                competitor_data.setdefault("_discovery", comp_discovery_info)
 
             await update_status(AuditStatus.KEYWORD_ANALYSIS.value, 75, "Keyword analysis...")
 
@@ -551,19 +633,43 @@ async def run_audit_task(audit_id: str):
             ai_recommendations = []
             ai_visibility = {}
 
-            if ai_engine.available:
+            ai_provider_available = ai_engine.available
+            if ai_provider_available:
                 try:
                     ai_recommendations = await ai_engine.generate_recommendations(analysis_summary)
                 except Exception as e:
                     logger.error(f"AI recs failed: {e}")
+
+            if ai_provider_available:
                 try:
                     parsed_url = website_url.replace("https://", "").replace("http://", "").split("/")[0]
                     ai_visibility = await ai_engine.analyze_ai_visibility(website_url, parsed_url)
                 except Exception as e:
                     logger.error(f"AI visibility failed: {e}")
+            else:
+                ai_visibility = {
+                    "_note": "AI visibility score requires GEMINI_API_KEY. Configure it to enable AI citation analysis.",
+                    "_source": "unavailable",
+                }
 
-            if not ai_recommendations and analysis.issues:
-                ai_recommendations = _generate_fallback_recommendations(analysis.issues, website_url)
+            if not ai_recommendations:
+                if analysis.issues:
+                    ai_recommendations = _generate_fallback_recommendations(analysis.issues, website_url)
+                    for rec in ai_recommendations:
+                        rec["_source"] = "rule_based"
+                else:
+                    ai_recommendations = [{
+                        "issue": "AI recommendations not available",
+                        "current_problem": "No AI API key configured and no fallback issues available",
+                        "why_it_matters": "Configure a GEMINI_API_KEY to generate AI-powered recommendations",
+                        "exact_fix": "Set the GEMINI_API_KEY environment variable",
+                        "priority": "LOW", "category": "SEO",
+                        "expected_impact": "LOW", "difficulty": "EASY",
+                        "before_example": "", "after_example": "",
+                        "suggested_content": "", "suggested_heading": "",
+                        "keywords": [], "_source": "unavailable",
+                        "page_url": website_url,
+                    }]
 
             for rec in ai_recommendations:
                 db.add(Recommendation(
@@ -575,15 +681,34 @@ async def run_audit_task(audit_id: str):
                     suggested_content=rec.get("suggested_content", ""),
                     suggested_heading=rec.get("suggested_heading", ""),
                     keywords=rec.get("keywords", []), expected_impact=rec.get("expected_impact", ""),
-                    difficulty=rec.get("difficulty", "MODERATE"), ai_generated=1,
+                    difficulty=rec.get("difficulty", "MODERATE"), ai_generated=1 if ai_provider_available else 0,
                 ))
             await db.commit()
 
             await update_status(AuditStatus.REPORT_GENERATION.value, 90, "Generating report...")
 
             ai_vis_score = 0
-            if ai_visibility:
+            if ai_visibility and ai_visibility.get("_source") != "unavailable":
                 ai_vis_score = (ai_visibility.get("chatgpt_visibility", 0) + ai_visibility.get("gemini_visibility", 0) + ai_visibility.get("perplexity_visibility", 0)) / 3
+
+            await update_status(AuditStatus.REPORT_QA.value, 95, "Running self-QA linter...")
+
+            linter_errors = []
+            try:
+                from app.engine.report_linter import lint_report
+                report_for_lint = {
+                    "issues": [i.to_business_schema() if hasattr(i, 'to_business_schema') else {} for i in (enterprise_issues + analysis.issues[:200])],
+                    "all_signals": analysis.signals,
+                    "pages_analyzed": [{"url": p.url} for p in pages_saved],
+                    "competitor_data": competitor_data or {},
+                    "snapshot_hashes": [getattr(p, 'snapshot_hash', '') for p in pages_saved if hasattr(p, 'snapshot_hash')],
+                }
+                linter_errors = lint_report(report_for_lint)
+                if linter_errors:
+                    for err in linter_errors:
+                        logger.warning(f"Linter: {err}")
+            except Exception as e:
+                logger.error(f"Linter failed: {e}")
 
             db.add(AuditScore(
                 audit_id=audit_id, overall_score=round(scores.get("overall", 0), 1),
@@ -597,7 +722,18 @@ async def run_audit_task(audit_id: str):
                 audit_id=audit_id, website_url=website_url,
                 overall_score=round(scores.get("overall", 0), 1),
                 status=AuditStatus.COMPLETED.value,
+                linter_warnings=len([e for e in linter_errors if "warning" not in str(e).lower()]),
             ))
+
+            if linter_errors:
+                db.add(AuditLinterResult(
+                    audit_id=audit_id,
+                    passed=len([e for e in linter_errors if not e]),
+                    failed=len(linter_errors),
+                    details=[{"check": e.check_name, "detail": e.detail} for e in linter_errors],
+                ))
+                await db.commit()
+                logger.warning(f"Audit {audit_id} passed with {len(linter_errors)} linter warnings (non-blocking)")
 
             await update_status(AuditStatus.COMPLETED.value, 100, "Audit complete")
             audit.completed_at = _dt.datetime.utcnow()
