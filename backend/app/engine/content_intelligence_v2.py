@@ -416,7 +416,7 @@ class ContentIntelligenceV2:
 
     def _compute_score(self, sigs):
         if not sigs:
-            return 50.0
+            return 0.0
         passes = sum(1 for s in sigs if s["status"] == "pass")
         warns = sum(1 for s in sigs if s["status"] == "warn")
         total = len(sigs)

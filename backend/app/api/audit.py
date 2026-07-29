@@ -417,7 +417,7 @@ async def run_audit_task(audit_id: str):
 
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 52, "Running enterprise engine analysis...")
 
-            from app.engine.crawl_snapshot import CrawlSnapshot, build_snapshots
+            from app.engine.crawl_snapshot import CrawlSnapshot, build_snapshots, _normalize_url
             import json
 
             pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
@@ -430,6 +430,15 @@ async def run_audit_task(audit_id: str):
                     if snap.url == sp.url or snap.get("url") == sp.url:
                         sp.snapshot_hash = snap.snapshot_hash
                         break
+
+            seen_norm = set()
+            deduped_pages = []
+            for sp in pages_saved:
+                norm = _normalize_url(sp.url)
+                if norm not in seen_norm:
+                    seen_norm.add(norm)
+                    deduped_pages.append(sp)
+            pages_saved = deduped_pages
 
             classic_engine = ClassicSEOEngine()
             ai_geo_engine = AIGeoEngine()

@@ -1,5 +1,6 @@
 import logging
 import json
+import re
 import datetime as _dt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,24 @@ router = APIRouter(prefix="/api", tags=["status"])
 # In-memory cache for expensive endpoint results
 _endpoint_cache = {}
 _CACHE_TTL = 600  # 10 minutes
+
+
+def _normalize_url(url: str) -> str:
+    url = url.strip().rstrip("/")
+    url = url.replace("http://", "https://")
+    url = url.replace("www.", "", 1) if url.startswith("https://www.") else url
+    return url
+
+
+def _dedup_pages(pages: list) -> list:
+    seen = set()
+    result = []
+    for p in pages:
+        norm = _normalize_url(p.url if hasattr(p, "url") else p.get("url", ""))
+        if norm not in seen:
+            seen.add(norm)
+            result.append(p)
+    return result
 
 def _cache_get(key):
     import time
@@ -256,8 +275,10 @@ async def get_competitor_data(audit_id: str, db: AsyncSession = Depends(get_db))
 @router.get("/audit/{audit_id}/pages")
 async def get_audit_pages(audit_id: str, offset: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
-    total = (await db.execute(select(func.count()).select_from(Page).where(Page.audit_id == audit_id))).scalar() or 0
-    result = await db.execute(select(Page).where(Page.audit_id == audit_id).offset(offset).limit(limit))
+    all_pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    deduped = _dedup_pages(all_pages)
+    total = len(deduped)
+    paged = deduped[offset:offset + limit]
     return {
         "items": [{
             "id": p.id, "url": p.url, "status_code": p.status_code,
@@ -269,7 +290,7 @@ async def get_audit_pages(audit_id: str, offset: int = 0, limit: int = 50, db: A
             "images_count": len(p.images or []),
             "page_type": p.page_type or "UNKNOWN",
             "context_issues_count": len(p.context_issues or []),
-        } for p in result.scalars().all()],
+        } for p in paged],
         "total": total, "offset": offset, "limit": limit,
     }
 

@@ -201,9 +201,9 @@ class EnterpriseOrchestrator:
                 all_competitor_gaps.extend(result["diagnostics"]["competitor_gap"])
 
                 for key in score_sum:
-                    score_sum[key] += result["scores"].get(key, 50)
+                    score_sum[key] += result["scores"].get(key, 0)
                 for key in platform_sums:
-                    platform_sums[key] += result["platform_scores"].get(key, 50)
+                    platform_sums[key] += result["platform_scores"].get(key, 0)
             except Exception as e:
                 logger.error(f"Enterprise analysis failed for {page.url}: {e}")
 

@@ -271,7 +271,7 @@ export default function PageDetail() {
       if (megaRes.status === 'fulfilled') setMega(megaRes.value);
       setPageLoading(false);
     }).catch(() => setPageLoading(false));
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading pages...</p></div>;
   if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No pages found</div>;
@@ -465,18 +465,25 @@ export default function PageDetail() {
                   </div>
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  {[
-                    { label: 'SEO Impact', desc: 'Title, meta, headings, schema', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['title_tag','meta_tags','headings','url_structure','open_graph','canonical'].some(x => c.includes(x)); }).length },
-                    { label: 'Technical Impact', desc: 'Speed, mobile, security', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['page_speed','security','crawlability','indexability','mobile','core_web_vitals','technical'].some(x => c.includes(x)); }).length },
-                    { label: 'Content Impact', desc: 'Words, quality, keywords', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['content','keyword','readability','entity'].some(x => c.includes(x)); }).length },
-                    { label: 'AI Search Impact', desc: 'Citations, entities, E-E-A-T', value: issues.filter(i => { const c = (i.category || '').toLowerCase(); return ['ai','schema','structured_data','eeat','entity'].some(x => c.includes(x)); }).length },
-                  ].map((item, i) => (
-                    <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{item.label}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{item.desc}</div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: item.value > 0 ? '#d97706' : '#059669', marginTop: 2 }}>{item.value} issues</div>
-                    </div>
-                  ))}
+                  {(() => {
+                    const ck = (cat) => (cat || '').toLowerCase().replace(/[-\s]/g, '_');
+                    const seoCount = issues.filter(i => { const c = ck(i.category); return c.includes('title_tag') || c.includes('meta_tags') || c.includes('heading') || c.includes('url_structure') || c.includes('open_graph') || c.includes('canonical') || c.includes('schema_markup') || c.includes('keyword_optimization'); }).length;
+                    const techCount = issues.filter(i => { const c = ck(i.category); return c.includes('page_speed') || c.includes('security') || c.includes('crawlability') || c.includes('indexability') || c.includes('mobile') || c.includes('core_web_vitals') || c.includes('technical_integrity') || c.includes('performance') || c.includes('javascript'); }).length;
+                    const contentCount = issues.filter(i => { const c = ck(i.category); return c.includes('content') || c.includes('keyword') || c.includes('readability') || c.includes('depth') || c.includes('structure') || c.includes('freshness') || c.includes('spam') || c.includes('word_quality'); }).length;
+                    const aiCount = issues.filter(i => { const c = ck(i.category); return c.includes('ai_') || c.includes('schema') || c.includes('eeat') || c.includes('entity') || c.includes('citation') || c.includes('bluf') || c.includes('rag_') || c.includes('answer_engine') || c.includes('platform_specific') || c.includes('structured_data'); }).length;
+                    return [
+                      { label: 'SEO Impact', desc: 'Title, meta, headings, schema', value: seoCount },
+                      { label: 'Technical Impact', desc: 'Speed, mobile, security', value: techCount },
+                      { label: 'Content Impact', desc: 'Words, quality, keywords', value: contentCount },
+                      { label: 'AI Search Impact', desc: 'Citations, entities, E-E-A-T', value: aiCount },
+                    ].map((item, i) => (
+                      <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{item.label}</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{item.desc}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: item.value > 0 ? '#d97706' : '#059669', marginTop: 2 }}>{item.value} issues</div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
             )}

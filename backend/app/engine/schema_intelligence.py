@@ -1002,10 +1002,11 @@ class SchemaIntelligenceEngine:
     def _compute_schema_score(self, detected: list[dict], validation: dict, page_type: str) -> float:
         total_score = 0.0
         max_score = 0.0
+        pt = page_type.lower()
 
         applicable = set()
         for type_name, definition in _SCHEMA_DEFINITIONS.items():
-            if page_type in definition.get("applicable_pages", set()) or page_type == "unknown":
+            if pt in definition.get("applicable_pages", set()) or page_type == "unknown":
                 applicable.add(type_name)
 
         for type_name, definition in _SCHEMA_DEFINITIONS.items():
@@ -1049,9 +1050,10 @@ class SchemaIntelligenceEngine:
     def _compute_schema_coverage(self, detected: list[dict], page_type: str) -> float:
         applicable_count = 0
         found_count = 0
+        pt = page_type.lower()
 
         for type_name, definition in _SCHEMA_DEFINITIONS.items():
-            if page_type in definition.get("applicable_pages", set()) or page_type == "unknown":
+            if pt in definition.get("applicable_pages", set()) or page_type == "unknown":
                 applicable_count += 1
                 for schema in detected:
                     if schema["type"] == type_name and schema.get("found"):
