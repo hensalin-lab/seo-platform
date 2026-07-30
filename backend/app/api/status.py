@@ -2775,19 +2775,6 @@ async def get_social_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     twitter_pct = round(twitter_count / max(total, 1) * 100, 1)
     score = round((og_pct + twitter_pct) / 2)
 
-    return {
-        "social_seo_score": score,
-        "total_pages": total,
-        "pages_with_og": og_count,
-        "pages_with_twitter": twitter_count,
-        "og_coverage_pct": og_pct,
-        "twitter_coverage_pct": twitter_pct,
-        "pages_with_og_urls": og_pages[:20],
-        "pages_with_twitter_urls": twitter_pages[:20],
-        "issues": [
-            {"signal_name": "Missing Open Graph Tags", "severity": "MEDIUM", "description": f"{total - og_count} pages missing Open Graph tags", "fix": "Add og:title, og:description, og:image to all pages"},
-            {"signal_name": "Missing Twitter Cards", "severity": "LOW", "description": f"{total - twitter_count} pages missing Twitter Card tags", "fix": "Add twitter:card, twitter:title, twitter:description"},
-        ] if total - og_count > 0 else [],
     recs = []
     if total - og_count > 0:
         recs.append({"priority": "HIGH", "action": f"Add Open Graph tags to {total - og_count} pages missing them", "impact": "Improves social sharing appearance on Facebook, LinkedIn"})
