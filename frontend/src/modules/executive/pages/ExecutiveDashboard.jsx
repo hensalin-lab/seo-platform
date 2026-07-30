@@ -181,18 +181,18 @@ export default function ExecutiveDashboard() {
       }));
 
   const modelData = [
-    { name: 'ChatGPT', rate: aiVisibilityData?.chatgpt?.citation_rate ?? aiVisibilityData?.chatgpt_citation_rate ?? 78 },
-    { name: 'Perplexity', rate: aiVisibilityData?.perplexity?.citation_rate ?? aiVisibilityData?.perplexity_citation_rate ?? 65 },
-    { name: 'Claude', rate: aiVisibilityData?.claude?.citation_rate ?? aiVisibilityData?.claude_citation_rate ?? 72 },
-    { name: 'Google AI Overviews', rate: aiVisibilityData?.google_ai?.citation_rate ?? aiVisibilityData?.google_ai_overviews_citation_rate ?? 85 },
-    { name: 'DeepSeek', rate: aiVisibilityData?.deepseek?.citation_rate ?? aiVisibilityData?.deepseek_citation_rate ?? 42 },
+    { name: 'ChatGPT', rate: aiVisibilityData?.chatgpt?.citation_rate ?? aiVisibilityData?.chatgpt_citation_rate ?? null },
+    { name: 'Perplexity', rate: aiVisibilityData?.perplexity?.citation_rate ?? aiVisibilityData?.perplexity_citation_rate ?? null },
+    { name: 'Claude', rate: aiVisibilityData?.claude?.citation_rate ?? aiVisibilityData?.claude_citation_rate ?? null },
+    { name: 'Google AI Overviews', rate: aiVisibilityData?.google_ai?.citation_rate ?? aiVisibilityData?.google_ai_overviews_citation_rate ?? null },
+    { name: 'DeepSeek', rate: aiVisibilityData?.deepseek?.citation_rate ?? aiVisibilityData?.deepseek_citation_rate ?? null },
   ];
 
   const modelColors = ['var(--accent)', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444'];
   const lastCrawl = aiVisibilityData?.last_crawl || aiVisibilityData?.last_crawled || aiVisibilityData?.crawl_timestamp || null;
   const lastCrawlMinutes = lastCrawl
     ? Math.round((Date.now() - new Date(lastCrawl).getTime()) / 60000)
-    : 12;
+    : null;
 
   if (loading) {
     return (
@@ -343,10 +343,10 @@ export default function ExecutiveDashboard() {
               <div key={m.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 500, color: '#c0c0c0' }}>{m.name}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: modelColors[i] }}>{m.rate}%</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: modelColors[i] }}>{m.rate != null ? `${m.rate}%` : '—'}</span>
                 </div>
                 <div style={{ background: 'var(--border)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, m.rate)}%`, height: '100%', background: modelColors[i], borderRadius: 4, transition: 'width 0.6s ease' }} />
+                  <div style={{ width: m.rate != null ? `${Math.min(100, m.rate)}%` : 0, height: '100%', background: m.rate != null ? modelColors[i] : 'var(--border)', borderRadius: 4, transition: 'width 0.6s ease' }} />
                 </div>
               </div>
             ))}
@@ -354,10 +354,10 @@ export default function ExecutiveDashboard() {
 
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Last LLM Crawl: {lastCrawlMinutes < 1 ? '<1' : lastCrawlMinutes} min ago
+              {lastCrawlMinutes == null ? 'No crawl data' : `Last LLM Crawl: ${lastCrawlMinutes < 1 ? '<1' : lastCrawlMinutes} min ago`}
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#22c55e', fontWeight: 600 }}>
-              <CheckCircle size={10} /> All Models Live
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: aiVisibilityData ? '#22c55e' : '#6b7280', fontWeight: 600 }}>
+              <CheckCircle size={10} /> {aiVisibilityData ? 'Data Available' : 'No Data'}
             </span>
           </div>
         </div>

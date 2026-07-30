@@ -20,33 +20,6 @@ const SENTIMENT_STYLES = {
   NEUTRAL: { label: 'Neutral', bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', icon: AlertCircle },
 };
 
-function generateMockResult(modelId, prompt) {
-  const snippets = {
-    chatgpt: `${prompt.slice(0, 60)}... Based on my analysis, the brand visibility is strong across multiple channels. The company ranks well for key terms and maintains a consistent brand presence.`,
-    perplexity: `I found several references to the brand in recent publications. ${prompt.slice(0, 40)}... The brand appears in 3 of the top 10 search results with positive sentiment signals.`,
-    claude: `After reviewing the available data regarding "${prompt.slice(0, 50)}...", I can confirm the brand is mentioned in authoritative sources. Brand recall metrics show steady improvement over the past quarter.`,
-    gemini: `The brand demonstrates strong topical authority. For "${prompt.slice(0, 45)}...", the brand appears in featured snippets and knowledge panels. Recommendation: continue building entity associations.`,
-    deepseek: `Analysis of brand mentions for "${prompt.slice(0, 40)}..." indicates growing share of voice. The brand is cited alongside industry leaders in 60% of relevant AI-generated responses.`,
-  };
-  const mentionFlags = { chatgpt: true, perplexity: true, claude: true, gemini: false, deepseek: true };
-  const sentiments = { chatgpt: 'POSITIVE', perplexity: 'NEUTRAL', claude: 'POSITIVE', gemini: 'NEGATIVE', deepseek: 'POSITIVE' };
-  const sourceSets = {
-    chatgpt: ['https://example.com/brand-report', 'https://example.com/industry-analysis'],
-    perplexity: ['https://example.com/news/article-2024', 'https://example.com/market-research', 'https://example.com/competitor-benchmark'],
-    claude: ['https://example.com/case-study', 'https://example.com/whitepaper'],
-    gemini: [],
-    deepseek: ['https://example.com/review', 'https://example.com/comparison-guide', 'https://example.com/expert-opinion'],
-  };
-  const times = { chatgpt: 1240, perplexity: 2870, claude: 3450, gemini: 980, deepseek: 2100 };
-  return {
-    brand_mentioned: mentionFlags[modelId],
-    sentiment: sentiments[modelId],
-    response_snippet: snippets[modelId],
-    sources: sourceSets[modelId],
-    response_time_ms: times[modelId],
-  };
-}
-
 function formatTime(ms) {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
@@ -63,6 +36,7 @@ export default function PromptTestingLab() {
   const [selectedModels, setSelectedModels] = useState(MODELS.map(m => m.id));
   const [results, setResults] = useState(null);
   const [executing, setExecuting] = useState(false);
+  const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -77,14 +51,21 @@ export default function PromptTestingLab() {
     if (!prompt.trim() || selectedModels.length === 0) return;
     setExecuting(true);
     setResults(null);
-    const mockResults = {};
-    const modelList = MODELS.filter(m => selectedModels.includes(m.id));
-    for (const model of modelList) {
-      await new Promise(r => setTimeout(r, 400 + Math.random() * 600));
-      mockResults[model.id] = generateMockResult(model.id, prompt);
+    setError(null);
+    try {
+      const res = await fetch('/api/prompt-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt.trim(), models: selectedModels }),
+      });
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      const data = await res.json();
+      setResults(data);
+    } catch (err) {
+      setError(`API endpoint /api/prompt-test not available. Connect a backend LLM evaluation service to run real prompts.`);
+    } finally {
+      setExecuting(false);
     }
-    setResults(mockResults);
-    setExecuting(false);
   }, [prompt, selectedModels]);
 
   const saveTest = useCallback(() => {
@@ -95,8 +76,8 @@ export default function PromptTestingLab() {
         id: Date.now(),
         prompt: prompt.slice(0, 100) + (prompt.length > 100 ? '...' : ''),
         date: new Date(),
-        modelCount: Object.keys(results).length,
-        hadMentions: Object.values(results).some(r => r.brand_mentioned),
+        modelCount: results.results ? Object.keys(results.results).length : 0,
+        hadMentions: results.results ? Object.values(results.results).some(r => r.brand_mentioned) : false,
         fullResults: results,
       };
       setHistory(prev => [entry, ...prev]);
@@ -194,7 +175,7 @@ export default function PromptTestingLab() {
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Results</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {results && (
+            {results && !error && (
               <button
                 onClick={saveTest}
                 disabled={saving}
@@ -212,7 +193,7 @@ export default function PromptTestingLab() {
           </div>
         </div>
 
-        {!results && !executing && (
+        {!results && !executing && !error && (
           <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '40px 24px', textAlign: 'center' }}>
             <Sparkles size={40} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>No results yet</div>
@@ -242,10 +223,34 @@ export default function PromptTestingLab() {
           </div>
         )}
 
-        {results && !executing && (
+        {error && (
+          <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: 24, textAlign: 'center' }}>
+            <AlertCircle size={32} color="#ef4444" style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>API Endpoint Not Available</div>
+            <div style={{ fontSize: 13, color: '#c0c0c0', maxWidth: 400, margin: '0 auto' }}>{error}</div>
+          </div>
+        )}
+
+        {results && !executing && !error && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
             {MODELS.filter(m => selectedModels.includes(m.id)).map(model => {
-              const r = results[model.id];
+              const r = results.results?.[model.id];
+              if (!r) {
+                return (
+                  <div key={model.id} style={{
+                    background: 'var(--bg-white)', border: `1px solid var(--border)`, borderRadius: 12, padding: 20,
+                    borderLeft: `3px solid var(--border)`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: model.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <model.icon size={14} color={model.color} />
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{model.label}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>No response received from this model.</div>
+                  </div>
+                );
+              }
               const sentiment = SENTIMENT_STYLES[r?.sentiment] || SENTIMENT_STYLES.NEUTRAL;
               const SentimentIcon = sentiment.icon;
               return (
@@ -264,13 +269,13 @@ export default function PromptTestingLab() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3 }}>
                         <Clock size={11} />
-                        {formatTime(r?.response_time_ms)}
+                        {r.response_time_ms != null ? formatTime(r.response_time_ms) : '—'}
                       </span>
                     </div>
                   </div>
 
                   <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 12, minHeight: 60 }}>
-                    {r?.response_snippet?.slice(0, 200)}{r?.response_snippet?.length > 200 ? '...' : ''}
+                    {r.response_snippet?.slice(0, 200) ?? 'No response snippet available.'}{r.response_snippet?.length > 200 ? '...' : ''}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -283,7 +288,6 @@ export default function PromptTestingLab() {
                       {r?.brand_mentioned ? <CheckCircle size={13} /> : <XCircle size={13} />}
                       Brand {r?.brand_mentioned ? 'Mentioned' : 'Not Mentioned'}
                     </div>
-
                     <div style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4,
                       padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700,
@@ -319,7 +323,7 @@ export default function PromptTestingLab() {
         )}
 
         <div style={{ marginTop: 12, fontSize: 12, color: '#4b5563', fontStyle: 'italic' }}>
-          Results powered by backend LLM integration
+          Results powered by backend LLM integration via /api/prompt-test
         </div>
       </div>
 

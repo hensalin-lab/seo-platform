@@ -245,8 +245,14 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
   );
 }
 
+function useQuery() {
+  return new URLSearchParams(window.location.search);
+}
+
 export default function PageDetail() {
   const { id } = useParams();
+  const query = useQuery();
+  const urlParam = query.get('url');
   const [pages, setPages] = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState('googlebot');
@@ -255,10 +261,28 @@ export default function PageDetail() {
   const [mega, setMega] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pageLoading, setPageLoading] = useState(false);
+  const [pageIssues, setPageIssues] = useState([]);
 
   useEffect(() => {
-    api.getAuditPages(id, { limit: 100 }).then(d => { setPages(d.items || []); setLoading(false); }).catch(e => { setPages([]); setLoading(false); console.error('Failed to load pages:', e); });
-  }, [id]);
+    api.getAuditPages(id, { limit: 100 }).then(d => {
+      const items = d.items || [];
+      if (urlParam) {
+        const matchIdx = items.findIndex(p => p.url === urlParam || p.url?.replace(/\/$/, '') === urlParam?.replace(/\/$/, ''));
+        if (matchIdx >= 0) setSelectedIdx(matchIdx);
+      }
+      setPages(items);
+      setLoading(false);
+    }).catch(e => { setPages([]); setLoading(false); console.error('Failed to load pages:', e); });
+  }, [id, urlParam]);
+
+  useEffect(() => {
+    if (!id || !pages[selectedIdx]?.url) return;
+    api.getAuditIssues(id, { limit: 200 }).then(data => {
+      const all = data.items || [];
+      const currentUrl = pages[selectedIdx]?.url;
+      setPageIssues(all.filter(i => i.page_url === currentUrl));
+    }).catch(() => {});
+  }, [id, selectedIdx, pages]);
 
   useEffect(() => {
     if (!pages.length) return;
@@ -489,6 +513,27 @@ export default function PageDetail() {
             )}
 
             <AiRecommendationsPanel auditId={id} pageIdx={selectedIdx} />
+
+            {pageIssues.length > 0 && (
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertTriangle size={16} color="#dc2626" /> Page Issues ({pageIssues.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {pageIssues.slice(0, 20).map((issue, i) => (
+                    <div key={i} style={{ padding: 8, background: '#fef2f2', borderRadius: 6, border: '1px solid #fecaca' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: issue.severity === 'CRITICAL' ? '#dc2626' : '#f97316', color: '#fff' }}>{issue.severity}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', flex: 1 }}>{issue.signal_name}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#7f1d1d', lineHeight: 1.4, marginBottom: 2 }}>{issue.description}</div>
+                      <div style={{ fontSize: 10, color: '#991b1b' }}><strong>Impact:</strong> {issue.impact}</div>
+                      <div style={{ padding: '4px 6px', background: '#f0fdf4', borderRadius: 4, marginTop: 4, fontSize: 10, color: '#065f46' }}><strong>Fix:</strong> {issue.fix}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
