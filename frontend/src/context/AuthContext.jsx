@@ -59,7 +59,9 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
   }, []);
 
-  const value = { user, token, loading, isAuthenticated: !!token, login, register, logout };
+  const isAdmin = user?.role === 'ADMIN';
+  const isViewer = !isAdmin;
+  const value = { user, token, loading, isAuthenticated: !!token, isAdmin, isViewer, login, register, logout };
 
   return (
     <AuthContext.Provider value={value}>

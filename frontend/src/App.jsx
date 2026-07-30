@@ -60,6 +60,7 @@ import PageImprovements from './pages/PageImprovements';
 import PageIntelligenceDetail from './pages/PageIntelligenceDetail';
 import PageSpeed from './pages/PageSpeed';
 import PortfolioDashboard from './pages/PortfolioDashboard';
+import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import Recommendations from './pages/Recommendations';
 import SecurityHeaders from './pages/SecurityHeaders';
 import SeoHealth from './pages/SeoHealth';
@@ -69,6 +70,7 @@ import AiRoadmap from './pages/AiRoadmap';
 import AiSuggestions from './pages/AiSuggestions';
 import IssuesExplorer from './pages/IssuesExplorer';
 import Trends from './pages/Trends';
+import GeoAeoHub from './pages/GeoAeoHub';
 import './index.css';
 
 export default function App() {
@@ -87,6 +89,8 @@ export default function App() {
                   <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
                   <Route path="/audit/:id/progress" element={<ProtectedRoute><AuditProgress /></ProtectedRoute>} />
                   <Route path="/audit/:id/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/audit/:id/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
+                  <Route path="/audit/:id/geo-aeo" element={<ProtectedRoute><GeoAeoHub /></ProtectedRoute>} />
                   <Route path="/audit/:id/seo" element={<ProtectedRoute><SeoAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/pages" element={<ProtectedRoute><PageIntelligence /></ProtectedRoute>} />
                   <Route path="/audit/:id/speed" element={<ProtectedRoute><SpeedAnalysis /></ProtectedRoute>} />
