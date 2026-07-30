@@ -243,8 +243,8 @@ export default function Layout({ children }) {
             </div>
           </div>
           <div className="topbar-actions">
-            <button className="btn btn-ghost btn-sm" onClick={() => setPaletteOpen(true)} title="Search (Cmd+K)" style={{ background: 'none', border: '1px solid var(--border, #2a2d35)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-muted, #8a8f9e)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <Search size={13} /> <kbd style={{ fontSize: 10, opacity: 0.5, border: '1px solid var(--border, #2a2d35)', borderRadius: 3, padding: '0 4px' }}>⌘K</kbd>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPaletteOpen(true)} title="Search (Cmd+K)" style={{ background: 'none', border: '1px solid var(--border, #e2e8f0)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              <Search size={13} /> <kbd style={{ fontSize: 10, opacity: 0.5, border: '1px solid var(--border, #e2e8f0)', borderRadius: 3, padding: '0 4px' }}>⌘K</kbd>
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => navigate('/new')}>
               <Plus size={13} /> New Audit

@@ -29,7 +29,7 @@ function Spinner({ text }) {
 function EmptyState({ icon: Icon, title, message }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 12 }}>
-      {Icon && <Icon size={40} color="#8a8f9e" />}
+      {Icon && <Icon size={40} color="var(--text-muted)" />}
       <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{title || 'No data available'}</div>
       <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 400 }}>{message || ''}</div>
     </div>

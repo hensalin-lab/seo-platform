@@ -13,14 +13,18 @@ function scoreBadge(s) {
 export default function History() {
   const [audits, setAudits] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const limit = 20
   const navigate = useNavigate()
 
   useEffect(() => {
-    api.getHistory().then(setAudits).catch(e => {
-      console.error('Failed to load history:', e);
-      setAudits([]);
-    }).finally(() => setLoading(false))
-  }, [])
+    api.getHistory(limit, page * limit).then(d => {
+      const items = Array.isArray(d) ? d : d?.items || []
+      setAudits(prev => page === 0 ? items : [...prev, ...items])
+      setHasMore(items.length === limit)
+    }).catch(() => setAudits([])).finally(() => setLoading(false))
+  }, [page])
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this audit?')) return
@@ -109,6 +113,11 @@ export default function History() {
               </tbody>
             </table>
           </div>
+          {hasMore && (
+            <div style={{ padding: '12px', textAlign: 'center' }}>
+              <button className="btn btn-secondary" onClick={() => setPage(p => p + 1)}>Load More</button>
+            </div>
+          )}
         </div>
       )}
     </div>

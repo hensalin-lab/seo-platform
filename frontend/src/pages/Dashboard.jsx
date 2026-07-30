@@ -32,7 +32,7 @@ function ScoreRing({ score, size = 100, stroke = 8, label }) {
         <span style={{ fontSize: size * 0.28, fontWeight: 800, color, lineHeight: 1 }}>
           <AnimatedNumber value={pct} duration={1400} />
         </span>
-        {label && <span style={{ fontSize: 10, color: '#8a8f9e', marginTop: 2 }}>{label}</span>}
+        {label && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
       </div>
     </div>
   );
@@ -241,7 +241,7 @@ export default function Dashboard() {
               { icon: Zap, label: 'Total Issues', value: latest.total_issues, color: '#f59f00', route: 'seo', bg: 'var(--yellow-bg)' },
               { icon: AlertTriangle, label: 'Critical', value: latest.critical_issues || 0, color: '#fa5252', route: 'seo', bg: 'var(--red-bg)' },
               { icon: Brain, label: 'AI Score', value: latest.ai_visibility_score || latest.aeo_score || 0, color: '#e64980', route: 'ai-visibility', bg: 'var(--pink-bg)' },
-              { icon: TrendingUp, label: 'Signals Checked', value: latest.total_signals || (latest.total_pages ? latest.total_pages * 93 : 0), color: '#12b886', route: 'enterprise', bg: 'var(--green-bg)' },
+              { icon: TrendingUp, label: 'Signals Checked (est.)', value: latest.total_signals || (latest.total_pages ? latest.total_pages * 93 : 0), color: '#12b886', route: 'enterprise', bg: 'var(--green-bg)' },
               { icon: Globe, label: 'Content Score', value: latest.content_score || 0, color: '#7950f2', route: 'content', bg: 'var(--purple-bg)' },
             ].map((s, i) => (
               <div key={i} className="stat-card hover-lift" onClick={() => navigate(`/audit/${latest.audit_id}/${s.route}`)}
@@ -400,10 +400,10 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {[
-                  { label: 'Estimated Traffic Gain', value: Math.round((latest.total_pages || 50) * 65), suffix: '/mo', color: '#12b886', prefix: '+' },
-                  { label: 'Ranking Opportunities', value: Math.round((latest.total_pages || 50) * 0.8), suffix: ' kw', color: '#4c6ef5', prefix: '' },
-                  { label: 'AI Citation Opportunities', value: Math.round((latest.total_pages || 50) * 0.2), suffix: '', color: '#e64980', prefix: '' },
-                  { label: 'Estimated Lead Growth', value: Math.round(12 + (latest.total_pages || 50) * 0.05), suffix: '%', color: '#f59f00', prefix: '+' },
+                  { label: 'Estimated Traffic Gain', value: Math.round((latest.total_pages || 50) * 65), suffix: '/mo (est.)', color: '#12b886', prefix: '+' },
+                  { label: 'Ranking Opportunities', value: Math.round((latest.total_pages || 50) * 0.8), suffix: ' kw (est.)', color: '#4c6ef5', prefix: '' },
+                  { label: 'AI Citation Opportunities', value: Math.round((latest.total_pages || 50) * 0.2), suffix: ' (est.)', color: '#e64980', prefix: '' },
+                  { label: 'Estimated Lead Growth', value: Math.round(12 + (latest.total_pages || 50) * 0.05), suffix: '% (est.)', color: '#f59f00', prefix: '+' },
                 ].map((item, i) => (
                   <div key={i} className="hover-lift" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius)', padding: 14, position: 'relative', overflow: 'hidden' }}>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{item.label}</div>

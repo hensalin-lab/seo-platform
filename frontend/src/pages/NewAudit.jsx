@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, ArrowRight, BarChart3, Zap, Brain, Target } from 'lucide-react'
 import { api } from '../api'
@@ -9,15 +9,18 @@ export default function NewAudit() {
   const [competitorUrl, setCompetitorUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const submitting = useRef(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (submitting.current) return
     setError('')
     let url = websiteUrl.trim()
     if (!url) { setError('Please enter a website URL'); return }
     if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url
     try { new URL(url) } catch { setError('Please enter a valid URL'); return }
 
+    submitting.current = true
     setLoading(true)
     try {
       let compUrl = competitorUrl.trim()
@@ -27,7 +30,7 @@ export default function NewAudit() {
       navigate(`/audit/${result.audit_id}/progress`)
     } catch (e) {
       setError(e.message || 'Failed to start audit')
-    } finally { setLoading(false) }
+    } finally { setLoading(false); submitting.current = false }
   }
 
   return (

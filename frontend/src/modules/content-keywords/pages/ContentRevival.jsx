@@ -125,7 +125,7 @@ function PageCard({ item, type, index }) {
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>of {min.toLocaleString()} words</div>
           </div>
         )}
-        {expanded ? <ChevronUp size={16} color="#8a8f9e" /> : <ChevronDown size={16} color="#8a8f9e" />}
+        {expanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
       </div>
 
       {expanded && (
@@ -181,7 +181,7 @@ function RecommendationCard({ rec, index }) {
         {rec.impact && (
           <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--radius-sm, 6px)', background: 'rgba(59,130,246,0.1)', color: 'var(--accent)' }}>Impact: {rec.impact}</span>
         )}
-        {expanded ? <ChevronUp size={16} color="#8a8f9e" /> : <ChevronDown size={16} color="#8a8f9e" />}
+        {expanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
       </div>
       {expanded && rec.description && (
         <div style={{ padding: '0 20px 16px', borderTop: '1px solid var(--border)' }}>
@@ -244,7 +244,7 @@ export default function ContentRevival() {
   if (!data) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
-        <FileText size={32} color="#8a8f9e" />
+        <FileText size={32} color="var(--text-muted)" />
         <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>No content revival data available</div>
       </div>
     );

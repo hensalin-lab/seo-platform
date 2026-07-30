@@ -49,7 +49,7 @@ function ScoreRing({ score, size = 64, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.28, fontWeight: 700, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 8, color: '#8a8f9e', marginTop: 1 }}>{label}</span>}
+        {label && <span style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 1 }}>{label}</span>}
       </div>
     </div>
   );
