@@ -42,8 +42,10 @@ class Settings(BaseSettings):
 
     CRAWLER_TIMEOUT: int = 15
     CRAWLER_MAX_PAGES: int = 100
+    CRAWLER_MAX_DEPTH: int = 10
     CRAWLER_CONCURRENCY: int = 15
     CRAWLER_USER_AGENT: str = "SEOIntelligenceBot/2.0"
+    CRAWLER_VERIFY_SSL: bool = True
 
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",

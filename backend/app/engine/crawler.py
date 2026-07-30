@@ -57,7 +57,7 @@ class CrawlerEngine:
                 timeout=httpx.Timeout(settings.CRAWLER_TIMEOUT),
                 follow_redirects=True,
                 headers={"User-Agent": settings.CRAWLER_USER_AGENT},
-                verify=False,
+                verify=settings.CRAWLER_VERIFY_SSL,
             )
         return self._client
 
@@ -201,7 +201,7 @@ class CrawlerEngine:
 
                     page.content_hash = hashlib.md5(page.content_text.encode()).hexdigest()
 
-                    if response.status_code == 200 and depth < 4:
+                    if response.status_code == 200 and depth < settings.CRAWLER_MAX_DEPTH:
                         for link in page.links_internal:
                             link_url = link["url"]
                             if link_url not in self.visited:

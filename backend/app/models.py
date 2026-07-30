@@ -60,6 +60,9 @@ class Audit(Base):
 
 class AuditScore(Base):
     __tablename__ = "audit_scores"
+    __table_args__ = (
+        Index("ix_audit_scores_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"), unique=True)
     overall_score = Column(Float, default=0.0)
@@ -80,6 +83,8 @@ class Page(Base):
         Index("ix_pages_url", "url"),
         Index("ix_pages_page_type", "page_type"),
         Index("ix_pages_audit_url", "audit_id", "url"),
+        Index("ix_pages_word_count", "word_count"),
+        Index("ix_pages_content_hash", "content_hash"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"))
@@ -182,6 +187,9 @@ class Recommendation(Base):
 
 class CompetitorData(Base):
     __tablename__ = "competitor_data"
+    __table_args__ = (
+        Index("ix_comp_data_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"), unique=True)
     competitor_url = Column(String, default="")
@@ -220,6 +228,9 @@ class RoadmapItem(Base):
 
 class KeywordData(Base):
     __tablename__ = "keyword_data"
+    __table_args__ = (
+        Index("ix_kw_data_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"), unique=True)
     top_keywords = Column(JSON, default=list)
@@ -233,6 +244,9 @@ class KeywordData(Base):
 
 class ContentData(Base):
     __tablename__ = "content_data"
+    __table_args__ = (
+        Index("ix_content_data_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"), unique=True)
     content_quality = Column(JSON, default=list)
@@ -246,6 +260,9 @@ class ContentData(Base):
 
 class AIVisibilityData(Base):
     __tablename__ = "ai_visibility_data"
+    __table_args__ = (
+        Index("ix_ai_vis_data_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"), unique=True)
     chatgpt_visibility = Column(Float, default=0.0)
@@ -282,6 +299,9 @@ class AuditHistory(Base):
 
 class AuditLinterResult(Base):
     __tablename__ = "audit_linter_results"
+    __table_args__ = (
+        Index("ix_linter_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"))
     passed = Column(Integer, default=0)
@@ -322,6 +342,9 @@ class KeywordRecord(Base):
 
 class RoadmapRecord(Base):
     __tablename__ = "roadmap_records"
+    __table_args__ = (
+        Index("ix_roadmap_rec_audit_id", "audit_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"), unique=True)
     immediate = Column(JSON, default=list)
@@ -367,6 +390,7 @@ class APIKey(Base):
     __tablename__ = "api_keys"
     __table_args__ = (
         Index("ix_api_keys_key", "key", unique=True),
+        Index("ix_api_keys_user_id", "user_id"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"))
@@ -382,6 +406,7 @@ class Session(Base):
     __tablename__ = "sessions"
     __table_args__ = (
         Index("ix_sessions_token", "token", unique=True),
+        Index("ix_sessions_user_id", "user_id"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"))
@@ -427,6 +452,9 @@ class ScheduledAudit(Base):
 
 class WhiteLabelSettings(Base):
     __tablename__ = "whitelabel_settings"
+    __table_args__ = (
+        Index("ix_wl_user_id", "user_id"),
+    )
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"), unique=True)
     company_name = Column(String, default="")

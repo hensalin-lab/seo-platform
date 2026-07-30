@@ -126,11 +126,12 @@ export default function ImageSeo() {
           <div className="table-container">
             <table className="data-table">
               <thead>
-                <tr>
-                  <th>Page URL</th>
-                  <th>Images</th>
-                  <th>With Alt</th>
-                </tr>
+                  <tr>
+                    <th>Page URL</th>
+                    <th>Images</th>
+                    <th>With Alt</th>
+                    <th>Missing Alt</th>
+                  </tr>
               </thead>
               <tbody>
                 {pageDetails.map((p, idx) => (
@@ -138,6 +139,7 @@ export default function ImageSeo() {
                     <td style={{ maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url}</td>
                     <td><span className="badge badge-blue">{p.image_count}</span></td>
                     <td><span className={`badge ${p.with_alt === p.image_count ? 'badge-green' : 'badge-yellow'}`}>{p.with_alt}/{p.image_count}</span></td>
+                    <td><span className={`badge ${p.with_alt === p.image_count ? 'badge-green' : 'badge-red'}`}>{p.image_count - p.with_alt} missing</span></td>
                   </tr>
                 ))}
               </tbody>

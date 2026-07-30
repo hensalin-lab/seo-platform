@@ -69,7 +69,7 @@ export default function PageIntelligenceV2() {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;
   if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No data available</div>;
 
-  const scores = data.score_breakdown || {};
+  const scores = data.category_scores || {};
   const beforeAfter = data.before_after_fixes || {};
   const competitor = data.competitor_comparison || {};
   const aiSearch = data.ai_search_readiness || {};
@@ -117,11 +117,17 @@ export default function PageIntelligenceV2() {
                   <div>Failed: {info.failed || 0}</div>
                 </div>
               </div>
-              {info.signals && <div style={{ marginTop: 8, fontSize: 11 }}>
-                {info.signals.slice(0, 3).map((s, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 2 }}>
-                    {s.passed ? <CheckCircle size={10} color="#059669" /> : <XCircle size={10} color="#dc2626" />}
-                    <span>{s.name}</span>
+              {(info.passed || info.failed) && <div style={{ marginTop: 8, fontSize: 11 }}>
+                {(info.passed || []).slice(0, 2).map((s, i) => (
+                  <div key={`p-${i}`} style={{ display: 'flex', gap: 4, marginBottom: 2 }}>
+                    <CheckCircle size={10} color="#059669" />
+                    <span style={{ color: '#059669' }}>{typeof s === 'string' ? s : s.name || s}</span>
+                  </div>
+                ))}
+                {(info.failed || []).slice(0, 2).map((s, i) => (
+                  <div key={`f-${i}`} style={{ display: 'flex', gap: 4, marginBottom: 2 }}>
+                    <XCircle size={10} color="#dc2626" />
+                    <span style={{ color: '#dc2626' }}>{typeof s === 'string' ? s : s.name || s}</span>
                   </div>
                 ))}
               </div>}
@@ -135,10 +141,10 @@ export default function PageIntelligenceV2() {
         <>
           {beforeAfter.title && <Card title="Title" icon={Layers} color="#3b82f6"><CopyBlock title="Current" content={beforeAfter.title.current} /><CopyBlock title="Recommended" content={beforeAfter.title.recommended} /></Card>}
           {beforeAfter.h1 && <Card title="H1" icon={Layers} color="#3b82f6"><CopyBlock title="Current" content={beforeAfter.h1.current} /><CopyBlock title="Recommended" content={beforeAfter.h1.recommended} /></Card>}
-          {beforeAfter.meta && <Card title="Meta Description" icon={Layers} color="#3b82f6"><CopyBlock title="Current" content={beforeAfter.meta.current} /><CopyBlock title="Recommended" content={beforeAfter.meta.recommended} /></Card>}
+          {beforeAfter.meta_description && <Card title="Meta Description" icon={Layers} color="#3b82f6"><CopyBlock title="Current" content={beforeAfter.meta_description.current} /><CopyBlock title="Recommended" content={beforeAfter.meta_description.recommended} /></Card>}
           {beforeAfter.intro && <Card title="Introduction" icon={Layers} color="#3b82f6"><CopyBlock title="Current" content={beforeAfter.intro.current} /><CopyBlock title="Recommended" content={beforeAfter.intro.recommended} /></Card>}
-          {beforeAfter.faq && <Card title="FAQ" icon={Layers} color="#8b5cf6"><CopyBlock title="Generated FAQ" content={beforeAfter.faq} /></Card>}
-          {beforeAfter.schema && <Card title="Schema" icon={FileCode} color="#059669"><CopyBlock title="Generated JSON-LD" content={beforeAfter.schema} /></Card>}
+          {beforeAfter.generated_faq && <Card title="FAQ" icon={Layers} color="#8b5cf6"><CopyBlock title="Generated FAQ" content={Array.isArray(beforeAfter.generated_faq) ? beforeAfter.generated_faq.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n') : beforeAfter.generated_faq} /></Card>}
+          {beforeAfter.generated_schema && <Card title="Schema" icon={FileCode} color="#059669"><CopyBlock title="Generated JSON-LD" content={typeof beforeAfter.generated_schema === 'string' ? beforeAfter.generated_schema : JSON.stringify(beforeAfter.generated_schema, null, 2)} /></Card>}
           {!beforeAfter.title && !beforeAfter.h1 && <div style={{ padding: 20, color: '#94a3b8' }}>No before/after data available</div>}
         </>
       )}
@@ -161,7 +167,7 @@ export default function PageIntelligenceV2() {
       {activeTab === 'ai' && (
         <Card title="AI Search Readiness by Platform" icon={Brain} color="#8b5cf6">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-            {Object.entries(aiSearch).map(([platform, info]) => (
+            {Object.entries(aiSearch.platforms || {}).map(([platform, info]) => (
               <div key={platform} style={{ padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, textTransform: 'capitalize' }}>{platform.replace(/_/g, ' ')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -179,14 +185,14 @@ export default function PageIntelligenceV2() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#059669' }}>Detected</div>
-              {(entities.detected || []).map((e, i) => (
-                <span key={i} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 4, fontSize: 11, background: '#f0fdf4', color: '#059669', margin: '0 4px 4px 0', border: '1px solid #d1fae5' }}>{e}</span>
+              {(entities.detected_entities || []).map((e, i) => (
+                <span key={i} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 4, fontSize: 11, background: '#f0fdf4', color: '#059669', margin: '0 4px 4px 0', border: '1px solid #d1fae5' }}>{typeof e === 'string' ? e : e.entity || e.name || JSON.stringify(e)}</span>
               ))}
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#dc2626' }}>Missing</div>
-              {(entities.missing || []).map((e, i) => (
-                <span key={i} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 4, fontSize: 11, background: '#fef2f2', color: '#dc2626', margin: '0 4px 4px 0', border: '1px solid #fecaca' }}>{e}</span>
+              {(entities.missing_entities || []).map((e, i) => (
+                <span key={i} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 4, fontSize: 11, background: '#fef2f2', color: '#dc2626', margin: '0 4px 4px 0', border: '1px solid #fecaca' }}>{typeof e === 'string' ? e : e.entity || e.name || JSON.stringify(e)}</span>
               ))}
             </div>
           </div>
@@ -194,14 +200,14 @@ export default function PageIntelligenceV2() {
         </Card>
       )}
 
-      {activeTab === 'links' && internalLinks.suggestions?.length > 0 && (
+      {activeTab === 'links' && (internalLinks.suggestions?.length > 0 || internalLinks.suggested_links?.length > 0) && (
         <Card title="Internal Link Suggestions" icon={Link2} color="#059669">
-          {internalLinks.suggestions.map((s, i) => (
-            <div key={i} style={{ padding: '10px 0', borderBottom: i < internalLinks.suggestions.length - 1 ? '1px solid #f1f5f9' : 'none', display: 'grid', gridTemplateColumns: '1fr 1fr 2fr 1fr', gap: 8, alignItems: 'center', fontSize: 12 }}>
+          {(internalLinks.suggestions || internalLinks.suggested_links || []).map((s, i) => (
+            <div key={i} style={{ padding: '10px 0', borderBottom: i < (internalLinks.suggestions || internalLinks.suggested_links || []).length - 1 ? '1px solid #f1f5f9' : 'none', display: 'grid', gridTemplateColumns: '1fr 1fr 2fr 1fr', gap: 8, alignItems: 'center', fontSize: 12 }}>
               <div style={{ fontWeight: 600, color: '#2563eb' }}>{s.anchor_text}</div>
-              <div style={{ color: '#64748b' }}>{s.destination}</div>
+              <div style={{ color: '#64748b' }}>{s.destination || s.destination_url}</div>
               <div style={{ color: '#374151' }}>{s.reason}</div>
-              <div style={{ color: '#059669' }}>{Math.round(s.confidence || 0)}% confidence</div>
+              <div style={{ color: '#059669' }}>{Math.round(s.confidence || s.confidence_score || 0)}% confidence</div>
             </div>
           ))}
         </Card>
@@ -209,18 +215,22 @@ export default function PageIntelligenceV2() {
 
       {activeTab === 'plan' && (
         <Card title="Action Plan" icon={TrendingUp} color="#059669">
-          {['critical', 'high', 'medium'].map(priority => {
-            const items = actionPlan[priority] || [];
+          {[
+            { key: 'critical_today', label: 'critical', time: 'Today' },
+            { key: 'high_this_week', label: 'high', time: 'This Week' },
+            { key: 'medium_next_month', label: 'medium', time: 'This Month' },
+          ].map(({ key, label, time }) => {
+            const items = actionPlan[key] || [];
             if (!items.length) return null;
             return (
-              <div key={priority} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: priority === 'critical' ? '#dc2626' : priority === 'high' ? '#d97706' : '#2563eb', marginBottom: 8 }}>{priority} ({priority === 'critical' ? 'Today' : priority === 'high' ? 'This Week' : 'This Month'})</div>
+              <div key={key} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: label === 'critical' ? '#dc2626' : label === 'high' ? '#d97706' : '#2563eb', marginBottom: 8 }}>{label} ({time})</div>
                 {items.map((item, i) => (
                   <div key={i} style={{ padding: '6px 0', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <ArrowRight size={12} color={priority === 'critical' ? '#dc2626' : priority === 'high' ? '#d97706' : '#2563eb'} />
-                    <span style={{ flex: 1 }}>{item.task || item.recommendation}</span>
-                    <span style={{ color: '#64748b' }}>{item.time}</span>
-                    <span style={{ color: '#94a3b8' }}>{item.effort}</span>
+                    <ArrowRight size={12} color={label === 'critical' ? '#dc2626' : label === 'high' ? '#d97706' : '#2563eb'} />
+                    <span style={{ flex: 1 }}>{item.task || item.recommendation || item.issue}</span>
+                    <span style={{ color: '#64748b' }}>{item.time || item.time_to_fix}</span>
+                    <span style={{ color: '#94a3b8' }}>{item.effort || item.difficulty}</span>
                   </div>
                 ))}
               </div>

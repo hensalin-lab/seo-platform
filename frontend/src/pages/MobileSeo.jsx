@@ -50,7 +50,7 @@ export default function MobileSeo() {
   const score = data?.mobile_seo_score ?? 0;
   const slowPages = data?.slow_pages || [];
   const mobileIssues = data?.mobile_issues || [];
-  const dist = data?.speed_distribution || {};
+  const dist = data?.speed_distribution || { fast_under_1s: data?.mobile_issues_count || 0, moderate_1s_3s: 0, slow_over_3s: data?.slow_pages?.length || 0 };
   const recs = data?.recommendations || [];
 
   const getScoreColor = (s) => {

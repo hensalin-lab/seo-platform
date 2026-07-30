@@ -1272,7 +1272,7 @@ Top issues: {', '.join([i.signal_name for i in issues[:5]])}
 User question: {message}
 
 Provide a helpful, specific, actionable response. Be concise."""
-        response = await ai._call_gemini_text(context)
+        response = await ai._call_text(context)
         if response:
             db.add(ChatMessage(audit_id=audit_id, role="assistant", content=response))
             await db.commit()
@@ -1360,7 +1360,7 @@ Write 3-4 paragraphs covering:
 
 Be specific, reference actual scores, and provide actionable insight. Use markdown."""
 
-        response = await ai._call_gemini_text(prompt)
+        response = await ai._call_text(prompt)
         if response:
             return {"summary": response, "data": summary_data}
 
@@ -1430,7 +1430,7 @@ Return JSON:
   "keywords_used": ["kw1", "kw2"],
   "notes": "brief explanation of optimization choices"
 }}"""
-        result = await ai._call_gemini(prompt)
+        result = await ai._call_json(prompt)
         if result:
             return result
 
@@ -1498,7 +1498,7 @@ Return JSON:
   "internal_links_suggestions": ["page topic suggestions"],
   "estimated_read_time": "X min"
 }}"""
-        result = await ai._call_gemini(prompt)
+        result = await ai._call_json(prompt)
         if result:
             return result
 
@@ -1581,7 +1581,7 @@ Return JSON:
   "estimated_time": "15 minutes",
   "related_checks": ["check1", "check2"]
 }}"""
-        result = await ai._call_gemini(prompt)
+        result = await ai._call_json(prompt)
         if result:
             return result
 
@@ -1661,7 +1661,7 @@ Return JSON with:
   ... full schema object ...,
   "_notes": "implementation tips"
 }}"""
-        result = await ai._call_gemini(prompt)
+        result = await ai._call_json(prompt)
         if result:
             return {"schema": result, "page_url": page_url, "instructions": "Add this JSON-LD script to the <head> section of your page."}
 
@@ -1739,7 +1739,7 @@ Return a prioritized optimization plan:
   "geo_optimizations": [{{"area": "", "action": ""}}],
   "estimated_impact": "description of expected improvement"
 }}"""
-        result = await ai._call_gemini(prompt)
+        result = await ai._call_json(prompt)
         if result:
             return result
 
@@ -3009,7 +3009,7 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
     provider = "fallback"
 
     try:
-        from app.engine.dual_ai import dual_ai_analyze_seo
+        from app.engine.dual_ai import quad_ai_analyze_seo as dual_ai_analyze_seo
         groq_sugg = await dual_ai_analyze_seo(
             audit.website_url, audit.website_url, "",
             f"SEO Score: {scores.seo_score if scores else 0}, Technical: {scores.technical_score if scores else 0}, AEO: {scores.aeo_score if scores else 0}",

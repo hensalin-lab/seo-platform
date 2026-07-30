@@ -1,17 +1,47 @@
 const API_BASE = '/api';
+const REQUEST_TIMEOUT = 30000;
+const MAX_RETRIES = 1;
 
-let _authToken = null;
+let _authToken = localStorage.getItem('token');
+
+function setToken(token) {
+  _authToken = token;
+}
 
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+  try {
+    const res = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.status === 401 && path !== '/auth/login') {
+      persistToken(null);
+      window.location.href = '/login';
+      throw new Error('Session expired');
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') throw new Error('Request timed out');
+
+    const isRetryable = options._retryCount < MAX_RETRIES && err.message?.startsWith('HTTP 5');
+    if (isRetryable) {
+      return request(path, { ...options, _retryCount: (options._retryCount || 0) + 1 });
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export const api = {
@@ -94,7 +124,19 @@ export const api = {
   getAiSuggestions: (id) => request(`/audit/${id}/ai-suggestions`, { method: 'POST', body: JSON.stringify({}) }),
   cancelAudit: (id) => request(`/audit/${id}/cancel`, { method: 'POST' }),
   rerunAudit: (id) => request(`/audit/${id}/rerun`, { method: 'POST' }),
-  exportCsv: (id, type = 'issues') => `${API_BASE}/audit/${id}/export/csv?type=${type}`,
+  exportCsv: async (id, type = 'issues') => {
+    const url = `${API_BASE}/audit/${id}/export/csv?type=${type}`;
+    const headers = {};
+    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `audit-${id}-${type}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
 
   // Auth
   register: (email, username, password) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, username, password }) }),
@@ -161,5 +203,5 @@ export const api = {
   getPageIntelligenceV2: (id, idx) => request(`/audit/${id}/page-intelligence-v2/${idx}`),
   getEnterpriseDashboard: (id) => request(`/audit/${id}/enterprise-dashboard`),
   request,
-  setToken: (token) => { _authToken = token; },
+  setToken,
 };
