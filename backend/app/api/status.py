@@ -2499,18 +2499,24 @@ async def get_local_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     signals_count = sum(1 for v in nap_signals.values() if v)
     score = round(signals_count / max(len(nap_signals), 1) * 100)
 
+    recs = []
+    if not nap_signals["address_found"]:
+        recs.append({"priority": "HIGH", "action": "Add visible business address to website footer or contact page", "impact": "NAP consistency is a top local ranking factor"})
+    if not nap_signals["phone_found"]:
+        recs.append({"priority": "HIGH", "action": "Display phone number with tel: link on all key pages", "impact": "Builds local citation authority"})
+    if not nap_signals["schema_local"]:
+        recs.append({"priority": "HIGH", "action": "Add LocalBusiness schema to homepage", "impact": "Generates rich results in local search"})
+    if len(pages_with_local) < 3:
+        recs.append({"priority": "MEDIUM", "action": "Create dedicated contact/location pages", "impact": "Improves local landing page signals"})
+    recs.append({"priority": "MEDIUM", "action": "Ensure NAP consistency across all pages", "impact": "Mismatched citations dilute local ranking authority"})
+
     return {
         "local_seo_score": score,
         "nap_signals": nap_signals,
         "pages_with_local_signals": len(pages_with_local),
         "pages_with_local_urls": pages_with_local[:20],
         "total_pages": len(pages),
-        "recommendations": [
-            {"priority": "HIGH", "action": "Add LocalBusiness schema to homepage", "impact": "Improves local search visibility"},
-            {"priority": "HIGH", "action": "Ensure NAP consistency across all pages", "impact": "Builds local citation authority"},
-            {"priority": "MEDIUM", "action": "Create dedicated contact/location pages", "impact": "Improves local landing page signals"},
-            {"priority": "MEDIUM", "action": "Add Google Business Profile link", "impact": "Connects site to GBP for local SEO"},
-        ],
+        "recommendations": recs,
     }
 
 
@@ -2542,6 +2548,18 @@ async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
         score += 10
     score = min(score, 100)
 
+    recs = []
+    if responsive_score < 80:
+        recs.append({"priority": "HIGH", "action": f"Add viewport meta tag to {total - has_viewport} pages missing it", "impact": "Required for mobile-first indexing"})
+    if len(slow_pages) > 0:
+        recs.append({"priority": "HIGH", "action": f"Optimize {len(slow_pages)} slow pages to load under 3 seconds", "impact": "Core Web Vitals directly affect ranking"})
+    if total > 0:
+        recs.append({"priority": "MEDIUM", "action": "Use responsive images with srcset on all pages", "impact": "Reduces mobile bandwidth usage"})
+    if small_text > 0:
+        recs.append({"priority": "MEDIUM", "action": f"Increase content length on {small_text} pages with very small text", "impact": "Thin content performs poorly on mobile"})
+    if len(mobile_issues) > 5:
+        recs.append({"priority": "MEDIUM", "action": "Implement touch-friendly navigation elements", "impact": "Improves mobile user experience"})
+
     return {
         "mobile_seo_score": score,
         "responsive_score": responsive_score,
@@ -2551,12 +2569,7 @@ async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
         "mobile_issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in mobile_issues[:20]],
         "slow_pages": [{"url": p.url, "response_time_ms": p.response_time_ms} for p in sorted(slow_pages, key=lambda x: x.response_time_ms or 0, reverse=True)[:10]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict)},
-        "recommendations": [
-            {"priority": "HIGH", "action": "Ensure all pages have a viewport meta tag", "impact": "Required for mobile-first indexing"},
-            {"priority": "HIGH", "action": "Optimize page load times to under 3 seconds", "impact": "Core Web Vitals directly affect ranking"},
-            {"priority": "MEDIUM", "action": "Use responsive images with srcset", "impact": "Reduces mobile bandwidth usage"},
-            {"priority": "MEDIUM", "action": "Implement touch-friendly navigation", "impact": "Improves mobile user experience"},
-        ],
+        "recommendations": recs,
     }
 
 
@@ -2599,6 +2612,15 @@ async def get_image_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     if total_images > 0 and images_with_title / total_images > 0.5:
         score = min(score + 10, 100)
 
+    recs = []
+    if images_without_alt > 0:
+        recs.append({"priority": "HIGH", "action": f"Add descriptive alt text to {images_without_alt} images missing it", "impact": "Improves accessibility and image SEO"})
+    if large_images > 0:
+        recs.append({"priority": "MEDIUM", "action": f"Convert {large_images} PNG/BMP/TIFF images to WebP format", "impact": "Reduces page load time by 25-50%"})
+    if total_images > 0 and images_with_title / total_images < 0.3:
+        recs.append({"priority": "MEDIUM", "action": "Add title attributes to important images", "impact": "Provides additional context for search engines"})
+    recs.append({"priority": "LOW", "action": "Create an image sitemap for Google Search Console", "impact": "Helps search engines discover all images"})
+
     return {
         "image_seo_score": score,
         "total_images": total_images,
@@ -2610,12 +2632,7 @@ async def get_image_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
         "pages_with_images": len(image_pages),
         "page_details": sorted(image_pages, key=lambda x: x["image_count"], reverse=True)[:20],
         "issues": [{"signal_name": "Missing Alt Text", "severity": "HIGH", "description": f"{images_without_alt} images missing alt text", "fix": "Add descriptive alt text to all images"}] if images_without_alt > 0 else [],
-        "recommendations": [
-            {"priority": "HIGH", "action": "Add descriptive alt text to all images", "impact": "Improves accessibility and image SEO"},
-            {"priority": "MEDIUM", "action": "Convert large images to WebP format", "impact": "Reduces page load time by 25-50%"},
-            {"priority": "MEDIUM", "action": "Add title attributes to important images", "impact": "Provides additional context for search engines"},
-            {"priority": "LOW", "action": "Create an image sitemap", "impact": "Helps search engines discover all images"},
-        ],
+        "recommendations": recs,
     }
 
 
@@ -2653,6 +2670,17 @@ async def get_sitemap_robots(audit_id: str, db: AsyncSession = Depends(get_db)):
         score += 10
     score = min(score, 100)
 
+    recs = []
+    if total > 0 and indexed / total < 0.9:
+        recs.append({"priority": "HIGH", "action": f"Review {non_indexed} non-indexed pages for noindex tags or blocks", "impact": "Ensures search engines can crawl and index your content"})
+    if errors > 0:
+        recs.append({"priority": "HIGH", "action": f"Fix {errors} broken pages returning 4xx/5xx status codes", "impact": "Prevents crawl budget waste and poor user experience"})
+    if total > 0 and canonicals / total < 0.8:
+        recs.append({"priority": "MEDIUM", "action": f"Add canonical tags to {total - canonicals} pages missing them", "impact": "Prevents duplicate content issues"})
+    if redirects > 0:
+        recs.append({"priority": "MEDIUM", "action": f"Review {redirects} redirect chains and update internal links to final URLs", "impact": "Improves crawl efficiency and link equity"})
+    recs.append({"priority": "MEDIUM", "action": "Generate and submit XML sitemap to Google Search Console", "impact": "Helps search engines discover all pages"})
+
     return {
         "sitemap_robots_score": score,
         "total_pages": total,
@@ -2665,12 +2693,7 @@ async def get_sitemap_robots(audit_id: str, db: AsyncSession = Depends(get_db)):
         "url_structure": sorted([{"pattern": k, "count": v} for k, v in url_patterns.items()], key=lambda x: x["count"], reverse=True)[:15],
         "error_pages": [{"url": p.url, "status_code": p.status_code} for p in pages if p.status_code and p.status_code >= 400][:20],
         "issues": [{"signal_name": "Missing Canonical", "severity": "MEDIUM", "description": f"{total - canonicals} pages missing canonical tag", "fix": "Add canonical tags to all pages"}] if total - canonicals > 0 else [],
-        "recommendations": [
-            {"priority": "HIGH", "action": "Generate and submit XML sitemap", "impact": "Helps search engines discover all pages"},
-            {"priority": "HIGH", "action": "Configure robots.txt properly", "impact": "Controls crawler access to important pages"},
-            {"priority": "MEDIUM", "action": "Fix broken links and 404 errors", "impact": "Prevents crawl budget waste"},
-            {"priority": "MEDIUM", "action": "Implement proper canonical tags", "impact": "Prevents duplicate content issues"},
-        ],
+        "recommendations": recs,
     }
 
 
@@ -2700,6 +2723,16 @@ async def get_security_headers(audit_id: str, db: AsyncSession = Depends(get_db)
         score += 15
     score = min(score, 100)
 
+    recs = []
+    if http_count > 0:
+        recs.append({"priority": "HIGH", "action": f"Migrate {http_count} HTTP pages to HTTPS with 301 redirects", "impact": "HTTPS is a ranking signal and required for security"})
+    recs.append({"priority": "HIGH", "action": "Add Strict-Transport-Security (HSTS) header with preload", "impact": "Prevents protocol downgrade attacks"})
+    recs.append({"priority": "MEDIUM", "action": "Implement Content-Security-Policy (CSP) header", "impact": "Prevents XSS and code injection attacks"})
+    recs.append({"priority": "MEDIUM", "action": "Add X-Content-Type-Options: nosniff header", "impact": "Prevents MIME-type sniffing"})
+    recs.append({"priority": "LOW", "action": "Set X-Frame-Options to DENY or SAMEORIGIN", "impact": "Prevents clickjacking attacks"})
+    if http_count > 0 and https_count > 0:
+        recs.insert(0, {"priority": "CRITICAL", "action": "Fix mixed content issues across all pages", "impact": "Browsers block mixed content, breaking page functionality"})
+
     return {
         "security_score": score,
         "total_pages": total,
@@ -2711,13 +2744,7 @@ async def get_security_headers(audit_id: str, db: AsyncSession = Depends(get_db)
         "issues": [
             {"signal_name": "Mixed Content", "severity": "HIGH", "description": "Some pages use HTTP while others use HTTPS", "fix": "Redirect all HTTP pages to HTTPS"},
         ] if security_signals["mixed_content"] else [],
-        "recommendations": [
-            {"priority": "HIGH", "action": "Enable HTTPS on all pages", "impact": "HTTPS is a ranking signal and required for security"},
-            {"priority": "HIGH", "action": "Add Strict-Transport-Security header", "impact": "Prevents protocol downgrade attacks"},
-            {"priority": "MEDIUM", "action": "Implement Content-Security-Policy", "impact": "Prevents XSS and code injection attacks"},
-            {"priority": "MEDIUM", "action": "Add X-Content-Type-Options header", "impact": "Prevents MIME-type sniffing"},
-            {"priority": "LOW", "action": "Set X-Frame-Options to DENY or SAMEORIGIN", "impact": "Prevents clickjacking attacks"},
-        ],
+        "recommendations": recs,
     }
 
 
@@ -2761,14 +2788,29 @@ async def get_social_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
             {"signal_name": "Missing Open Graph Tags", "severity": "MEDIUM", "description": f"{total - og_count} pages missing Open Graph tags", "fix": "Add og:title, og:description, og:image to all pages"},
             {"signal_name": "Missing Twitter Cards", "severity": "LOW", "description": f"{total - twitter_count} pages missing Twitter Card tags", "fix": "Add twitter:card, twitter:title, twitter:description"},
         ] if total - og_count > 0 else [],
-        "recommendations": [
-            {"priority": "HIGH", "action": "Add Open Graph tags to all pages", "impact": "Improves social sharing appearance on Facebook, LinkedIn"},
-            {"priority": "HIGH", "action": "Add Twitter Card meta tags", "impact": "Improves appearance when shared on Twitter/X"},
-            {"priority": "MEDIUM", "action": "Add og:image to all key pages", "impact": "Visual preview increases click-through rates"},
-            {"priority": "LOW", "action": "Implement Schema.org sameAs links", "impact": "Connects site to social profiles for entity recognition"},
-        ],
-    }
+    recs = []
+    if total - og_count > 0:
+        recs.append({"priority": "HIGH", "action": f"Add Open Graph tags to {total - og_count} pages missing them", "impact": "Improves social sharing appearance on Facebook, LinkedIn"})
+    if total - twitter_count > 0:
+        recs.append({"priority": "HIGH", "action": f"Add Twitter Card meta tags to {total - twitter_count} pages missing them", "impact": "Improves appearance when shared on Twitter/X"})
+    recs.append({"priority": "MEDIUM", "action": "Add high-quality og:image to all key pages", "impact": "Visual preview increases click-through rates"})
+    recs.append({"priority": "LOW", "action": "Implement Schema.org sameAs links to social profiles", "impact": "Connects site to social profiles for entity recognition"})
 
+    return {
+        "social_seo_score": score,
+        "total_pages": total,
+        "pages_with_og": og_count,
+        "pages_with_twitter": twitter_count,
+        "og_coverage_pct": og_pct,
+        "twitter_coverage_pct": twitter_pct,
+        "pages_with_og_urls": og_pages[:20],
+        "pages_with_twitter_urls": twitter_pages[:20],
+        "issues": [
+            {"signal_name": "Missing Open Graph Tags", "severity": "MEDIUM", "description": f"{total - og_count} pages missing Open Graph tags", "fix": "Add og:title, og:description, og:image to all pages"},
+            {"signal_name": "Missing Twitter Cards", "severity": "LOW", "description": f"{total - twitter_count} pages missing Twitter Card tags", "fix": "Add twitter:card, twitter:title, twitter:description"},
+        ] if total - og_count > 0 else [],
+        "recommendations": recs,
+    }
 
 @router.get("/audit/{audit_id}/page-experience")
 async def get_page_experience(audit_id: str, db: AsyncSession = Depends(get_db)):
@@ -2801,6 +2843,17 @@ async def get_page_experience(audit_id: str, db: AsyncSession = Depends(get_db))
         score += 10
     score = min(score, 100)
 
+    recs = []
+    if avg_time > 2000:
+        recs.append({"priority": "HIGH", "action": f"Reduce average response time ({avg_time}ms) to under 2s", "impact": "LCP is a Core Web Vital ranking factor"})
+    if slow_pages_count > 0:
+        recs.append({"priority": "HIGH", "action": f"Optimize {slow_pages_count} slow pages ({slow_pages_count}/{total} over 3s)", "impact": "Slow pages degrade user experience and rankings"})
+    if avg_time > 1000:
+        recs.append({"priority": "MEDIUM", "action": "Reduce server response time (TTFB) with caching and CDN", "impact": "Faster TTFB improves all page load metrics"})
+    recs.append({"priority": "MEDIUM", "action": "Optimize images with lazy loading and modern formats", "impact": "Images are often the largest page resources"})
+    if len(cwv_issues) > 0:
+        recs.append({"priority": "HIGH", "action": f"Fix {len(cwv_issues)} Core Web Vital issues found across pages", "impact": "CWV issues directly impact Google search rankings"})
+
     return {
         "page_experience_score": score,
         "total_pages": total,
@@ -2816,12 +2869,7 @@ async def get_page_experience(audit_id: str, db: AsyncSession = Depends(get_db))
         "cwv_issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in cwv_issues[:20]],
         "all_issues": [{"id": i.id, "signal_name": i.signal_name, "severity": i.severity, "description": i.description} for i in all_issues[:30]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict)},
-        "recommendations": [
-            {"priority": "HIGH", "action": "Optimize Largest Contentful Paint (LCP) under 2.5s", "impact": "LCP is a Core Web Vital ranking factor"},
-            {"priority": "HIGH", "action": "Minimize Cumulative Layout Shift (CLS) under 0.1", "impact": "CLS measures visual stability"},
-            {"priority": "MEDIUM", "action": "Reduce server response time (TTFB)", "impact": "Faster TTFB improves all page load metrics"},
-            {"priority": "MEDIUM", "action": "Optimize images and use lazy loading", "impact": "Images are often the largest page resources"},
-        ],
+        "recommendations": recs,
     }
 
 
@@ -2858,6 +2906,19 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
     score = scores.content_score if scores else 50
     score = round(score)
 
+    recs = []
+    if len(thin) > 0:
+        recs.append({"priority": "HIGH", "action": f"Expand {len(thin)} thin content pages ({thin_pct}% of site) to 1,500+ words", "impact": "Thin content rarely ranks and hurts site authority"})
+    if avg_words < 500:
+        recs.append({"priority": "HIGH", "action": f"Increase average word count ({avg_words}) to at least 800+ words per page", "impact": "Comprehensive content ranks better in search results"})
+    if eeat_signals.get("author_signals", 0) < total * 0.3:
+        recs.append({"priority": "HIGH", "action": "Add author bios and bylines to content pages", "impact": "E-E-A-T signals are critical for AI search visibility"})
+    if eeat_signals.get("date_signals", 0) < total * 0.3:
+        recs.append({"priority": "MEDIUM", "action": "Add publication dates to articles and blog posts", "impact": "Freshness signals help with timely search queries"})
+    if has_schema < total * 0.5:
+        recs.append({"priority": "MEDIUM", "action": f"Add structured data to {total - has_schema} pages missing schema markup", "impact": "Schema enables rich snippets in search results"})
+    recs.append({"priority": "MEDIUM", "action": "Include statistics, expert quotes, and data-driven content", "impact": "Demonstrates expertise and authority for E-E-A-T"})
+
     return {
         "content_quality_score": score,
         "total_pages": total,
@@ -2873,12 +2934,7 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
         "thin_content_pages": [{"url": p.url, "word_count": p.word_count or 0, "title": p.title or ""} for p in sorted(thin, key=lambda x: x.word_count or 0)[:20]],
         "top_content_pages": [{"url": p.url, "word_count": p.word_count or 0, "title": p.title or ""} for p in sorted(pages, key=lambda x: x.word_count or 0, reverse=True)[:10]],
         "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in content_issues[:30]],
-        "recommendations": [
-            {"priority": "HIGH", "action": f"Expand {len(thin)} thin content pages to 1,500+ words", "impact": "Thin content rarely ranks and hurts site authority"},
-            {"priority": "HIGH", "action": "Add author bios and publication dates", "impact": "E-E-A-T signals are critical for AI search"},
-            {"priority": "MEDIUM", "action": "Add FAQ sections to key pages", "impact": "FAQ content is highly citable by AI search"},
-            {"priority": "MEDIUM", "action": "Include data, statistics, and expert quotes", "impact": "Demonstrates expertise and authority"},
-        ],
+        "recommendations": recs,
     }
 
 
