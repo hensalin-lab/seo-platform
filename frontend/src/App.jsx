@@ -66,6 +66,7 @@ import Trends from './modules/executive/pages/Trends';
 import GeoAeoHub from './modules/geo-aeo/pages/GeoAeoHub';
 import ActionCenter from './modules/action-center/pages/ActionCenter';
 import ContentStudio from './modules/content-keywords/pages/ContentStudio';
+import OnePageWorkspace from './pages/OnePageWorkspace';
 import './index.css';
 
 export default function App() {
@@ -145,7 +146,7 @@ export default function App() {
                   <Route path="/trends" element={<ProtectedRoute><Trends /></ProtectedRoute>} />
                   <Route path="/audit/:id/chat" element={<ProtectedRoute><AiChat /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                  <Route path="/audit/:id" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/audit/:id" element={<ProtectedRoute><OnePageWorkspace /></ProtectedRoute>} />
                 </Routes>
               </Layout>
             </ErrorBoundary>

@@ -22,6 +22,39 @@ const MAIN_NAV = [
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
+const TAB_MAP = {
+  '/executive-dashboard': 'executive.sub-dashboard',
+  '/compare': 'executive.sub-compare',
+  '/report': 'executive.sub-report',
+  '/seo-health': 'executive.sub-seo-health',
+  '/geo-aeo': 'geo-aeo.sub-hub',
+  '/ai-deep': 'geo-aeo.sub-ai-deep',
+  '/ai-bots': 'geo-aeo.sub-ai-bots',
+  '/serp-preview': 'geo-aeo.sub-serp-preview',
+  '/social-seo': 'geo-aeo.sub-social-seo',
+  '/local-seo': 'geo-aeo.sub-local-seo',
+  '/content-studio': 'content.sub-studio',
+  '/keywords': 'content.sub-keywords',
+  '/content-rewrite': 'content.sub-rewriter',
+  '/content-revival': 'content.sub-revival',
+  '/blog-ai': 'content.sub-blog',
+  '/chat': 'content.sub-chat',
+  '/issues': 'technical.sub-issues',
+  '/action-center': 'technical.sub-action-center',
+  '/speed': 'technical.sub-speed',
+  '/internal-links': 'technical.sub-links',
+  '/page-experience': 'technical.sub-page-experience',
+  '/mobile-seo': 'technical.sub-mobile',
+  '/sitemap-robots': 'technical.sub-sitemap',
+  '/security-headers': 'technical.sub-security',
+  '/image-seo': 'technical.sub-image',
+  '/roadmap': 'technical.sub-roadmap',
+  '/competitor': 'offsite.sub-competitor',
+  '/backlinks': 'offsite.sub-backlinks',
+  '/offsite-authority': 'offsite.sub-authority',
+  '/citations': 'offsite.sub-citations',
+};
+
 const AUDIT_NAV = [
   {
     label: '1. EXECUTIVE DASHBOARD',
@@ -126,46 +159,16 @@ export default function Layout({ children }) {
       if (location.pathname === '/register') return 'Sign Up';
       return 'SEO Platform';
     }
-    const p = location.pathname;
-    if (p.endsWith('/executive-dashboard')) return 'Executive Dashboard';
-    if (p.endsWith('/geo-aeo')) return 'GEO & AEO Hub';
-    if (p.endsWith('/dashboard')) return 'Dashboard';
-    if (p.endsWith('/seo')) return 'SEO Analysis';
-    if (p.endsWith('/page-detail')) return 'Page Analysis';
-    if (p.endsWith('/internal-links')) return 'Internal Links';
-    if (p.endsWith('/speed')) return 'Speed & CWV';
-    if (p.endsWith('/keywords')) return 'Keywords';
-    if (p.endsWith('/ai-deep')) return 'AI Search Deep';
-    if (p.endsWith('/competitor')) return 'Competitor Analysis';
-    if (p.endsWith('/competitor-deep')) return 'Competitor Intel';
-    if (p.endsWith('/roadmap')) return 'SEO Roadmap';
-    if (p.endsWith('/content-rewrite')) return 'Content Rewriter';
-    if (p.endsWith('/content-revival')) return 'Content Revival';
-    if (p.endsWith('/serp-preview')) return 'SERP & AI Preview';
-    if (p.endsWith('/chat')) return 'AI Chat';
-    if (p.endsWith('/ai-bots')) return 'AI Bot Intelligence';
-    if (p.endsWith('/offsite-authority')) return 'Off-Site Authority';
-    if (p.endsWith('/progress')) return 'Audit Progress';
-    if (p.endsWith('/action-center')) return 'Action Center';
-    if (p.endsWith('/content-studio')) return 'Content Studio';
-    if (p.endsWith('/pages')) return 'Page Analysis';
-    if (p.endsWith('/compare')) return 'Audit Compare';
-    if (p.endsWith('/report')) return 'Audit Report';
-    if (p.endsWith('/backlinks')) return 'Backlink Profile';
-    if (p.endsWith('/blog-ai')) return 'Blog AI';
-    if (p.endsWith('/citations')) return 'Citation Analysis';
-    if (p.endsWith('/image-seo')) return 'Image SEO';
-    if (p.endsWith('/local-seo')) return 'Local SEO';
-    if (p.endsWith('/mobile-seo')) return 'Mobile SEO';
-    if (p.endsWith('/page-experience')) return 'Page Experience';
-    if (p.endsWith('/page-improvements')) return 'Page Improvements';
-    if (p.endsWith('/security-headers')) return 'Security Headers';
-    if (p.endsWith('/seo-health')) return 'SEO Health';
-    if (p.endsWith('/sitemap-robots')) return 'Sitemap & Robots';
-    if (p.endsWith('/social-seo')) return 'Social SEO';
-    if (p.endsWith('/ai-roadmap')) return 'AI Roadmap';
-    if (p.endsWith('/issues')) return 'Issue Remediation';
-    return 'Report';
+    const tab = new URLSearchParams(location.search).get('tab') || 'workspace';
+    const sub = new URLSearchParams(location.search).get('sub') || '';
+    const titles = {
+      executive: sub ? { dashboard: 'Executive Dashboard', compare: 'Audit Compare', report: 'Audit Report', 'seo-health': 'SEO Health' }[sub] || 'Executive' : 'Executive Dashboard',
+      'geo-aeo': sub ? { hub: 'GEO & AEO Hub', 'ai-deep': 'AI Search Deep', 'ai-bots': 'AI Bot Access', 'serp-preview': 'SERP & AI Preview', 'social-seo': 'Social SEO', 'local-seo': 'Local SEO' }[sub] || 'GEO/AEO' : 'GEO & AEO Center',
+      content: sub ? { studio: 'Content Studio', keywords: 'Keyword Strategy', rewriter: 'Content Rewriter', revival: 'Content Revival', blog: 'Blog AI', chat: 'AI Chat' }[sub] || 'Content' : 'Content & Keywords',
+      technical: sub ? { issues: 'Issue Remediation', 'action-center': 'Action Center', speed: 'Speed & CWV', links: 'Internal Links', 'page-experience': 'Page Experience', mobile: 'Mobile SEO', sitemap: 'Sitemap & Robots', security: 'Security Headers', image: 'Image SEO', roadmap: 'SEO Roadmap' }[sub] || 'Technical' : 'Technical Audit',
+      offsite: sub ? { competitor: 'Competitor Analysis', backlinks: 'Backlinks', authority: 'Off-Site Authority', citations: 'Citations' }[sub] || 'Offsite' : 'Competitive & Offsite',
+    };
+    return titles[tab] || 'SEO Workspace';
   };
 
   return (
@@ -193,15 +196,20 @@ export default function Layout({ children }) {
           {isReport && AUDIT_NAV.map(section => (
             <div className="sidebar-section" key={section.label}>
               <div className="sidebar-section-label">{section.label}</div>
-              {section.items.map(item => (
-                <SidebarLink
-                  key={item.suffix}
-                  to={`/audit/${auditId}${item.suffix}`}
-                  icon={item.icon}
-                  label={item.label}
-                  active={location.pathname.endsWith(item.suffix)}
-                />
-              ))}
+              {section.items.map(item => {
+                const mapping = TAB_MAP[item.suffix];
+                const [tab, sub] = mapping ? mapping.split('.sub-') : ['executive', 'dashboard'];
+                const searchStr = `?tab=${tab}${sub ? `&sub=${sub}` : ''}`;
+                return (
+                  <SidebarLink
+                    key={item.suffix}
+                    to={`/audit/${auditId}${searchStr}`}
+                    icon={item.icon}
+                    label={item.label}
+                    active={location.pathname === `/audit/${auditId}` && location.search.includes(`tab=${tab}`)}
+                  />
+                );
+              })}
             </div>
           ))}
         </nav>
