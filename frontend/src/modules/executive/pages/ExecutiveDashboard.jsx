@@ -100,7 +100,7 @@ function IssueCard({ issue, onViewFix }) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
         <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'monospace' }}>
-          {issue.target_path || issue.url || issue.path || issue.page || 'ΓÇö'}
+          {issue.target_path || issue.url || issue.path || issue.page || '—'}
         </span>
         <button onClick={() => onViewFix && onViewFix(issue)}
           style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'rgba(99,102,241,0.12)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
@@ -221,7 +221,7 @@ export default function ExecutiveDashboard() {
     <div style={{ background: 'var(--bg-page)', minHeight: '100vh', padding: '24px 0' }}>
       {isViewer && (
         <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#f59e0b' }}>
-          <Eye size={16} /> Read-Only Mode ΓÇö You are viewing this dashboard as a viewer.
+          <Eye size={16} /> Read-Only Mode — You are viewing this dashboard as a viewer.
         </div>
       )}
 
@@ -260,13 +260,13 @@ export default function ExecutiveDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Export Report ΓÇö all roles */}
+          {/* Export Report — all roles */}
           <button onClick={() => { const e = new CustomEvent('show-toast', { detail: { message: 'Export initiated', type: 'success' } }); window.dispatchEvent(e); }}
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text)', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
             <Download size={14} /> Export Report
           </button>
 
-          {/* Trigger Global Re-Audit ΓÇö ADMIN only */}
+          {/* Trigger Global Re-Audit — ADMIN only */}
           <ProtectedAction requiredRole="admin">
             <button onClick={() => loadData()}
               style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
@@ -281,8 +281,8 @@ export default function ExecutiveDashboard() {
         {[
           { icon: Search, label: 'Technical SEO Score', score: siteSummary.seo_score, trend: '+3.2%', up: true, color: 'var(--accent)' },
           { icon: Bot, label: 'GEO Citation Rate', score: geoData?.geo_visibility_score ?? geoData?.geo_score ?? '-', trend: '+12.1%', up: true, color: '#22c55e' },
-           { icon: Layers, label: 'AEO Answer Share', score: aeoData ? (aeoData.answer_count ?? aeoData.total_answers ?? aeoData.aeo_score) : 'N/A', trend: 'ΓÇö', up: true, color: '#f59e0b' },
-          { icon: Activity, label: 'Core Web Vitals', score: siteSummary.cwv_status || 'N/A', trend: siteSummary.cwv_lcp ? `LCP ${siteSummary.cwv_lcp}` : 'ΓÇö', up: true, color: '#3b82f6' },
+           { icon: Layers, label: 'AEO Answer Share', score: aeoData ? (aeoData.answer_count ?? aeoData.total_answers ?? aeoData.aeo_score) : 'N/A', trend: '—', up: true, color: '#f59e0b' },
+          { icon: Activity, label: 'Core Web Vitals', score: siteSummary.cwv_status || 'N/A', trend: siteSummary.cwv_lcp ? `LCP ${siteSummary.cwv_lcp}` : '—', up: true, color: '#3b82f6' },
         ].map((kpi, i) => (
           <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -293,7 +293,7 @@ export default function ExecutiveDashboard() {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)' }}>{kpi.score}</span>
-              {kpi.trend !== 'ΓÇö' && (
+              {kpi.trend !== '—' && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12, fontWeight: 600, color: kpi.up ? '#22c55e' : '#ef4444' }}>
                   {kpi.up ? '\u25B2' : '\u25BC'} {kpi.trend}
                 </span>
@@ -317,7 +317,7 @@ export default function ExecutiveDashboard() {
 
           {issues.length === 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'rgba(34,197,94,0.1)', borderRadius: 8, fontSize: 13, color: '#22c55e' }}>
-              <CheckCircle size={14} /> No critical issues detected ΓÇö your site is in great shape!
+              <CheckCircle size={14} /> No critical issues detected — your site is in great shape!
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
