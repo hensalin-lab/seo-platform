@@ -18,6 +18,7 @@ import AiActionModal from '../components/AiActionModal';
 import LlmExtractionChecklist from '../components/LlmExtractionChecklist';
 import ImpactEffortMatrix from '../components/ImpactEffortMatrix';
 import BacklinkStrategyEngine from '../components/BacklinkStrategyEngine';
+import AiVisibilityTable from '../components/AiVisibilityTable';
 
 function AnimatedNumber({ value, duration = 1200 }) {
   const [display, setDisplay] = useState(0);
@@ -264,33 +265,37 @@ function SeoHealthSection({ data }) {
 
 // GEO/AEO Tab Sections
 function GeoAeoHubSection({ data }) {
+  const rawPlatforms = data?.platforms ?? data?.ai_engines ?? data?.ai_platform_visibility ?? data?.llm_mentions ?? [];
+  const platformList = Array.isArray(rawPlatforms) ? rawPlatforms : [];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <LlmExtractionChecklist data={data} />
+      <AiVisibilityTable platformData={platformList} />
     </div>
   );
 }
 
 function AiSearchDeepSection({ data }) {
-  const engines = data?.engines ?? data?.ai_engines ?? [
-    { name: 'ChatGPT', prob: data?.chatgpt_visibility ?? 0 },
-    { name: 'Perplexity', prob: data?.perplexity_visibility ?? 0 },
-    { name: 'Gemini', prob: data?.gemini_visibility ?? 0 },
-    { name: 'AI Overviews', prob: data?.ai_overviews ?? 0 },
-  ];
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-      {engines.map((e, i) => (
-        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>{e.name}</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: (e.prob ?? 0) >= 50 ? '#12b886' : '#ef4444' }}>{(e.prob ?? 0)}%</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-            {(e.prob ?? 0) >= 50 ? 'Likely cited' : 'Low citation probability'}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const rawPlatforms = data?.platforms ?? data?.ai_engines ?? data?.ai_platform_visibility ?? data?.llm_mentions ?? [];
+  let platformList = Array.isArray(rawPlatforms) ? rawPlatforms : [];
+  if (!Array.isArray(rawPlatforms) && typeof rawPlatforms === 'object') {
+    platformList = Object.entries(rawPlatforms).map(([name, val]) => ({
+      platform: name,
+      brand_mentioned: typeof val === 'object' ? (val.score || val.prob || 0) >= 50 : (val || 0) >= 50,
+      sentiment: typeof val === 'object' ? (val.sentiment || 'NEUTRAL') : (val || 0) >= 70 ? 'POSITIVE' : (val || 0) >= 40 ? 'NEUTRAL' : 'NEGATIVE',
+      snippet: typeof val === 'object' ? (val.snippet || val.description || '') : '',
+    }));
+  }
+  if (platformList.length === 0 && (data?.chatgpt_visibility !== undefined || data?.gemini_visibility !== undefined || data?.perplexity_visibility !== undefined)) {
+    platformList = [
+      { platform: 'ChatGPT (GPT-4o)', brand_mentioned: (data.chatgpt_visibility ?? 0) >= 50, sentiment: (data.chatgpt_visibility ?? 0) >= 70 ? 'POSITIVE' : (data.chatgpt_visibility ?? 0) >= 40 ? 'NEUTRAL' : 'NEGATIVE', snippet: data.chatgpt_snippet || '' },
+      { platform: 'Perplexity AI', brand_mentioned: (data.perplexity_visibility ?? 0) >= 50, sentiment: (data.perplexity_visibility ?? 0) >= 70 ? 'POSITIVE' : (data.perplexity_visibility ?? 0) >= 40 ? 'NEUTRAL' : 'NEGATIVE', snippet: data.perplexity_snippet || '' },
+      { platform: 'Google Gemini', brand_mentioned: (data.gemini_visibility ?? 0) >= 50, sentiment: (data.gemini_visibility ?? 0) >= 70 ? 'POSITIVE' : (data.gemini_visibility ?? 0) >= 40 ? 'NEUTRAL' : 'NEGATIVE', snippet: data.gemini_snippet || '' },
+      { platform: 'Google AI Overviews', brand_mentioned: (data.ai_overviews ?? 0) >= 50, sentiment: (data.ai_overviews ?? 0) >= 70 ? 'POSITIVE' : (data.ai_overviews ?? 0) >= 40 ? 'NEUTRAL' : 'NEGATIVE', snippet: data.ai_overviews_snippet || '' },
+      { platform: 'Claude 3.5 Sonnet', brand_mentioned: (data.claude_visibility ?? 0) >= 50, sentiment: (data.claude_visibility ?? 0) >= 70 ? 'POSITIVE' : (data.claude_visibility ?? 0) >= 40 ? 'NEUTRAL' : 'NEGATIVE', snippet: data.claude_snippet || '' },
+    ];
+  }
+  return <AiVisibilityTable platformData={platformList} />;
 }
 
 function AiBotAccessSection({ data }) {
