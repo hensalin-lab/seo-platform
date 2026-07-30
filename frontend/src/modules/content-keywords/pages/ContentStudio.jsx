@@ -239,7 +239,7 @@ function RewriterTab() {
   const handleAnalyze = async () => {
     if (!url.trim()) return;
     setLoading(true);
-    const data = await api.request(`/audit/${id}/content-rewrite`, { method: 'POST', body: { url: url.trim() } }).catch(() => null);
+    const data = await api.getContentRewrite(id, encodeURIComponent(url.trim())).catch(() => null);
     setResult(data);
     setLoading(false);
   };
@@ -334,7 +334,7 @@ function BlogAiTab() {
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     setLoading(true);
-    const data = await api.request(`/audit/${id}/blog-ai`, { method: 'POST', body: { topic: topic.trim() } }).catch(() => null);
+    const data = await api.getBlogAi(id).catch(() => null);
     setPosts(data);
     setLoading(false);
   };
@@ -476,15 +476,16 @@ export default function ContentStudio() {
   useEffect(() => {
     async function loadAll() {
       setLoading(true);
-      const [content, quality, revival, blog] = await Promise.all([
+      const [content, quality, opps, revival, blog] = await Promise.all([
         api.getContentAnalysis(id).catch(() => null),
         api.getContentQuality(id).catch(() => null),
+        api.request(`/audit/${id}/content-opportunities`).catch(() => null),
         api.getContentRevival(id).catch(() => null),
         api.getBlogAi(id).catch(() => null),
       ]);
       setContentData(content);
       setQualityData(quality);
-      setOpportunitiesData(null);
+      setOpportunitiesData(opps);
       setRevivalData(revival);
       setBlogAiData(blog);
       setLoading(false);

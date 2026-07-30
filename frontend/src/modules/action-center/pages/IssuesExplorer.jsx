@@ -19,7 +19,6 @@ export default function IssuesExplorer() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState(null);
-  const [groupByPage, setGroupByPage] = useState(false);
   const PAGE_SIZE = 100;
 
   useEffect(() => {
@@ -120,101 +119,52 @@ export default function IssuesExplorer() {
           <option value="page">Sort: Page</option>
           <option value="category">Sort: Category</option>
         </select>
-        <button onClick={() => setGroupByPage(!groupByPage)}
-          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: groupByPage ? '#3b82f6' : '#fff', color: groupByPage ? '#fff' : '#334155' }}>
-          {groupByPage ? 'List View' : 'Group by Page'}
-        </button>
       </div>
 
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, padding: '0 4px' }}>
         Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
       </div>
 
-      {groupByPage ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(() => {
-            const byPage = {};
-            filtered.forEach(i => {
-              const p = i.page_url || '(no URL)';
-              if (!byPage[p]) byPage[p] = [];
-              byPage[p].push(i);
-            });
-            return Object.entries(byPage).sort((a, b) => b[1].length - a[1].length).map(([url, items]) => (
-              <div key={url} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
-                <div style={{ padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#2563eb', wordBreak: 'break-all', flex: 1 }}>{url}</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 11, color: '#64748b' }}>{items.length} issue{items.length > 1 ? 's' : ''}</span>
-                    <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#3b82f6', textDecoration: 'none' }}><ExternalLink size={12} /></a>
-                    <button onClick={() => navigate(`/audit/${id}/page-detail?url=${encodeURIComponent(url)}`)}
-                      style={{ fontSize: 11, color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                      Analyze
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {paginated.map((issue, idx) => (
+          <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 60, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textAlign: 'center', color: '#fff', background: SEVERITY_COLORS[issue.severity] || '#64748b', flexShrink: 0 }}>
+                {issue.severity}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{issue.signal_name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: (CATEGORY_COLORS[issue.category] || '#64748b') + '20', color: CATEGORY_COLORS[issue.category] || '#64748b' }}>{issue.category}</span>
+                </div>
+                <div style={{ fontSize: 12, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>
+                  <strong>Page:</strong> {issue.page_url}
+                </div>
+                <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 4 }}>
+                  <strong>Problem:</strong> {issue.description}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                  <strong>Impact:</strong> {issue.impact}
+                </div>
+                <div style={{ padding: '6px 10px', background: '#f0f9ff', borderRadius: 6, fontSize: 12, color: '#0369a1', lineHeight: 1.5, marginBottom: 6 }}>
+                  <strong>How to Fix:</strong> {issue.fix}
+                </div>
+                {issue.page_url && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <a href={issue.page_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <ExternalLink size={12} /> Open page
+                    </a>
+                    <button onClick={() => navigate(`/audit/${id}/page-detail?url=${encodeURIComponent(issue.page_url)}`)}
+                      style={{ fontSize: 12, color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                      Full page analysis →
                     </button>
                   </div>
-                </div>
-                <div style={{ padding: '6px 14px' }}>
-                  {items.slice(0, 10).map((issue, idx) => (
-                    <div key={idx} style={{ padding: '6px 0', borderBottom: idx < items.length - 1 && idx < 9 ? '1px solid #f1f5f9' : 'none', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                      <span style={{ minWidth: 6, height: 6, borderRadius: '50%', background: SEVERITY_COLORS[issue.severity] || '#64748b', marginTop: 5, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 1 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{issue.signal_name}</span>
-                          <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: (CATEGORY_COLORS[issue.category] || '#64748b') + '20', color: CATEGORY_COLORS[issue.category] || '#64748b' }}>{issue.category}</span>
-                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: SEVERITY_COLORS[issue.severity] || '#64748b', color: '#fff' }}>{issue.severity}</span>
-                        </div>
-                        <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>{issue.description}</div>
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}><strong>Fix:</strong> {issue.fix}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {items.length > 10 && <div style={{ fontSize: 11, color: '#94a3b8', padding: '4px 0', textAlign: 'center' }}>+{items.length - 10} more issues on this page</div>}
-                </div>
-              </div>
-            ));
-          })()}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {paginated.map((issue, idx) => (
-            <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', padding: '10px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ width: 60, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textAlign: 'center', color: '#fff', background: SEVERITY_COLORS[issue.severity] || '#64748b', flexShrink: 0 }}>
-                  {issue.severity}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{issue.signal_name}</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: (CATEGORY_COLORS[issue.category] || '#64748b') + '20', color: CATEGORY_COLORS[issue.category] || '#64748b' }}>{issue.category}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>
-                    <strong>Page:</strong> {issue.page_url}
-                  </div>
-                  <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 4 }}>
-                    <strong>Problem:</strong> {issue.description}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-                    <strong>Impact:</strong> {issue.impact}
-                  </div>
-                  <div style={{ padding: '6px 10px', background: '#f0f9ff', borderRadius: 6, fontSize: 12, color: '#0369a1', lineHeight: 1.5, marginBottom: 6 }}>
-                    <strong>How to Fix:</strong> {issue.fix}
-                  </div>
-                  {issue.page_url && (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <a href={issue.page_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <ExternalLink size={12} /> Open page
-                      </a>
-                      <button onClick={() => navigate(`/audit/${id}/page-detail?url=${encodeURIComponent(issue.page_url)}`)}
-                        style={{ fontSize: 12, color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                        Full page analysis →
-                      </button>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No issues match your filters</div>
