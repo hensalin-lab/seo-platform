@@ -112,10 +112,10 @@ const AUDIT_NAV = [
     ],
   },
   {
-    label: '6. SETTINGS & ADMIN',
+    label: '6. AI FIX & ROADMAP',
     items: [
-      { suffix: '/page-detail', icon: Layers, label: 'Page Analysis' },
-      { suffix: '/ai-roadmap', icon: Flag, label: 'AI Roadmap' },
+      { suffix: '/issues', icon: Zap, label: 'Quick Fix Center' },
+      { suffix: '/roadmap', icon: Flag, label: 'SEO Roadmap' },
     ],
   },
 ];
@@ -133,6 +133,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth(); // moved to top level
 
   useEffect(() => {
     const handler = (e) => {
@@ -214,7 +215,7 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          {(() => { const { user, isAuthenticated, logout } = useAuth(); return isAuthenticated && user ? (
+          {isAuthenticated && user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff' }}>
                 {user.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
@@ -231,7 +232,7 @@ export default function Layout({ children }) {
             <Link to="/login" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 6, color: 'var(--sidebar-text)', textDecoration: 'none', fontSize: 12 }}>
               <LogIn size={14} /> Sign In
             </Link>
-          ); })()}
+          )}
           <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.5, marginTop: 4 }}>
             SEO Intel v2.5
           </div>
