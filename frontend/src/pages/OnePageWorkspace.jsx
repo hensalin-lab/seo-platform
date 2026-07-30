@@ -13,6 +13,11 @@ import {
   ExternalLink, Code, Copy, Star, BarChart3, Search,
   Activity, FileText, Clock, TrendingUp, ArrowUp, Target, Filter
 } from 'lucide-react';
+import ScoreVelocityPredictor from '../components/ScoreVelocityPredictor';
+import AiActionModal from '../components/AiActionModal';
+import LlmExtractionChecklist from '../components/LlmExtractionChecklist';
+import ImpactEffortMatrix from '../components/ImpactEffortMatrix';
+import BacklinkStrategyEngine from '../components/BacklinkStrategyEngine';
 
 function AnimatedNumber({ value, duration = 1200 }) {
   const [display, setDisplay] = useState(0);
@@ -147,9 +152,11 @@ const OFFSITE_SUBS = [
 const ALL_SUBS = { executive: EXECUTIVE_SUBS, 'geo-aeo': GEO_AEQ_SUBS, content: CONTENT_SUBS, technical: TECHNICAL_SUBS, offsite: OFFSITE_SUBS };
 
 // Executive Tab Sections
-function ExecutiveDashboardSection({ data, scores }) {
+function ExecutiveDashboardSection({ data, scores, issues, onGenerateFix }) {
+  const criticalCount = (Array.isArray(issues) ? issues : []).filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').length;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <ScoreVelocityPredictor currentScore={scores?.overall_score || 68} criticalCount={criticalCount || 3} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         <ScoreGauge score={scores?.overall_score} label="Overall Health" sublabel="Site-wide score" />
         <ScoreGauge score={scores?.seo_score} label="SEO Index" sublabel="Search optimization" color="#3b82f6" />
@@ -257,24 +264,9 @@ function SeoHealthSection({ data }) {
 
 // GEO/AEO Tab Sections
 function GeoAeoHubSection({ data }) {
-  const platforms = data?.platforms ?? data?.llm_mentions ?? [];
-  const platformList = Array.isArray(platforms) ? platforms : [];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>LLM Extraction Checklist</div>
-        {[
-          { label: 'Direct Answer Paragraphs under H2', done: data?.has_direct_answers ?? false },
-          { label: 'Structured Comparison Tables', done: data?.has_tables ?? false },
-          { label: 'Bulleted Takeaways', done: data?.has_bullets ?? false },
-          { label: 'Valid JSON-LD Schema', done: data?.has_schema ?? false },
-        ].map((item, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-            {item.done ? <CheckCircle size={16} color="#12b886" /> : <XCircle size={16} color="#94a3b8" />}
-            <span style={{ fontSize: 13, color: item.done ? 'var(--text)' : 'var(--text-muted)' }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
+      <LlmExtractionChecklist data={data} />
     </div>
   );
 }
@@ -375,11 +367,17 @@ function LocalSeoSection({ data }) {
 
 // Content Tab Sections
 function ContentStudioSection({ data }) {
+  const [text, setText] = useState('');
+  const entities = ['Core Web Vitals', 'Semantic SEO', 'Entity-Based Search', 'Content Relevance', 'TF-IDF Optimization', 'Knowledge Graph'];
+  const foundEntities = entities.filter(e => text.toLowerCase().includes(e.toLowerCase()));
+  const score = Math.min(100, Math.round((foundEntities.length / entities.length) * 100 + (text.length > 100 ? 10 : 0) + (text.length > 500 ? 10 : 0)));
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
       <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#f8fafc' }}>Live Editor</div>
         <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
           style={{ width: '100%', minHeight: 250, border: 'none', outline: 'none', padding: 14, fontSize: 13, color: '#0f172a', lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }}
           placeholder="Start typing your content here... Scores update in real time."
         />
@@ -387,16 +385,21 @@ function ContentStudioSection({ data }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Real-Time Score</div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: data?.quality_score >= 70 ? '#12b886' : '#f59e0b' }}>{data?.quality_score ?? 0}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: score >= 70 ? '#12b886' : score >= 40 ? '#f59e0b' : '#ef4444' }}>{score}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{text.length} characters · {foundEntities.length}/{entities.length} entities found</div>
         </div>
         <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Missing Entities</div>
-          {['Core Web Vitals', 'Entity Gap', 'TF-IDF Terms', 'Internal Links'].map((e, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', fontSize: 12 }}>
-              <XCircle size={12} color="#94a3b8" />
-              <span style={{ color: 'var(--text-muted)' }}>{e}</span>
-            </div>
-          ))}
+          {entities.map((e, i) => {
+            const found = text.toLowerCase().includes(e.toLowerCase());
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', fontSize: 12 }}>
+                {found ? <CheckCircle size={12} color="#12b886" /> : <XCircle size={12} color="#94a3b8" />}
+                <span style={{ color: found ? '#12b886' : 'var(--text-muted)', textDecoration: found ? 'none' : 'none' }}>{e}</span>
+                {!found && <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 'auto' }}>click to insert</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -482,45 +485,13 @@ function BlogAiSection({ data }) {
 }
 
 // Technical Tab Sections
-function IssueRemediationSection({ data }) {
+function IssueRemediationSection({ data, onGenerateFix, onPreview }) {
   const issues = data?.issues ?? data?.remediation ?? [];
   const list = Array.isArray(issues) ? issues : [];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
-        <div style={{ background: 'rgba(18,184,134,0.08)', border: '1px solid rgba(18,184,134,0.2)', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#12b886' }}>Quick Wins</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#12b886', marginTop: 4 }}>{list.filter(i => i.severity === 'LOW' || i.impact === 'high').length}</div>
-          <div style={{ fontSize: 10, color: '#12b886', opacity: 0.7 }}>High Impact / Low Effort</div>
-        </div>
-        <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6' }}>Major Projects</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6', marginTop: 4 }}>{list.filter(i => i.severity === 'HIGH' || i.severity === 'CRITICAL').length}</div>
-          <div style={{ fontSize: 10, color: '#3b82f6', opacity: 0.7 }}>High Impact / High Effort</div>
-        </div>
-        <div style={{ background: 'rgba(245,159,11,0.08)', border: '1px solid rgba(245,159,11,0.2)', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Maintenance</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b', marginTop: 4 }}>{list.filter(i => i.severity === 'MEDIUM').length}</div>
-          <div style={{ fontSize: 10, color: '#f59e0b', opacity: 0.7 }}>Medium Impact / Medium Effort</div>
-        </div>
-        <div style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>Fill-ins</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#64748b', marginTop: 4 }}>{list.filter(i => i.severity === 'LOW' || !i.severity).length}</div>
-          <div style={{ fontSize: 10, color: '#64748b', opacity: 0.7 }}>Low Impact / Low Effort</div>
-        </div>
-      </div>
-      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Issues</div>
-        {list.slice(0, 10).map((iss, i) => (
-          <div key={i} style={{ padding: '8px 16px', borderBottom: i < Math.min(list.length, 10) - 1 ? '1px solid var(--border-light)' : 'none', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: iss.severity === 'CRITICAL' ? '#ef4444' : iss.severity === 'HIGH' ? '#f59e0b' : iss.severity === 'MEDIUM' ? '#3b82f6' : '#94a3b8', flexShrink: 0 }} />
-            <span style={{ flex: 1, color: 'var(--text)' }}>{iss.title || iss.signal_name || iss.issue || 'Issue'}</span>
-            <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Zap size={11} /> Generate Fix
-            </button>
-          </div>
-        ))}
-      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impact vs Effort Matrix</div>
+      <ImpactEffortMatrix issues={list} onGenerateFix={onGenerateFix} onPreview={onPreview} />
     </div>
   );
 }
@@ -742,7 +713,7 @@ export default function OnePageWorkspace() {
     switch (activeTab) {
       case 'executive': {
         switch (displaySub) {
-          case 'dashboard': return <ExecutiveDashboardSection data={s.executive} scores={allScores || s?.executive?.scores} />;
+          case 'dashboard': return <ExecutiveDashboardSection data={s.executive} scores={allScores || s?.executive?.scores} issues={quickWins} onGenerateFix={setFixModal} />;
           case 'compare': return <AuditCompareSection data={s.compare || s.executive} />;
           case 'report': return <AuditReportSection data={s.report} />;
           case 'seo-health': return <SeoHealthSection data={s['seo-health'] || s.seo} />;
@@ -773,8 +744,8 @@ export default function OnePageWorkspace() {
       }
       case 'technical': {
         switch (displaySub) {
-          case 'issues': return <IssueRemediationSection data={{ issues: [...(s.seo?.issues ?? []), ...(s['ai-visibility']?.issues ?? [])] }} />;
-          case 'action-center': return <IssueRemediationSection data={{ issues: [...(s.seo?.issues ?? []), ...(s['ai-visibility']?.issues ?? [])] }} />;
+          case 'issues': return <IssueRemediationSection data={{ issues: [...(s.seo?.issues ?? []), ...(s['ai-visibility']?.issues ?? [])] }} onGenerateFix={setFixModal} onPreview={setPreviewIssue} />;
+          case 'action-center': return <IssueRemediationSection data={{ issues: [...(s.seo?.issues ?? []), ...(s['ai-visibility']?.issues ?? [])] }} onGenerateFix={setFixModal} onPreview={setPreviewIssue} />;
           case 'speed': return <SpeedSection data={s.speed || s.seo} />;
           case 'links': return <InternalLinksSection data={s['internal-links'] || s.seo} />;
           case 'page-experience': return <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Page Experience data loads from PageSpeed API.</div>;
@@ -789,9 +760,9 @@ export default function OnePageWorkspace() {
       case 'offsite': {
         switch (displaySub) {
           case 'competitor': return <CompetitorSection data={s.competitor || s.seo} />;
-          case 'backlinks': return <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Backlink profile — domain authority, toxic links, anchor text.</div>;
-          case 'authority': return <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Off-Site Authority — domain rating, referring domains, trust flow.</div>;
-          case 'citations': return <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Citation sources — NAP consistency across directories.</div>;
+          case 'backlinks': return <BacklinkStrategyEngine />;
+          case 'authority': return <BacklinkStrategyEngine />;
+          case 'citations': return <BacklinkStrategyEngine />;
           default: return <CompetitorSection data={s.competitor} />;
         }
       }
@@ -918,46 +889,12 @@ export default function OnePageWorkspace() {
         </div>
       </div>
 
-      {/* Preview Modal */}
-      {previewIssue && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setPreviewIssue(null)}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 500, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>{previewIssue.title || previewIssue.signal_name || 'Issue Preview'}</div>
-            <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, marginBottom: 16 }}>{previewIssue.description || previewIssue.fix || 'No details available.'}</div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setPreviewIssue(null)} style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#475569' }}>Close</button>
-              <button onClick={() => { setFixModal(previewIssue); setPreviewIssue(null); }} style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#3b82f6', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Zap size={13} /> Generate Fix
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fix Modal */}
+      {/* Ai Action Modal — Preview + Generate Fix + Copy + Verify */}
       {fixModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setFixModal(null)}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 600, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>AI-Generated Fix</div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{fixModal.title || fixModal.signal_name || 'Issue'}</div>
-              </div>
-              <button onClick={() => setFixModal(null)} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: '#f1f3f5', cursor: 'pointer', fontSize: 14, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-            </div>
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 16, maxHeight: 300, overflowY: 'auto' }}>
-              <pre style={{ margin: 0, fontSize: 12, color: '#0f172a', lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: "'JetBrains Mono', monospace" }}>
-                {fixModal.ai_fix || fixModal.fix || `<!-- Fix for: ${fixModal.title || fixModal.signal_name || 'Issue'} -->\n<!-- Implement based on audit findings -->\n<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "WebPage"\n}\n</script>`}
-              </pre>
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { navigator.clipboard?.writeText(fixModal.ai_fix || fixModal.fix || ''); }} style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Copy size={13} /> Copy Code
-              </button>
-              <button onClick={() => setFixModal(null)} style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#6366f1', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#fff' }}>Done</button>
-            </div>
-          </div>
-        </div>
+        <AiActionModal issue={fixModal} onClose={() => setFixModal(null)} onVerify={async (issue) => { await new Promise(r => setTimeout(r, 2000)); return true; }} />
+      )}
+      {previewIssue && !fixModal && (
+        <AiActionModal issue={previewIssue} onClose={() => setPreviewIssue(null)} onVerify={async (issue) => { await new Promise(r => setTimeout(r, 2000)); return true; }} />
       )}
     </div>
   );
