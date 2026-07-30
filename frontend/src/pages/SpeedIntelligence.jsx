@@ -65,7 +65,7 @@ export default function SpeedIntelligence() {
 
   useEffect(() => {
     if (!pages.length) return;
-    api.getSpeedIntelligence(id, selectedIdx).then(d => setData(d)).catch(() => {});
+    api.getSpeedIntelligence(id, selectedIdx).then(d => setData(d)).catch(() => setData(null));
   }, [id, selectedIdx, pages]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;

@@ -146,7 +146,7 @@ export default function SeoAnalysis() {
 
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
-    displayedSignals = displayedSignals.filter(s => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || (s.what_wrong || '').toLowerCase().includes(q));
+    displayedSignals = displayedSignals.filter(s => (s.name || '').toLowerCase().includes(q) || (s.category || '').toLowerCase().includes(q) || (s.what_wrong || '').toLowerCase().includes(q));
   }
 
   const catScores = mega?.category_scores || {};

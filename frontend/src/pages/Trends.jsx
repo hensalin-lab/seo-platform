@@ -62,7 +62,7 @@ export default function Trends() {
   useEffect(() => {
     api.getHistory(50).then(data => {
       const list = Array.isArray(data) ? data : data.audits || [];
-      setAudits(list.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+      setAudits([...list].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 

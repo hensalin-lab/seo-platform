@@ -77,7 +77,7 @@ function PageImprovementList({ improvements }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {improvements.map((page, i) => {
         const isOpen = expanded === i;
-        const totalItems = page.what_to_add.length + page.what_to_remove.length + page.what_to_rewrite.length + page.what_to_link.length + page.what_to_optimize.length;
+        const totalItems = (page.what_to_add || []).length + (page.what_to_remove || []).length + (page.what_to_rewrite || []).length + (page.what_to_link || []).length + (page.what_to_optimize || []).length;
         return (
           <div key={page.url + i} style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', overflow: 'hidden' }}>
             <div onClick={() => setExpanded(isOpen ? null : i)} style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
