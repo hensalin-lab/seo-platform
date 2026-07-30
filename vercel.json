@@ -1,0 +1,7 @@
+{
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://zooming-smile-production-9693.up.railway.app/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
