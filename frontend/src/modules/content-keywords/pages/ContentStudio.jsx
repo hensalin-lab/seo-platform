@@ -177,7 +177,7 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4, background: oppType === 'keyword' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)', color: oppType === 'keyword' ? '#22c55e' : '#3b82f6', whiteSpace: 'nowrap', marginTop: 1 }}>
                           {oppType}
                         </span>
-                        <span style={{ fontSize: 13, color: '#d1d5db', lineHeight: 1.5, flex: 1 }}>{oppLabel}</span>
+                        <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, flex: 1 }}>{oppLabel}</span>
                       </div>
                     );
                   })}
@@ -272,7 +272,7 @@ function RewriterTab() {
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Eye size={14} /> Original
               </div>
-              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: '#d1d5db', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: 'var(--text)', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                 {result.original || result.original_content || 'No original content available.'}
               </div>
             </div>
@@ -280,7 +280,7 @@ function RewriterTab() {
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <EyeOff size={14} /> Rewritten
               </div>
-              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: '#d1d5db', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: 'var(--text)', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                 {result.rewritten || result.rewritten_content || result.content || 'No rewritten content available.'}
               </div>
             </div>
@@ -373,7 +373,7 @@ function BlogAiTab() {
               return (
                 <div key={i} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{title}</div>
-                  <div style={{ fontSize: 13, color: '#d1d5db', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{content}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{content}</div>
                 </div>
               );
             })}
@@ -426,7 +426,7 @@ function RevivalTab({ revivalData }) {
                     {suggestionList.length > 0 && (
                       <div style={{ marginBottom: 10 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Suggested updates:</div>
-                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#d1d5db', lineHeight: 1.6 }}>
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>
                           {suggestionList.map((s, j) => (
                             <li key={j}>{s}</li>
                           ))}

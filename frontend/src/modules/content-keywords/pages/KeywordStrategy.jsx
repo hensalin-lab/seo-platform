@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import DataSourceBadge from '../../../components/DataSourceBadge'
-import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown } from 'lucide-react'
+import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown, Sparkles, Brain, ArrowRight, Clock, RefreshCw } from 'lucide-react'
 
 function KeywordTable({ keywords, search }) {
   const [sortBy, setSortBy] = useState('frequency')
@@ -209,6 +209,12 @@ function QuickWins({ keywords }) {
   )
 }
 
+const IMPACT_COLORS = {
+  HIGH: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
+  MEDIUM: { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
+  LOW: { bg: 'rgba(34,197,94,0.1)', color: '#22c55e' },
+};
+
 export default function KeywordStrategy() {
   const { id } = useParams()
   const [research, setResearch] = useState(null)
@@ -216,6 +222,8 @@ export default function KeywordStrategy() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('keywords')
   const [search, setSearch] = useState('')
+  const [aiSuggestions, setAiSuggestions] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -223,6 +231,13 @@ export default function KeywordStrategy() {
       api.getKeywordsEnhanced(id).catch(() => null),
     ]).then(([res, enh]) => { setResearch(res); setEnhanced(enh); }).finally(() => setLoading(false))
   }, [id])
+
+  const loadAiSuggestions = async () => {
+    setAiLoading(true);
+    const data = await api.getAiSuggestions(id).catch(() => null);
+    setAiSuggestions(data);
+    setAiLoading(false);
+  };
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Researching keywords...</p></div>
 
@@ -237,6 +252,7 @@ export default function KeywordStrategy() {
     { key: 'clusters', label: 'Topic Clusters', icon: GitMerge, count: research?.topic_clusters?.length || 0 },
     { key: 'questions', label: 'Questions', icon: HelpCircle, count: research?.question_keywords?.length || 0 },
     { key: 'cannibal', label: 'Cannibalization', icon: AlertTriangle, count: research?.cannibalization?.length || 0 },
+    { key: 'ai', label: 'AI Suggestions', icon: Sparkles, count: aiSuggestions ? Object.values(aiSuggestions?.suggestions || {}).reduce((s, v) => s + (Array.isArray(v) ? v.length : 0), 0) : 0 },
   ]
 
   return (
@@ -301,6 +317,93 @@ export default function KeywordStrategy() {
         {activeTab === 'clusters' && <TopicClusters clusters={research?.topic_clusters} />}
         {activeTab === 'questions' && <QuestionKeywords questions={research?.question_keywords} />}
         {activeTab === 'cannibal' && <Cannibalization cannibalization={research?.cannibalization} />}
+        {activeTab === 'ai' && (
+          <div>
+            {!aiSuggestions && !aiLoading && (
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 40, textAlign: 'center' }}>
+                <Sparkles size={40} color="#3b82f6" style={{ marginBottom: 12 }} />
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 6px' }}>AI-Powered Keyword Suggestions</h3>
+                <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px' }}>Get personalized AI recommendations for keyword strategy</p>
+                <button onClick={loadAiSuggestions} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={16} /> Generate AI Suggestions
+                </button>
+              </div>
+            )}
+            {aiLoading && (
+              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 40, textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                <div style={{ fontSize: 15, color: '#64748b', fontWeight: 500 }}>AI is analyzing keywords...</div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+            {aiSuggestions && (() => {
+              const s = aiSuggestions.suggestions || {};
+              const summary = s.summary || '';
+              const priority = s.priority_actions || [];
+              const quick = s.quick_wins || [];
+              const insights = s.strategic_insights || [];
+              const content = s.content_recommendations || [];
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {summary && (
+                    <div style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.05), rgba(168,85,247,0.05))', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 12, padding: '18px 22px' }}>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <Brain size={20} color="#3b82f6" style={{ flexShrink: 0, marginTop: 2 }} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#3b82f6', marginBottom: 4 }}>AI Executive Summary</div>
+                          <div style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.6 }}>{summary}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {priority.length > 0 && (
+                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Priority Actions</h3>
+                      {priority.map((a, i) => (
+                        <div key={i} style={{ borderLeft: `3px solid ${IMPACT_COLORS[a.impact]?.color || '#f59e0b'}`, padding: '12px 16px', marginBottom: 8, background: '#f8fafc', borderRadius: 6 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>{a.title}</div>
+                          <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{a.description}</div>
+                          {a.specific_steps?.map((step, j) => (
+                            <div key={j} style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569', marginTop: 4 }}>
+                              <ArrowRight size={12} color="#3b82f6" style={{ flexShrink: 0, marginTop: 3 }} /> {step}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {insights.length > 0 && (
+                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Strategic Insights</h3>
+                      {insights.map((i, j) => (
+                        <div key={j} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13, color: '#475569' }}>
+                          <CheckCircle size={16} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} /> {i}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {quick.length > 0 && (
+                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Quick Wins</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                        {quick.map((w, k) => (
+                          <div key={k} style={{ border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 14, background: 'rgba(34,197,94,0.03)' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#166534', marginBottom: 4 }}>{w.title}</div>
+                            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, marginBottom: 6 }}>{w.description}</div>
+                            <div style={{ fontSize: 11, color: '#64748b', display: 'flex', gap: 12 }}>
+                              {w.estimated_time && <span><Clock size={12} /> {w.estimated_time}</span>}
+                              {w.expected_improvement && <span style={{ color: '#059669' }}>{w.expected_improvement}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
     </div>
   )
