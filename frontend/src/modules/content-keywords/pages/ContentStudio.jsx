@@ -5,14 +5,16 @@ import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 import {
   FileText, Edit3, PenTool, RefreshCw,
-  Star, BarChart3, BookOpen, Sparkles, Eye, EyeOff,
+  Star, BarChart3, BookOpen, Sparkles, Eye, EyeOff, MessageSquare,
 } from 'lucide-react';
+import PromptTestingLab from '../components/PromptTestingLab';
 
 const TABS = [
   { key: 'overview', label: 'Content Overview', icon: BarChart3 },
   { key: 'rewriter', label: 'Rewriter', icon: Edit3 },
   { key: 'blog', label: 'Blog AI', icon: PenTool },
   { key: 'revival', label: 'Revival', icon: RefreshCw },
+  { key: 'prompts', label: 'Prompt Lab', icon: MessageSquare },
 ];
 
 function ScoreCard({ label, score, color, icon: Icon }) {
@@ -523,6 +525,7 @@ export default function ContentStudio() {
       {activeTab === 'rewriter' && <RewriterTab />}
       {activeTab === 'blog' && <BlogAiTab />}
       {activeTab === 'revival' && <RevivalTab revivalData={revivalData} />}
+      {activeTab === 'prompts' && <PromptTestingLab />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import CommandPalette from './CommandPalette';
 import {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2,
   Gauge, BookOpen, Key, Globe, MessageSquare, Users,
@@ -98,6 +99,18 @@ function SidebarLink({ to, icon: Icon, label, active }) {
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const match = location.pathname.match(/\/audit\/([^/]+)/);
   const auditId = match ? match[1] : null;
@@ -212,7 +225,7 @@ export default function Layout({ children }) {
             </Link>
           ); })()}
           <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.5, marginTop: 4 }}>
-            SEO Intel v2.0
+            SEO Intel v2.5
           </div>
         </div>
       </aside>
@@ -230,10 +243,14 @@ export default function Layout({ children }) {
             </div>
           </div>
           <div className="topbar-actions">
+            <button className="btn btn-ghost btn-sm" onClick={() => setPaletteOpen(true)} title="Search (Cmd+K)" style={{ background: 'none', border: '1px solid var(--border, #2a2d35)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-muted, #8a8f9e)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              <Search size={13} /> <kbd style={{ fontSize: 10, opacity: 0.5, border: '1px solid var(--border, #2a2d35)', borderRadius: 3, padding: '0 4px' }}>⌘K</kbd>
+            </button>
             <button className="btn btn-primary btn-sm" onClick={() => navigate('/new')}>
               <Plus size={13} /> New Audit
             </button>
           </div>
+          <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} auditId={auditId} />
         </div>
         <div className="page-content">
           {children}

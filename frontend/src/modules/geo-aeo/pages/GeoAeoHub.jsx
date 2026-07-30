@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import { Brain, Globe, Bot, Activity, FileCode, Sparkles } from 'lucide-react';
+import { Brain, Globe, Bot, Activity, FileCode, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
+import VisualSchemaBuilder from '../components/VisualSchemaBuilder';
 
 function ScoreCard({ label, score, color, icon: Icon }) {
   const scoreColor = score >= 80 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
@@ -43,6 +44,7 @@ function UnavailableBadge() {
 export default function GeoAeoHub() {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
+  const [showSchemaBuilder, setShowSchemaBuilder] = useState(false);
   const [geoData, setGeoData] = useState(null);
   const [aeoData, setAeoData] = useState(null);
   const [eeatData, setEeatData] = useState(null);
@@ -295,6 +297,25 @@ export default function GeoAeoHub() {
           </div>
         ) : (
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted, #9ca3af)', fontSize: 13 }}>No recommendations available.</div>
+        )}
+      </div>
+
+      <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 12, overflow: 'hidden' }}>
+        <div
+          onClick={() => setShowSchemaBuilder(!showSchemaBuilder)}
+          style={{ padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}
+        >
+          {showSchemaBuilder ? <ChevronDown size={18} color="var(--accent, #3b82f6)" /> : <ChevronRight size={18} color="var(--accent, #3b82f6)" />}
+          <FileCode size={18} color="var(--accent, #3b82f6)" />
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text, #111827)', margin: 0, flex: 1 }}>Visual Schema Builder</h2>
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 6, background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>
+            {showSchemaBuilder ? 'Collapse' : 'Expand'}
+          </span>
+        </div>
+        {showSchemaBuilder && (
+          <div style={{ borderTop: '1px solid var(--border, #e5e7eb)' }}>
+            <VisualSchemaBuilder />
+          </div>
         )}
       </div>
     </div>

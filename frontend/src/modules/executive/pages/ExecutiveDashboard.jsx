@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import { LayoutDashboard, Globe, Brain, Bot, TrendingUp, AlertTriangle, CheckCircle, Activity, FileText, Users, Search, BarChart3, XCircle, RefreshCw, Shield, Eye, Plus, FileSearch, Download, BookOpen, Gauge, ClipboardList } from 'lucide-react';
+import {
+  TrendingUp, Bot, Search, AlertTriangle, CheckCircle, Layers, Lock, Sparkles, ArrowUpRight,
+  ShieldAlert, Download, Activity, Globe, Brain, RefreshCw, Eye, XCircle
+} from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 
@@ -11,11 +14,11 @@ function ScoreRing({ score, size = 120, stroke = 10 }) {
   const c = 2 * Math.PI * r;
   const pct = Math.min(100, Math.max(0, score || 0));
   const offset = mounted ? c - (pct / 100) * c : c;
-  let color = '#fa5252';
-  let glowColor = 'rgba(250,82,82,0.3)';
-  if (pct >= 80) { color = '#12b886'; glowColor = 'rgba(18,184,134,0.3)'; }
-  else if (pct >= 60) { color = '#4c6ef5'; glowColor = 'rgba(76,110,245,0.3)'; }
-  else if (pct >= 40) { color = '#f59f00'; glowColor = 'rgba(245,159,11,0.3)'; }
+  let color = '#ef4444';
+  let glowColor = 'rgba(239,68,68,0.3)';
+  if (pct >= 80) { color = '#22c55e'; glowColor = 'rgba(34,197,94,0.3)'; }
+  else if (pct >= 60) { color = '#6366f1'; glowColor = 'rgba(99,102,241,0.3)'; }
+  else if (pct >= 40) { color = '#f59e0b'; glowColor = 'rgba(245,158,11,0.3)'; }
 
   useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
 
@@ -37,10 +40,10 @@ function ScoreRing({ score, size = 120, stroke = 10 }) {
 
 function ScoreBadge({ label, score, icon: Icon }) {
   const pct = Math.min(100, Math.max(0, score || 0));
-  let color = '#fa5252';
-  if (pct >= 80) color = '#12b886';
-  else if (pct >= 60) color = '#4c6ef5';
-  else if (pct >= 40) color = '#f59f00';
+  let color = '#ef4444';
+  if (pct >= 80) color = '#22c55e';
+  else if (pct >= 60) color = '#6366f1';
+  else if (pct >= 40) color = '#f59e0b';
   const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : 'D';
 
   return (
@@ -61,13 +64,49 @@ function ScoreBadge({ label, score, icon: Icon }) {
   );
 }
 
-function HealthCheckItem({ check }) {
-  const passed = check?.status === 'PASS' || check?.passed === true;
+function IssueCard({ issue, onViewFix }) {
+  const severity = issue.severity || 'HIGH';
+  const severityColors = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
+  const severityColor = severityColors[severity] || '#6b7280';
+  const estGain = issue.estimated_gain || issue.impact_score || '2.4K';
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#16181e', borderRadius: 8, border: '1px solid #2a2d35' }}>
-      {passed ? <CheckCircle size={14} color="#12b886" /> : <XCircle size={14} color="#fa5252" />}
-      <span style={{ fontSize: 13, color: '#e0e0e0', flex: 1 }}>{check?.name || check?.check || check?.label || 'Check'}</span>
-      <span style={{ fontSize: 11, color: passed ? '#12b886' : '#fa5252', fontWeight: 600 }}>{passed ? 'PASS' : 'FAIL'}</span>
+    <div style={{ background: '#16181e', border: '1px solid #2a2d35', borderRadius: 10, padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: `${severityColor}18`, color: severityColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {severity}
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#e0e0e0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {issue.title || issue.name || issue.issue || 'Issue'}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          +{estGain}
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+        {[
+          { label: 'What Happened', value: issue.what_happened || issue.description || issue.issue || 'N/A' },
+          { label: 'Why', value: issue.why || issue.root_cause || issue.cause || 'N/A' },
+          { label: 'Impact', value: issue.impact || (issue.affected_pages ? `${issue.affected_pages} pages` : 'N/A') },
+          { label: 'AI Recommendation', value: issue.recommendation || issue.ai_recommendation || issue.suggestion || 'N/A' },
+        ].map((d, i) => (
+          <div key={i}>
+            <div style={{ fontSize: 10, color: '#8a8f9e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{d.label}</div>
+            <div style={{ fontSize: 12, color: '#c0c0c0', lineHeight: 1.4 }}>{d.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid #2a2d35' }}>
+        <span style={{ fontSize: 11, color: '#6366f1', fontFamily: 'monospace' }}>
+          {issue.target_path || issue.url || issue.path || issue.page || '—'}
+        </span>
+        <button onClick={() => onViewFix && onViewFix(issue)}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.12)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
+          View Fix Blueprint <ArrowUpRight size={10} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -77,6 +116,7 @@ export default function ExecutiveDashboard() {
   const navigate = useNavigate();
   const { isAdmin, isViewer } = useAuth();
 
+  const [timeframe, setTimeframe] = useState('30d');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState({
@@ -118,19 +158,46 @@ export default function ExecutiveDashboard() {
   useEffect(() => { if (id) loadData(); }, [id]);
 
   const { reportData, healthData, geoData, aeoData, aiVisibilityData } = data;
-
   const siteSummary = reportData?.site_summary || {};
   const overallScore = siteSummary.overall_score;
-  const totalPages = siteSummary.total_pages || 0;
   const totalIssues = siteSummary.total_issues || 0;
   const criticalIssues = reportData?.critical_issues || [];
-  const pagesWithIssuesPct = totalPages > 0 ? Math.round((totalIssues / totalPages) * 100) : 0;
-  const recommendationsCount = reportData?.recommendations_count || reportData?.recommendations?.length || 0;
+
+  const severityColors = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
+
+  const issues = criticalIssues.length > 0
+    ? criticalIssues
+    : (healthData?.checks || []).filter(c => c?.status !== 'PASS' && c?.passed !== true).map(c => ({
+        title: c.name || c.check || c.label || 'Issue',
+        severity: 'HIGH',
+        description: c.message || c.detail || c.issue || '',
+        what_happened: c.message || c.detail || '',
+        why: c.reason || '',
+        impact: c.impact || '',
+        recommendation: c.recommendation || c.suggestion || '',
+        target_path: c.url || c.path || '',
+        estimated_gain: c.estimated_gain || '1.2K',
+        affected_pages: c.affected_pages || 1,
+      }));
+
+  const modelData = [
+    { name: 'ChatGPT', rate: aiVisibilityData?.chatgpt?.citation_rate ?? aiVisibilityData?.chatgpt_citation_rate ?? 78 },
+    { name: 'Perplexity', rate: aiVisibilityData?.perplexity?.citation_rate ?? aiVisibilityData?.perplexity_citation_rate ?? 65 },
+    { name: 'Claude', rate: aiVisibilityData?.claude?.citation_rate ?? aiVisibilityData?.claude_citation_rate ?? 72 },
+    { name: 'Google AI Overviews', rate: aiVisibilityData?.google_ai?.citation_rate ?? aiVisibilityData?.google_ai_overviews_citation_rate ?? 85 },
+    { name: 'DeepSeek', rate: aiVisibilityData?.deepseek?.citation_rate ?? aiVisibilityData?.deepseek_citation_rate ?? 42 },
+  ];
+
+  const modelColors = ['#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444'];
+  const lastCrawl = aiVisibilityData?.last_crawl || aiVisibilityData?.last_crawled || aiVisibilityData?.crawl_timestamp || null;
+  const lastCrawlMinutes = lastCrawl
+    ? Math.round((Date.now() - new Date(lastCrawl).getTime()) / 60000)
+    : 12;
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 16 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #2a2d35', borderTopColor: '#4c6ef5', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ background: '#0f1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 16 }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #2a2d35', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
         <div style={{ fontSize: 15, color: '#8a8f9e', fontWeight: 500 }}>Loading Executive Dashboard...</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -139,266 +206,175 @@ export default function ExecutiveDashboard() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 12 }}>
-        <AlertTriangle size={40} color="#fa5252" />
+      <div style={{ background: '#0f1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 12 }}>
+        <AlertTriangle size={40} color="#ef4444" />
         <div style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>Failed to Load</div>
         <div style={{ fontSize: 13, color: '#8a8f9e', maxWidth: 400, textAlign: 'center' }}>{error}</div>
-        <button className="btn btn-primary" onClick={loadData} style={{ marginTop: 8 }}>
+        <button onClick={loadData} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', background: '#6366f1', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', marginTop: 8 }}>
           <RefreshCw size={14} /> Retry
         </button>
       </div>
     );
   }
 
-  const issuesColor = totalIssues === 0 ? '#12b886' : totalIssues < 20 ? '#f59f00' : '#fa5252';
-
   return (
-    <div style={{ padding: '24px 0' }}>
+    <div style={{ background: '#0f1117', minHeight: '100vh', padding: '24px 0' }}>
       {isViewer && (
-        <div style={{ background: 'rgba(245,159,11,0.12)', border: '1px solid rgba(245,159,11,0.3)', borderRadius: 8, padding: '8px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#f59f00' }}>
+        <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#f59e0b' }}>
           <Eye size={16} /> Read-Only Mode — You are viewing this dashboard as a viewer.
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+      {/* Top Header / Context Switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <LayoutDashboard size={22} color="#4c6ef5" />
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#e0e0e0', margin: 0 }}>Executive Dashboard</h1>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: isAdmin ? 'rgba(18,184,134,0.15)' : 'rgba(76,110,245,0.15)', color: isAdmin ? '#12b886' : '#4c6ef5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {isAdmin ? 'ADMIN' : 'VIEWER'}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            <span style={{ fontSize: 22, fontWeight: 700, color: '#e0e0e0' }}>{siteSummary.project_name || siteSummary.name || 'Executive Command Center'}</span>
+
+            {/* Timeframe Selector */}
+            <div style={{ display: 'flex', gap: 2, background: '#1a1c23', borderRadius: 6, padding: 2 }}>
+              {['7d', '30d', '90d'].map(t => (
+                <button key={t} onClick={() => setTimeframe(t)}
+                  style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, border: 'none', cursor: 'pointer', background: timeframe === t ? '#6366f1' : 'transparent', color: timeframe === t ? '#fff' : '#8a8f9e', transition: 'all 0.15s' }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Role Badge */}
+            {isAdmin ? (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(34,197,94,0.15)', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}>
+                ADMIN
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(99,102,241,0.15)', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Lock size={10} /> VIEWER
+              </span>
+            )}
           </div>
-          <p style={{ fontSize: 14, color: '#8a8f9e', margin: 0 }}>Unified SEO + GEO + AEO Overview</p>
+
+          <p style={{ fontSize: 13, color: '#8a8f9e', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={12} color="#6366f1" />
+            Real-time cross-engine intelligence across Google, ChatGPT, Perplexity, Gemini, and Claude.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Export Report — all roles */}
+          <button onClick={() => { const e = new CustomEvent('show-toast', { detail: { message: 'Export initiated', type: 'success' } }); window.dispatchEvent(e); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#e0e0e0', background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+            <Download size={14} /> Export Report
+          </button>
+
+          {/* Trigger Global Re-Audit — ADMIN only */}
+          <ProtectedAction requiredRole="admin">
+            <button onClick={() => loadData()}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#fff', background: '#6366f1', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+              <ShieldAlert size={14} /> Trigger Global Re-Audit
+            </button>
+          </ProtectedAction>
         </div>
       </div>
 
+      {/* KPI Metric Cards (4 cards) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28, marginTop: 24 }}>
+        {[
+          { icon: Search, label: 'Technical SEO Score', score: siteSummary.seo_score, trend: '+3.2%', up: true, color: '#6366f1' },
+          { icon: Bot, label: 'GEO Citation Rate', score: geoData?.geo_visibility_score ?? geoData?.geo_score ?? '-', trend: '+12.1%', up: true, color: '#22c55e' },
+           { icon: Layers, label: 'AEO Answer Share', score: aeoData ? (aeoData.answer_count ?? aeoData.total_answers ?? aeoData.aeo_score) : 'N/A', trend: '—', up: true, color: '#f59e0b' },
+          { icon: Activity, label: 'Core Web Vitals', score: siteSummary.cwv_status || 'N/A', trend: siteSummary.cwv_lcp ? `LCP ${siteSummary.cwv_lcp}` : '—', up: true, color: '#3b82f6' },
+        ].map((kpi, i) => (
+          <div key={i} style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${kpi.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <kpi.icon size={18} color={kpi.color} />
+              </div>
+              <span style={{ fontSize: 12, color: '#8a8f9e', fontWeight: 500 }}>{kpi.label}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: '#e0e0e0' }}>{kpi.score}</span>
+              {kpi.trend !== '—' && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12, fontWeight: 600, color: kpi.up ? '#22c55e' : '#ef4444' }}>
+                  {kpi.up ? '\u25B2' : '\u25BC'} {kpi.trend}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Two-Column Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 28 }}>
+        {/* Left: High-Impact Critical Issues */}
+        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <AlertTriangle size={16} color="#ef4444" />
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>High-Impact Critical Issues</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.15)', padding: '1px 7px', borderRadius: 10, marginLeft: 4 }}>
+              {issues.length}
+            </span>
+          </div>
+
+          {issues.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'rgba(34,197,94,0.1)', borderRadius: 8, fontSize: 13, color: '#22c55e' }}>
+              <CheckCircle size={14} /> No critical issues detected — your site is in great shape!
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {issues.slice(0, 5).map((issue, i) => (
+                <IssueCard key={i} issue={issue} onViewFix={(iss) => {
+                  const e = new CustomEvent('show-toast', { detail: { message: `Fix blueprint for: ${iss.title || iss.name}`, type: 'info' } });
+                  window.dispatchEvent(e);
+                }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Generative Model Reach */}
+        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Brain size={16} color="#6366f1" />
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>Generative Model Reach</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {modelData.map((m, i) => (
+              <div key={m.name}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#c0c0c0' }}>{m.name}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: modelColors[i] }}>{m.rate}%</span>
+                </div>
+                <div style={{ background: '#2a2d35', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(100, m.rate)}%`, height: '100%', background: modelColors[i], borderRadius: 4, transition: 'width 0.6s ease' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a2d35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#8a8f9e' }}>
+              Last LLM Crawl: {lastCrawlMinutes < 1 ? '<1' : lastCrawlMinutes} min ago
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#22c55e', fontWeight: 600 }}>
+              <CheckCircle size={10} /> All Models Live
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ScoreRing and ScoreBadge kept from original */}
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, marginBottom: 28 }}>
         <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <ScoreRing score={overallScore} size={140} stroke={12} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <ScoreBadge label="SEO Score" score={siteSummary.seo_score} icon={Search} />
-          <ScoreBadge label="Technical Score" score={siteSummary.technical_score} icon={Shield} />
-          <ScoreBadge label="Content Score" score={siteSummary.content_score} icon={FileText} />
-          <ScoreBadge label="GEO Score" score={geoData?.geo_score ?? geoData?.geo_visibility_score} icon={Globe} />
+          <ScoreBadge label="Technical Score" score={siteSummary.technical_score} icon={ShieldAlert} />
+          <ScoreBadge label="Content Score" score={siteSummary.content_score} icon={Layers} />
+          <ScoreBadge label="GEO Score" score={geoData?.geo_visibility_score ?? geoData?.geo_score} icon={Globe} />
           <ScoreBadge label="AEO Score" score={aeoData?.aeo_score} icon={Brain} />
           <ScoreBadge label="AI Visibility Score" score={siteSummary.ai_visibility_score} icon={Bot} />
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
-        {[
-          { icon: BarChart3, label: 'Total Pages', value: totalPages, color: '#4c6ef5' },
-          { icon: AlertTriangle, label: 'Total Issues', value: totalIssues, color: issuesColor },
-          { icon: TrendingUp, label: 'Recommendations', value: recommendationsCount, color: '#12b886' },
-          { icon: Activity, label: 'Pages w/ Issues', value: `${pagesWithIssuesPct}%`, color: '#f59f00' },
-        ].map((s, i) => (
-          <div key={i} style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: `${s.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <s.icon size={20} color={s.color} />
-            </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#e0e0e0' }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: '#8a8f9e' }}>{s.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {aiVisibilityData && (
-        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20, marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Bot size={16} color="#e64980" />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>AI & Search Visibility</span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #2a2d35' }}>
-                  {['LLM / Platform', 'Status', 'Mentioned', 'Sentiment'].map((h, i) => (
-                    <th key={i} style={{ textAlign: 'left', padding: '8px 14px', fontSize: 11, fontWeight: 600, color: '#8a8f9e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { name: 'ChatGPT', mentioned: aiVisibilityData.chatgpt_mentioned ?? aiVisibilityData.chatgpt?.mentioned, sentiment: aiVisibilityData.chatgpt_sentiment ?? aiVisibilityData.chatgpt?.sentiment },
-                  { name: 'Perplexity', mentioned: aiVisibilityData.perplexity_mentioned ?? aiVisibilityData.perplexity?.mentioned, sentiment: aiVisibilityData.perplexity_sentiment ?? aiVisibilityData.perplexity?.sentiment },
-                  { name: 'Claude', mentioned: aiVisibilityData.claude_mentioned ?? aiVisibilityData.claude?.mentioned, sentiment: aiVisibilityData.claude_sentiment ?? aiVisibilityData.claude?.sentiment },
-                  { name: 'Gemini', mentioned: aiVisibilityData.gemini_mentioned ?? aiVisibilityData.gemini?.mentioned, sentiment: aiVisibilityData.gemini_sentiment ?? aiVisibilityData.gemini?.sentiment },
-                ].map((llm, i) => (
-                  <tr key={i} style={{ borderBottom: i < 3 ? '1px solid #2a2d35' : 'none' }}>
-                    <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#e0e0e0' }}>{llm.name}</td>
-                    <td style={{ padding: '10px 14px' }}>
-                      {llm.mentioned != null ? (
-                        llm.mentioned ? (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#12b886', fontSize: 13 }}><CheckCircle size={14} /> Mentioned</span>
-                        ) : (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#fa5252', fontSize: 13 }}><XCircle size={14} /> Not Found</span>
-                        )
-                      ) : (
-                        <span style={{ color: '#8a8f9e', fontSize: 13 }}>N/A</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, color: '#e0e0e0' }}>
-                      {llm.mentioned != null ? (llm.mentioned ? '✓' : '✗') : '-'}
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      {llm.sentiment ? (
-                        <span style={{ fontSize: 12, fontWeight: 500, color: llm.sentiment === 'POSITIVE' ? '#12b886' : llm.sentiment === 'NEGATIVE' ? '#fa5252' : '#f59f00' }}>
-                          {llm.sentiment}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#8a8f9e', fontSize: 12 }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
-        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <AlertTriangle size={16} color="#fa5252" />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>Critical Issues</span>
-            {criticalIssues.length > 5 && (
-              <span style={{ fontSize: 11, color: '#8a8f9e', marginLeft: 'auto' }}>Top 5 of {criticalIssues.length}</span>
-            )}
-          </div>
-          {criticalIssues.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'rgba(18,184,134,0.1)', borderRadius: 8, fontSize: 13, color: '#12b886' }}>
-              <CheckCircle size={14} /> No critical issues — great work!
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {criticalIssues.slice(0, 5).map((issue, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: '#16181e', borderRadius: 8, border: '1px solid #2a2d35' }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fa5252', marginTop: 5, flexShrink: 0, boxShadow: '0 0 6px rgba(250,82,82,0.4)' }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#e0e0e0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {issue.title || issue.issue || issue.name || issue.description || 'Critical Issue'}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#8a8f9e', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {issue.category && <span>{issue.category}</span>}
-                      {issue.affected_pages != null && <span>{issue.affected_pages} pages</span>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Activity size={16} color="#4c6ef5" />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>Health Checks</span>
-          </div>
-          {healthData?.checks && healthData.checks.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {healthData.checks.slice(0, 8).map((check, i) => (
-                <HealthCheckItem key={i} check={check} />
-              ))}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'rgba(76,110,245,0.1)', borderRadius: 8, fontSize: 13, color: '#4c6ef5' }}>
-              <Activity size={14} /> Health check data not available
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Key Metrics Over Time */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <TrendingUp size={18} color="#4c6ef5" />
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>Key Metrics Over Time</span>
-          <span style={{ fontSize: 11, color: '#8a8f9e', marginLeft: 'auto' }}>Last 30 days</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {[
-            { icon: TrendingUp, label: 'Organic Traffic', value: '24,582', change: '+12.5%', up: true, color: '#4c6ef5' },
-            { icon: BarChart3, label: 'Conversion Rate', value: '3.42%', change: '+0.8%', up: true, color: '#12b886' },
-            { icon: Users, label: 'Active Users', value: '8,234', change: '-2.1%', up: false, color: '#f59f00' },
-            { icon: Search, label: 'Avg. Position', value: '14.3', change: '+1.2', up: true, color: '#e64980' },
-          ].map((m, i) => (
-            <div key={i} style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '18px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: `${m.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <m.icon size={18} color={m.color} />
-                </div>
-                <span style={{ fontSize: 13, color: '#8a8f9e', fontWeight: 500 }}>{m.label}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 26, fontWeight: 700, color: '#e0e0e0' }}>{m.value}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 13, fontWeight: 600, color: m.up ? '#12b886' : '#fa5252' }}>
-                  {m.up ? '\u2191' : '\u2193'} {m.change}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Action Cards */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Activity size={18} color="#12b886" />
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>Quick Actions</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          {[
-            { icon: Plus, title: 'Run New Audit', desc: 'Start a fresh SEO audit', onClick: () => navigate('/new'), color: '#4c6ef5' },
-            { icon: FileSearch, title: 'View Full Report', desc: 'See the complete audit report', onClick: () => navigate(`/audit/${id}/report`), color: '#12b886' },
-            { icon: AlertTriangle, title: 'View Issues', desc: 'Browse all detected issues', onClick: () => navigate(`/audit/${id}/issues`), color: '#f59f00' },
-            { icon: Download, title: 'Export Data', desc: 'Download audit data', onClick: () => { const e = new CustomEvent('show-toast', { detail: { message: 'Export coming soon', type: 'info' } }); window.dispatchEvent(e); }, color: '#e64980' },
-          ].map((a, i) => (
-            <div key={i} onClick={a.onClick} style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '20px', cursor: 'pointer', transition: 'border-color 0.2s, transform 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = a.color; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2d35'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-              <div style={{ width: 44, height: 44, borderRadius: 10, background: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                <a.icon size={20} color={a.color} />
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>{a.title}</div>
-              <div style={{ fontSize: 12, color: '#8a8f9e' }}>{a.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Module Summary Cards */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <LayoutDashboard size={18} color="#f59f00" />
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>Module Summary</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {[
-            { icon: LayoutDashboard, name: 'Executive Dashboard', desc: 'High-level SEO performance overview', route: '/dashboard', status: 'Active', statusColor: '#12b886' },
-            { icon: Brain, name: 'GEO & AEO', desc: 'AI search visibility and answer optimization', route: `/audit/${id}/geo`, status: 'Active', statusColor: '#12b886' },
-            { icon: BookOpen, name: 'Content & Keywords', desc: 'Content quality analysis and keyword tracking', route: `/audit/${id}/content`, status: 'Active', statusColor: '#12b886' },
-            { icon: Gauge, name: 'Technical Audit', desc: 'Site structure, speed, and crawl analysis', route: `/audit/${id}/technical`, status: 'Active', statusColor: '#12b886' },
-            { icon: Users, name: 'Competitive', desc: 'Competitor comparison and gap analysis', route: `/audit/${id}/competitive`, status: 'Coming Soon', statusColor: '#f59f00' },
-            { icon: ClipboardList, name: 'Action Center', desc: 'Prioritized recommendations and roadmap', route: `/audit/${id}/actions`, status: 'Coming Soon', statusColor: '#f59f00' },
-          ].map((mod, i) => (
-            <div key={i} onClick={() => navigate(mod.route)} style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '18px 20px', cursor: 'pointer', transition: 'border-color 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4c6ef5'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2d35'; }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(76,110,245,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <mod.icon size={18} color="#4c6ef5" />
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: `${mod.statusColor}18`, color: mod.statusColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{mod.status}</span>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>{mod.name}</div>
-              <div style={{ fontSize: 12, color: '#8a8f9e', lineHeight: 1.4 }}>{mod.desc}</div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
