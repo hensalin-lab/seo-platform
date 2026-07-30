@@ -5,7 +5,7 @@ import AnimatedNumber from '../../../components/AnimatedNumber';
 import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 
 const SCORE_FIELDS = [
-  { key: 'overall_score', label: 'Overall', color: '#6366f1', icon: '📊' },
+  { key: 'overall_score', label: 'Overall', color: 'var(--accent)', icon: '📊' },
   { key: 'seo_score', label: 'SEO', color: '#8b5cf6', icon: '🔍' },
   { key: 'technical_score', label: 'Technical', color: '#06b6d4', icon: '⚙️' },
   { key: 'aeo_score', label: 'AEO', color: '#f59e0b', icon: '🤖' },
@@ -15,7 +15,7 @@ const SCORE_FIELDS = [
 ];
 
 function MiniChart({ data, field, color, width = 200, height = 60 }) {
-  if (!data || data.length < 2) return <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#9ca3af' }}>Need 2+ audits</div>;
+  if (!data || data.length < 2) return <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--text-muted)' }}>Need 2+ audits</div>;
   const values = data.map(d => d[field] || 0);
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
@@ -47,11 +47,11 @@ function MiniChart({ data, field, color, width = 200, height = 60 }) {
 }
 
 function TrendArrow({ current, previous }) {
-  if (!previous || previous === 0) return <Minus size={14} style={{ color: '#9ca3af' }} />;
+  if (!previous || previous === 0) return <Minus size={14} style={{ color: 'var(--text-muted)' }} />;
   const diff = current - previous;
   if (diff > 2) return <ArrowUpRight size={14} style={{ color: '#22c55e', fontWeight: 700 }} />;
   if (diff < -2) return <ArrowDownRight size={14} style={{ color: '#ef4444', fontWeight: 700 }} />;
-  return <Minus size={14} style={{ color: '#9ca3af' }} />;
+  return <Minus size={14} style={{ color: 'var(--text-muted)' }} />;
 }
 
 export default function Trends() {
@@ -130,7 +130,7 @@ export default function Trends() {
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <TrendArrow current={f.current} previous={f.previous} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: f.diff > 0 ? '#22c55e' : f.diff < 0 ? '#ef4444' : '#9ca3af' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: f.diff > 0 ? '#22c55e' : f.diff < 0 ? '#ef4444' : 'var(--text-muted)' }}>
                     {f.diff > 0 ? '+' : ''}{f.diff.toFixed(1)}
                   </span>
                 </div>
@@ -139,8 +139,8 @@ export default function Trends() {
                 <span style={{ fontSize: 36, fontWeight: 800, color: f.color, lineHeight: 1 }}>
                   <AnimatedNumber value={f.current} duration={1200} />
                 </span>
-                <span style={{ fontSize: 13, color: '#9ca3af' }}>→</span>
-                <span style={{ fontSize: 18, fontWeight: 500, color: '#9ca3af' }}>{f.previous.toFixed(0)}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>→</span>
+                <span style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-muted)' }}>{f.previous.toFixed(0)}</span>
               </div>
               <MiniChart data={audits} field={f.key} color={f.color} width={260} height={55} />
             </div>

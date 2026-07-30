@@ -17,7 +17,7 @@ function ScoreRing({ score, size = 120, stroke = 10 }) {
   let color = '#ef4444';
   let glowColor = 'rgba(239,68,68,0.3)';
   if (pct >= 80) { color = '#22c55e'; glowColor = 'rgba(34,197,94,0.3)'; }
-  else if (pct >= 60) { color = '#6366f1'; glowColor = 'rgba(99,102,241,0.3)'; }
+  else if (pct >= 60) { color = 'var(--accent)'; glowColor = 'rgba(99,102,241,0.3)'; }
   else if (pct >= 40) { color = '#f59e0b'; glowColor = 'rgba(245,158,11,0.3)'; }
 
   useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
@@ -25,14 +25,14 @@ function ScoreRing({ score, size = 120, stroke = 10 }) {
   return (
     <div style={{ position: 'relative', width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', filter: `drop-shadow(0 0 12px ${glowColor})` }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#2a2d35" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" style={{ stroke: 'var(--border)' }} strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
           strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
           style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.28, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        <span style={{ fontSize: 11, color: '#8a8f9e', marginTop: 2 }}>OVERALL</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>OVERALL</span>
       </div>
     </div>
   );
@@ -42,17 +42,17 @@ function ScoreBadge({ label, score, icon: Icon }) {
   const pct = Math.min(100, Math.max(0, score || 0));
   let color = '#ef4444';
   if (pct >= 80) color = '#22c55e';
-  else if (pct >= 60) color = '#6366f1';
+  else if (pct >= 60) color = 'var(--accent)';
   else if (pct >= 40) color = '#f59e0b';
   const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : 'D';
 
   return (
-    <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
       <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={18} style={{ color }} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 11, color: '#8a8f9e', fontWeight: 500, marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 2 }}>{label}</div>
         <div style={{ fontSize: 18, fontWeight: 700, color }}>{score != null ? Math.round(pct) : 'N/A'}</div>
       </div>
       {score != null && (
@@ -71,12 +71,12 @@ function IssueCard({ issue, onViewFix }) {
   const estGain = issue.estimated_gain || issue.impact_score || '2.4K';
 
   return (
-    <div style={{ background: '#16181e', border: '1px solid #2a2d35', borderRadius: 10, padding: 16 }}>
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: `${severityColor}18`, color: severityColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {severity}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#e0e0e0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {issue.title || issue.name || issue.issue || 'Issue'}
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
@@ -92,18 +92,18 @@ function IssueCard({ issue, onViewFix }) {
           { label: 'AI Recommendation', value: issue.recommendation || issue.ai_recommendation || issue.suggestion || 'N/A' },
         ].map((d, i) => (
           <div key={i}>
-            <div style={{ fontSize: 10, color: '#8a8f9e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{d.label}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{d.label}</div>
             <div style={{ fontSize: 12, color: '#c0c0c0', lineHeight: 1.4 }}>{d.value}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid #2a2d35' }}>
-        <span style={{ fontSize: 11, color: '#6366f1', fontFamily: 'monospace' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+        <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'monospace' }}>
           {issue.target_path || issue.url || issue.path || issue.page || '—'}
         </span>
         <button onClick={() => onViewFix && onViewFix(issue)}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.12)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'rgba(99,102,241,0.12)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
           View Fix Blueprint <ArrowUpRight size={10} />
         </button>
       </div>
@@ -188,7 +188,7 @@ export default function ExecutiveDashboard() {
     { name: 'DeepSeek', rate: aiVisibilityData?.deepseek?.citation_rate ?? aiVisibilityData?.deepseek_citation_rate ?? 42 },
   ];
 
-  const modelColors = ['#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444'];
+  const modelColors = ['var(--accent)', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444'];
   const lastCrawl = aiVisibilityData?.last_crawl || aiVisibilityData?.last_crawled || aiVisibilityData?.crawl_timestamp || null;
   const lastCrawlMinutes = lastCrawl
     ? Math.round((Date.now() - new Date(lastCrawl).getTime()) / 60000)
@@ -196,9 +196,9 @@ export default function ExecutiveDashboard() {
 
   if (loading) {
     return (
-      <div style={{ background: '#0f1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 16 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #2a2d35', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
-        <div style={{ fontSize: 15, color: '#8a8f9e', fontWeight: 500 }}>Loading Executive Dashboard...</div>
+      <div style={{ background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 16 }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ fontSize: 15, color: 'var(--text-muted)', fontWeight: 500 }}>Loading Executive Dashboard...</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -206,11 +206,11 @@ export default function ExecutiveDashboard() {
 
   if (error) {
     return (
-      <div style={{ background: '#0f1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 12 }}>
+      <div style={{ background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 500, gap: 12 }}>
         <AlertTriangle size={40} color="#ef4444" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>Failed to Load</div>
-        <div style={{ fontSize: 13, color: '#8a8f9e', maxWidth: 400, textAlign: 'center' }}>{error}</div>
-        <button onClick={loadData} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', background: '#6366f1', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', marginTop: 8 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Failed to Load</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 400, textAlign: 'center' }}>{error}</div>
+        <button onClick={loadData} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', marginTop: 8 }}>
           <RefreshCw size={14} /> Retry
         </button>
       </div>
@@ -218,7 +218,7 @@ export default function ExecutiveDashboard() {
   }
 
   return (
-    <div style={{ background: '#0f1117', minHeight: '100vh', padding: '24px 0' }}>
+    <div style={{ background: 'var(--bg-page)', minHeight: '100vh', padding: '24px 0' }}>
       {isViewer && (
         <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#f59e0b' }}>
           <Eye size={16} /> Read-Only Mode — You are viewing this dashboard as a viewer.
@@ -229,13 +229,13 @@ export default function ExecutiveDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-            <span style={{ fontSize: 22, fontWeight: 700, color: '#e0e0e0' }}>{siteSummary.project_name || siteSummary.name || 'Executive Command Center'}</span>
+            <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{siteSummary.project_name || siteSummary.name || 'Executive Command Center'}</span>
 
             {/* Timeframe Selector */}
-            <div style={{ display: 'flex', gap: 2, background: '#1a1c23', borderRadius: 6, padding: 2 }}>
+            <div style={{ display: 'flex', gap: 2, background: 'var(--bg-white)', borderRadius: 6, padding: 2 }}>
               {['7d', '30d', '90d'].map(t => (
                 <button key={t} onClick={() => setTimeframe(t)}
-                  style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, border: 'none', cursor: 'pointer', background: timeframe === t ? '#6366f1' : 'transparent', color: timeframe === t ? '#fff' : '#8a8f9e', transition: 'all 0.15s' }}>
+                  style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, border: 'none', cursor: 'pointer', background: timeframe === t ? 'var(--accent)' : 'transparent', color: timeframe === t ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s' }}>
                   {t}
                 </button>
               ))}
@@ -247,13 +247,13 @@ export default function ExecutiveDashboard() {
                 ADMIN
               </span>
             ) : (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(99,102,241,0.15)', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(99,102,241,0.15)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Lock size={10} /> VIEWER
               </span>
             )}
           </div>
 
-          <p style={{ fontSize: 13, color: '#8a8f9e', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Sparkles size={12} color="#6366f1" />
             Real-time cross-engine intelligence across Google, ChatGPT, Perplexity, Gemini, and Claude.
           </p>
@@ -262,14 +262,14 @@ export default function ExecutiveDashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Export Report — all roles */}
           <button onClick={() => { const e = new CustomEvent('show-toast', { detail: { message: 'Export initiated', type: 'success' } }); window.dispatchEvent(e); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#e0e0e0', background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text)', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
             <Download size={14} /> Export Report
           </button>
 
           {/* Trigger Global Re-Audit — ADMIN only */}
           <ProtectedAction requiredRole="admin">
             <button onClick={() => loadData()}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#fff', background: '#6366f1', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
               <ShieldAlert size={14} /> Trigger Global Re-Audit
             </button>
           </ProtectedAction>
@@ -279,20 +279,20 @@ export default function ExecutiveDashboard() {
       {/* KPI Metric Cards (4 cards) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28, marginTop: 24 }}>
         {[
-          { icon: Search, label: 'Technical SEO Score', score: siteSummary.seo_score, trend: '+3.2%', up: true, color: '#6366f1' },
+          { icon: Search, label: 'Technical SEO Score', score: siteSummary.seo_score, trend: '+3.2%', up: true, color: 'var(--accent)' },
           { icon: Bot, label: 'GEO Citation Rate', score: geoData?.geo_visibility_score ?? geoData?.geo_score ?? '-', trend: '+12.1%', up: true, color: '#22c55e' },
            { icon: Layers, label: 'AEO Answer Share', score: aeoData ? (aeoData.answer_count ?? aeoData.total_answers ?? aeoData.aeo_score) : 'N/A', trend: '—', up: true, color: '#f59e0b' },
           { icon: Activity, label: 'Core Web Vitals', score: siteSummary.cwv_status || 'N/A', trend: siteSummary.cwv_lcp ? `LCP ${siteSummary.cwv_lcp}` : '—', up: true, color: '#3b82f6' },
         ].map((kpi, i) => (
-          <div key={i} style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '18px 20px' }}>
+          <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${kpi.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <kpi.icon size={18} color={kpi.color} />
               </div>
-              <span style={{ fontSize: 12, color: '#8a8f9e', fontWeight: 500 }}>{kpi.label}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{kpi.label}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: '#e0e0e0' }}>{kpi.score}</span>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)' }}>{kpi.score}</span>
               {kpi.trend !== '—' && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12, fontWeight: 600, color: kpi.up ? '#22c55e' : '#ef4444' }}>
                   {kpi.up ? '\u25B2' : '\u25BC'} {kpi.trend}
@@ -306,10 +306,10 @@ export default function ExecutiveDashboard() {
       {/* Two-Column Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 28 }}>
         {/* Left: High-Impact Critical Issues */}
-        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <AlertTriangle size={16} color="#ef4444" />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>High-Impact Critical Issues</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>High-Impact Critical Issues</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.15)', padding: '1px 7px', borderRadius: 10, marginLeft: 4 }}>
               {issues.length}
             </span>
@@ -332,10 +332,10 @@ export default function ExecutiveDashboard() {
         </div>
 
         {/* Right: Generative Model Reach */}
-        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Brain size={16} color="#6366f1" />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0' }}>Generative Model Reach</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Generative Model Reach</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -345,15 +345,15 @@ export default function ExecutiveDashboard() {
                   <span style={{ fontSize: 12, fontWeight: 500, color: '#c0c0c0' }}>{m.name}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: modelColors[i] }}>{m.rate}%</span>
                 </div>
-                <div style={{ background: '#2a2d35', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                <div style={{ background: 'var(--border)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
                   <div style={{ width: `${Math.min(100, m.rate)}%`, height: '100%', background: modelColors[i], borderRadius: 4, transition: 'width 0.6s ease' }} />
                 </div>
               </div>
             ))}
           </div>
 
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a2d35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: '#8a8f9e' }}>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               Last LLM Crawl: {lastCrawlMinutes < 1 ? '<1' : lastCrawlMinutes} min ago
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#22c55e', fontWeight: 600 }}>
@@ -365,7 +365,7 @@ export default function ExecutiveDashboard() {
 
       {/* ScoreRing and ScoreBadge kept from original */}
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, marginBottom: 28 }}>
-        <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <ScoreRing score={overallScore} size={140} stroke={12} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>

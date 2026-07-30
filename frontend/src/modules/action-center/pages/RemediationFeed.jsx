@@ -8,7 +8,7 @@ const ROLE_CONFIG = {
   CONTENT_WRITER: { label: 'Content Tasks', icon: FileText, color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
   SEO_SPECIALIST: { label: 'SEO Tasks', icon: Search, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
   DESIGNER: { label: 'Design Tasks', icon: Target, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-  MANAGER: { label: 'Manager Tasks', icon: Users, color: '#6366f1', bg: '#eef2ff', border: '#c7d2fe' },
+  MANAGER: { label: 'Manager Tasks', icon: Users, color: 'var(--accent)', bg: '#eef2ff', border: '#c7d2fe' },
   OTHER: { label: 'General Tasks', icon: Settings, color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
 };
 

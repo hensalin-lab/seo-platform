@@ -21,17 +21,17 @@ function ScoreCard({ label, score, color, icon: Icon }) {
   const scoreVal = score ?? 0;
   const scoreColor = scoreVal >= 80 ? '#22c55e' : scoreVal >= 50 ? '#f59e0b' : '#ef4444';
   return (
-    <div style={{ background: '#1e2128', border: '1px solid #2a2d35', borderRadius: 12, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon size={20} color={color} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#e5e7eb', lineHeight: 1.2 }}>{score !== null && score !== undefined ? score : '—'}</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', lineHeight: 1.2 }}>{score !== null && score !== undefined ? score : '—'}</div>
         </div>
       </div>
-      <div style={{ width: '100%', height: 6, borderRadius: 3, background: '#2a2d35' }}>
+      <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--border)' }}>
         <div style={{ width: `${Math.min(scoreVal, 100)}%`, height: '100%', borderRadius: 3, background: scoreColor, transition: 'width 0.5s ease' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -45,13 +45,13 @@ function ScoreCard({ label, score, color, icon: Icon }) {
 
 function SectionCard({ title, icon: Icon, iconColor, badge, children, unavailable }) {
   return (
-    <div style={{ background: '#1e2128', border: '1px solid #2a2d35', borderRadius: 12, padding: '22px 24px' }}>
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         {Icon && <Icon size={18} color={iconColor || '#3b82f6'} />}
-        <h2 style={{ fontSize: 17, fontWeight: 600, color: '#e5e7eb', margin: 0 }}>{title}</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{title}</h2>
         {badge && <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>{badge}</span>}
         {unavailable && (
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4, background: 'rgba(107,114,128,0.12)', color: '#9ca3af' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4, background: 'rgba(107,114,128,0.12)', color: 'var(--text-muted)' }}>
             Data unavailable
           </span>
         )}
@@ -70,7 +70,7 @@ function TabButton({ tab, active, onClick }) {
         display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
         border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
         background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
-        color: active ? '#3b82f6' : '#9ca3af',
+        color: active ? '#3b82f6' : 'var(--text-muted)',
         transition: 'all 0.15s ease',
       }}
     >
@@ -83,8 +83,8 @@ function TabButton({ tab, active, onClick }) {
 function LoadingSpinner({ message }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #2a2d35', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
-      <div style={{ fontSize: 15, color: '#9ca3af', fontWeight: 500 }}>{message || 'Loading...'}</div>
+      <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ fontSize: 15, color: 'var(--text-muted)', fontWeight: 500 }}>{message || 'Loading...'}</div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -124,10 +124,10 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid #2a2d35' }}>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: '#9ca3af' }}>Page</th>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: '#9ca3af' }}>Issues</th>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: '#9ca3af' }}>Score</th>
+                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Page</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Issues</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Score</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -135,8 +135,8 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
                         const issueCount = p.issues?.length ?? 0;
                         const pageScore = p.score ?? p.quality ?? null;
                         return (
-                          <tr key={i} style={{ borderBottom: '1px solid #22262e' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: 600, color: '#e5e7eb', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url || p.page || p.title || `Page ${i + 1}`}</td>
+                          <tr key={i} style={{ borderBottom: '1px solid var(--bg-secondary)' }}>
+                            <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url || p.page || p.title || `Page ${i + 1}`}</td>
                             <td style={{ padding: '10px 12px' }}>
                               {issueCount > 0 ? (
                                 <span style={{ color: issueCount > 5 ? '#ef4444' : '#f59e0b', fontWeight: 500 }}>{issueCount} issues</span>
@@ -173,7 +173,7 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
                     const oppLabel = opp.keyword || opp.opportunity || opp.description || opp.label || `Opportunity ${i + 1}`;
                     const oppType = opp.type || opp.category || 'keyword';
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 8, background: '#22262e', border: '1px solid #2a2d35' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4, background: oppType === 'keyword' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)', color: oppType === 'keyword' ? '#22c55e' : '#3b82f6', whiteSpace: 'nowrap', marginTop: 1 }}>
                           {oppType}
                         </span>
@@ -192,28 +192,28 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ background: '#1e2128', border: '1px solid #2a2d35', borderRadius: 12, padding: '20px 20px' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#e5e7eb', marginBottom: 14 }}>Quick Stats</div>
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 20px' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Quick Stats</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {quickStats.map((stat, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#9ca3af' }}>{stat.label}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{stat.label}</span>
                   <span style={{ fontSize: 16, fontWeight: 700, color: stat.color }}>{stat.value}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ background: '#1e2128', border: '1px solid #2a2d35', borderRadius: 12, padding: '20px 20px' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#e5e7eb', marginBottom: 14 }}>Quick Actions</div>
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 20px' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Quick Actions</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <ProtectedAction requiredRole="VIEWER">
-                <button style={{ width: '100%', padding: '10px 14px', border: '1px solid #2a2d35', borderRadius: 8, background: '#22262e', color: '#e5e7eb', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                <button style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                   <Eye size={14} /> View Issues
                 </button>
               </ProtectedAction>
               <ProtectedAction requiredRole="VIEWER">
-                <button style={{ width: '100%', padding: '10px 14px', border: '1px solid #2a2d35', borderRadius: 8, background: '#22262e', color: '#e5e7eb', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                <button style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                   <Sparkles size={14} /> Generate Report
                 </button>
               </ProtectedAction>
@@ -249,8 +249,8 @@ function RewriterTab() {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter page URL to analyze..."
             style={{
-              flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #2a2d35',
-              background: '#22262e', color: '#e5e7eb', fontSize: 13, outline: 'none',
+              flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)',
+              background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 13, outline: 'none',
             }}
           />
           <button
@@ -269,18 +269,18 @@ function RewriterTab() {
         {result ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Eye size={14} /> Original
               </div>
-              <div style={{ background: '#22262e', border: '1px solid #2a2d35', borderRadius: 8, padding: 14, fontSize: 13, color: '#d1d5db', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: '#d1d5db', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                 {result.original || result.original_content || 'No original content available.'}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <EyeOff size={14} /> Rewritten
               </div>
-              <div style={{ background: '#22262e', border: '1px solid #2a2d35', borderRadius: 8, padding: 14, fontSize: 13, color: '#d1d5db', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: '#d1d5db', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                 {result.rewritten || result.rewritten_content || result.content || 'No rewritten content available.'}
               </div>
             </div>
@@ -296,12 +296,12 @@ function RewriterTab() {
       </SectionCard>
 
       <ProtectedAction requiredRole="VIEWER">
-        <div style={{ background: '#1e2128', border: '1px solid #2a2d35', borderRadius: 12, padding: '22px 24px' }}>
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <Sparkles size={18} color="#8b5cf6" />
-            <h2 style={{ fontSize: 17, fontWeight: 600, color: '#e5e7eb', margin: 0 }}>Generate Rewrite</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Generate Rewrite</h2>
           </div>
-          <p style={{ fontSize: 13, color: '#9ca3af', margin: '0 0 12px 0' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px 0' }}>
             Automatically rewrite the analyzed content with AI-optimized improvements.
           </p>
           <button
@@ -344,8 +344,8 @@ function BlogAiTab() {
             onChange={(e) => setTopic(e.target.value)}
             placeholder="Enter a blog topic..."
             style={{
-              flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #2a2d35',
-              background: '#22262e', color: '#e5e7eb', fontSize: 13, outline: 'none',
+              flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)',
+              background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 13, outline: 'none',
             }}
           />
           <ProtectedAction requiredRole="VIEWER">
@@ -371,8 +371,8 @@ function BlogAiTab() {
               const title = post.title || post.heading || `Blog Post ${i + 1}`;
               const content = post.content || post.body || post.text || '';
               return (
-                <div key={i} style={{ background: '#22262e', border: '1px solid #2a2d35', borderRadius: 8, padding: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#e5e7eb', marginBottom: 8 }}>{title}</div>
+                <div key={i} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{title}</div>
                   <div style={{ fontSize: 13, color: '#d1d5db', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{content}</div>
                 </div>
               );
@@ -405,12 +405,12 @@ function RevivalTab({ revivalData }) {
                 const suggestions = page.suggestions ?? page.updates ?? page.suggested_updates ?? [];
                 const suggestionList = Array.isArray(suggestions) ? suggestions : typeof suggestions === 'string' ? [suggestions] : [];
                 return (
-                  <div key={i} style={{ background: '#22262e', border: '1px solid #2a2d35', borderRadius: 8, padding: '14px 16px' }}>
+                  <div key={i} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#e5e7eb', marginBottom: 2 }}>{pageTitle}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{pageTitle}</div>
                         {lastUpdated && (
-                          <div style={{ fontSize: 12, color: '#9ca3af' }}>Last updated: {lastUpdated}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Last updated: {lastUpdated}</div>
                         )}
                       </div>
                       {revivalScore !== null && (
@@ -425,7 +425,7 @@ function RevivalTab({ revivalData }) {
                     </div>
                     {suggestionList.length > 0 && (
                       <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', marginBottom: 4 }}>Suggested updates:</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Suggested updates:</div>
                         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: '#d1d5db', lineHeight: 1.6 }}>
                           {suggestionList.map((s, j) => (
                             <li key={j}>{s}</li>
@@ -435,7 +435,7 @@ function RevivalTab({ revivalData }) {
                     )}
                     <ProtectedAction requiredRole="VIEWER">
                       <button style={{
-                        padding: '6px 14px', borderRadius: 6, border: '1px solid #2a2d35',
+                        padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)',
                         background: 'transparent', color: '#0891b2', fontSize: 12, fontWeight: 600,
                         cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
                       }}>
@@ -497,23 +497,23 @@ export default function ContentStudio() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
         <FileText size={40} color="#6b7280" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: '#e5e7eb' }}>No data available</div>
-        <div style={{ fontSize: 13, color: '#9ca3af' }}>Run a full audit to see content analysis.</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>No data available</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Run a full audit to see content analysis.</div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, background: '#1a1c23', minHeight: '100%', padding: 24, color: '#e5e7eb' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, background: 'var(--bg-white)', minHeight: '100%', padding: 24, color: 'var(--text)' }}>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
           <FileText size={28} color="#3b82f6" />
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#e5e7eb', margin: 0 }}>Content Studio</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Content Studio</h1>
         </div>
-        <p style={{ fontSize: 14, color: '#9ca3af', margin: 0 }}>Content Analysis, Rewriting, Blog AI & Revival</p>
+        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Content Analysis, Rewriting, Blog AI & Revival</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #2a2d35', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {TABS.map((tab) => (
           <TabButton key={tab.key} tab={tab} active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} />
         ))}

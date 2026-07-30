@@ -6,7 +6,7 @@ import AnimatedNumber from '../../../components/AnimatedNumber';
 
 const SEVERITY_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 const SEVERITY_COLORS = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
-const CATEGORY_COLORS = { SEO: '#6366f1', TECHNICAL: '#8b5cf6', CONTENT: '#10b981', AEO: '#f59e0b', GEO: '#06b6d4', AI_SEARCH: '#ec4899' };
+const CATEGORY_COLORS = { SEO: 'var(--accent)', TECHNICAL: '#8b5cf6', CONTENT: '#10b981', AEO: '#f59e0b', GEO: '#06b6d4', AI_SEARCH: '#ec4899' };
 
 export default function IssuesExplorer() {
   const { id } = useParams();

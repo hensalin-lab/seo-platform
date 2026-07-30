@@ -110,15 +110,15 @@ export default function PromptTestingLab() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#e0e0e0', letterSpacing: '-0.3px' }}>AI Prompt Testing Lab</div>
-          <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 2 }}>Run the same prompt across multiple LLMs to evaluate brand mention performance</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.3px' }}>AI Prompt Testing Lab</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Run the same prompt across multiple LLMs to evaluate brand mention performance</div>
         </div>
       </div>
 
-      <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <MessageSquare size={16} color="#3b82f6" />
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>Prompt</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Prompt</span>
         </div>
         <textarea
           value={prompt}
@@ -126,12 +126,12 @@ export default function PromptTestingLab() {
           placeholder="Enter a prompt to test across LLMs..."
           rows={4}
           style={{
-            width: '100%', padding: '12px 14px', background: '#12141a', border: '1px solid #2a2d35',
-            borderRadius: 8, color: '#e0e0e0', fontSize: 14, fontFamily: 'inherit', resize: 'vertical',
+            width: '100%', padding: '12px 14px', background: '#12141a', border: '1px solid var(--border)',
+            borderRadius: 8, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical',
             lineHeight: 1.6, outline: 'none',
           }}
           onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
-          onBlur={e => { e.target.style.borderColor = '#2a2d35'; }}
+          onBlur={e => { e.target.style.borderColor = 'var(--border)'; }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
           <span style={{ fontSize: 12, color: promptCharCount > 500 ? '#ef4444' : '#6b7280' }}>
@@ -157,9 +157,9 @@ export default function PromptTestingLab() {
         </div>
       </div>
 
-      <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>Models</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Models</span>
           <span style={{ fontSize: 12, color: '#6b7280' }}>{selectedModels.length}/{MODELS.length} selected</span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -171,10 +171,10 @@ export default function PromptTestingLab() {
                 onClick={() => toggleModel(model.id)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px', border: `1px solid ${active ? model.borderColor : '#2a2d35'}`,
+                  padding: '7px 14px', border: `1px solid ${active ? model.borderColor : 'var(--border)'}`,
                   borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
                   background: active ? model.bgColor : 'transparent',
-                  color: active ? model.color : '#9ca3af',
+                  color: active ? model.color : 'var(--text-muted)',
                   transition: 'all 0.2s',
                 }}
               >
@@ -191,7 +191,7 @@ export default function PromptTestingLab() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Sparkles size={16} color="#3b82f6" />
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>Results</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Results</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {results && (
@@ -200,9 +200,9 @@ export default function PromptTestingLab() {
                 disabled={saving}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 14px', border: '1px solid #2a2d35', borderRadius: 8,
+                  padding: '6px 14px', border: '1px solid var(--border)', borderRadius: 8,
                   fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  background: 'transparent', color: '#9ca3af',
+                  background: 'transparent', color: 'var(--text-muted)',
                   transition: 'all 0.15s',
                 }}
               >
@@ -213,8 +213,8 @@ export default function PromptTestingLab() {
         </div>
 
         {!results && !executing && (
-          <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, padding: '40px 24px', textAlign: 'center' }}>
-            <Sparkles size={40} color="#2a2d35" style={{ marginBottom: 12 }} />
+          <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '40px 24px', textAlign: 'center' }}>
+            <Sparkles size={40} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>No results yet</div>
             <div style={{ fontSize: 13, color: '#4b5563' }}>Enter a prompt and run against the selected models to see results here.</div>
           </div>
@@ -224,14 +224,14 @@ export default function PromptTestingLab() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
             {MODELS.filter(m => selectedModels.includes(m.id)).map(model => (
               <div key={model.id} style={{
-                background: '#1a1c23', border: `1px solid ${model.borderColor}40`, borderRadius: 12, padding: 20,
+                background: 'var(--bg-white)', border: `1px solid ${model.borderColor}40`, borderRadius: 12, padding: 20,
                 position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: model.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <model.icon size={14} color={model.color} />
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>{model.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{model.label}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0' }}>
                   <Loader2 size={28} color={model.color} style={{ animation: 'spin 0.8s linear infinite', marginBottom: 8 }} />
@@ -250,7 +250,7 @@ export default function PromptTestingLab() {
               const SentimentIcon = sentiment.icon;
               return (
                 <div key={model.id} style={{
-                  background: '#1a1c23', border: `1px solid ${model.borderColor}40`, borderRadius: 12, padding: 20,
+                  background: 'var(--bg-white)', border: `1px solid ${model.borderColor}40`, borderRadius: 12, padding: 20,
                   borderLeft: `3px solid ${model.borderColor}`,
                   transition: 'all 0.2s',
                 }}>
@@ -259,7 +259,7 @@ export default function PromptTestingLab() {
                       <div style={{ width: 28, height: 28, borderRadius: 8, background: model.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <model.icon size={14} color={model.color} />
                       </div>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>{model.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{model.label}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -269,7 +269,7 @@ export default function PromptTestingLab() {
                     </div>
                   </div>
 
-                  <div style={{ fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 12, minHeight: 60 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 12, minHeight: 60 }}>
                     {r?.response_snippet?.slice(0, 200)}{r?.response_snippet?.length > 200 ? '...' : ''}
                   </div>
 
@@ -278,7 +278,7 @@ export default function PromptTestingLab() {
                       display: 'inline-flex', alignItems: 'center', gap: 5,
                       padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700,
                       background: r?.brand_mentioned ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.12)',
-                      color: r?.brand_mentioned ? '#10b981' : '#9ca3af',
+                      color: r?.brand_mentioned ? '#10b981' : 'var(--text-muted)',
                     }}>
                       {r?.brand_mentioned ? <CheckCircle size={13} /> : <XCircle size={13} />}
                       Brand {r?.brand_mentioned ? 'Mentioned' : 'Not Mentioned'}
@@ -323,13 +323,13 @@ export default function PromptTestingLab() {
         </div>
       </div>
 
-      <div style={{ background: '#1a1c23', border: '1px solid #2a2d35', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <button
           onClick={() => setHistoryOpen(!historyOpen)}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '16px 24px', background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#e0e0e0', fontSize: 14, fontWeight: 600,
+            color: 'var(--text)', fontSize: 14, fontWeight: 600,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -348,7 +348,7 @@ export default function PromptTestingLab() {
         </button>
 
         {historyOpen && (
-          <div style={{ borderTop: '1px solid #2a2d35', padding: 16 }}>
+          <div style={{ borderTop: '1px solid var(--border)', padding: 16 }}>
             {history.length === 0 ? (
               <div style={{ padding: '24px 0', textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
                 No saved tests yet. Run a test and click "Save Test" to record it.
@@ -359,7 +359,7 @@ export default function PromptTestingLab() {
                   <div key={entry.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 14px', borderRadius: 8,
-                    background: '#12141a', border: '1px solid #2a2d35',
+                    background: '#12141a', border: '1px solid var(--border)',
                   }}>
                     <div style={{
                       width: 32, height: 32, borderRadius: 8,
@@ -369,7 +369,7 @@ export default function PromptTestingLab() {
                       {entry.hadMentions ? <CheckCircle size={15} color="#10b981" /> : <XCircle size={15} color="#6b7280" />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#e0e0e0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         "{entry.prompt}"
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>

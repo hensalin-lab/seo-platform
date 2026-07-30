@@ -778,11 +778,11 @@ export default function ContentRewriter() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '24px 16px' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Edit3 size={20} color="#3b82f6" /> Content Rewriter
+        <div style={{ background: '#0f1117', borderRadius: 12, border: '1px solid #2a2d35', padding: '20px 24px', marginBottom: 20 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#e0e0e0', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Edit3 size={22} color="#6366f1" /> Content Rewriter & Optimizer
           </h1>
-          <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Full Google crawl view + content improvements with before/after code</p>
+          <p style={{ fontSize: 13, color: '#9ca3af', margin: '6px 0 0', lineHeight: 1.5 }}>Analyze, rewrite, and optimize your content for SEO, AI visibility, and readability</p>
         </div>
 
         <div style={{ marginBottom: 12 }}>

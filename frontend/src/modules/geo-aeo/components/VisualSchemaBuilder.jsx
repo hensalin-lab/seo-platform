@@ -464,8 +464,8 @@ const twoColStyle = {
 
 const formPanelStyle = {
   flex: 1,
-  background: '#1a1c23',
-  border: '1px solid #2a2d35',
+  background: 'var(--bg-white)',
+  border: '1px solid var(--border)',
   borderRadius: 'var(--radius, 12px)',
   padding: 20,
   overflowY: 'auto',
@@ -474,8 +474,8 @@ const formPanelStyle = {
 const previewPanelStyle = {
   width: '45%',
   minWidth: 320,
-  background: '#1a1c23',
-  border: '1px solid #2a2d35',
+  background: 'var(--bg-white)',
+  border: '1px solid var(--border)',
   borderRadius: 'var(--radius, 12px)',
   display: 'flex',
   flexDirection: 'column',
@@ -487,7 +487,7 @@ const previewHeaderStyle = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '12px 16px',
-  borderBottom: '1px solid #2a2d35',
+  borderBottom: '1px solid var(--border)',
   flexShrink: 0,
 };
 
@@ -497,7 +497,7 @@ const codeBlockStyle = {
   fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
   fontSize: 12,
   lineHeight: 1.7,
-  color: '#e0e0e0',
+  color: 'var(--text)',
   overflow: 'auto',
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-all',
@@ -507,10 +507,10 @@ const codeBlockStyle = {
 const inputStyle = {
   width: '100%',
   padding: '8px 12px',
-  background: '#2a2d35',
+  background: 'var(--border)',
   border: '1px solid #3a3d45',
   borderRadius: 6,
-  color: '#e0e0e0',
+  color: 'var(--text)',
   fontSize: 13,
   fontFamily: 'inherit',
   outline: 'none',
@@ -544,7 +544,7 @@ const fieldGroupStyle = {
 
 const nestedCardStyle = {
   background: '#22242b',
-  border: '1px solid #2a2d35',
+  border: '1px solid var(--border)',
   borderRadius: 8,
   padding: 12,
   marginBottom: 8,
@@ -575,7 +575,7 @@ function FormField({ def, value, onChange, error }) {
   if (def.type === 'textarea') {
     return (
       <div style={fieldGroupStyle}>
-        <label style={{ ...labelStyle, color: def.required ? '#e0e0e0' : '#b0b3c0' }}>
+        <label style={{ ...labelStyle, color: def.required ? 'var(--text)' : '#b0b3c0' }}>
           {def.label}{def.required ? ' *' : ''}
         </label>
         <textarea
@@ -608,7 +608,7 @@ function FormField({ def, value, onChange, error }) {
 
   return (
     <div style={fieldGroupStyle}>
-      <label style={{ ...labelStyle, color: def.required ? '#e0e0e0' : '#b0b3c0' }}>
+      <label style={{ ...labelStyle, color: def.required ? 'var(--text)' : '#b0b3c0' }}>
         {def.label}{def.required ? ' *' : ''}
       </label>
       <input
@@ -726,7 +726,7 @@ function ArrayObjectField({ def, values, onChange }) {
 
   return (
     <div style={fieldGroupStyle}>
-      <label style={{ ...labelStyle, color: def.required ? '#e0e0e0' : '#b0b3c0' }}>
+      <label style={{ ...labelStyle, color: def.required ? 'var(--text)' : '#b0b3c0' }}>
         {def.label}{def.required ? ' *' : ''}
       </label>
       {items.map((item, idx) => (
@@ -913,7 +913,7 @@ export default function VisualSchemaBuilder() {
           <div style={previewHeaderStyle}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Code size={14} style={{ color: '#a5b4fc' }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#e0e0e0' }}>JSON-LD Output</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>JSON-LD Output</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {hasAnyData && (

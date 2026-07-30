@@ -205,15 +205,15 @@ export default function CommandPalette({ isOpen, onClose, auditId }) {
         style={{
           position: 'relative',
           width: 600, maxWidth: '90vw',
-          background: '#1a1c23',
-          border: '1px solid #2a2d35',
+          background: 'var(--bg-white)',
+          border: '1px solid var(--border)',
           borderRadius: 12,
           boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
           overflow: 'hidden',
           animation: 'cmdFadeIn 0.15s ease-out',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #2a2d35' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
           <Search size={18} color="#6b7280" style={{ flexShrink: 0 }} />
           <input
             ref={inputRef}
@@ -223,13 +223,13 @@ export default function CommandPalette({ isOpen, onClose, auditId }) {
             onChange={e => { setQuery(e.target.value); setSelectedIndex(0); }}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: '#e5e7eb', fontSize: 15, lineHeight: '24px',
+              color: 'var(--text)', fontSize: 15, lineHeight: '24px',
             }}
           />
           <kbd style={{
             display: 'flex', alignItems: 'center', gap: 3,
             padding: '3px 7px', borderRadius: 4,
-            background: '#2a2d35', color: '#9ca3af',
+            background: 'var(--border)', color: 'var(--text-muted)',
             fontSize: 11, fontFamily: 'inherit', flexShrink: 0,
           }}>
             <Command size={12} />K
@@ -245,7 +245,7 @@ export default function CommandPalette({ isOpen, onClose, auditId }) {
 
           {query && Object.keys(results).length === 0 && (
             <div style={{ padding: '32px 16px', textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
-              No results found for "<span style={{ color: '#9ca3af' }}>{query}</span>"
+              No results found for "<span style={{ color: 'var(--text-muted)' }}>{query}</span>"
             </div>
           )}
 
@@ -280,16 +280,16 @@ export default function CommandPalette({ isOpen, onClose, auditId }) {
                       <div style={{
                         width: 28, height: 28, borderRadius: 6,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: isActive ? 'rgba(96,165,250,0.2)' : '#2a2d35',
+                        background: isActive ? 'rgba(96,165,250,0.2)' : 'var(--border)',
                         flexShrink: 0,
                       }}>
-                        <Icon size={14} color={isActive ? '#60a5fa' : '#9ca3af'} />
+                        <Icon size={14} color={isActive ? '#60a5fa' : 'var(--text-muted)'} />
                       </div>
-                      <span style={{ flex: 1, fontSize: 13, color: '#e5e7eb', lineHeight: '20px' }}>
+                      <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', lineHeight: '20px' }}>
                         {highlightMatch(item.label, query)}
                       </span>
                       {item.disabled && (
-                        <span style={{ fontSize: 10, color: '#6b7280', background: '#2a2d35', padding: '2px 6px', borderRadius: 3 }}>No audit</span>
+                        <span style={{ fontSize: 10, color: '#6b7280', background: 'var(--border)', padding: '2px 6px', borderRadius: 3 }}>No audit</span>
                       )}
                     </div>
                   );
@@ -301,17 +301,17 @@ export default function CommandPalette({ isOpen, onClose, auditId }) {
 
         <div style={{
           display: 'flex', alignItems: 'center', gap: 14,
-          padding: '8px 16px', borderTop: '1px solid #2a2d35',
+          padding: '8px 16px', borderTop: '1px solid var(--border)',
           fontSize: 11, color: '#6b7280',
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <kbd style={{ background: '#2a2d35', padding: '1px 5px', borderRadius: 3, color: '#9ca3af', fontSize: 10, fontFamily: 'inherit' }}>↑↓</kbd> navigate
+            <kbd style={{ background: 'var(--border)', padding: '1px 5px', borderRadius: 3, color: 'var(--text-muted)', fontSize: 10, fontFamily: 'inherit' }}>↑↓</kbd> navigate
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <kbd style={{ background: '#2a2d35', padding: '1px 5px', borderRadius: 3, color: '#9ca3af', fontSize: 10, fontFamily: 'inherit' }}>↵</kbd> select
+            <kbd style={{ background: 'var(--border)', padding: '1px 5px', borderRadius: 3, color: 'var(--text-muted)', fontSize: 10, fontFamily: 'inherit' }}>↵</kbd> select
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <kbd style={{ background: '#2a2d35', padding: '1px 5px', borderRadius: 3, color: '#9ca3af', fontSize: 10, fontFamily: 'inherit' }}>esc</kbd> close
+            <kbd style={{ background: 'var(--border)', padding: '1px 5px', borderRadius: 3, color: 'var(--text-muted)', fontSize: 10, fontFamily: 'inherit' }}>esc</kbd> close
           </span>
         </div>
       </div>
@@ -328,7 +328,7 @@ export default function CommandPalette({ isOpen, onClose, auditId }) {
         input::placeholder { color: #6b7280; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2a2d35; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
       `}</style>
     </div>
   );
