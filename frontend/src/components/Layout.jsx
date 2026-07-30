@@ -101,7 +101,6 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [issuePanelOpen, setIssuePanelOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
@@ -246,11 +245,6 @@ export default function Layout({ children }) {
             </div>
           </div>
           <div className="topbar-actions">
-            {auditId && (
-              <button onClick={() => setIssuePanelOpen(true)} title="AI Issue Fix Center" style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}>
-                <Zap size={13} /> AI Fix Center
-              </button>
-            )}
             <button className="btn btn-ghost btn-sm" onClick={() => setPaletteOpen(true)} title="Search (Cmd+K)" style={{ background: 'none', border: '1px solid var(--border, #e2e8f0)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <Search size={13} /> <kbd style={{ fontSize: 10, opacity: 0.5, border: '1px solid var(--border, #e2e8f0)', borderRadius: 3, padding: '0 4px' }}>⌘K</kbd>
             </button>
@@ -259,10 +253,10 @@ export default function Layout({ children }) {
             </button>
           </div>
           <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} auditId={auditId} />
-          <GlobalIssuePanel auditId={auditId} open={issuePanelOpen} onClose={() => setIssuePanelOpen(false)} />
         </div>
         <div className="page-content">
           {children}
+          <GlobalIssuePanel auditId={auditId} />
         </div>
       </div>
     </div>

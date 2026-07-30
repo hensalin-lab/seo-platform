@@ -36,20 +36,26 @@ function EmptyState({ icon: Icon, title, message }) {
   );
 }
 
+const SEVERITY_COLORS2 = { CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#eab308', LOW: '#22c55e', INFO: '#64748b' };
+const CAT_COLORS2 = { SEO: '#3b82f6', CONTENT: '#10b981', PERFORMANCE: '#8b5cf6', ACCESSIBILITY: '#f59e0b', SECURITY: '#ef4444', MOBILE: '#06b6d4', SOCIAL: '#ec4899', OTHER: '#64748b' };
+
 function IssuesTab({ issues, loading }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [expandedIssue, setExpandedIssue] = useState(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 100;
+
+  const [allIssues, setAllIssues] = useState(issues);
+  useEffect(() => { setAllIssues(issues); }, [issues]);
 
   const categories = useMemo(() => {
-    const set = new Set();
-    issues.forEach(i => { if (i.category) set.add(i.category); });
+    const set = new Set(); allIssues.forEach(i => { if (i.category) set.add(i.category); });
     return [...set].sort();
-  }, [issues]);
+  }, [allIssues]);
 
   const filtered = useMemo(() => {
-    let result = issues;
+    let result = allIssues;
     if (severityFilter !== 'ALL') result = result.filter(i => i.severity === severityFilter);
     if (categoryFilter !== 'ALL') result = result.filter(i => i.category === categoryFilter);
     if (searchQuery) {
@@ -58,163 +64,95 @@ function IssuesTab({ issues, loading }) {
         (i.title || i.signal_name || '').toLowerCase().includes(q) ||
         (i.description || '').toLowerCase().includes(q) ||
         (i.page_url || '').toLowerCase().includes(q) ||
-        (i.fix || '').toLowerCase().includes(q)
+        (i.fix || '').toLowerCase().includes(q) ||
+        (i.impact || '').toLowerCase().includes(q)
       );
     }
     return result;
-  }, [issues, severityFilter, categoryFilter, searchQuery]);
+  }, [allIssues, severityFilter, categoryFilter, searchQuery]);
+
+  const paginated = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
   if (loading) return <Spinner text="Loading issues..." />;
 
   return (
     <div>
-      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: '1 1 260px' }}>
-            <Filter size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Search issues..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%', padding: '9px 12px 9px 30px', border: '1px solid var(--border)', borderRadius: 8,
-                fontSize: 13, background: 'var(--bg-white)', color: 'var(--text)', outline: 'none',
-              }}
-            />
+            <Filter size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <input type="text" placeholder="Search issues, pages, fixes..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(0); }}
+              style={{ width: '100%', padding: '9px 12px 9px 30px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none' }} />
           </div>
-          <select
-            value={severityFilter}
-            onChange={e => setSeverityFilter(e.target.value)}
-            style={{
-              padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13,
-              background: 'var(--bg-white)', color: 'var(--text)', outline: 'none', cursor: 'pointer',
-            }}
-          >
+          <select value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setPage(0); }}
+            style={{ padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
             <option value="ALL">All Severities</option>
-            {Object.keys(SEVERITY_COLORS).map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
+            {Object.keys(SEVERITY_COLORS2).map(s => (<option key={s} value={s}>{s}</option>))}
           </select>
-          <select
-            value={categoryFilter}
-            onChange={e => setCategoryFilter(e.target.value)}
-            style={{
-              padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13,
-              background: 'var(--bg-white)', color: 'var(--text)', outline: 'none', cursor: 'pointer',
-            }}
-          >
+          <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(0); }}
+            style={{ padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
             <option value="ALL">All Categories</option>
-            {categories.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {categories.map(c => (<option key={c} value={c}>{c}</option>))}
           </select>
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, padding: '0 4px' }}>
-        Showing {filtered.length} of {issues.length} issues
-        {searchQuery && <span> matching "<strong style={{ color: 'var(--text)' }}>{searchQuery}</strong>"</span>}
+      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, padding: '0 4px' }}>
+        Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {allIssues.length} issues
+        {searchQuery && <span> matching "{searchQuery}"</span>}
       </div>
 
-      {filtered.length === 0 ? (
+      {paginated.length === 0 ? (
         <EmptyState icon={CheckCircle} title="No issues found" message="No issues match your current filters." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {filtered.map((issue, idx) => {
-            const isExpanded = expandedIssue === idx;
-            const sevColor = SEVERITY_COLORS[issue.severity] || '#6b7280';
-            const statusColor = STATUS_COLORS[issue.status] || 'var(--text-muted)';
-            return (
-              <div
-                key={idx}
-                style={{
-                  background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10,
-                  overflow: 'hidden', transition: 'all 0.2s',
-                }}
-              >
-                <div
-                  onClick={() => setExpandedIssue(isExpanded ? null : idx)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                    color: '#fff', background: sevColor, whiteSpace: 'nowrap', minWidth: 56,
-                    textAlign: 'center',
-                  }}>
-                    {issue.severity}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
-                    {issue.title || issue.signal_name || issue.description}
-                  </span>
-                  <span style={{
-                    fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                    background: `${statusColor}18`, color: statusColor, fontWeight: 600,
-                  }}>
-                    {issue.status || 'open'}
-                  </span>
-                  {issue.page_count > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {issue.page_count} page{issue.page_count > 1 ? 's' : ''}
-                    </span>
+          {paginated.map((issue, idx) => (
+            <div key={idx} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ width: 60, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textAlign: 'center', color: '#fff', background: SEVERITY_COLORS2[issue.severity] || '#64748b', flexShrink: 0 }}>
+                  {issue.severity}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{issue.signal_name || issue.title || issue.description}</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: (CAT_COLORS2[issue.category] || '#64748b') + '20', color: CAT_COLORS2[issue.category] || '#64748b' }}>{issue.category}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>
+                    <strong>Page:</strong> {issue.page_url || 'N/A'}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 4 }}>
+                    <strong>Problem:</strong> {issue.description}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                    <strong>Impact:</strong> {issue.impact || 'N/A'}
+                  </div>
+                  <div style={{ padding: '6px 10px', background: '#f0f9ff', borderRadius: 6, fontSize: 12, color: '#0369a1', lineHeight: 1.5 }}>
+                    <strong>AI Fix:</strong> {issue.fix || 'No fix suggestion available'}
+                  </div>
+                  {issue.page_url && (
+                    <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
+                      <a href={issue.page_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <ExternalLink size={12} /> Open page
+                      </a>
+                    </div>
                   )}
                 </div>
-                {isExpanded && (
-                  <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border)', background: '#15171d' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, paddingTop: 16 }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Description
-                        </div>
-                        <div style={{ fontSize: 13, color: '#c0c4cc', lineHeight: 1.6 }}>{issue.description || 'No description'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Remediation
-                        </div>
-                        <div style={{ fontSize: 13, color: '#22c55e', lineHeight: 1.6 }}>{issue.fix || 'No fix suggestion available'}</div>
-                      </div>
-                    </div>
-                    {issue.category && (
-                      <div style={{ marginTop: 12 }}>
-                        <span style={{
-                          fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4,
-                          background: 'rgba(99,102,241,0.15)', color: '#818cf8',
-                        }}>
-                          {issue.category}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                      <ProtectedAction requiredRole="ADMIN">
-                        <button style={{
-                          padding: '6px 14px', borderRadius: 6, border: '1px solid #22c55e',
-                          background: 'rgba(34,197,94,0.1)', color: '#22c55e', fontSize: 12,
-                          fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
-                          gap: 6,
-                        }}>
-                          <CheckCircle size={14} /> Resolve
-                        </button>
-                      </ProtectedAction>
-                      <ProtectedAction requiredRole="ADMIN">
-                        <button style={{
-                          padding: '6px 14px', borderRadius: 6, border: '1px solid #3b82f6',
-                          background: 'rgba(59,130,246,0.1)', color: '#3b82f6', fontSize: 12,
-                          fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
-                          gap: 6,
-                        }}>
-                          <RefreshCw size={14} /> Reassign
-                        </button>
-                      </ProtectedAction>
-                    </div>
-                  </div>
-                )}
               </div>
-            );
-          })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #e2e8f0', background: page === 0 ? '#f8fafc' : '#fff', color: page === 0 ? '#94a3b8' : '#334155', cursor: page === 0 ? 'default' : 'pointer', fontSize: 12 }}>← Prev</button>
+          <span style={{ padding: '6px 12px', fontSize: 12, color: '#64748b' }}>{page + 1}/{totalPages}</span>
+          <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #e2e8f0', background: page >= totalPages - 1 ? '#f8fafc' : '#fff', color: page >= totalPages - 1 ? '#94a3b8' : '#334155', cursor: page >= totalPages - 1 ? 'default' : 'pointer', fontSize: 12 }}>Next →</button>
         </div>
       )}
     </div>
