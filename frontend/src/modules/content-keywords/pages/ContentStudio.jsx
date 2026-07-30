@@ -95,8 +95,13 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
   const readabilityScore = qualityData?.readability_score ?? contentData?.readability ?? null;
   const seoScore = contentData?.seo_score ?? contentData?.score ?? null;
 
-  const pages = contentData?.pages ?? contentData?.issues ?? [];
-  const pageList = Array.isArray(pages) ? pages : [];
+  const rawPages = contentData?.pages ?? contentData?.issues ?? [];
+  const pageList = Array.isArray(rawPages) ? rawPages.map(p => ({
+    ...p,
+    url: p.url || p.page_url || p.page,
+    score: p.score ?? p.quality ?? null,
+    issues: p.issues ?? (p.signal_name ? [p] : []),
+  })) : [];
 
   const opps = opportunitiesData?.opportunities ?? opportunitiesData?.keywords_to_add ?? [];
   const oppList = Array.isArray(opps) ? opps : [];
@@ -132,11 +137,11 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
                     </thead>
                     <tbody>
                       {pageList.map((p, i) => {
-                        const issueCount = p.issues?.length ?? 0;
-                        const pageScore = p.score ?? p.quality ?? null;
+                        const issueCount = Array.isArray(p.issues) ? p.issues.length : (p.signal_name ? 1 : 0);
+                        const pageScore = p.score;
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid var(--bg-secondary)' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url || p.page || p.title || `Page ${i + 1}`}</td>
+                            <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url || p.page_url || p.title || `Issue ${i + 1}`}</td>
                             <td style={{ padding: '10px 12px' }}>
                               {issueCount > 0 ? (
                                 <span style={{ color: issueCount > 5 ? '#ef4444' : '#f59e0b', fontWeight: 500 }}>{issueCount} issues</span>

@@ -107,7 +107,7 @@ export default function App() {
                   <Route path="/audit/:id/page-detail" element={<ProtectedRoute><PageDetail /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-intel" element={<ProtectedRoute><ContentIntelligence /></ProtectedRoute>} />
                   <Route path="/audit/:id/recommendations-deep" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
-                  <Route path="/audit/:id/ai-deep" element={<ProtectedRoute><GeoAeoHub /></ProtectedRoute>} />
+                  <Route path="/audit/:id/ai-deep" element={<ProtectedRoute><AiVisibility /></ProtectedRoute>} />
                   <Route path="/audit/:id/competitor-deep" element={<ProtectedRoute><CompetitorAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/ai-recommendations" element={<ProtectedRoute><AiRecommendations /></ProtectedRoute>} />
                   <Route path="/audit/:id/enterprise" element={<ProtectedRoute><EnterprisePage /></ProtectedRoute>} />

@@ -97,7 +97,8 @@ export default function GeoAeoHub() {
   const eeatScore = eeatData?.eeat_score ?? null;
   const schemaCoverage = schemaData?.coverage_pct ?? schemaData?.coverage ?? null;
 
-  const platformList = aiVisibilityData?.platforms ?? aiVisibilityData?.llm_mentions ?? [];
+  const rawPlatforms = aiVisibilityData?.platforms ?? aiVisibilityData?.llm_mentions ?? aiVisibilityData?.ai_platform_visibility ?? [];
+  const platformList = !rawPlatforms || (typeof rawPlatforms === 'object' && !Array.isArray(rawPlatforms) && Object.keys(rawPlatforms).length === 0) ? [] : rawPlatforms;
   const derivedPlatforms = !Array.isArray(platformList) || platformList.length === 0
     ? [
         { platform: 'ChatGPT', mentioned: (aiVisibilityData?.chatgpt_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.chatgpt_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.chatgpt_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
