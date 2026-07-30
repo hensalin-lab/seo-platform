@@ -10,67 +10,62 @@ import NewAudit from './pages/NewAudit';
 import AuditProgress from './pages/AuditProgress';
 import History from './pages/History';
 import Dashboard from './pages/Dashboard';
-import PageIntelligence from './pages/PageIntelligence';
-import SeoAnalysis from './pages/SeoAnalysis';
-import SpeedAnalysis from './pages/SpeedAnalysis';
-import SchemaAnalysis from './pages/SchemaAnalysis';
-import InternalLinks from './pages/InternalLinks';
-import GscData from './pages/GscData';
-import KeywordStrategy from './pages/KeywordStrategy';
-import ContentAnalysis from './pages/ContentAnalysis';
-import AiVisibility from './pages/AiVisibility';
-import EeatAnalysis from './pages/EeatAnalysis';
-import SmartRecommendations from './pages/SmartRecommendations';
-import CompetitorAnalysis from './pages/CompetitorAnalysis';
-import SeoRoadmap from './pages/SeoRoadmap';
-import RemediationFeed from './pages/RemediationFeed';
-import ContentRewriter from './pages/ContentRewriter';
-import SerpPreview from './pages/SerpPreview';
-import AiChat from './pages/AiChat';
-import PageDetail from './pages/PageDetail';
-import ContentIntelligence from './pages/ContentIntelligence';
-import RecommendationsDeep from './pages/RecommendationsDeep';
-import AiVisibilityDeep from './pages/AiVisibilityDeep';
-import CompetitorDeep from './pages/CompetitorDeep';
-import AiRecommendations from './pages/AiRecommendations';
-import EnterprisePage from './pages/EnterprisePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import SettingsPage from './pages/SettingsPage';
-import AiBotIntelligence from './pages/AiBotIntelligence';
-import OffsiteAuthority from './pages/OffsiteAuthority';
-import SchemaIntelligence from './pages/SchemaIntelligence';
-import SpeedIntelligence from './pages/SpeedIntelligence';
-import PageIntelligenceV2 from './pages/PageIntelligenceV2';
-import AuditCompare from './pages/AuditCompare';
-import AuditReport from './pages/AuditReport';
-import BacklinkProfile from './pages/BacklinkProfile';
-import BlogAi from './pages/BlogAi';
-import CitationAnalysis from './pages/CitationAnalysis';
-import CompetitorGap from './pages/CompetitorGap';
-import ContentOpportunities from './pages/ContentOpportunities';
-import ContentQuality from './pages/ContentQuality';
-import ContentRevival from './pages/ContentRevival';
-import ImageSeo from './pages/ImageSeo';
-import KeywordOpportunities from './pages/KeywordOpportunities';
-import LocalSeo from './pages/LocalSeo';
-import MobileSeo from './pages/MobileSeo';
-import PageExperience from './pages/PageExperience';
-import PageImprovements from './pages/PageImprovements';
-import PageIntelligenceDetail from './pages/PageIntelligenceDetail';
-import PageSpeed from './pages/PageSpeed';
-import PortfolioDashboard from './pages/PortfolioDashboard';
-import ExecutiveDashboard from './pages/ExecutiveDashboard';
-import Recommendations from './pages/Recommendations';
-import SecurityHeaders from './pages/SecurityHeaders';
-import SeoHealth from './pages/SeoHealth';
-import SitemapRobots from './pages/SitemapRobots';
-import SocialSeo from './pages/SocialSeo';
-import AiRoadmap from './pages/AiRoadmap';
-import AiSuggestions from './pages/AiSuggestions';
-import IssuesExplorer from './pages/IssuesExplorer';
-import Trends from './pages/Trends';
-import GeoAeoHub from './pages/GeoAeoHub';
+import SeoAnalysis from './modules/technical-audit/pages/SeoAnalysis';
+import SpeedAnalysis from './modules/technical-audit/pages/SpeedAnalysis';
+import SchemaAnalysis from './modules/technical-audit/pages/SchemaAnalysis';
+import InternalLinks from './modules/technical-audit/pages/InternalLinks';
+import GscData from './modules/technical-audit/pages/GscData';
+import KeywordStrategy from './modules/content-keywords/pages/KeywordStrategy';
+import ContentAnalysis from './modules/content-keywords/pages/ContentAnalysis';
+import AiVisibility from './modules/geo-aeo/pages/AiVisibility';
+import EeatAnalysis from './modules/geo-aeo/pages/EeatAnalysis';
+import CompetitorAnalysis from './modules/competitive/pages/CompetitorAnalysis';
+import SeoRoadmap from './modules/content-keywords/pages/SeoRoadmap';
+import RemediationFeed from './modules/action-center/pages/RemediationFeed';
+import ContentRewriter from './modules/content-keywords/pages/ContentRewriter';
+import SerpPreview from './modules/geo-aeo/pages/SerpPreview';
+import AiChat from './modules/settings/pages/AiChat';
+import PageDetail from './modules/technical-audit/pages/PageDetail';
+import ContentIntelligence from './modules/content-keywords/pages/ContentIntelligence';
+import AiRecommendations from './modules/content-keywords/pages/AiRecommendations';
+import EnterprisePage from './modules/enterprise/pages/EnterprisePage';
+import LoginPage from './modules/settings/pages/LoginPage';
+import RegisterPage from './modules/settings/pages/RegisterPage';
+import SettingsPage from './modules/settings/pages/SettingsPage';
+import AiBotIntelligence from './modules/geo-aeo/pages/AiBotIntelligence';
+import OffsiteAuthority from './modules/competitive/pages/OffsiteAuthority';
+import SchemaIntelligence from './modules/geo-aeo/pages/SchemaIntelligence';
+import PageIntelligenceV2 from './modules/technical-audit/pages/PageIntelligenceV2';
+import AuditCompare from './modules/executive/pages/AuditCompare';
+import AuditReport from './modules/executive/pages/AuditReport';
+import BacklinkProfile from './modules/competitive/pages/BacklinkProfile';
+import BlogAi from './modules/content-keywords/pages/BlogAi';
+import CitationAnalysis from './modules/geo-aeo/pages/CitationAnalysis';
+import ContentOpportunities from './modules/content-keywords/pages/ContentOpportunities';
+import ContentQuality from './modules/content-keywords/pages/ContentQuality';
+import ContentRevival from './modules/content-keywords/pages/ContentRevival';
+import ImageSeo from './modules/technical-audit/pages/ImageSeo';
+import KeywordOpportunities from './modules/content-keywords/pages/KeywordOpportunities';
+import LocalSeo from './modules/geo-aeo/pages/LocalSeo';
+import MobileSeo from './modules/technical-audit/pages/MobileSeo';
+import PageExperience from './modules/technical-audit/pages/PageExperience';
+import PageImprovements from './modules/technical-audit/pages/PageImprovements';
+import PageIntelligenceDetail from './modules/technical-audit/pages/PageIntelligenceDetail';
+import PageSpeed from './modules/technical-audit/pages/PageSpeed';
+import PortfolioDashboard from './modules/enterprise/pages/PortfolioDashboard';
+import ExecutiveDashboard from './modules/executive/pages/ExecutiveDashboard';
+import Recommendations from './modules/action-center/pages/Recommendations';
+import SecurityHeaders from './modules/technical-audit/pages/SecurityHeaders';
+import SeoHealth from './modules/executive/pages/SeoHealth';
+import SitemapRobots from './modules/technical-audit/pages/SitemapRobots';
+import SocialSeo from './modules/geo-aeo/pages/SocialSeo';
+import AiRoadmap from './modules/content-keywords/pages/AiRoadmap';
+import AiSuggestions from './modules/content-keywords/pages/AiSuggestions';
+import IssuesExplorer from './modules/action-center/pages/IssuesExplorer';
+import Trends from './modules/executive/pages/Trends';
+import GeoAeoHub from './modules/geo-aeo/pages/GeoAeoHub';
+import ActionCenter from './modules/action-center/pages/ActionCenter';
+import ContentStudio from './modules/content-keywords/pages/ContentStudio';
 import './index.css';
 
 export default function App() {
@@ -91,8 +86,10 @@ export default function App() {
                   <Route path="/audit/:id/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/audit/:id/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
                   <Route path="/audit/:id/geo-aeo" element={<ProtectedRoute><GeoAeoHub /></ProtectedRoute>} />
+                  <Route path="/audit/:id/action-center" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
+                  <Route path="/audit/:id/content-studio" element={<ProtectedRoute><ContentStudio /></ProtectedRoute>} />
                   <Route path="/audit/:id/seo" element={<ProtectedRoute><SeoAnalysis /></ProtectedRoute>} />
-                  <Route path="/audit/:id/pages" element={<ProtectedRoute><PageIntelligence /></ProtectedRoute>} />
+                  <Route path="/audit/:id/pages" element={<ProtectedRoute><PageIntelligenceV2 /></ProtectedRoute>} />
                   <Route path="/audit/:id/speed" element={<ProtectedRoute><SpeedAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/schema" element={<ProtectedRoute><SchemaAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/internal-links" element={<ProtectedRoute><InternalLinks /></ProtectedRoute>} />
@@ -101,7 +98,7 @@ export default function App() {
                   <Route path="/audit/:id/content" element={<ProtectedRoute><ContentAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/ai-visibility" element={<ProtectedRoute><AiVisibility /></ProtectedRoute>} />
                   <Route path="/audit/:id/eeat" element={<ProtectedRoute><EeatAnalysis /></ProtectedRoute>} />
-                  <Route path="/audit/:id/recommendations" element={<ProtectedRoute><SmartRecommendations /></ProtectedRoute>} />
+                  <Route path="/audit/:id/recommendations" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
                   <Route path="/audit/:id/competitor" element={<ProtectedRoute><CompetitorAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/roadmap" element={<ProtectedRoute><SeoRoadmap /></ProtectedRoute>} />
                   <Route path="/audit/:id/remediation" element={<ProtectedRoute><RemediationFeed /></ProtectedRoute>} />
@@ -109,22 +106,22 @@ export default function App() {
                   <Route path="/audit/:id/serp-preview" element={<ProtectedRoute><SerpPreview /></ProtectedRoute>} />
                   <Route path="/audit/:id/page-detail" element={<ProtectedRoute><PageDetail /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-intel" element={<ProtectedRoute><ContentIntelligence /></ProtectedRoute>} />
-                  <Route path="/audit/:id/recommendations-deep" element={<ProtectedRoute><RecommendationsDeep /></ProtectedRoute>} />
-                  <Route path="/audit/:id/ai-deep" element={<ProtectedRoute><AiVisibilityDeep /></ProtectedRoute>} />
-                  <Route path="/audit/:id/competitor-deep" element={<ProtectedRoute><CompetitorDeep /></ProtectedRoute>} />
+                  <Route path="/audit/:id/recommendations-deep" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
+                  <Route path="/audit/:id/ai-deep" element={<ProtectedRoute><GeoAeoHub /></ProtectedRoute>} />
+                  <Route path="/audit/:id/competitor-deep" element={<ProtectedRoute><CompetitorAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/ai-recommendations" element={<ProtectedRoute><AiRecommendations /></ProtectedRoute>} />
                   <Route path="/audit/:id/enterprise" element={<ProtectedRoute><EnterprisePage /></ProtectedRoute>} />
                   <Route path="/audit/:id/ai-bots" element={<ProtectedRoute><AiBotIntelligence /></ProtectedRoute>} />
                   <Route path="/audit/:id/offsite-authority" element={<ProtectedRoute><OffsiteAuthority /></ProtectedRoute>} />
                   <Route path="/audit/:id/schema-intel" element={<ProtectedRoute><SchemaIntelligence /></ProtectedRoute>} />
-                  <Route path="/audit/:id/speed-intel" element={<ProtectedRoute><SpeedIntelligence /></ProtectedRoute>} />
+                  <Route path="/audit/:id/speed-intel" element={<ProtectedRoute><SpeedAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/page-deep" element={<ProtectedRoute><PageIntelligenceV2 /></ProtectedRoute>} />
                   <Route path="/audit/:id/compare" element={<ProtectedRoute><AuditCompare /></ProtectedRoute>} />
                   <Route path="/audit/:id/report" element={<ProtectedRoute><AuditReport /></ProtectedRoute>} />
                   <Route path="/audit/:id/backlinks" element={<ProtectedRoute><BacklinkProfile /></ProtectedRoute>} />
                   <Route path="/audit/:id/blog-ai" element={<ProtectedRoute><BlogAi /></ProtectedRoute>} />
                   <Route path="/audit/:id/citations" element={<ProtectedRoute><CitationAnalysis /></ProtectedRoute>} />
-                  <Route path="/audit/:id/competitor-gap" element={<ProtectedRoute><CompetitorGap /></ProtectedRoute>} />
+                  <Route path="/audit/:id/competitor-gap" element={<ProtectedRoute><CompetitorAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-opportunities" element={<ProtectedRoute><ContentOpportunities /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-quality" element={<ProtectedRoute><ContentQuality /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-revival" element={<ProtectedRoute><ContentRevival /></ProtectedRoute>} />

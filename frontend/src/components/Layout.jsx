@@ -45,6 +45,7 @@ const AUDIT_NAV = [
   {
     label: '3. AI CONTENT & KEYWORDS',
     items: [
+      { suffix: '/content-studio', icon: BookOpen, label: 'Content Studio' },
       { suffix: '/keywords', icon: Key, label: 'Keyword Strategy' },
       { suffix: '/content-rewrite', icon: Edit3, label: 'Content Rewriter' },
       { suffix: '/content-revival', icon: RefreshCw, label: 'Content Revival' },
@@ -56,6 +57,7 @@ const AUDIT_NAV = [
     label: '4. TECHNICAL AUDIT & REMEDIATION',
     items: [
       { suffix: '/issues', icon: AlertTriangle, label: 'Issue Remediation' },
+      { suffix: '/action-center', icon: ClipboardList, label: 'Action Center' },
       { suffix: '/speed', icon: Gauge, label: 'Speed & CWV' },
       { suffix: '/internal-links', icon: Link2, label: 'Internal Links' },
       { suffix: '/page-experience', icon: HeartPulse, label: 'Page Experience' },
@@ -70,7 +72,6 @@ const AUDIT_NAV = [
     label: '5. COMPETITIVE & OFFSITE',
     items: [
       { suffix: '/competitor', icon: Users, label: 'Competitor Analysis' },
-      { suffix: '/competitor-deep', icon: Network, label: 'Competitor Intel' },
       { suffix: '/backlinks', icon: Link2, label: 'Backlinks' },
       { suffix: '/offsite-authority', icon: Award, label: 'Off-Site Authority' },
       { suffix: '/citations', icon: MessageCircle, label: 'Citations' },
@@ -132,6 +133,8 @@ export default function Layout({ children }) {
     if (p.endsWith('/ai-bots')) return 'AI Bot Intelligence';
     if (p.endsWith('/offsite-authority')) return 'Off-Site Authority';
     if (p.endsWith('/progress')) return 'Audit Progress';
+    if (p.endsWith('/action-center')) return 'Action Center';
+    if (p.endsWith('/content-studio')) return 'Content Studio';
     if (p.endsWith('/pages')) return 'Page Analysis';
     if (p.endsWith('/compare')) return 'Audit Compare';
     if (p.endsWith('/report')) return 'Audit Report';
