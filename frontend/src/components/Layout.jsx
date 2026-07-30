@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommandPalette from './CommandPalette';
-import GlobalIssuePanel from './GlobalIssuePanel';
 import {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2,
   Gauge, BookOpen, Key, Globe, MessageSquare, Users,
@@ -256,7 +255,6 @@ export default function Layout({ children }) {
         </div>
         <div className="page-content">
           {children}
-          <GlobalIssuePanel auditId={auditId} />
         </div>
       </div>
     </div>
