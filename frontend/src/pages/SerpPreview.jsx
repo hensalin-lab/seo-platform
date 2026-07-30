@@ -126,6 +126,7 @@ export default function SerpPreview() {
   if (loading) return <div className="loading-skeleton" />;
   if (error) return <div className="empty-state">{error}</div>;
   if (!pages.length) return <div className="empty-state">No pages found</div>;
+  if (!pages[selectedIdx]) return <div className="empty-state">Page not found</div>;
 
   const page = pages[selectedIdx];
 

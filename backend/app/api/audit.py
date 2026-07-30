@@ -108,6 +108,16 @@ async def get_history(request: Request, limit: int = 20, db: AsyncSession = Depe
     stmt = stmt.order_by(Audit.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     rows = result.all()
+    audit_ids = [a.id for a, _ in rows]
+    page_counts = {}
+    issue_counts = {}
+    if audit_ids:
+        from sqlalchemy import func
+        from app.models import Page, Issue
+        pc_result = await db.execute(select(Page.audit_id, func.count(Page.id)).where(Page.audit_id.in_(audit_ids)).group_by(Page.audit_id))
+        page_counts = {aid: cnt for aid, cnt in pc_result}
+        ic_result = await db.execute(select(Issue.audit_id, func.count(Issue.id)).where(Issue.audit_id.in_(audit_ids)).group_by(Issue.audit_id))
+        issue_counts = {aid: cnt for aid, cnt in ic_result}
     return [{
         "id": a.id, "audit_id": a.id, "website_url": a.website_url,
         "competitor_url": a.competitor_url,
@@ -118,6 +128,8 @@ async def get_history(request: Request, limit: int = 20, db: AsyncSession = Depe
         "geo_score": s.geo_score if s else 0.0,
         "content_score": s.content_score if s else 0.0,
         "ai_visibility_score": s.ai_visibility_score if s else 0.0,
+        "total_pages": page_counts.get(a.id, 0),
+        "total_issues": issue_counts.get(a.id, 0),
         "status": a.status,
         "created_at": a.created_at.isoformat() if a.created_at else "",
     } for a, s in rows]

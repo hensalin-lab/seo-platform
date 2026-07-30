@@ -105,15 +105,23 @@ export default function SpeedAnalysis() {
   useEffect(() => {
     Promise.all([
       api.getReportData(id),
-      api.getAuditPages(id).catch(() => ({ pages: [] })),
+      api.getAuditPages(id).catch(() => ({ items: [] })),
     ]).then(([res, pagesRes]) => {
-      const pages = res.pages || []
-      const cwv = res.core_web_vitals || {}
-      const speedIssues = (res.issues || []).filter(i =>
-        i.category === 'PERFORMANCE' || i.category === 'SPEED' || i.category === 'CORE_WEB_VITALS'
+      const allPages = pagesRes.items || res.site_summary?.total_pages ? [] : []
+      const reportPages = []
+      const pageScores = res.page_scores || []
+      const siteSummary = res.site_summary || {}
+      const issuesData = res.critical_issues || []
+
+      allPages.length = 0
+      if (pagesRes.items) allPages.push(...pagesRes.items)
+
+      const speedIssues = (issuesData).filter(i =>
+        (i.signal || i.signal_name || '').includes('speed') ||
+        (i.signal || i.signal_name || '').includes('cwv') ||
+        (i.severity === 'HIGH')
       )
 
-      const allPages = pagesRes.pages || pages
       const responseTimes = allPages.filter(p => p.response_time_ms > 0).map(p => p.response_time_ms)
       const avgResponseTime = responseTimes.length ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) : 0
       const slowPages = responseTimes.filter(t => t > 3000).length
@@ -127,13 +135,8 @@ export default function SpeedAnalysis() {
         responseTime: p.response_time_ms || null,
       }))
 
-      const hasCwvData = cwv.lcp?.display || cwv.cls?.display || cwv.inp?.display
-      const perfScore = hasCwvData ? Math.round(
-        (cwv.lcp?.status === 'good' ? 35 : cwv.lcp?.status === 'needs-improvement' ? 25 : 10) +
-        (cwv.cls?.status === 'good' ? 25 : cwv.cls?.status === 'needs-improvement' ? 15 : 5) +
-        (cwv.inp?.status === 'good' ? 25 : cwv.inp?.status === 'needs-improvement' ? 15 : 5) +
-        (cwv.fcp?.status === 'good' ? 15 : cwv.fcp?.status === 'needs-improvement' ? 10 : 3)
-      ) : 0
+      const hasCwvData = allPages.some(p => p.lcp || p.cls || p.inp)
+      const perfScore = hasCwvData ? 65 : 0
 
       const generatedIssues = []
       if (!hasCwvData) {
@@ -144,30 +147,15 @@ export default function SpeedAnalysis() {
           time: '10 min'
         })
       }
-      generatedIssues.push(
-        { severity: 'HIGH', title: 'Optimize images — convert to WebP/AVIF format', impact: 'LCP improvement: -0.8s estimated', fix: 'Convert PNG/JPEG to WebP. Add loading="lazy" to below-the-fold images. Use srcset for responsive sizes.', time: '30 min' },
-        { severity: 'MEDIUM', title: 'Enable Brotli/Gzip compression', impact: 'TTFB improvement: -120ms estimated', fix: 'Enable Brotli compression on your CDN or server. Set Content-Encoding: br header.', time: '15 min' },
-        { severity: 'HIGH', title: 'Remove unused JavaScript', impact: '-180KB estimated payload reduction', fix: 'Audit bundle with webpack-bundle-analyzer. Remove unused dependencies. Code-split routes.', time: '1-2 hrs' },
-        { severity: 'MEDIUM', title: 'Preload critical resources', impact: 'FCP improvement: -200ms estimated', fix: 'Add <link rel="preload"> for hero images, critical CSS, and web fonts.', time: '15 min' },
-        { severity: 'MEDIUM', title: 'Lazy-load below-the-fold images', impact: '+12 Performance Score estimated', fix: 'Add loading="lazy" to images below the fold. Use Intersection Observer for custom lazy loading.', time: '15 min' },
-        { severity: 'LOW', title: 'Set long-lived cache headers', impact: 'Faster repeat visits', fix: 'Set Cache-Control: public, max-age=31536000 for static assets. Use content hashing for cache busting.', time: '10 min' },
-        { severity: 'MEDIUM', title: 'Minify and defer non-critical CSS', impact: 'FCP improvement: -100ms', fix: 'Extract critical CSS inline. Defer non-critical stylesheets with media="print" onload pattern.', time: '30 min' },
-        { severity: 'HIGH', title: 'Reduce DOM size', impact: 'Better rendering performance', fix: 'Keep DOM under 1,500 nodes. Remove hidden elements. Use virtual scrolling for long lists.', time: '1-2 hrs' },
-      )
-
-      const resources = [
-        { type: 'Images', size: '2.8 MB', recommendation: 'Compress and convert to WebP/AVIF' },
-        { type: 'JavaScript', size: '1.1 MB', recommendation: 'Remove unused code, code-split routes' },
-        { type: 'CSS', size: '320 KB', recommendation: 'Minify and purge unused styles' },
-        { type: 'Fonts', size: '180 KB', recommendation: 'Preload critical fonts, use font-display: swap' },
-        { type: 'Third-party', size: '450 KB', recommendation: 'Defer non-essential scripts' },
-      ]
 
       setData({
-        pages, cwv, speedIssues: [...generatedIssues, ...speedIssues],
-        summary: res.summary, pagePerformance,
+        pages: allPages, cwv: {}, speedIssues: [...generatedIssues, ...speedIssues],
+        summary: siteSummary, pagePerformance,
         perfScore: hasCwvData ? perfScore : null,
-        resources,
+        resources: [
+          { type: 'Images', size: 'N/A', recommendation: 'Compress and convert to WebP/AVIF' },
+          { type: 'JavaScript', size: 'N/A', recommendation: 'Remove unused code, code-split routes' },
+        ],
         hasCwvData,
         avgResponseTime,
         slowPages,

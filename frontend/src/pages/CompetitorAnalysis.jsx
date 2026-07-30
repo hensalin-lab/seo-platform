@@ -11,7 +11,7 @@ export default function CompetitorAnalysis() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    api.getReportData(id).then(res => {
+    api.getCompetitorData(id).then(res => {
       setData(res)
     }).catch(e => setError(e.message)).finally(() => setLoading(false))
   }, [id])
@@ -19,9 +19,9 @@ export default function CompetitorAnalysis() {
   if (loading) return <div className="loading-overlay"><div className="spinner" /><p>Loading competitor data...</p></div>
   if (error) return <div className="error-state">{error}</div>
 
-  const competitor = data?.competitor_analysis || {}
-  const gaps = competitor.keyword_gaps || []
-  const advantages = competitor.advantages || []
+  const competitor = data || {}
+  const gaps = competitor.keyword_gaps || competitor.keyword_opportunities || []
+  const advantages = competitor.advantages || competitor.strengths || []
 
   return (
     <div>

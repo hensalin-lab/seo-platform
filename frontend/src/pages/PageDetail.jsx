@@ -257,7 +257,7 @@ export default function PageDetail() {
   const [pageLoading, setPageLoading] = useState(false);
 
   useEffect(() => {
-    api.getAuditPages(id, { limit: 100 }).then(d => { setPages(d.items || []); setLoading(false); }).catch(() => setLoading(false));
+    api.getAuditPages(id, { limit: 100 }).then(d => { setPages(d.items || []); setLoading(false); }).catch(e => { setPages([]); setLoading(false); console.error('Failed to load pages:', e); });
   }, [id]);
 
   useEffect(() => {

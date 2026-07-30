@@ -16,7 +16,10 @@ export default function History() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    api.getHistory().then(setAudits).catch(() => {}).finally(() => setLoading(false))
+    api.getHistory().then(setAudits).catch(e => {
+      console.error('Failed to load history:', e);
+      setAudits([]);
+    }).finally(() => setLoading(false))
   }, [])
 
   const handleDelete = async (id) => {

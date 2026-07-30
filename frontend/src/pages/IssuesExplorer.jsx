@@ -20,6 +20,7 @@ export default function IssuesExplorer() {
   const [expandedIssue, setExpandedIssue] = useState(null);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [error, setError] = useState(null);
   const pageSize = 100;
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function IssuesExplorer() {
         setAllIssues(allLoaded);
         setTotalCount(allLoaded.length);
       } catch (err) {
-        console.error(err);
+        setAllIssues([]); setError(err.message || 'Failed to load issues');
       } finally {
         setLoading(false);
       }
@@ -83,6 +84,8 @@ export default function IssuesExplorer() {
   }, [allIssues]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
+
+  if (error) return <div className="empty-state"><AlertTriangle size={40} style={{ color: 'var(--red)' }} /><p>{error}</p><button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button></div>;
 
   if (loading) {
     return (

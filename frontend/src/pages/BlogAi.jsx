@@ -79,7 +79,7 @@ function BlogIdeas({ ideas }) {
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: tc.bg, color: tc.color }}>{idea.type}</span>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: pc.bg, color: pc.color }}>{idea.priority}</span>
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'var(--border, #e5e7eb)', color: 'var(--text-muted, #6b7280)' }}>~{idea.target_words} words</span>
-                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>{idea.source.replace(/_/g, ' ')}</span>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>{(idea.source || '').replace(/_/g, ' ')}</span>
                 </div>
               </div>
             </div>
