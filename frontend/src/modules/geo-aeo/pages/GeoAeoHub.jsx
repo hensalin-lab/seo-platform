@@ -97,8 +97,14 @@ export default function GeoAeoHub() {
   const eeatScore = eeatData?.eeat_score ?? null;
   const schemaCoverage = schemaData?.coverage_pct ?? schemaData?.coverage ?? null;
 
-  const llmMentions = aiVisibilityData?.llm_mentions ?? aiVisibilityData?.platforms ?? [];
-  const platformList = Array.isArray(llmMentions) ? llmMentions : Object.entries(llmMentions).map(([name, data]) => ({ name, ...(typeof data === 'object' ? data : { mentioned: data }) }));
+  const platformList = aiVisibilityData?.platforms ?? aiVisibilityData?.llm_mentions ?? [];
+  const derivedPlatforms = !Array.isArray(platformList) || platformList.length === 0
+    ? [
+        { platform: 'ChatGPT', mentioned: (aiVisibilityData?.chatgpt_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.chatgpt_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.chatgpt_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
+        { platform: 'Gemini', mentioned: (aiVisibilityData?.gemini_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.gemini_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.gemini_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
+        { platform: 'Perplexity', mentioned: (aiVisibilityData?.perplexity_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.perplexity_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.perplexity_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
+      ]
+    : (Array.isArray(platformList) ? platformList : Object.entries(platformList).map(([name, data]) => ({ platform: name, ...(typeof data === 'object' ? data : { mentioned: data }) })));
 
   const eeatSignals = eeatData?.signals ?? {};
   const signalCategories = [
@@ -163,7 +169,7 @@ export default function GeoAeoHub() {
                 </tr>
               </thead>
               <tbody>
-                {platformList.length > 0 ? platformList.map((p, i) => {
+                {derivedPlatforms.length > 0 ? derivedPlatforms.map((p, i) => {
                   const name = p.platform || p.name || p;
                   const mentioned = p.mentioned ?? p.is_mentioned ?? null;
                   const sentiment = p.sentiment ?? null;
