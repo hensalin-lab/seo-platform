@@ -664,7 +664,7 @@ async def get_ai_providers_status():
         "groq": ("GROQ_API_KEY", "Groq Llama 3.3 70B", "Paste a fresh key from console.groq.com/keys"),
         "cerebras": ("CEREBRAS_API_KEY", "Cerebras Gemma 4 31B", "Paste a fresh key from cloud.cerebras.ai"),
         "ollama": ("OLLAMA_BASE_URL", "Ollama (local)", "Runs locally on the machine where audits execute"),
-        "gemini": ("GEMINI_API_KEY", "Gemini 2.0 Flash", "Paste a fresh key from aistudio.google.com/apikey"),
+        "gemini": ("GEMINI_API_KEY", "Gemini 3.5 Flash", "Paste a fresh key from aistudio.google.com/apikey"),
     }
     result = []
     for name, (env, label, guidance) in env_map.items():

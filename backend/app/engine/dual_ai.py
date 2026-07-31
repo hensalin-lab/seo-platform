@@ -282,17 +282,17 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
     if task == "rewrite":
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
-        task_map["gemini-2.5-flash"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     elif task == "competitor":
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
-        task_map["gemini-2.5-flash"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     else:
         task_map.update({
             "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
             "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
             "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
-            "gemini-2.5-flash": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
+            "gemini": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
         })
     tasks = {name: asyncio.create_task(coro, name=name) for name, coro in task_map.items()}
     done, _ = await asyncio.wait(tasks.values(), timeout=30, return_when=asyncio.ALL_COMPLETED)
