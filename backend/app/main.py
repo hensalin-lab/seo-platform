@@ -15,6 +15,7 @@ from app.api.webhooks import router as webhook_router
 from app.api.scheduled import router as scheduled_router
 from app.api.whitelabel import router as whitelabel_router
 from app.api.oauth import router as oauth_router
+from app.api.action_studio import router as action_studio_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -66,6 +67,7 @@ app.include_router(webhook_router)
 app.include_router(scheduled_router)
 app.include_router(whitelabel_router)
 app.include_router(oauth_router)
+app.include_router(action_studio_router)
 
 
 @app.get("/api/health")

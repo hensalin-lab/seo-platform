@@ -235,6 +235,27 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* AI ACTION STUDIO CTA */}
+          <div className="card card-3d animate-in" style={{ animationDelay: '80ms', marginBottom: 20, cursor: 'pointer' }}
+            onClick={() => navigate(`/audit/${displayAudit.audit_id}/action-studio`)}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sparkles size={20} style={{ color: 'var(--accent)' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>AI Action Studio</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                    What's wrong, which page, exactly where, and how to fix it — AI-ranked with one-click fixes
+                  </div>
+                </div>
+              </div>
+              <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                Open Action Studio <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+
           {/* STATS ROW */}
           <div className="stats-row stagger">
             {[

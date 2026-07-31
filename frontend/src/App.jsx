@@ -67,6 +67,7 @@ import GeoAeoHub from './modules/geo-aeo/pages/GeoAeoHub';
 import AeoAnalysis from './modules/geo-aeo/pages/AeoAnalysis';
 import GeoAnalysis from './modules/geo-aeo/pages/GeoAnalysis';
 import ActionCenter from './modules/action-center/pages/ActionCenter';
+import ActionStudio from './modules/action-center/pages/ActionStudio';
 import ContentStudio from './modules/content-keywords/pages/ContentStudio';
 import './index.css';
 
@@ -91,6 +92,7 @@ export default function App() {
           <Route path="/audit/:id/aeo-analysis" element={<ProtectedRoute><AeoAnalysis /></ProtectedRoute>} />
           <Route path="/audit/:id/geo-analysis" element={<ProtectedRoute><GeoAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/action-center" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
+          <Route path="/audit/:id/action-studio" element={<ProtectedRoute><ActionStudio /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-studio" element={<ProtectedRoute><ContentStudio /></ProtectedRoute>} />
                   <Route path="/audit/:id/seo" element={<ProtectedRoute><SeoAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/pages" element={<ProtectedRoute><PageIntelligenceV2 /></ProtectedRoute>} />

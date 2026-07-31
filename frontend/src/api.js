@@ -90,6 +90,7 @@ export const api = {
   getEeatAnalysis: (id) => request(`/audit/${id}/eeat-analysis`),
   getConversionAnalysis: (id) => request(`/audit/${id}/conversion-analysis`),
   getHistory: (limit = 20, offset = 0) => request(`/audit/history?limit=${limit}&offset=${offset}`),
+  getActionStudio: (id) => request(`/audit/${id}/action-studio`),
   deleteAudit: (id) => request(`/audit/${id}`, { method: 'DELETE' }),
   chat: (auditId, message) => request(`/audit/${auditId}/chat`, {
     method: 'POST',
