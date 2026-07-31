@@ -131,9 +131,17 @@ Return JSON with this exact structure:
 Website: {audit_context.get('website_url', 'N/A')}
 Overall Score: {audit_context.get('overall_score', 0)}/100
 SEO Score: {audit_context.get('seo_score', 0)}/100
+Technical Score: {audit_context.get('technical_score', 0)}/100
 Content Score: {audit_context.get('content_score', 0)}/100
 AEO Score: {audit_context.get('aeo_score', 0)}/100
+GEO Score: {audit_context.get('geo_score', 0)}/100
 Total Issues: {audit_context.get('total_issues', 0)}
+
+Relevant issues from the audit (ranked by relevance to your question):
+{json.dumps(audit_context.get('top_issues', [])[:8], default=str)}
+
+Conversation history (recent turns):
+{audit_context.get('chat_history', '')}
 
 User question: {message}
 
@@ -151,7 +159,7 @@ Provide a clear, actionable answer. Be specific and reference their actual data.
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.4,
-            "max_tokens": 1024,
+            "max_tokens": 2048,
         }
 
         try:

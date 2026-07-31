@@ -11,6 +11,7 @@ from app.models import (
     Audit, Page, Issue, Recommendation, CompetitorData,
     AuditScore, PageAnalysisRecord, KeywordRecord, RoadmapRecord,
     ChatMessage, KeywordData, ContentData, AIVisibilityData,
+    CoreWebVitals,
 )
 
 logger = logging.getLogger(__name__)
@@ -1238,19 +1239,34 @@ async def chat_with_ai(audit_id: str, body: dict, db: AsyncSession = Depends(get
     score_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = score_result.scalar_one_or_none()
 
-    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id).limit(20))
+    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id).limit(30))
     issues = issues_result.scalars().all()
 
-    # Try OpenAI first
+    recent_chat_result = await db.execute(
+        select(ChatMessage).where(ChatMessage.audit_id == audit_id).order_by(ChatMessage.created_at.desc()).limit(8)
+    )
+    recent_chat = list(reversed(recent_chat_result.scalars().all()))
+
+    memory_context = ""
+    if recent_chat:
+        history_lines = [f"{m.role}: {m.content[:500]}" for m in recent_chat if m.role != "user" or m.content == message]
+        memory_context = "\n".join(history_lines)
+
+    retrieved = _retrieve_audit_context(message, issues)
+
     if openai_engine.available:
         try:
             audit_context = {
                 "website_url": audit.website_url,
                 "overall_score": scores.overall_score if scores else 0,
                 "seo_score": scores.seo_score if scores else 0,
-                "content_score": scores.content_score if scores else 0,
+                "technical_score": scores.technical_score if scores else 0,
                 "aeo_score": scores.aeo_score if scores else 0,
+                "geo_score": scores.geo_score if scores else 0,
+                "content_score": scores.content_score if scores else 0,
                 "total_issues": len(issues),
+                "top_issues": retrieved,
+                "chat_history": memory_context,
             }
             response = await openai_engine.chat(message, audit_context)
             if response:
@@ -1269,9 +1285,15 @@ SEO: {scores.seo_score if scores else 0} | Technical: {scores.technical_score if
 AEO: {scores.aeo_score if scores else 0} | GEO: {scores.geo_score if scores else 0}
 Top issues: {', '.join([i.signal_name for i in issues[:5]])}
 
+Relevant audit context for this question:
+{json.dumps(retrieved[:8], default=str)}
+
+Conversation history:
+{memory_context}
+
 User question: {message}
 
-Provide a helpful, specific, actionable response. Be concise."""
+Provide a helpful, specific, actionable response. Reference the audit data above. Be concise."""
         response = await ai._call_text(context)
         if response:
             db.add(ChatMessage(audit_id=audit_id, role="assistant", content=response))
@@ -1282,6 +1304,34 @@ Provide a helpful, specific, actionable response. Be concise."""
     db.add(ChatMessage(audit_id=audit_id, role="assistant", content=fallback))
     await db.commit()
     return {"response": fallback, "role": "assistant"}
+
+
+def _retrieve_audit_context(message: str, issues: list) -> list:
+    """Lightweight retrieval: rank issues by keyword overlap with the user's question."""
+    msg_lower = message.lower()
+    tokens = [t for t in re.findall(r"[a-z0-9]{3,}", msg_lower) if t not in (
+        "what", "which", "where", "when", "about", "help", "this", "that", "with", "from", "have",
+        "were", "there", "your", "site", "page", "pages", "audit", "analysis",
+    )]
+    if not tokens:
+        return [{
+            "page_url": i.page_url, "category": i.category, "severity": i.severity,
+            "signal_name": i.signal_name, "description": i.description, "fix": i.fix,
+        } for i in issues[:5]]
+    scored = []
+    for i in issues:
+        haystack = f"{i.signal_name} {i.description} {i.fix} {i.category}".lower()
+        overlap = sum(1 for t in tokens if t in haystack)
+        if overlap:
+            scored.append((overlap, i))
+    scored.sort(key=lambda x: -x[0])
+    ranked = [i for _, i in scored[:8]]
+    if not ranked:
+        ranked = issues[:5]
+    return [{
+        "page_url": i.page_url, "category": i.category, "severity": i.severity,
+        "signal_name": i.signal_name, "description": i.description, "fix": i.fix,
+    } for i in ranked]
 
 
 @router.delete("/audit/{audit_id}")
@@ -2409,6 +2459,9 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
     )
     seo_issues = issues_result.scalars().all()
 
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+
     all_outbound = []
     for p in pages:
         for link in (p.links_external or []):
@@ -2440,10 +2493,15 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
         outbound_score += 10
     outbound_score = min(outbound_score, 100)
 
-    broken_outbound = []
-    for link in all_outbound:
-        if link["url"] and any(kw in link["url"].lower() for kw in ["404", "error", "broken", "not-found"]):
-            broken_outbound.append(link)
+    from app.engine.backlink_intelligence import BacklinkAnalyzer
+    analyzer = BacklinkAnalyzer()
+    inbound = {}
+    if audit and audit.website_url:
+        try:
+            inbound = await analyzer.analyze(audit.website_url, all_outbound)
+        except Exception as e:
+            logger.warning(f"Backlink analysis failed: {e}")
+            inbound = {"note": f"Backlink analysis error: {e}"}
 
     return {
         "backlink_score": outbound_score,
@@ -2463,9 +2521,18 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
             [{"url": p.url, "count": len(p.links_external or [])} for p in pages if p.links_external],
             key=lambda x: x["count"], reverse=True
         )[:10],
+        "inbound_metrics": inbound.get("metrics", {}),
+        "inbound_backlinks": inbound.get("backlinks", [])[:50],
+        "inbound_referring_domains": inbound.get("referring_domains", [])[:50],
+        "inbound_anchor_distribution": inbound.get("anchor_text_distribution", []),
+        "inbound_follow_ratio": inbound.get("follow_ratio", 0),
+        "inbound_toxic_links": inbound.get("toxic_links", []),
+        "outbound_link_profile": inbound.get("outbound_link_profile", {}),
+        "backlink_source": inbound.get("source", "crawl-derived"),
+        "backlink_note": inbound.get("note", ""),
         "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in seo_issues[:20]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict) and v.get("category") == "SEO"},
-        "note": "This site cannot analyze inbound backlinks without third-party API access (Ahrefs, Moz, etc.). These are outbound link metrics from your own pages.",
+        "note": "Backlink data combines crawl-derived outbound link intelligence with DataForSEO inbound data when DATAFORSEO_LOGIN/PASSWORD are configured.",
     }
 
 
@@ -5570,6 +5637,74 @@ async def get_page_speed_live(audit_id: str, url: str = "", strategy: str = "mob
     data = await engine.analyze(target_url, strategy)
     _cache_set(cache_key, data)
     return data
+
+
+@router.get("/audit/{audit_id}/core-web-vitals")
+async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = Depends(get_db)):
+    from app.engine.pagespeed_engine import PageSpeedEngine
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    target_url = url or audit.website_url
+
+    stored = await db.execute(select(CoreWebVitals).where(CoreWebVitals.audit_id == audit_id, CoreWebVitals.url == target_url).order_by(CoreWebVitals.created_at.desc()))
+    stored_row = stored.scalars().first()
+    if stored_row:
+        return {
+            "url": target_url,
+            "strategy": stored_row.strategy,
+            "lcp_ms": stored_row.lcp_ms,
+            "cls": stored_row.cls,
+            "inp_ms": stored_row.inp_ms,
+            "fcp_ms": stored_row.fcp_ms,
+            "ttfb_ms": stored_row.ttfb_ms,
+            "performance_score": stored_row.performance_score,
+            "field_data": stored_row.field_data or {},
+            "lab_data": stored_row.lab_data or {},
+            "source": "stored",
+        }
+
+    engine = PageSpeedEngine()
+    data = await engine.analyze(target_url, "mobile")
+    assessment = data.get("core_web_vitals", {}).get("_assessment", {})
+    field = data.get("field_data", {})
+    lab = data.get("core_web_vitals", {})
+
+    row = CoreWebVitals(
+        audit_id=audit_id,
+        url=target_url,
+        strategy="mobile",
+        lcp_ms=(field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value"),
+        cls=(field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value"),
+        inp_ms=(field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value"),
+        fcp_ms=(field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value"),
+        ttfb_ms=(field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value"),
+        performance_score=data.get("performance_score", 0),
+        field_data=field,
+        lab_data=data,
+    )
+    db.add(row)
+    try:
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to store CWV: {e}")
+        await db.rollback()
+
+    return {
+        "url": target_url,
+        "strategy": "mobile",
+        "lcp_ms": row.lcp_ms,
+        "cls": row.cls,
+        "inp_ms": row.inp_ms,
+        "fcp_ms": row.fcp_ms,
+        "ttfb_ms": row.ttfb_ms,
+        "performance_score": data.get("performance_score", 0),
+        "assessment": assessment,
+        "field_data": field,
+        "lab_data": data,
+        "source": "live",
+    }
 
 
 @router.get("/audit/{audit_id}/ga4-traffic")

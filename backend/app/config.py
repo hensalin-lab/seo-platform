@@ -44,8 +44,14 @@ class Settings(BaseSettings):
     CRAWLER_MAX_PAGES: int = 100
     CRAWLER_MAX_DEPTH: int = 10
     CRAWLER_CONCURRENCY: int = 15
-    CRAWLER_USER_AGENT: str = "SEOIntelligenceBot/2.0"
+    CRAWLER_USER_AGENT: str = "SEOIntelligenceBot/2.0 (+https://seo-platform.app; SEO analysis crawler)"
     CRAWLER_VERIFY_SSL: bool = True
+    CRAWLER_RESPECT_ROBOTS: bool = True
+    CRAWLER_POLITE_DELAY: float = 0.2
+    CRAWLER_SITEMAP_SEEDING: bool = True
+    CRAWLER_SITEMAP_MAX_PAGES: int = 300
+    CRAWLER_JS_RENDER: bool = False
+    CRAWLER_HTML_RAW_LIMIT: int = 200000
 
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
@@ -72,6 +78,9 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str = "http://localhost:8001/api/oauth/callback"
 
     PAGESPEED_API_KEY: str = ""
+
+    DATAFORSEO_LOGIN: str = ""
+    DATAFORSEO_PASSWORD: str = ""
 
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 

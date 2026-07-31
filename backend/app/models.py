@@ -56,6 +56,10 @@ class Audit(Base):
     keyword_data = relationship("KeywordData", back_populates="audit", uselist=False, cascade="all, delete-orphan")
     content_data = relationship("ContentData", back_populates="audit", uselist=False, cascade="all, delete-orphan")
     ai_visibility_data = relationship("AIVisibilityData", back_populates="audit", uselist=False, cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="audit", cascade="all, delete-orphan")
+    backlinks = relationship("Backlink", back_populates="audit", cascade="all, delete-orphan")
+    referring_domains = relationship("ReferringDomain", back_populates="audit", cascade="all, delete-orphan")
+    core_web_vitals = relationship("CoreWebVitals", back_populates="audit", cascade="all, delete-orphan")
 
 
 class AuditScore(Base):
@@ -363,6 +367,7 @@ class ChatMessage(Base):
     role = Column(String, default="user")
     content = Column(Text, default="")
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    audit = relationship("Audit", back_populates="chat_messages")
 
 
 class User(Base):
@@ -464,3 +469,65 @@ class WhiteLabelSettings(Base):
     custom_domain = Column(String, default="")
     is_active = Column(Boolean, default=False)
     user = relationship("User", back_populates="white_label")
+
+
+class Backlink(Base):
+    __tablename__ = "backlinks"
+    __table_args__ = (
+        Index("ix_backlinks_audit_id", "audit_id"),
+        Index("ix_backlinks_target", "target_url"),
+        Index("ix_backlinks_source", "source_domain"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    source_url = Column(String, default="")
+    source_domain = Column(String, default="")
+    target_url = Column(String, default="")
+    anchor_text = Column(Text, default="")
+    is_follow = Column(Boolean, default=True)
+    first_seen = Column(DateTime, default=_dt.datetime.utcnow)
+    last_seen = Column(DateTime, default=_dt.datetime.utcnow)
+    dofollow_density = Column(Float, default=0.0)
+    domain_authority = Column(Float, default=0.0)
+    toxic_score = Column(Float, default=0.0)
+    audit = relationship("Audit")
+
+
+class ReferringDomain(Base):
+    __tablename__ = "referring_domains"
+    __table_args__ = (
+        Index("ix_rd_audit_id", "audit_id"),
+        Index("ix_rd_domain", "domain"),
+        Index("ix_rd_audit_domain", "audit_id", "domain"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    domain = Column(String, default="")
+    link_count = Column(Integer, default=0)
+    domain_authority = Column(Float, default=0.0)
+    toxic_score = Column(Float, default=0.0)
+    first_seen = Column(DateTime, default=_dt.datetime.utcnow)
+    last_seen = Column(DateTime, default=_dt.datetime.utcnow)
+    audit = relationship("Audit")
+
+
+class CoreWebVitals(Base):
+    __tablename__ = "core_web_vitals"
+    __table_args__ = (
+        Index("ix_cwv_audit_id", "audit_id"),
+        Index("ix_cwv_url", "url"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    url = Column(String, default="")
+    strategy = Column(String, default="mobile")
+    lcp_ms = Column(Float, nullable=True)
+    cls = Column(Float, nullable=True)
+    inp_ms = Column(Float, nullable=True)
+    fcp_ms = Column(Float, nullable=True)
+    ttfb_ms = Column(Float, nullable=True)
+    performance_score = Column(Float, default=0.0)
+    field_data = Column(JSON, default=dict)
+    lab_data = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    audit = relationship("Audit")

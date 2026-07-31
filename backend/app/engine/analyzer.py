@@ -806,6 +806,46 @@ class AnalyzerEngine:
         has_robots = any("/robots.txt" in (p.url or "").lower() for p in pages)
         result.add_signal(sid, "Robots.txt Presence", "AI_SEARCH", 1.0 if has_robots else 0.2, 0.6, "robots.txt found" if has_robots else "robots.txt not found in crawl", "", "")
 
+        self._analyze_ai_crawler_access(pages, result, all_text)
+
+    def _analyze_ai_crawler_access(self, pages, result, all_text):
+        """Detect whether AI crawlers (GPTBot, CCBot, PerplexityBot, OAI-SearchBot) can access the site."""
+        ai_crawlers = ["gptbot", "ccbot", "perplexitybot", "oai-searchbot", "aiextractor", "imagesiftbot", "anthropic-ai"]
+        robots_text = ""
+        for p in pages:
+            if "/robots.txt" in (p.url or "").lower():
+                robots_text = p.content_text or ""
+                break
+
+        allowed = []
+        blocked = []
+        if robots_text:
+            lower = robots_text.lower()
+            for crawler in ai_crawlers:
+                if crawler in lower:
+                    allowed.append(crawler)
+                else:
+                    blocked.append(crawler)
+            sid = self._sid()
+            score = min(len(allowed) / 3, 1.0)
+            detail = "AI crawlers allowed" if allowed else "robots.txt found but no AI crawler directives"
+            result.add_signal(
+                sid, "AI Crawler Accessibility", "AI_SEARCH", score, 0.8,
+                f"{detail}: {', '.join(allowed) if allowed else 'GPTBot, CCBot, PerplexityBot not explicitly allowed'}", "", "",
+            )
+
+        sid = self._sid()
+        has_llms = any("/llms.txt" in (p.url or "").lower() for p in pages)
+        result.add_signal(sid, "LLMs.txt for AI Access", "AI_SEARCH", 1.0 if has_llms else 0.0, 0.6, "llms.txt found" if has_llms else "No llms.txt — add for AI discoverability", "", "")
+
+        sid = self._sid()
+        stats = sum(1 for kw in ["according to", "study found", "data shows", "research indicates", "statistics show", "survey of"] if kw in all_text.lower())
+        result.add_signal(sid, "Statistical Authority", "AI_SEARCH", min(stats / 3, 1.0), 0.6, f"{stats} statistical references", "", "")
+
+        sid = self._sid()
+        direct_answers = sum(1 for p in pages if any(h["level"] in ("H2", "H3") and (h["text"].lower().startswith(("what", "how", "why", "when", "where", "can", "do", "does", "is"))) for h in p.headings))
+        result.add_signal(sid, "Direct Answer Content", "AI_SEARCH", min(direct_answers / 3, 1.0), 0.7, f"{direct_answers} pages with question-form headings", "", "")
+
     def _analyze_content_intelligence(self, pages, result, all_text):
         thin_pages = [p for p in pages if 0 < p.word_count < 300 and p.status_code == 200]
         all_counted = [p for p in pages if p.word_count > 0 and p.status_code == 200]

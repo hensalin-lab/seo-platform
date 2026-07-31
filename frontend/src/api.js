@@ -85,6 +85,8 @@ export const api = {
   getSchemaAnalysis: (id) => request(`/audit/${id}/schema-analysis`),
   getInternalLinks: (id) => request(`/audit/${id}/internal-links`),
   getPageSpeed: (id) => request(`/audit/${id}/page-speed`),
+  getPageSpeedLive: (id, url, strategy = 'mobile') => request(`/audit/${id}/page-speed-live?url=${encodeURIComponent(url)}&strategy=${strategy}`),
+  getCoreWebVitals: (id, url = '') => request(`/audit/${id}/core-web-vitals?url=${encodeURIComponent(url)}`),
   getEeatAnalysis: (id) => request(`/audit/${id}/eeat-analysis`),
   getConversionAnalysis: (id) => request(`/audit/${id}/conversion-analysis`),
   getHistory: (limit = 20) => request(`/audit/history?limit=${limit}`),

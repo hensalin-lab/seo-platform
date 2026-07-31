@@ -30,6 +30,7 @@ async def init_db():
         KeywordRecord, RoadmapRecord, ChatMessage,
         RoadmapItem, KeywordData, ContentData, AIVisibilityData,
         User, APIKey, Session, Webhook, ScheduledAudit, WhiteLabelSettings,
+        Backlink, ReferringDomain, CoreWebVitals,
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

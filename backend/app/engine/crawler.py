@@ -2,7 +2,10 @@ import asyncio
 import hashlib
 import logging
 import time
+import random
+import re
 from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 from typing import Optional
 
 import httpx
@@ -12,6 +15,15 @@ import tldextract
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+]
+
+HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml", "application/xhtml", "text/plain")
 
 
 class PageData:
@@ -42,6 +54,7 @@ class PageData:
         self.language: str = ""
         self.https: bool = False
         self.page_type: str = ""
+        self.rendered_with_js: bool = False
 
 
 class CrawlerEngine:
@@ -50,6 +63,9 @@ class CrawlerEngine:
         self.pages: list[PageData] = []
         self._semaphore = asyncio.Semaphore(settings.CRAWLER_CONCURRENCY)
         self._client: Optional[httpx.AsyncClient] = None
+        self._robot_parsers: dict[str, RobotFileParser] = {}
+        self._robots_cache: dict[str, Optional[RobotFileParser]] = {}
+        self._last_request_time: float = 0.0
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -64,6 +80,42 @@ class CrawlerEngine:
     async def close(self):
         if self._client and not self._client.is_closed:
             await self._client.aclose()
+
+    def _next_user_agent(self) -> str:
+        return random.choice(USER_AGENTS)
+
+    async def _respect_polite_delay(self):
+        delay = max(settings.CRAWLER_POLITE_DELAY, 0.05)
+        elapsed = time.time() - self._last_request_time
+        if elapsed < delay:
+            await asyncio.sleep(delay - elapsed)
+        self._last_request_time = time.time()
+
+    async def _robots_allowed(self, url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+            domain_key = f"{parsed.scheme}://{parsed.netloc}"
+            if domain_key in self._robots_cache:
+                rp = self._robots_cache[domain_key]
+                if rp is None:
+                    return True
+                return rp.can_fetch(settings.CRAWLER_USER_AGENT, url)
+            rp = None
+            robots_url = f"{domain_key}/robots.txt"
+            try:
+                client = await self._get_client()
+                resp = await client.get(robots_url, timeout=8)
+                if resp.status_code == 200 and "text/plain" in resp.headers.get("content-type", ""):
+                    rp = RobotFileParser()
+                    rp.parse(resp.text.splitlines())
+            except Exception:
+                pass
+            self._robots_cache[domain_key] = rp
+            if rp is None:
+                return True
+            return rp.can_fetch(settings.CRAWLER_USER_AGENT, url)
+        except Exception:
+            return True
 
     def _normalize_url(self, url: str, base_url: str) -> Optional[str]:
         try:
@@ -99,10 +151,80 @@ class CrawlerEngine:
         path = urlparse(url).path.lower()
         return any(path.endswith(ext) for ext in skip_ext)
 
+    async def _fetch_sitemap_urls(self, start_url: str) -> list[str]:
+        parsed = urlparse(start_url)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+        candidates = [
+            f"{base}/sitemap.xml",
+            f"{base}/sitemap_index.xml",
+            f"{base}/sitemap-index.xml",
+            f"{base}/sitemap/sitemap.xml",
+        ]
+        client = await self._get_client()
+        for sitemap_url in candidates:
+            try:
+                resp = await client.get(sitemap_url, timeout=10)
+                if resp.status_code != 200:
+                    continue
+                text = resp.text
+                if "<urlset" not in text and "<sitemapindex" not in text:
+                    continue
+                urls = []
+                if "<sitemapindex" in text:
+                    for loc in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", text):
+                        try:
+                            sub_resp = await client.get(loc.strip(), timeout=10)
+                            if sub_resp.status_code == 200:
+                                urls.extend(re.findall(r"<loc>\s*([^<]+?)\s*</loc>", sub_resp.text))
+                        except Exception:
+                            continue
+                else:
+                    urls = re.findall(r"<loc>\s*([^<]+?)\s*</loc>", text)
+                normalized = []
+                seen = set()
+                for u in urls:
+                    nu = self._normalize_url(u.strip(), base)
+                    if nu and self._is_same_domain(nu, start_url) and nu not in seen:
+                        seen.add(nu)
+                        normalized.append(nu)
+                if normalized:
+                    logger.info(f"Sitemap seeding: {len(normalized)} URLs from {sitemap_url}")
+                    return normalized[: settings.CRAWLER_SITEMAP_MAX_PAGES]
+            except Exception:
+                continue
+        return []
+
+    async def _render_with_js(self, url: str) -> str:
+        """Render page with headless Chromium via Playwright. Returns '' if unavailable."""
+        if not settings.CRAWLER_JS_RENDER:
+            return ""
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            logger.warning("Playwright not installed — JS rendering skipped (pip install playwright + playwright install chromium)")
+            return ""
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+                try:
+                    page = await browser.new_page(user_agent=self._next_user_agent())
+                    await page.goto(url, wait_until="domcontentloaded", timeout=min(settings.CRAWLER_TIMEOUT * 1000, 25000))
+                    await page.wait_for_timeout(2500)
+                    html = await page.content()
+                    return html
+                finally:
+                    await browser.close()
+        except Exception as e:
+            logger.warning(f"JS rendering failed for {url}: {e}")
+            return ""
+
     async def _crawl_page(self, url: str, depth: int, base_url: str, max_pages: int) -> list[str]:
         if url in self.visited or len(self.visited) >= max_pages:
             return []
         if self._is_resource_url(url):
+            return []
+        if settings.CRAWLER_RESPECT_ROBOTS and not await self._robots_allowed(url):
+            logger.debug(f"Skipping disallowed by robots.txt: {url}")
             return []
 
         async with self._semaphore:
@@ -110,9 +232,15 @@ class CrawlerEngine:
             new_urls = []
             try:
                 client = await self._get_client()
+                await self._respect_polite_delay()
                 start = time.time()
-                response = await client.get(url)
+                response = await client.get(url, headers={"User-Agent": self._next_user_agent()})
                 response_time_ms = int((time.time() - start) * 1000)
+
+                content_type = response.headers.get("content-type", "").lower()
+                if response.status_code < 400 and not any(ct in content_type for ct in HTML_CONTENT_TYPES):
+                    logger.debug(f"Skipping non-HTML response {url} (Content-Type: {content_type})")
+                    return []
 
                 redirect_chain = []
                 if hasattr(response, "history") and response.history:
@@ -125,8 +253,15 @@ class CrawlerEngine:
                 page.response_time_ms = response_time_ms
                 page.redirect_chain = redirect_chain
                 page.https = url.startswith("https")
-                page.html_raw = html[:200000]
+                page.html_raw = html[:settings.CRAWLER_HTML_RAW_LIMIT]
                 page.headers_response = {k: v for k, v in response.headers.items()}
+
+                if settings.CRAWLER_JS_RENDER and response.status_code == 200:
+                    rendered = await self._render_with_js(url)
+                    if rendered and len(rendered) > len(html) * 1.1:
+                        page.rendered_with_js = True
+                        html = rendered
+                        page.html_raw = rendered[:settings.CRAWLER_HTML_RAW_LIMIT]
 
                 if html:
                     soup = BeautifulSoup(html, "html.parser")
@@ -234,6 +369,17 @@ class CrawlerEngine:
 
         queue = [(start_url, 0)]
         pages_crawled = 0
+
+        if settings.CRAWLER_SITEMAP_SEEDING:
+            try:
+                sitemap_urls = await self._fetch_sitemap_urls(start_url)
+                for su in sitemap_urls[: max_pages - 1]:
+                    if su not in self.visited:
+                        queue.append((su, 0))
+                if sitemap_urls and on_progress:
+                    on_progress(f"Sitemap found: {len(sitemap_urls)} URLs", 10)
+            except Exception as e:
+                logger.warning(f"Sitemap seeding failed: {e}")
 
         while queue and len(self.visited) < max_pages:
             batch = []
