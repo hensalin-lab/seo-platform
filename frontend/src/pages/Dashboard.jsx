@@ -127,6 +127,7 @@ export default function Dashboard() {
   }, []);
 
   const latest = audits.find(a => a.status === 'COMPLETED');
+  const displayAudit = (id ? audits.find(a => a.audit_id === id && a.status === 'COMPLETED') : null) || latest;
   const activeId = id || latest?.audit_id;
 
   useEffect(() => {
@@ -185,22 +186,22 @@ export default function Dashboard() {
             <FloatingOrbs />
             <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 24, alignItems: 'center', position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <ScoreRing score={latest.overall_score} size={140} stroke={10} label="Overall Score" />
+                <ScoreRing score={displayAudit.overall_score} size={140} stroke={10} label="Overall Score" />
               </div>
               <div>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 4, position: 'relative', zIndex: 1 }}>
                   <span className="gradient-text-animated" style={{ WebkitTextFillColor: 'unset' }}>
-                    {latest.website_url}
+                    {displayAudit.website_url}
                   </span>
                 </h2>
                 <p style={{ opacity: 0.8, fontSize: 14, marginBottom: 16, position: 'relative', zIndex: 1 }}>
-                  Score: <strong><AnimatedNumber value={latest.overall_score || 0} duration={1400} /></strong>/100
+                  Score: <strong><AnimatedNumber value={displayAudit.overall_score || 0} duration={1400} /></strong>/100
                   <span style={{ marginLeft: 12, opacity: 0.6 }}>•</span>
-                  <span style={{ marginLeft: 12 }}><AnimatedNumber value={latest.total_pages || 0} duration={1000} /> pages crawled</span>
+                  <span style={{ marginLeft: 12 }}><AnimatedNumber value={displayAudit.total_pages || 0} duration={1000} /> pages crawled</span>
                   <span style={{ marginLeft: 12, opacity: 0.6 }}>•</span>
-                  <span style={{ marginLeft: 12 }}><AnimatedNumber value={latest.total_issues || 0} duration={1000} /> issues found</span>
+                  <span style={{ marginLeft: 12 }}><AnimatedNumber value={displayAudit.total_issues || 0} duration={1000} /> issues found</span>
                 </p>
-                <button className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.3)', position: 'relative', zIndex: 1 }} onClick={() => navigate(`/audit/${latest.audit_id}/dashboard`)}>
+                <button className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.3)', position: 'relative', zIndex: 1 }} onClick={() => navigate(`/audit/${displayAudit.audit_id}/dashboard`)}>
                   View Full Report <ArrowRight size={13} className="arrow-bounce" />
                 </button>
               </div>
@@ -218,15 +219,15 @@ export default function Dashboard() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="stagger">
               {[
-                { label: 'SEO', value: latest.seo_score, color: '#12b886', route: 'seo' },
-                { label: 'Technical', value: latest.technical_score, color: '#4c6ef5', route: 'enterprise' },
-                { label: 'AEO', value: latest.aeo_score, color: '#f59f00', route: 'ai-visibility' },
-                { label: 'GEO', value: latest.geo_score, color: '#20c997', route: 'ai-visibility' },
-                { label: 'Content', value: latest.content_score, color: '#7950f2', route: 'content' },
-                { label: 'AI Visibility', value: latest.ai_visibility_score, color: '#e64980', route: 'ai-visibility' },
+                { label: 'SEO', value: displayAudit.seo_score, color: '#12b886', route: 'seo' },
+                { label: 'Technical', value: displayAudit.technical_score, color: '#4c6ef5', route: 'enterprise' },
+                { label: 'AEO', value: displayAudit.aeo_score, color: '#f59f00', route: 'ai-visibility' },
+                { label: 'GEO', value: displayAudit.geo_score, color: '#20c997', route: 'ai-visibility' },
+                { label: 'Content', value: displayAudit.content_score, color: '#7950f2', route: 'content' },
+                { label: 'AI Visibility', value: displayAudit.ai_visibility_score, color: '#e64980', route: 'ai-visibility' },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '4px 0' }}
-                  onClick={() => navigate(`/audit/${latest.audit_id}/${s.route}`)}>
+                  onClick={() => navigate(`/audit/${displayAudit.audit_id}/${s.route}`)}>
                   <span style={{ width: 80, fontSize: 12, color: 'var(--text-muted)', textAlign: 'right' }}>{s.label}</span>
                   <ScoreBar value={s.value || 0} color={s.color} />
                 </div>
@@ -237,14 +238,14 @@ export default function Dashboard() {
           {/* STATS ROW */}
           <div className="stats-row stagger">
             {[
-              { icon: BarChart3, label: 'Pages Crawled', value: latest.total_pages, color: 'var(--accent)', route: 'enterprise', bg: 'var(--accent-light)' },
-              { icon: Zap, label: 'Total Issues', value: latest.total_issues, color: '#f59f00', route: 'seo', bg: 'var(--yellow-bg)' },
-              { icon: AlertTriangle, label: 'Critical', value: latest.critical_issues || 0, color: '#fa5252', route: 'seo', bg: 'var(--red-bg)' },
-              { icon: Brain, label: 'AI Score', value: latest.ai_visibility_score || latest.aeo_score || 0, color: '#e64980', route: 'ai-visibility', bg: 'var(--pink-bg)' },
-              { icon: TrendingUp, label: 'Signals Checked (est.)', value: latest.total_signals || (latest.total_pages ? latest.total_pages * 93 : 0), color: '#12b886', route: 'enterprise', bg: 'var(--green-bg)' },
-              { icon: Globe, label: 'Content Score', value: latest.content_score || 0, color: '#7950f2', route: 'content', bg: 'var(--purple-bg)' },
+              { icon: BarChart3, label: 'Pages Crawled', value: displayAudit.total_pages, color: 'var(--accent)', route: 'enterprise', bg: 'var(--accent-light)' },
+              { icon: Zap, label: 'Total Issues', value: displayAudit.total_issues, color: '#f59f00', route: 'seo', bg: 'var(--yellow-bg)' },
+              { icon: AlertTriangle, label: 'Critical', value: displayAudit.critical_issues || 0, color: '#fa5252', route: 'seo', bg: 'var(--red-bg)' },
+              { icon: Brain, label: 'AI Score', value: displayAudit.ai_visibility_score || displayAudit.aeo_score || 0, color: '#e64980', route: 'ai-visibility', bg: 'var(--pink-bg)' },
+              { icon: TrendingUp, label: 'Signals Checked (est.)', value: displayAudit.total_signals || (displayAudit.total_pages ? displayAudit.total_pages * 93 : 0), color: '#12b886', route: 'enterprise', bg: 'var(--green-bg)' },
+              { icon: Globe, label: 'Content Score', value: displayAudit.content_score || 0, color: '#7950f2', route: 'content', bg: 'var(--purple-bg)' },
             ].map((s, i) => (
-              <div key={i} className="stat-card hover-lift" onClick={() => navigate(`/audit/${latest.audit_id}/${s.route}`)}
+              <div key={i} className="stat-card hover-lift" onClick={() => navigate(`/audit/${displayAudit.audit_id}/${s.route}`)}
                 style={{ cursor: 'pointer' }}>
                 <div className="stat-icon" style={{ background: s.bg }}>
                   <s.icon size={18} style={{ color: s.color }} />
@@ -266,10 +267,10 @@ export default function Dashboard() {
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
                 {(() => {
-                  const seo = latest.seo_score || 0
-                  const tech = latest.technical_score || 0
-                  const content = latest.content_score || 0
-                  const ai = latest.ai_visibility_score || latest.aeo_score || 0
+                  const seo = displayAudit.seo_score || 0
+                  const tech = displayAudit.technical_score || 0
+                  const content = displayAudit.content_score || 0
+                  const ai = displayAudit.ai_visibility_score || displayAudit.aeo_score || 0
                   const strengths = []
                   const weaknesses = []
                   if (seo >= 80) strengths.push('strong SEO foundation')
@@ -281,7 +282,7 @@ export default function Dashboard() {
                   if (ai >= 70) strengths.push('solid AI search presence')
                   else if (ai < 50) weaknesses.push('AI search visibility is weak')
                   const highPriCount = deepData?.issue_summary?.CRITICAL + deepData?.issue_summary?.HIGH || deepData?.top_issues?.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').length || 0
-                  const estAfter = Math.min(98, Math.round(latest.overall_score || 0) + Math.round(highPriCount * 1.5))
+                  const estAfter = Math.min(98, Math.round(displayAudit.overall_score || 0) + Math.round(highPriCount * 1.5))
                   return (
                     <>
                       Your website has <strong>{strengths.length > 0 ? strengths.join(' and ') : 'a baseline foundation'}</strong>.
@@ -296,7 +297,7 @@ export default function Dashboard() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '10px 14px', background: 'var(--green-bg)', borderRadius: 'var(--radius-sm)' }}>
                         <ArrowUpRight size={16} style={{ color: 'var(--green)' }} />
                         <span style={{ fontWeight: 700, color: 'var(--green)' }}>
-                          <AnimatedNumber value={Math.round(latest.overall_score || 0)} duration={1200} />
+                          <AnimatedNumber value={Math.round(displayAudit.overall_score || 0)} duration={1200} />
                           <span className="arrow-bounce" style={{ margin: '0 6px' }}>→</span>
                           <AnimatedNumber value={estAfter} duration={1200} />
                         </span>
@@ -315,11 +316,11 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="stagger">
                 {[
-                  { label: 'Technical SEO', value: latest.technical_score, color: '#4c6ef5', status: (latest.technical_score || 0) >= 80 ? 'Excellent' : (latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
-                  { label: 'Content', value: latest.content_score, color: '#7950f2', status: (latest.content_score || 0) >= 80 ? 'Excellent' : (latest.content_score || 0) >= 60 ? 'Good' : 'Needs Improvement' },
-                  { label: 'AI Search', value: latest.ai_visibility_score || latest.aeo_score, color: '#e64980', status: (latest.ai_visibility_score || latest.aeo_score || 0) >= 70 ? 'Good' : (latest.ai_visibility_score || latest.aeo_score || 0) >= 50 ? 'Average' : 'Weak' },
-                  { label: 'Performance', value: deepData?.health_scores?.technical_health || deepData?.performance_score || latest.technical_score || 0, color: '#20c997', status: (deepData?.health_scores?.technical_health || deepData?.performance_score || latest.technical_score || 0) >= 80 ? 'Excellent' : (deepData?.health_scores?.technical_health || deepData?.performance_score || latest.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
-                  { label: 'Authority', value: deepData?.health_scores?.eeat_score || deepData?.authority_score || Math.min(80, (latest.seo_score || 0) + 10), color: '#f59f00', status: (deepData?.health_scores?.eeat_score || deepData?.authority_score || 0) >= 70 ? 'Good' : (deepData?.health_scores?.eeat_score || deepData?.authority_score || 0) >= 50 ? 'Average' : 'Low' },
+                  { label: 'Technical SEO', value: displayAudit.technical_score, color: '#4c6ef5', status: (displayAudit.technical_score || 0) >= 80 ? 'Excellent' : (displayAudit.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
+                  { label: 'Content', value: displayAudit.content_score, color: '#7950f2', status: (displayAudit.content_score || 0) >= 80 ? 'Excellent' : (displayAudit.content_score || 0) >= 60 ? 'Good' : 'Needs Improvement' },
+                  { label: 'AI Search', value: displayAudit.ai_visibility_score || displayAudit.aeo_score, color: '#e64980', status: (displayAudit.ai_visibility_score || displayAudit.aeo_score || 0) >= 70 ? 'Good' : (displayAudit.ai_visibility_score || displayAudit.aeo_score || 0) >= 50 ? 'Average' : 'Weak' },
+                  { label: 'Performance', value: deepData?.health_scores?.technical_health || deepData?.performance_score || displayAudit.technical_score || 0, color: '#20c997', status: (deepData?.health_scores?.technical_health || deepData?.performance_score || displayAudit.technical_score || 0) >= 80 ? 'Excellent' : (deepData?.health_scores?.technical_health || deepData?.performance_score || displayAudit.technical_score || 0) >= 60 ? 'Good' : 'Needs Work' },
+                  { label: 'Authority', value: deepData?.health_scores?.eeat_score || deepData?.authority_score || Math.min(80, (displayAudit.seo_score || 0) + 10), color: '#f59f00', status: (deepData?.health_scores?.eeat_score || deepData?.authority_score || 0) >= 70 ? 'Good' : (deepData?.health_scores?.eeat_score || deepData?.authority_score || 0) >= 50 ? 'Average' : 'Low' },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 12, width: 90, color: 'var(--text-muted)' }}>{item.label}</span>
@@ -335,19 +336,19 @@ export default function Dashboard() {
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>Score Roadmap</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, flexWrap: 'wrap' }}>
                   <span style={{ background: '#fa525218', color: '#fa5252', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>
-                    Current <AnimatedNumber value={Math.round(latest.overall_score || 0)} duration={800} />
+                    Current <AnimatedNumber value={Math.round(displayAudit.overall_score || 0)} duration={800} />
                   </span>
                   <ArrowRight size={12} className="arrow-bounce" style={{ color: 'white' }} />
                   <span style={{ background: '#f59f0018', color: '#f59f00', padding: '4px 10px', borderRadius: 6, fontWeight: 500 }}>
-                    After Critical <AnimatedNumber value={Math.min(98, Math.round((latest.overall_score || 0) + 8))} duration={800} />
+                    After Critical <AnimatedNumber value={Math.min(98, Math.round((displayAudit.overall_score || 0) + 8))} duration={800} />
                   </span>
                   <ArrowRight size={12} className="arrow-bounce" style={{ color: 'white' }} />
                   <span style={{ background: '#4c6ef518', color: '#4c6ef5', padding: '4px 10px', borderRadius: 6, fontWeight: 500 }}>
-                    After Content <AnimatedNumber value={Math.min(98, Math.round((latest.overall_score || 0) + 16))} duration={800} />
+                    After Content <AnimatedNumber value={Math.min(98, Math.round((displayAudit.overall_score || 0) + 16))} duration={800} />
                   </span>
                   <ArrowRight size={12} className="arrow-bounce" style={{ color: 'white' }} />
                   <span style={{ background: '#12b88618', color: '#12b886', padding: '4px 10px', borderRadius: 6, fontWeight: 500 }}>
-                    Target <AnimatedNumber value={Math.min(98, Math.round((latest.overall_score || 0) + 25))} duration={800} />
+                    Target <AnimatedNumber value={Math.min(98, Math.round((displayAudit.overall_score || 0) + 25))} duration={800} />
                   </span>
                 </div>
               </div>
@@ -400,10 +401,10 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {[
-                  { label: 'Estimated Traffic Gain', value: Math.round((latest.total_pages || 50) * 65), suffix: '/mo (est.)', color: '#12b886', prefix: '+' },
-                  { label: 'Ranking Opportunities', value: Math.round((latest.total_pages || 50) * 0.8), suffix: ' kw (est.)', color: '#4c6ef5', prefix: '' },
-                  { label: 'AI Citation Opportunities', value: Math.round((latest.total_pages || 50) * 0.2), suffix: ' (est.)', color: '#e64980', prefix: '' },
-                  { label: 'Estimated Lead Growth', value: Math.round(12 + (latest.total_pages || 50) * 0.05), suffix: '% (est.)', color: '#f59f00', prefix: '+' },
+                  { label: 'Estimated Traffic Gain', value: Math.round((displayAudit.total_pages || 50) * 65), suffix: '/mo (est.)', color: '#12b886', prefix: '+' },
+                  { label: 'Ranking Opportunities', value: Math.round((displayAudit.total_pages || 50) * 0.8), suffix: ' kw (est.)', color: '#4c6ef5', prefix: '' },
+                  { label: 'AI Citation Opportunities', value: Math.round((displayAudit.total_pages || 50) * 0.2), suffix: ' (est.)', color: '#e64980', prefix: '' },
+                  { label: 'Estimated Lead Growth', value: Math.round(12 + (displayAudit.total_pages || 50) * 0.05), suffix: '% (est.)', color: '#f59f00', prefix: '+' },
                 ].map((item, i) => (
                   <div key={i} className="hover-lift" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius)', padding: 14, position: 'relative', overflow: 'hidden' }}>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{item.label}</div>
@@ -418,8 +419,8 @@ export default function Dashboard() {
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>Crawl Details</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
                   <div><span style={{ color: 'var(--text-muted)' }}>Last Crawl:</span> <strong style={{ color: 'var(--green)' }}>Today</strong></div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Pages:</span> <strong><AnimatedNumber value={latest.total_pages || 0} duration={800} /></strong></div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Issues:</span> <strong><AnimatedNumber value={latest.total_issues || 0} duration={800} /></strong></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Pages:</span> <strong><AnimatedNumber value={displayAudit.total_pages || 0} duration={800} /></strong></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Issues:</span> <strong><AnimatedNumber value={displayAudit.total_issues || 0} duration={800} /></strong></div>
                 </div>
               </div>
             </div>
@@ -427,12 +428,12 @@ export default function Dashboard() {
 
           {/* CATEGORY CARDS */}
           <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
-            <CategoryCard label="SEO Analysis" score={latest.seo_score} color="#12b886" icon={Search} onClick={() => navigate(`/audit/${latest.audit_id}/seo`)} delay={0} />
-            <CategoryCard label="Technical SEO" score={latest.technical_score} color="#4c6ef5" icon={Shield} onClick={() => navigate(`/audit/${latest.audit_id}/enterprise`)} delay={60} />
-            <CategoryCard label="AI Search Optimization" score={latest.aeo_score} color="#f59f00" icon={Brain} onClick={() => navigate(`/audit/${latest.audit_id}/ai-visibility`)} delay={120} />
-            <CategoryCard label="Content Quality" score={latest.content_score} color="#7950f2" icon={FileText} onClick={() => navigate(`/audit/${latest.audit_id}/content`)} delay={180} />
-            <CategoryCard label="Internal Links" score={deepData?.internal_links_score || Math.round(70 + (latest.total_pages || 0) * 0.15)} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${latest.audit_id}/internal-links`)} delay={240} />
-            <CategoryCard label="Keyword Strategy" score={deepData?.keyword_score || Math.round(55 + (latest.total_pages || 0) * 0.1)} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${latest.audit_id}/keywords`)} delay={300} />
+            <CategoryCard label="SEO Analysis" score={displayAudit.seo_score} color="#12b886" icon={Search} onClick={() => navigate(`/audit/${displayAudit.audit_id}/seo`)} delay={0} />
+            <CategoryCard label="Technical SEO" score={displayAudit.technical_score} color="#4c6ef5" icon={Shield} onClick={() => navigate(`/audit/${displayAudit.audit_id}/enterprise`)} delay={60} />
+            <CategoryCard label="AI Search Optimization" score={displayAudit.aeo_score} color="#f59f00" icon={Brain} onClick={() => navigate(`/audit/${displayAudit.audit_id}/ai-visibility`)} delay={120} />
+            <CategoryCard label="Content Quality" score={displayAudit.content_score} color="#7950f2" icon={FileText} onClick={() => navigate(`/audit/${displayAudit.audit_id}/content`)} delay={180} />
+            <CategoryCard label="Internal Links" score={deepData?.internal_links_score || Math.round(70 + (displayAudit.total_pages || 0) * 0.15)} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${displayAudit.audit_id}/internal-links`)} delay={240} />
+            <CategoryCard label="Keyword Strategy" score={deepData?.keyword_score || Math.round(55 + (displayAudit.total_pages || 0) * 0.1)} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${displayAudit.audit_id}/keywords`)} delay={300} />
           </div>
 
           {/* DEEP DATA */}

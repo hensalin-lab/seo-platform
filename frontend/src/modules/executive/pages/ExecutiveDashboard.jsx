@@ -126,6 +126,7 @@ export default function ExecutiveDashboard() {
     geoData: null,
     aeoData: null,
     aiVisibilityData: null,
+    cwvData: null,
   });
 
   async function loadData() {
@@ -139,6 +140,7 @@ export default function ExecutiveDashboard() {
         api.getGeoAnalysis(id).catch(() => null),
         api.getAeoAnalysis(id).catch(() => null),
         api.getAIVisibility(id).catch(() => null),
+        api.getCoreWebVitals(id).catch(() => null),
       ]);
       setData({
         reportData: results[0].status === 'fulfilled' ? results[0].value : null,
@@ -147,6 +149,7 @@ export default function ExecutiveDashboard() {
         geoData: results[3].status === 'fulfilled' ? results[3].value : null,
         aeoData: results[4].status === 'fulfilled' ? results[4].value : null,
         aiVisibilityData: results[5].status === 'fulfilled' ? results[5].value : null,
+        cwvData: results[6].status === 'fulfilled' ? results[6].value : null,
       });
     } catch (err) {
       setError(err.message || 'Failed to load executive dashboard');
@@ -157,7 +160,7 @@ export default function ExecutiveDashboard() {
 
   useEffect(() => { if (id) loadData(); }, [id]);
 
-  const { reportData, healthData, geoData, aeoData, aiVisibilityData } = data;
+  const { reportData, healthData, geoData, aeoData, aiVisibilityData, cwvData } = data;
   const siteSummary = reportData?.site_summary || {};
   const overallScore = siteSummary.overall_score;
   const totalIssues = siteSummary.total_issues || 0;
@@ -180,19 +183,21 @@ export default function ExecutiveDashboard() {
         affected_pages: c.affected_pages || 1,
       }));
 
+  const platformScores = aiVisibilityData?.ai_platform_visibility?.platform_scores || {};
   const modelData = [
-    { name: 'ChatGPT', rate: aiVisibilityData?.chatgpt?.citation_rate ?? aiVisibilityData?.chatgpt_citation_rate ?? 78 },
-    { name: 'Perplexity', rate: aiVisibilityData?.perplexity?.citation_rate ?? aiVisibilityData?.perplexity_citation_rate ?? 65 },
-    { name: 'Claude', rate: aiVisibilityData?.claude?.citation_rate ?? aiVisibilityData?.claude_citation_rate ?? 72 },
-    { name: 'Google AI Overviews', rate: aiVisibilityData?.google_ai?.citation_rate ?? aiVisibilityData?.google_ai_overviews_citation_rate ?? 85 },
-    { name: 'DeepSeek', rate: aiVisibilityData?.deepseek?.citation_rate ?? aiVisibilityData?.deepseek_citation_rate ?? 42 },
-  ];
+    { name: 'ChatGPT', rate: platformScores.chatgpt?.score ?? aiVisibilityData?.chatgpt_visibility ?? null },
+    { name: 'Gemini', rate: platformScores.gemini?.score ?? aiVisibilityData?.gemini_visibility ?? null },
+    { name: 'Perplexity', rate: platformScores.perplexity?.score ?? aiVisibilityData?.perplexity_visibility ?? null },
+  ].filter(m => m.rate != null);
 
   const modelColors = ['var(--accent)', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444'];
   const lastCrawl = aiVisibilityData?.last_crawl || aiVisibilityData?.last_crawled || aiVisibilityData?.crawl_timestamp || null;
   const lastCrawlMinutes = lastCrawl
     ? Math.round((Date.now() - new Date(lastCrawl).getTime()) / 60000)
-    : 12;
+    : null;
+  const cwvScore = cwvData?.assessment?.score ?? cwvData?.performance_score;
+  const cwvLcp = cwvData?.field_data?.lcp?.value || cwvData?.lab_data?.lcp?.value || cwvData?.assessment?.lcp || null;
+  const cwvInp = cwvData?.field_data?.inp?.value || cwvData?.assessment?.inp || null;
 
   if (loading) {
     return (
@@ -279,10 +284,10 @@ export default function ExecutiveDashboard() {
       {/* KPI Metric Cards (4 cards) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28, marginTop: 24 }}>
         {[
-          { icon: Search, label: 'Technical SEO Score', score: siteSummary.seo_score, trend: '+3.2%', up: true, color: 'var(--accent)' },
-          { icon: Bot, label: 'GEO Citation Rate', score: geoData?.geo_visibility_score ?? geoData?.geo_score ?? '-', trend: '+12.1%', up: true, color: '#22c55e' },
-           { icon: Layers, label: 'AEO Answer Share', score: aeoData ? (aeoData.answer_count ?? aeoData.total_answers ?? aeoData.aeo_score) : 'N/A', trend: '—', up: true, color: '#f59e0b' },
-          { icon: Activity, label: 'Core Web Vitals', score: siteSummary.cwv_status || 'N/A', trend: siteSummary.cwv_lcp ? `LCP ${siteSummary.cwv_lcp}` : '—', up: true, color: '#3b82f6' },
+          { icon: Search, label: 'Technical SEO Score', score: siteSummary.seo_score ?? 'N/A', trend: '—', up: true, color: 'var(--accent)' },
+          { icon: Bot, label: 'GEO Score', score: geoData?.geo_visibility_score ?? geoData?.geo_score ?? 'N/A', trend: '—', up: true, color: '#22c55e' },
+          { icon: Layers, label: 'AEO Score', score: aeoData?.aeo_score ?? 'N/A', trend: '—', up: true, color: '#f59e0b' },
+          { icon: Activity, label: 'Core Web Vitals', score: cwvScore > 0 ? Math.round(cwvScore) : 'N/A', trend: cwvScore > 0 && cwvLcp ? `LCP ${cwvLcp}` : '—', up: true, color: '#3b82f6' },
         ].map((kpi, i) => (
           <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -339,6 +344,9 @@ export default function ExecutiveDashboard() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {modelData.length === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>No AI platform data available for this audit.</div>
+            )}
             {modelData.map((m, i) => (
               <div key={m.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -354,10 +362,10 @@ export default function ExecutiveDashboard() {
 
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Last LLM Crawl: {lastCrawlMinutes < 1 ? '<1' : lastCrawlMinutes} min ago
+              {lastCrawlMinutes != null ? `Last LLM Crawl: ${lastCrawlMinutes < 1 ? '<1' : lastCrawlMinutes} min ago` : `Based on ${aiVisibilityData?.pages_analyzed ?? 0} analyzed pages`}
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#22c55e', fontWeight: 600 }}>
-              <CheckCircle size={10} /> All Models Live
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: modelData.length > 0 ? '#22c55e' : '#94a3b8', fontWeight: 600 }}>
+              <CheckCircle size={10} /> {modelData.length > 0 ? 'Real-time Analysis' : 'No Data'}
             </span>
           </div>
         </div>
@@ -374,7 +382,7 @@ export default function ExecutiveDashboard() {
           <ScoreBadge label="Content Score" score={siteSummary.content_score} icon={Layers} />
           <ScoreBadge label="GEO Score" score={geoData?.geo_visibility_score ?? geoData?.geo_score} icon={Globe} />
           <ScoreBadge label="AEO Score" score={aeoData?.aeo_score} icon={Brain} />
-          <ScoreBadge label="AI Visibility Score" score={siteSummary.ai_visibility_score} icon={Bot} />
+          <ScoreBadge label="AI Visibility Score" score={aiVisibilityData?.ai_visibility_score ?? siteSummary.ai_visibility_score} icon={Bot} />
         </div>
       </div>
     </div>

@@ -720,7 +720,12 @@ async def run_audit_task(audit_id: str):
 
             ai_vis_score = 0
             if ai_visibility and ai_visibility.get("_source") != "unavailable":
-                ai_vis_score = (ai_visibility.get("chatgpt_visibility", 0) + ai_visibility.get("gemini_visibility", 0) + ai_visibility.get("perplexity_visibility", 0)) / 3
+                factors = ai_visibility.get("citation_readiness_factors", [])
+                if factors:
+                    factor_weight = {"present": 100, "partial": 50, "missing": 0}
+                    ai_vis_score = sum(factor_weight.get(f.get("status", "missing"), 0) for f in factors if isinstance(f, dict)) / max(len(factors), 1)
+                else:
+                    ai_vis_score = (ai_visibility.get("chatgpt_visibility", 0) + ai_visibility.get("gemini_visibility", 0) + ai_visibility.get("perplexity_visibility", 0)) / 3
 
             await update_status(AuditStatus.REPORT_QA.value, 95, "Running self-QA linter...")
 
