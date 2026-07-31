@@ -230,6 +230,116 @@ async def get_audit_compare(audit_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+_CTA_PHRASES = ["Learn how", "Discover", "Get started", "Try free", "Explore", "Start your free trial"]
+
+
+def _trim_len(s: str, hi: int = 158) -> str:
+    s = re.sub(r"\s+", " ", (s or "")).strip()
+    if len(s) <= hi:
+        return s
+    cut = s[:hi].rsplit(" ", 1)[0]
+    return cut.rstrip(".,;:")
+
+
+def _strip_tail_punct(s: str) -> str:
+    return re.sub(r"[\s.?!;:]+$", "", s or "").rstrip()
+
+
+def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dict:
+    name = signal_name or ""
+    lower = name.lower()
+    sid = str(signal_id or "").upper()
+
+    meta = (page.meta_description or "").strip() if page else ""
+    title = (page.title or "").strip() if page else ""
+    h1 = (page.h1 or "").strip() if page else ""
+
+    # ---- WHERE: the exact element on the page ----
+    where = "page body content"
+    if "description" in lower or "meta tag" in lower or sid.startswith("M00"):
+        where = '<meta name="description" content="..."> in the <head> of this page'
+    elif "title" in lower or sid.startswith("T00"):
+        where = "<title> tag in the <head> of this page"
+    elif "h1" in lower:
+        where = "the <h1> tag near the top of the page"
+    elif "heading" in lower:
+        where = "<h1>–<h3> heading tags in the page body"
+    elif "alt" in lower or "image" in lower:
+        where = 'the alt="..." attribute on <img> tags'
+    elif "link" in lower:
+        where = '<a href="..."> internal link tags in the page body'
+    elif "canonical" in lower:
+        where = '<link rel="canonical" href="..."> in the <head>'
+    elif "faq" in lower:
+        where = "bottom of the page body (after the main content)"
+    elif "schema" in lower or "structured" in lower or "json" in lower:
+        where = '<script type="application/ld+json"> block in the <head>'
+    elif "robots" in lower or "meta" in lower:
+        where = "the robots directives in the <head> or robots.txt"
+    elif "word" in lower or "content" in lower or "read" in lower:
+        where = "page body content (the visible text)"
+    elif "speed" in lower or "render" in lower or "lcp" in lower or "mobile" in lower:
+        where = "page performance settings (images, scripts, server response)"
+    elif "404" in lower or "broken" in lower or "redirect" in lower:
+        where = "URL in the <head> or site navigation / sitemap"
+    elif "duplicate" in lower or "url" in lower:
+        where = "URL structure / <link rel=\"canonical\">"
+
+    # ---- CURRENT VALUE: the offending text we can pull from the crawl ----
+    current = ""
+    if "description" in lower:
+        current = meta
+    elif "title" in lower:
+        current = title
+    elif "h1" in lower:
+        current = h1
+    elif "keyword" in lower and "description" not in lower:
+        current = title
+
+    # ---- REPLACE WITH: a concrete, ready-to-paste value ----
+    replace_with = ""
+    lower_words = set(lower.split())
+    desc_issue = "description" in lower
+    title_issue = "title" in lower
+    meta_low = meta.lower()
+    has_cta_word = any(w in meta_low for w in ("click", "learn", "discover", "try", "get", "start", "today", "now", "free"))
+
+    if title_issue:
+        if "short" in lower or (title and len(title) < 30):
+            replace_with = _trim_len(f"{title} — Data & AI Insights", 70)
+        elif "long" in lower or (title and len(title) > 65):
+            replace_with = _trim_len(title, 60)
+        elif "missing" in lower or "not found" in lower or not title:
+            replace_with = _trim_len(f"{h1 or title or 'Your page'} — Data & AI Insights", 70)
+    elif desc_issue:
+        if not meta:
+            base_title = title or h1 or "Your page"
+            replace_with = _trim_len(f"{base_title}: get actionable data, AI, and analytics insights. {_CTA_PHRASES[2]} with DataViCloud today.")
+        elif "keyword" in lower:
+            kws = [w for w in re.split(r"\s+", title.lower()) if w.isalnum() and len(w) > 3][:2]
+            kw_str = " ".join(kws) if kws else (title.split(" ")[0] if title else "your topic")
+            replace_with = _trim_len(f"{_strip_tail_punct(meta)}. Discover key {kw_str} insights and best practices today.", 155)
+        elif "call-to-action" in lower or "cta" in lower_words or not has_cta_word:
+            phrase = _CTA_PHRASES[0] if "guide" in title.lower() else _CTA_PHRASES[2]
+            replace_with = _trim_len(f"{_strip_tail_punct(meta)}. {phrase} now.", 155)
+        elif "long" in lower or len(meta) > 160:
+            replace_with = _trim_len(meta, 155)
+        elif "short" in lower or len(meta) < 150:
+            replace_with = _trim_len(f"{_strip_tail_punct(meta)}. {_CTA_PHRASES[1]} the full guide now.", 155)
+    elif meta and not has_cta_word and ({"cta", "call-to-action", "call", "ctas"} & lower_words):
+        phrase = _CTA_PHRASES[0] if "guide" in title.lower() else _CTA_PHRASES[2]
+        replace_with = _trim_len(f"{_strip_tail_punct(meta)}. {phrase} now.", 155)
+    elif "faq" in lower:
+        topic = re.sub(r"[^\w\s]", "", title.split("|")[0].split("-")[0].strip()) or "this topic"
+        replace_with = (f'Add an FAQ section before the footer:\n\n<h2>FAQ</h2>\n<strong>Q: How does {topic} work?</strong>\nA: Explain in 1-2 sentences.\n'
+                        f'<strong>Q: Is {topic} right for my team?</strong>\nA: Add a short benefit-focused answer.\n\n'
+                        f'Then add FAQPage schema in a <script type="application/ld+json"> block in the <head>.')
+    elif "h1" in lower and ("multiple" in lower or "duplicate" in lower):
+        replace_with = f"Keep the first <h1> ({h1 or 'your main heading'}) and convert the other <h1> tags to <h2>."
+
+    return {"where": where, "current_value": current, "replace_with": replace_with}
+
+
 @router.get("/audit/{audit_id}/issues")
 async def get_audit_issues(audit_id: str, category: str = None, severity: str = None, offset: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
@@ -244,12 +354,19 @@ async def get_audit_issues(audit_id: str, category: str = None, severity: str = 
     total = (await db.execute(count_query)).scalar() or 0
     query = query.order_by(Issue.detected_at.desc()).offset(offset).limit(limit)
     result = await db.execute(query)
+    rows = result.scalars().all()
+    page_urls = list({r.page_url for r in rows if r.page_url})
+    pages = {}
+    if page_urls:
+        pages_res = await db.execute(select(Page).where(Page.audit_id == audit_id, Page.url.in_(page_urls)))
+        pages = {p.url: p for p in pages_res.scalars().all()}
     return {
         "items": [{
             "id": i.id, "page_url": i.page_url, "category": i.category, "severity": i.severity,
             "signal_id": i.signal_id, "signal_name": i.signal_name,
             "description": i.description, "impact": i.impact, "fix": i.fix,
-        } for i in result.scalars().all()],
+            **_issue_fix_guidance(pages.get(i.page_url), i.signal_id, i.signal_name or "", i.category or ""),
+        } for i in rows],
         "total": total, "offset": offset, "limit": limit,
     }
 
@@ -664,6 +781,7 @@ async def get_ai_providers_status():
         "groq": ("GROQ_API_KEY", "Groq Llama 3.3 70B", "Paste a fresh key from console.groq.com/keys"),
         "cerebras": ("CEREBRAS_API_KEY", "Cerebras Gemma 4 31B", "Paste a fresh key from cloud.cerebras.ai"),
         "ollama": ("OLLAMA_BASE_URL", "Ollama (local)", "Runs locally on the machine where audits execute"),
+        "openrouter-free": ("OPENROUTER_API_KEY", "OpenRouter Free (Qwen/Llama)", "Free $0 models via OpenRouter — works for all users. No extra key needed."),
         "gemini": ("GEMINI_API_KEY", "Gemini 3.5 Flash", "Paste a fresh key from aistudio.google.com/apikey"),
     }
     result = []
@@ -4154,8 +4272,16 @@ async def get_remediation_feed(audit_id: str, severity: str = None, category: st
 
 
 @router.get("/audit/{audit_id}/content-rewrite/{page_idx}")
-async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"content_rewrite:{audit_id}:{page_idx}"
+async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db: AsyncSession = Depends(get_db)):
+    from urllib.parse import unquote
+    raw = unquote(page_idx)
+    idx = None
+    try:
+        idx = int(raw)
+    except ValueError:
+        idx = None
+
+    cache_key = f"content_rewrite:{audit_id}:{url or raw}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -4168,10 +4294,19 @@ async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = D
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages = pages_result.scalars().all()
 
-    if page_idx < 0 or page_idx >= len(pages):
-        raise HTTPException(status_code=400, detail="Invalid page index")
+    if url:
+        normalized = unquote(url).rstrip("/")
+        idx = next((pages.index(p) for p in pages if (p.url or "").rstrip("/") == normalized), None)
+    if idx is None:
+        normalized = raw.rstrip("/")
+        for p in pages:
+            if (p.url or "").rstrip("/") == normalized:
+                idx = pages.index(p)
+                break
+    if idx is None or idx < 0 or idx >= len(pages):
+        raise HTTPException(status_code=400, detail="Invalid page index or URL")
 
-    page = PageAdapter(pages[page_idx])
+    page = PageAdapter(pages[idx])
     from app.engine.enterprise_orchestrator import EnterpriseOrchestrator
     orchestrator = EnterpriseOrchestrator()
     analysis = orchestrator.analyze_page(page)
@@ -4208,14 +4343,19 @@ async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = D
             dual_ai_eeat_analysis, dual_ai_link_suggestions, dual_ai_keyword_insights,
         )
         import asyncio
-        results = await asyncio.gather(
+        coros = (
             dual_ai_content_rewrite(page.url, page.title or "", page.meta_description or "", current_content, targets.get("must_have", []) or [h1_text] if h1_text else [], issues),
             dual_ai_readability_analysis(current_content),
             dual_ai_eeat_analysis(current_content, page.url, page.title or ""),
             dual_ai_link_suggestions(page.url, current_content, []),
             dual_ai_keyword_insights(page.url, page.title or "", current_content, targets.get("must_have", [])),
-            return_exceptions=True,
         )
+        tasks = []
+        for i, c in enumerate(coros):
+            if i:
+                await asyncio.sleep(1.5)
+            tasks.append(asyncio.create_task(c))
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         ai_rewrite = results[0] if isinstance(results[0], dict) else {}
         ai_readability = results[1] if isinstance(results[1], dict) else {}
         ai_eeat = results[2] if isinstance(results[2], dict) else {}
@@ -4242,6 +4382,65 @@ async def get_content_rewrite(audit_id: str, page_idx: int, db: AsyncSession = D
         "ai_eeat": ai_eeat,
         "ai_links": ai_links,
         "ai_keywords": ai_keywords,
+    }
+    _cache_set(cache_key, resp)
+    return resp
+
+
+@router.get("/audit/{audit_id}/content-opportunities")
+async def get_content_opportunities(audit_id: str, db: AsyncSession = Depends(get_db)):
+    cache_key = f"content_opportunities:{audit_id}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    from app.models import Issue
+    categories = ["CONTENT", "AEO", "GEO", "AI_SEARCH", "GEO / AI SEARCH", "ON-PAGE", "SEO", "EEAT", "READABILITY"]
+    issues_result = await db.execute(
+        select(Issue).where(Issue.audit_id == audit_id, Issue.category.in_(categories))
+    )
+    issues = issues_result.scalars().all()
+
+    by_url = {}
+    for i in issues:
+        by_url.setdefault(i.page_url or "", []).append(i)
+
+    opportunities = []
+    for url, items in by_url.items():
+        crit = [i for i in items if i.severity == "CRITICAL"]
+        high = [i for i in items if i.severity == "HIGH"]
+        top = crit or high or items
+        if not top:
+            continue
+        opportunities.append({
+            "url": url,
+            "title": top[0].signal_name or url,
+            "action": top[0].fix or "Improve this page's content signals",
+            "priority": "HIGH" if crit else ("MEDIUM" if high else "LOW"),
+            "count": len(items),
+            "issues": [i.signal_name for i in top[:5]],
+        })
+    opportunities.sort(key=lambda o: -o["count"])
+
+    keywords = []
+    seen = set()
+    for i in issues:
+        k = (i.signal_name or "").strip()
+        if k and k not in seen:
+            seen.add(k)
+            keywords.append(k)
+        if len(keywords) >= 12:
+            break
+
+    resp = {
+        "audit_id": audit_id,
+        "opportunities": opportunities[:25],
+        "keywords_to_add": keywords,
+        "total": len(opportunities),
     }
     _cache_set(cache_key, resp)
     return resp
@@ -4275,13 +4474,18 @@ async def get_page_intelligence_deep(audit_id: str, page_idx: int, db: AsyncSess
         from app.engine.dual_ai import dual_ai_analyze_seo, dual_ai_search_optimization, dual_ai_entity_extraction, dual_ai_eeat_analysis
         import asyncio
         current_content = pages[page_idx].content_text or ""
-        results = await asyncio.gather(
+        coros = (
             dual_ai_analyze_seo(pages[page_idx].url, pages[page_idx].title or "", pages[page_idx].meta_description or "", current_content, {}, []),
             dual_ai_search_optimization(pages[page_idx].url, pages[page_idx].title or "", current_content, []),
             dual_ai_entity_extraction(current_content, pages[page_idx].url),
             dual_ai_eeat_analysis(current_content, pages[page_idx].url, pages[page_idx].title or ""),
-            return_exceptions=True,
         )
+        tasks = []
+        for i, c in enumerate(coros):
+            if i:
+                await asyncio.sleep(1.5)
+            tasks.append(asyncio.create_task(c))
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         base["ai_seo_analysis"] = results[0] if isinstance(results[0], dict) else {}
         base["ai_search"] = results[1] if isinstance(results[1], dict) else {}
         base["ai_entities"] = results[2] if isinstance(results[2], dict) else {}
@@ -5223,11 +5427,16 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
         import asyncio
         current_content = page.content_text or ""
         signals = result.get("all_signals", [])
-        results = await asyncio.gather(
+        coros = (
             dual_ai_analyze_seo(page.url, page.title or "", page.meta_description or "", current_content, {}, signals),
             dual_ai_search_optimization(page.url, page.title or "", current_content, signals),
-            return_exceptions=True,
         )
+        tasks = []
+        for i, c in enumerate(coros):
+            if i:
+                await asyncio.sleep(1.5)
+            tasks.append(asyncio.create_task(c))
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         result["ai_seo_analysis"] = results[0] if isinstance(results[0], dict) else {}
         result["ai_search"] = results[1] if isinstance(results[1], dict) else {}
     except Exception:

@@ -125,15 +125,28 @@ function IssuesTab({ issues, loading }) {
                   <div style={{ fontSize: 12, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>
                     <strong>Page:</strong> {issue.page_url || 'N/A'}
                   </div>
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>
+                    <strong>Where:</strong> {issue.where || 'page body content'}
+                  </div>
                   <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 4 }}>
                     <strong>Problem:</strong> {issue.description}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
                     <strong>Impact:</strong> {issue.impact || 'N/A'}
                   </div>
+                  {issue.current_value && (
+                    <div style={{ padding: '6px 10px', background: '#fef2f2', borderRadius: 6, fontSize: 12, color: '#b91c1c', marginBottom: 4, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                      <strong>Current:</strong> {issue.current_value}
+                    </div>
+                  )}
                   <div style={{ padding: '6px 10px', background: '#f0f9ff', borderRadius: 6, fontSize: 12, color: '#0369a1', lineHeight: 1.5 }}>
-                    <strong>AI Fix:</strong> {issue.fix || 'No fix suggestion available'}
+                    <strong>How to Fix:</strong> {issue.fix || 'No fix suggestion available'}
                   </div>
+                  {issue.replace_with && (
+                    <div style={{ padding: '6px 10px', background: '#f0fdf4', borderRadius: 6, fontSize: 12, color: '#15803d', marginTop: 4, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                      <strong>Replace with:</strong> {issue.replace_with}
+                    </div>
+                  )}
                   {issue.page_url && (
                     <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
                       <a href={issue.page_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>

@@ -3,6 +3,7 @@ OpenRouter GPT-4o + Groq Llama 3.3 70B + Cerebras Gemma 4 31B + Ollama Local LLM
 All run simultaneously, best insights from each are combined.
 """
 import json
+import time
 import asyncio
 import logging
 import httpx
@@ -16,18 +17,32 @@ PROVIDERS = {
     "groq": {"key": "GROQ_API_KEY", "model": "GROQ_MODEL"},
     "cerebras": {"key": "CEREBRAS_API_KEY", "model": "CEREBRAS_MODEL"},
     "ollama": {"key": "OLLAMA_BASE_URL", "model": "OLLAMA_MODEL"},
+    "openrouter-free": {"key": "OPENROUTER_API_KEY", "model": "OPENROUTER_MODEL_FREE"},
     "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL"},
 }
 
 # Lightweight provider health registry (status_code / last known state / guidance)
 PROVIDER_HEALTH = {}
 
+_COOLDOWN_S = 900
+
 
 def _record_health(name: str, ok: bool, detail: str = ""):
     if ok:
-        PROVIDER_HEALTH[name] = {"status": "ok", "detail": ""}
+        PROVIDER_HEALTH[name] = {"status": "ok", "detail": "", "at": time.time()}
     else:
-        PROVIDER_HEALTH[name] = {"status": "error", "detail": detail[:300]}
+        PROVIDER_HEALTH[name] = {"status": "error", "detail": detail[:300], "at": time.time()}
+
+
+def _provider_healthy(name: str, cooldown_s: int = _COOLDOWN_S) -> bool:
+    h = PROVIDER_HEALTH.get(name, {})
+    if h.get("status") == "ok":
+        return True
+    if h.get("status") == "error":
+        at = h.get("at") or 0
+        if time.time() - at < cooldown_s:
+            return False
+    return True
 
 
 def _http_error_detail(name: str, status_code: int, body: str = ""):
@@ -78,6 +93,58 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
         logger.warning("OpenRouter: %s", e)
         _record_health("gpt-4o", False, str(e)[:200])
         return None
+
+
+FREE_MODELS = [
+    "qwen/qwen3-30b-a3b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+]
+
+
+async def _openrouter_free_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> Optional[dict]:
+    """Call OpenRouter free models (Qwen/Llama, $0). Works for all users."""
+    if not settings.OPENROUTER_API_KEY:
+        _record_health("openrouter-free", False, "OPENROUTER_API_KEY not configured")
+        return None
+    models = [m.strip() for m in (settings.OPENROUTER_MODEL_FREE or "") if m.strip()] or FREE_MODELS
+    if settings.OPENROUTER_MODEL_FREE:
+        models = [settings.OPENROUTER_MODEL_FREE] + FREE_MODELS
+    last_detail = ""
+    for model in models:
+        try:
+            async with httpx.AsyncClient(timeout=settings.OPENROUTER_TIMEOUT) as client:
+                resp = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "http://localhost:5173",
+                        "X-Title": "AI SEO Platform",
+                    },
+                    json={
+                        "model": model,
+                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        "temperature": 0.3, "max_tokens": max_tokens,
+                    },
+                )
+                if resp.status_code != 200:
+                    last_detail = f"{model} HTTP {resp.status_code}"
+                    continue
+                _record_health("openrouter-free", True)
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                cleaned = content.strip()
+                if cleaned.startswith("```json"): cleaned = cleaned[7:]
+                if cleaned.startswith("```"): cleaned = cleaned[3:]
+                if cleaned.endswith("```"): cleaned = cleaned[:-3]
+                return json.loads(cleaned.strip())
+        except Exception as e:
+            logger.warning("OpenRouter free %s: %s", model, e)
+            last_detail = str(e)[:150]
+            continue
+    _record_health("openrouter-free", False, last_detail or "all free models failed")
+    return None
 
 
 async def _groq_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3500) -> Optional[dict]:
@@ -283,19 +350,28 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
         task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2500))
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     elif task == "competitor":
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
         task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2500))
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     else:
         task_map.update({
             "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
             "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
             "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
+            "openrouter-free": _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2500)),
             "gemini": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
         })
+    task_map = {
+        name: coro for name, coro in task_map.items()
+        if _provider_healthy(name)
+    }
+    if not task_map:
+        return {"providers_used": []}
     tasks = {name: asyncio.create_task(coro, name=name) for name, coro in task_map.items()}
     done, _ = await asyncio.wait(tasks.values(), timeout=30, return_when=asyncio.ALL_COMPLETED)
     results = {}

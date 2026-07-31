@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     OPENROUTER_MODEL: str = "openai/gpt-4o"
     OPENROUTER_MODEL_REWRITE: str = "qwen/qwen3-235b-a22b"
     OPENROUTER_MODEL_COMPETITOR: str = "deepseek/deepseek-chat-v3-0324"
+    OPENROUTER_MODEL_FREE: str = "qwen/qwen3-30b-a3b:free"
     OPENROUTER_TIMEOUT: int = 30
 
     GROQ_API_KEY: str = ""

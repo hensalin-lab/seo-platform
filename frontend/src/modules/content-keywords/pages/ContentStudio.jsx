@@ -239,7 +239,7 @@ function RewriterTab() {
   const handleAnalyze = async () => {
     if (!url.trim()) return;
     setLoading(true);
-    const data = await api.getContentRewrite(id, encodeURIComponent(url.trim())).catch(() => null);
+    const data = await api.getContentRewriteByUrl(id, url.trim()).catch(() => null);
     setResult(data);
     setLoading(false);
   };

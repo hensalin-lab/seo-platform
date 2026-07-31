@@ -178,6 +178,7 @@ export const api = {
     return request(url);
   },
   getContentRewrite: (id, idx) => request(`/audit/${id}/content-rewrite/${idx}`),
+  getContentRewriteByUrl: (id, url) => request(`/audit/${id}/content-rewrite/0?url=${encodeURIComponent(url)}`),
   getPageIntelligenceDeep: (id, idx) => request(`/audit/${id}/page-intelligence-deep/${idx}`),
   getPageIntelligenceDeepByUrl: (id, url) => request(`/audit/${id}/page-intelligence-deep-by-url?url=${encodeURIComponent(url)}`),
   getContentDeep: (id, idx) => request(`/audit/${id}/content-deep/${idx}`),
