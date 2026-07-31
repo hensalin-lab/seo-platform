@@ -159,6 +159,76 @@ async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
     return resp
 
 
+@router.get("/audit/{audit_id}/scores")
+async def get_audit_scores(audit_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    score_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
+    scores = score_result.scalar_one_or_none()
+    if not scores:
+        raise HTTPException(status_code=404, detail="Scores not available yet")
+    return {
+        "overall_score": scores.overall_score,
+        "seo_score": scores.seo_score,
+        "technical_score": scores.technical_score,
+        "aeo_score": scores.aeo_score,
+        "geo_score": scores.geo_score,
+        "content_score": scores.content_score,
+        "ai_visibility_score": scores.ai_visibility_score,
+    }
+
+
+@router.get("/audit/{audit_id}/audit-compare")
+async def get_audit_compare(audit_id: str, db: AsyncSession = Depends(get_db)):
+    current = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = current.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    prev = await db.execute(
+        select(Audit)
+        .where(Audit.website_url == audit.website_url, Audit.id != audit_id)
+        .order_by(Audit.created_at.desc())
+        .limit(1)
+    )
+    prev_audit = prev.scalar_one_or_none()
+
+    async def _scores(aid):
+        r = await db.execute(select(AuditScore).where(AuditScore.audit_id == aid))
+        s = r.scalar_one_or_none()
+        return {
+            "overall_score": s.overall_score if s else 0,
+            "seo_score": s.seo_score if s else 0,
+            "technical_score": s.technical_score if s else 0,
+            "aeo_score": s.aeo_score if s else 0,
+            "geo_score": s.geo_score if s else 0,
+            "content_score": s.content_score if s else 0,
+            "ai_visibility_score": s.ai_visibility_score if s else 0,
+        }
+
+    cur_scores = await _scores(audit_id)
+    prev_scores = await _scores(prev_audit.id) if prev_audit else None
+
+    fields = [("overall_score", "Overall"), ("seo_score", "SEO"), ("technical_score", "Technical"),
+              ("aeo_score", "AEO"), ("geo_score", "GEO"), ("content_score", "Content"),
+              ("ai_visibility_score", "AI Visibility")]
+    changes = []
+    if prev_scores:
+        for key, label in fields:
+            delta = round(cur_scores.get(key, 0) - prev_scores.get(key, 0), 1)
+            changes.append({"label": label, "category": label, "name": label, "delta": delta, "from": prev_scores.get(key, 0), "to": cur_scores.get(key, 0)})
+
+    return {
+        "baseline_score": prev_scores["overall_score"] if prev_scores else None,
+        "current_score": cur_scores["overall_score"],
+        "baseline_audit_id": prev_audit.id if prev_audit else None,
+        "baseline_created_at": prev_audit.created_at.isoformat() if prev_audit and prev_audit.created_at else None,
+        "changes": changes,
+    }
+
+
 @router.get("/audit/{audit_id}/issues")
 async def get_audit_issues(audit_id: str, category: str = None, severity: str = None, offset: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
@@ -551,8 +621,12 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
         if isinstance(v, dict) and v.get("category") == "AI_SEARCH":
             signal_scores[k] = v
 
+    live_avgs = [a for a in (chatgpt_avg, gemini_avg, perplexity_avg) if a > 0]
+    ai_visibility_score = round(sum(live_avgs) / len(live_avgs), 1) if live_avgs else (scores.ai_visibility_score if scores else 0)
+
     result = {
-        "ai_visibility_score": scores.ai_visibility_score if scores else 0,
+        "ai_visibility_score": ai_visibility_score,
+        "score_source": "live" if live_avgs else "stored",
         "chatgpt_visibility": chatgpt_avg,
         "gemini_visibility": gemini_avg,
         "perplexity_visibility": perplexity_avg,
@@ -957,9 +1031,18 @@ async def get_page_speed(audit_id: str, db: AsyncSession = Depends(get_db)):
     times = [p.response_time_ms for p in pages if p.response_time_ms and p.response_time_ms > 0]
     avg_time = sum(times) / max(len(times), 1)
     slow_pages = [p for p in pages if p.response_time_ms and p.response_time_ms > 3000]
+    speed_score = round(max(10.0, min(100.0, 100.0 - (avg_time / 3000.0) * 60.0)), 1)
+    speed_grade = "A" if speed_score >= 90 else "B" if speed_score >= 80 else "C" if speed_score >= 70 else "D" if speed_score >= 60 else "F"
     return {
         "total_pages": total,
         "avg_response_time_ms": round(avg_time),
+        "speed_score": speed_score,
+        "speed_grade": speed_grade,
+        "speed_breakdown": {
+            "good": len([p for p in pages if p.response_time_ms and p.response_time_ms <= 1000]),
+            "needs_work": len([p for p in pages if p.response_time_ms and 1000 < p.response_time_ms <= 3000]),
+            "slow": len([p for p in pages if p.response_time_ms and p.response_time_ms > 3000]),
+        },
         "slow_pages_count": len(slow_pages),
         "slow_threshold_ms": 3000,
         "slow_pages": [{

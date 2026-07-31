@@ -163,7 +163,7 @@ function ExecutiveDashboardSection({ data, scores, issues, onGenerateFix }) {
   const maxWc = Math.max(...competitors.map(c => c.wc));
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <ScoreVelocityPredictor currentScore={scores?.overall_score || 68} criticalCount={criticalCount || 3} />
+      <ScoreVelocityPredictor currentScore={scores?.overall_score || 0} criticalCount={criticalCount || 0} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         <ScoreGauge score={scores?.overall_score} label="Overall Health" sublabel="Site-wide score" />
         <ScoreGauge score={scores?.seo_score} label="SEO Index" sublabel="Search optimization" color="#3b82f6" />
@@ -776,7 +776,7 @@ export default function OnePageWorkspace() {
           api.getSchemaAnalysis(id).catch(() => null),
           api.getEeatAnalysis(id).catch(() => null),
           api.getSeoHealth(id).catch(() => null),
-          api.getSpeedAnalysis(id).catch(() => null) ?? api.getPageSpeed(id).catch(() => null),
+          api.getPageSpeed(id).catch(() => null),
           api.getInternalLinks(id).catch(() => null),
           api.getCompetitorData(id).catch(() => null),
           api.getContentData(id).catch(() => null),
@@ -802,7 +802,12 @@ export default function OnePageWorkspace() {
         setAudit(auditData);
         setScores(allScores);
         setSections({
-          executive: { scores: allScores, pages: auditData?.page_count },
+          executive: {
+            scores: allScores,
+            pages: auditData?.total_pages ?? auditData?.page_count,
+            totalIssues: issuesData?.total ?? (Array.isArray(issuesData?.issues) ? issuesData.issues.length : 0),
+            issues_count: issuesData?.total ?? (Array.isArray(issuesData?.issues) ? issuesData.issues.length : 0),
+          },
           'seo': sectionData[0],
           'geo': sectionData[1],
           'aeo': sectionData[2],
@@ -842,30 +847,13 @@ export default function OnePageWorkspace() {
         const qw = (Array.isArray(allIssues) ? allIssues : [])
           .filter(i => i.severity === 'HIGH' || i.severity === 'CRITICAL' || i.impact === 'high')
           .slice(0, 5);
-        if (qw.length === 0) {
-          const demoIssues = [
-            { title: 'Missing meta descriptions on 12 pages', severity: 'HIGH', impact_score: 8, category: 'On-Page' },
-            { title: 'Slow LCP on mobile (4.2s)', severity: 'CRITICAL', impact_score: 9, category: 'Speed' },
-            { title: 'No schema markup (FAQ/HowTo)', severity: 'HIGH', impact_score: 7, category: 'Schema' },
-            { title: 'Orphan pages detected (21 pages)', severity: 'MEDIUM', impact_score: 6, category: 'Crawl' },
-            { title: 'Missing alt text on 34 images', severity: 'MEDIUM', impact_score: 5, category: 'Images' },
-          ];
-          qw.push(...demoIssues.slice(0, qw.length === 0 ? 5 : 5 - qw.length));
-        }
         setQuickWins(qw);
         if (!allScores || !allScores.overall_score) {
-          setScores({ overall_score: 68, seo_score: 62, aeo_score: 55, geo_score: 55, ai_visibility_score: 41, speed_score: 73 });
+          setScores(auditData?.scores ?? {});
         }
       } catch (err) {
         console.error('OnePageWorkspace load error:', err);
-        setScores({ overall_score: 68, seo_score: 62, aeo_score: 55, geo_score: 55, ai_visibility_score: 41, speed_score: 73 });
-        setQuickWins([
-          { title: 'Missing meta descriptions on 12 pages', severity: 'HIGH', impact_score: 8, category: 'On-Page' },
-          { title: 'Slow LCP on mobile (4.2s)', severity: 'CRITICAL', impact_score: 9, category: 'Speed' },
-          { title: 'No schema markup (FAQ/HowTo)', severity: 'HIGH', impact_score: 7, category: 'Schema' },
-          { title: 'Orphan pages detected (21 pages)', severity: 'MEDIUM', impact_score: 6, category: 'Crawl' },
-          { title: 'Missing alt text on 34 images', severity: 'MEDIUM', impact_score: 5, category: 'Images' },
-        ]);
+        setScores(audit?.scores ?? {});
       }
       setLoading(false);
     }
@@ -887,12 +875,12 @@ export default function OnePageWorkspace() {
     const activeData = s[activeTab === 'executive' ? 'executive' : activeTab] || {};
     switch (activeTab) {
       case 'executive': {
-        const execData = { ...s.executive, pages: s.executive?.pages || 47, totalIssues: quickWins.length * 3 + 8, recommendationCount: 12, avgScore: allScores?.overall_score || 68 };
+        const execData = { ...s.executive, pages: s.executive?.pages || 0, totalIssues: s.executive?.totalIssues || 0, recommendationCount: 0, avgScore: allScores?.overall_score || 0 };
         switch (displaySub) {
           case 'dashboard': return <ExecutiveDashboardSection data={execData} scores={allScores} issues={quickWins} onGenerateFix={setFixModal} />;
-          case 'compare': return <AuditCompareSection data={s.compare || { baseline_score: 54, current_score: 68, changes: [{ label: 'SEO Score', delta: 8 }, { label: 'AEO/GEO Score', delta: 12 }, { label: 'Speed (CWV)', delta: -3 }, { label: 'LLM Citations', delta: 15 }] }} />;
-          case 'report': return <AuditReportSection data={s.report || { summary: 'Comprehensive SEO audit completed on 42 pages. Critical issues found in mobile speed (LCP 4.2s), missing schema markup, and thin content on 12 pages. Top recommendations: implement FAQ schema, optimize images for WebP, and improve Core Web Vitals on mobile. Estimated impact of fixing all critical issues: +22 points to overall SEO health score.' }} />;
-          case 'seo-health': return <SeoHealthSection data={s['seo-health'] || { breakdown: { indexability: 78, technical: 65, content: 52, speed: 73 } }} />;
+          case 'compare': return <AuditCompareSection data={s.compare} />;
+          case 'report': return <AuditReportSection data={s.report} />;
+          case 'seo-health': return <SeoHealthSection data={s['seo-health']} />;
           default: return <ExecutiveDashboardSection data={execData} scores={allScores} issues={quickWins} />;
         }
       }
@@ -1001,11 +989,11 @@ export default function OnePageWorkspace() {
   };
 
   const allScores = {
-    overall_score: scores?.overall_score ?? getApiValue(audit, 'overall_score'),
+    overall_score: scores?.overall_score ?? getApiValue(audit, 'scores.overall_score', 'overall_score'),
     seo_score: scores?.seo_score ?? getApiValue(sections.seo, 'seo_score'),
     aeo_score: scores?.aeo_score ?? getApiValue(sections.aeo, 'aeo_score'),
     geo_score: scores?.geo_score ?? getApiValue(sections.geo, 'geo_score'),
-    ai_visibility_score: scores?.ai_visibility_score ?? getApiValue(sections['ai-visibility'], 'ai_visibility_score'),
+    ai_visibility_score: getApiValue(sections['ai-visibility'], 'ai_visibility_score') ?? scores?.ai_visibility_score,
     speed_score: scores?.speed_score ?? getApiValue(sections.speed, 'speed_score'),
   };
   const healthScore = allScores.overall_score || Math.round(
