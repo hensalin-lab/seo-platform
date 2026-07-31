@@ -57,25 +57,30 @@ async def _groq_chat(system_prompt: str, user_prompt: str, max_tokens: int = 350
     """Call Groq Llama 3.3 70B."""
     if not settings.GROQ_API_KEY:
         return None
-    try:
-        async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT) as client:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}", "Content-Type": "application/json"},
-                json={
-                    "model": settings.GROQ_MODEL,
-                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                    "temperature": 0.3, "max_tokens": max_tokens,
-                    "response_format": {"type": "json_object"},
-                },
-            )
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-            return json.loads(data["choices"][0]["message"]["content"])
-    except Exception as e:
-        logger.warning("Groq: %s", e)
-        return None
+    for attempt in range(2):
+        try:
+            async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}", "Content-Type": "application/json"},
+                    json={
+                        "model": settings.GROQ_MODEL,
+                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        "temperature": 0.3, "max_tokens": max_tokens,
+                        "response_format": {"type": "json_object"},
+                    },
+                )
+                if resp.status_code == 429 and attempt == 0:
+                    await asyncio.sleep(2.0)
+                    continue
+                if resp.status_code != 200:
+                    return None
+                data = resp.json()
+                return json.loads(data["choices"][0]["message"]["content"])
+        except Exception as e:
+            logger.warning("Groq: %s", e)
+            return None
+    return None
 
 
 async def _cerebras_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:

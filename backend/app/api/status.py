@@ -1,6 +1,7 @@
 import logging
 import json
 import re
+import asyncio
 import datetime as _dt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -591,7 +592,7 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     try:
         from app.engine.dual_ai import dual_ai_search_optimization
-        for page_obj in all_pages[:20]:
+        for page_obj in all_pages[:10]:
             try:
                 pa = PageAdapter(page_obj)
                 content_str = pa.content_text if isinstance(pa.content_text, str) else " ".join(pa.content_text) if pa.content_text else ""
@@ -604,6 +605,7 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
                     platform_details = vis
             except Exception:
                 continue
+            await asyncio.sleep(1.2)
     except Exception:
         pass
 
@@ -615,6 +617,8 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
     has_schema = sum(1 for p in all_pages if p.schema_markup)
     has_citations = sum(1 for p in all_pages if any(kw in (p.content_text or "").lower() for kw in ["source:", "according to", "research", "study"]))
     has_fresh = sum(1 for p in all_pages if any(yr in (p.content_text or "") for yr in ["2025", "2026"]))
+    page_count = max(len(all_pages), 1)
+    rule_score = round((has_schema / page_count) * 40 + (has_citations / page_count) * 30 + (has_fresh / page_count) * 30, 1)
 
     signal_scores = {}
     for k, v in (scores.signals if scores else {}).items():
@@ -622,15 +626,23 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
             signal_scores[k] = v
 
     live_avgs = [a for a in (chatgpt_avg, gemini_avg, perplexity_avg) if a > 0]
-    ai_visibility_score = round(sum(live_avgs) / len(live_avgs), 1) if live_avgs else (scores.ai_visibility_score if scores else 0)
+    if live_avgs:
+        ai_visibility_score = round(sum(live_avgs) / len(live_avgs), 1)
+        score_source = "live"
+    elif rule_score > 0:
+        ai_visibility_score = rule_score
+        score_source = "signals"
+    else:
+        ai_visibility_score = scores.ai_visibility_score if scores else 0
+        score_source = "stored"
 
     result = {
         "ai_visibility_score": ai_visibility_score,
-        "score_source": "live" if live_avgs else "stored",
+        "score_source": score_source,
         "chatgpt_visibility": chatgpt_avg,
         "gemini_visibility": gemini_avg,
         "perplexity_visibility": perplexity_avg,
-        "pages_analyzed": min(len(all_pages), 20),
+        "pages_analyzed": min(len(all_pages), 10),
         "pages_with_schema": has_schema,
         "pages_with_citations": has_citations,
         "pages_with_fresh_content": has_fresh,
