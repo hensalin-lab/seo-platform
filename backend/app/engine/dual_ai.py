@@ -16,12 +16,35 @@ PROVIDERS = {
     "groq": {"key": "GROQ_API_KEY", "model": "GROQ_MODEL"},
     "cerebras": {"key": "CEREBRAS_API_KEY", "model": "CEREBRAS_MODEL"},
     "ollama": {"key": "OLLAMA_BASE_URL", "model": "OLLAMA_MODEL"},
+    "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL"},
 }
+
+# Lightweight provider health registry (status_code / last known state / guidance)
+PROVIDER_HEALTH = {}
+
+
+def _record_health(name: str, ok: bool, detail: str = ""):
+    if ok:
+        PROVIDER_HEALTH[name] = {"status": "ok", "detail": ""}
+    else:
+        PROVIDER_HEALTH[name] = {"status": "error", "detail": detail[:300]}
+
+
+def _http_error_detail(name: str, status_code: int, body: str = ""):
+    guidance = ""
+    if status_code == 402:
+        guidance = "Provider needs credits. Add funds or paste a fresh API key."
+    elif status_code == 429:
+        guidance = "Rate limit hit. Add a fresh free-tier key or wait for quota reset."
+    elif status_code == 401:
+        guidance = "Invalid API key. Paste a new key."
+    _record_health(name, False, f"HTTP {status_code}: {body[:200]} {guidance}")
 
 
 async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2900) -> Optional[dict]:
     """Call OpenRouter GPT-4o."""
     if not settings.OPENROUTER_API_KEY:
+        _record_health("gpt-4o", False, "OPENROUTER_API_KEY not configured")
         return None
     try:
         async with httpx.AsyncClient(timeout=settings.OPENROUTER_TIMEOUT) as client:
@@ -40,7 +63,9 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
                 },
             )
             if resp.status_code != 200:
+                _http_error_detail("gpt-4o", resp.status_code, resp.text)
                 return None
+            _record_health("gpt-4o", True)
             data = resp.json()
             content = data["choices"][0]["message"]["content"]
             cleaned = content.strip()
@@ -50,12 +75,14 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
             return json.loads(cleaned.strip())
     except Exception as e:
         logger.warning("OpenRouter: %s", e)
+        _record_health("gpt-4o", False, str(e)[:200])
         return None
 
 
 async def _groq_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3500) -> Optional[dict]:
     """Call Groq Llama 3.3 70B."""
     if not settings.GROQ_API_KEY:
+        _record_health("groq", False, "GROQ_API_KEY not configured")
         return None
     for attempt in range(2):
         try:
@@ -74,11 +101,14 @@ async def _groq_chat(system_prompt: str, user_prompt: str, max_tokens: int = 350
                     await asyncio.sleep(2.0)
                     continue
                 if resp.status_code != 200:
+                    _http_error_detail("groq", resp.status_code, resp.text)
                     return None
+                _record_health("groq", True)
                 data = resp.json()
                 return json.loads(data["choices"][0]["message"]["content"])
         except Exception as e:
             logger.warning("Groq: %s", e)
+            _record_health("groq", False, str(e)[:200])
             return None
     return None
 
@@ -86,6 +116,7 @@ async def _groq_chat(system_prompt: str, user_prompt: str, max_tokens: int = 350
 async def _cerebras_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
     """Call Cerebras Gemma 4 31B - fastest inference in the world."""
     if not settings.CEREBRAS_API_KEY:
+        _record_health("cerebras", False, "CEREBRAS_API_KEY not configured")
         return None
     try:
         async with httpx.AsyncClient(timeout=settings.CEREBRAS_TIMEOUT) as client:
@@ -101,7 +132,9 @@ async def _cerebras_chat(system_prompt: str, user_prompt: str, max_tokens: int =
             )
             if resp.status_code != 200:
                 logger.warning("Cerebras %s: %s", resp.status_code, resp.text[:200])
+                _http_error_detail("cerebras", resp.status_code, resp.text)
                 return None
+            _record_health("cerebras", True)
             data = resp.json()
             content = data["choices"][0]["message"]["content"]
             cleaned = content.strip()
@@ -117,6 +150,7 @@ async def _cerebras_chat(system_prompt: str, user_prompt: str, max_tokens: int =
 async def _ollama_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> Optional[dict]:
     """Call Ollama local LLM."""
     if not settings.OLLAMA_BASE_URL:
+        _record_health("ollama", False, "OLLAMA_BASE_URL not configured")
         return None
     try:
         async with httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT) as client:
@@ -131,12 +165,46 @@ async def _ollama_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2
                 },
             )
             if resp.status_code != 200:
+                _http_error_detail("ollama", resp.status_code, resp.text)
                 return None
+            _record_health("ollama", True)
             data = resp.json()
             content = data.get("message", {}).get("content", "")
             return json.loads(content) if content else None
     except Exception as e:
         logger.warning("Ollama: %s", e)
+        _record_health("ollama", False, str(e)[:200])
+        return None
+
+
+async def _gemini_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
+    """Call Google Gemini 2.0 Flash (free tier)."""
+    if not settings.GEMINI_API_KEY:
+        _record_health("gemini", False, "GEMINI_API_KEY not configured")
+        return None
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}],
+            "generationConfig": {"temperature": 0.3, "maxOutputTokens": min(max_tokens, 4096), "responseMimeType": "application/json"},
+        }
+        async with httpx.AsyncClient(timeout=settings.GEMINI_TIMEOUT) as client:
+            resp = await client.post(url, json=payload)
+            if resp.status_code != 200:
+                logger.warning("Gemini %s: %s", resp.status_code, resp.text[:300])
+                _http_error_detail("gemini", resp.status_code, resp.text)
+                return None
+            _record_health("gemini", True)
+            data = resp.json()
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            cleaned = text.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            return json.loads(cleaned.strip())
+    except Exception as e:
+        logger.warning("Gemini: %s", e)
+        _record_health("gemini", False, str(e)[:200])
         return None
 
 
@@ -204,12 +272,13 @@ def _merge_lists(lists: list[list]) -> list:
 
 
 async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> dict:
-    """Run all 4 providers in parallel, merge results. Each has its own timeout."""
+    """Run all 5 providers in parallel, merge results. Each has its own timeout."""
     task_map = {
         "gpt-4o": _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900)),
         "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
         "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
         "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
+        "gemini-2.0-flash": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
     }
     tasks = {name: asyncio.create_task(coro, name=name) for name, coro in task_map.items()}
     done, _ = await asyncio.wait(tasks.values(), timeout=30, return_when=asyncio.ALL_COMPLETED)

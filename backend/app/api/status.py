@@ -654,6 +654,33 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
     return result
 
 
+@router.get("/ai/providers-status")
+async def get_ai_providers_status():
+    from app.engine.dual_ai import PROVIDER_HEALTH, PROVIDERS
+    from app.config import settings
+
+    env_map = {
+        "gpt-4o": ("OPENROUTER_API_KEY", "OpenRouter GPT-4o", "Paste a fresh key from openrouter.ai/settings/keys or add credits"),
+        "groq": ("GROQ_API_KEY", "Groq Llama 3.3 70B", "Paste a fresh key from console.groq.com/keys"),
+        "cerebras": ("CEREBRAS_API_KEY", "Cerebras Gemma 4 31B", "Paste a fresh key from cloud.cerebras.ai"),
+        "ollama": ("OLLAMA_BASE_URL", "Ollama (local)", "Runs locally on the machine where audits execute"),
+        "gemini": ("GEMINI_API_KEY", "Gemini 2.0 Flash", "Paste a fresh key from aistudio.google.com/apikey"),
+    }
+    result = []
+    for name, (env, label, guidance) in env_map.items():
+        configured = bool(getattr(settings, env, None))
+        health = PROVIDER_HEALTH.get(name, {})
+        result.append({
+            "name": name,
+            "label": label,
+            "configured": configured,
+            "status": health.get("status", "untested"),
+            "detail": health.get("detail", ""),
+            "guidance": guidance if health.get("status") == "error" else "",
+        })
+    return {"providers": result}
+
+
 @router.get("/audit/{audit_id}/schema-analysis")
 async def get_schema_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
