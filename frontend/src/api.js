@@ -1,5 +1,5 @@
 const API_BASE = '/api';
-const REQUEST_TIMEOUT = 30000;
+const REQUEST_TIMEOUT = 90000;
 const MAX_RETRIES = 1;
 
 let _authToken = localStorage.getItem('token');
