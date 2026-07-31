@@ -4,6 +4,7 @@ import { api } from '../../../api';
 import {
   Sparkles, Wand2, Check, Copy, Loader2, Target, Zap, RefreshCw,
   FileText, Braces, MessageSquareQuote, ListTree, ArrowRight, ExternalLink, AlertCircle,
+  Trophy, TrendingUp, Clock,
 } from 'lucide-react';
 
 function CopyBtn({ text, label = 'Copy' }) {
@@ -69,12 +70,26 @@ export default function RankBoost() {
   const [artifacts, setArtifacts] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
+  const [win, setWin] = useState(null);
+  const [aiPlan, setAiPlan] = useState(null);
+  const [planning, setPlanning] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     api.request(`/audit/${id}/rank-boost`)
       .then((res) => { setData(res); setLoading(false); })
       .catch((e) => { setError(e.message); setLoading(false); });
+    api.request(`/audit/${id}/win-proof`)
+      .then((res) => { setWin(res); })
+      .catch(() => {});
+  }, [id]);
+
+  const planIt = useCallback(async () => {
+    setPlanning(true);
+    try {
+      const res = await api.request(`/audit/${id}/win-proof/generate`, { method: 'POST', body: JSON.stringify({}) });
+      setAiPlan(res);
+    } catch { /* keep existing */ } finally { setPlanning(false); }
   }, [id]);
 
   const generate = useCallback(async (idx) => {
@@ -138,6 +153,118 @@ export default function RankBoost() {
           <span className="badge badge-gray">Gemini + Groq</span>
         </div>
       </div>
+
+      {/* Win Proof panel */}
+      {win && (
+        <div className="card card-3d animate-in" style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--yellow-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trophy size={17} style={{ color: '#f59f00' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>Path to Rank #1</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Fix {win.issues.total} issues (+{win.points_available} pts available) to go from {win.current_score} → ~{win.projected_score}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              {win.gsc.available && win.gsc.avg_position != null && (
+                <span className="badge" style={{ background: 'var(--blue-bg)', color: 'var(--accent)' }}>Avg position {win.gsc.avg_position}</span>
+              )}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: win.rank_readiness.color }}>{win.rank_readiness.grade}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>READINESS {win.rank_readiness.score}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)' }}>{win.projected_score}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PROJECTED</div>
+              </div>
+            </div>
+          </div>
+
+          {win.competitor?.has_competitor && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.04em' }}>YOU vs {win.competitor.url}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(['overall', 'seo', 'technical', 'content', 'ai_visibility']).map((k) => {
+                  const mine = win.your_scores[k] || 0;
+                  const theirs = win.competitor.scores?.[k] ?? null;
+                  const label = k.replace('_', ' ').toUpperCase();
+                  return (
+                    <div key={k} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 1fr', gap: 10, alignItems: 'center' }}>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
+                      <div>
+                        <div style={{ fontSize: 10, marginBottom: 2 }}>You <b style={{ color: mine >= (theirs ?? 0) ? 'var(--green)' : 'var(--red)' }}>{mine}</b></div>
+                        <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, mine))}%`, background: mine >= (theirs ?? 0) ? 'var(--green)' : 'var(--accent)', borderRadius: 4 }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, marginBottom: 2 }}>Comp <b>{theirs ?? '—'}</b></div>
+                        <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, theirs ?? 0))}%`, background: '#f59f00', borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {win.top_moves?.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.04em' }}>TOP MOVES BY POINTS</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {win.top_moves.map((m, i) => (
+                  <a key={i} href={`/audit/${id}/action-studio`} style={{ textDecoration: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text)' }}>
+                      <span className="badge" style={{ background: 'var(--red-bg)', color: '#e03131', fontSize: 9.5 }}>{m.priority}</span>
+                      <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.what}</span>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>+{m.est_points_gain} pts</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            {aiPlan?.ai_narrative ? (
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.04em' }}>AI PATH TO #1</div>
+                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>{aiPlan.ai_narrative}</div>
+                {aiPlan.ai_top_moves?.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 8 }}>
+                    {aiPlan.ai_top_moves.map((m, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12 }}>
+                        <span className="badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 9.5 }}>{m.impact}</span>
+                        <span style={{ color: 'var(--text)' }}><b>{m.move}</b> — {m.why}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {aiPlan.ai_timeframe && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text-muted)', marginTop: 8 }}>
+                    <Clock size={12} /> {aiPlan.ai_timeframe}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+                {win.ai_available
+                  ? 'Let AI turn this into a concrete "Path to Rank #1" plan — what to fix first and how long it takes.'
+                  : 'AI strategy will be available shortly.'}
+              </div>
+            )}
+            <button className="btn btn-primary" onClick={planIt} disabled={planning || !!aiPlan?.ai_narrative}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {planning ? <Loader2 size={14} className="spin" /> : <TrendingUp size={14} />}
+              {planning ? 'Planning…' : aiPlan?.ai_narrative ? 'Plan ready' : 'Generate AI Path to #1'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Step bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 20 }}>

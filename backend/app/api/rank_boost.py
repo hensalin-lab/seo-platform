@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.models import Audit, Page, Issue, AuditScore
+from app.models import Audit, Page, Issue, AuditScore, CompetitorData, Recommendation
 
 router = APIRouter(prefix="/api", tags=["rank-boost"])
 
@@ -283,5 +283,214 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
         },
         "page": page,
     }
+    _set_cached(cache_key, resp)
+    return resp
+
+
+def _grade(readiness):
+    if readiness >= 90:
+        return {"grade": "S", "label": "Rank #1 ready", "color": "#099268"}
+    if readiness >= 75:
+        return {"grade": "A", "label": "Close — finish the top fixes", "color": "#12b886"}
+    if readiness >= 60:
+        return {"grade": "B", "label": "On track — keep fixing", "color": "#f59f00"}
+    if readiness >= 40:
+        return {"grade": "C", "label": "Lots of upside left", "color": "#fd7e14"}
+    return {"grade": "D", "label": "Early days — fix criticals first", "color": "#fa5252"}
+
+
+@router.get("/audit/{audit_id}/win-proof")
+async def get_win_proof(audit_id: str, db: AsyncSession = Depends(get_db)):
+    cache_key = _cache_key("winproof", audit_id, 0)
+    cached = _get_cached(cache_key, ttl=600)
+    if cached:
+        return cached
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(404, "Audit not found")
+
+    scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
+    scores = scores_result.scalar_one_or_none()
+
+    your = {
+        "overall": round(scores.overall_score, 1) if scores else 0,
+        "seo": round(scores.seo_score, 1) if scores else 0,
+        "technical": round(scores.technical_score, 1) if scores else 0,
+        "aeo": round(scores.aeo_score, 1) if scores else 0,
+        "geo": round(scores.geo_score, 1) if scores else 0,
+        "content": round(scores.content_score, 1) if scores else 0,
+        "ai_visibility": round(scores.ai_visibility_score, 1) if scores else 0,
+    }
+
+    comp_result = await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))
+    comp = comp_result.scalar_one_or_none()
+
+    competitor = {
+        "has_competitor": bool(comp and comp.competitor_url),
+        "url": comp.competitor_url if comp else "",
+        "scores": None,
+        "winning_strategy": (comp.winning_strategy if comp else []) or [],
+        "weaknesses": (comp.weaknesses if comp else []) or [],
+        "seo_comparison": (comp.seo_comparison if comp else {}) or {},
+    }
+
+    if comp and comp.competitor_url:
+        comp_audit = await db.execute(select(Audit).where(Audit.website_url == comp.competitor_url))
+        ca = comp_audit.scalar_one_or_none()
+        if ca:
+            cs = await db.execute(select(AuditScore).where(AuditScore.audit_id == ca.id))
+            cs_obj = cs.scalar_one_or_none()
+            if cs_obj:
+                competitor["scores"] = {
+                    "overall": round(cs_obj.overall_score, 1) if cs_obj.overall_score else 0,
+                    "seo": round(cs_obj.seo_score, 1) if cs_obj.seo_score else 0,
+                    "technical": round(cs_obj.technical_score, 1) if cs_obj.technical_score else 0,
+                    "aeo": round(cs_obj.aeo_score, 1) if cs_obj.aeo_score else 0,
+                    "geo": round(cs_obj.geo_score, 1) if cs_obj.geo_score else 0,
+                    "content": round(cs_obj.content_score, 1) if cs_obj.content_score else 0,
+                    "ai_visibility": round(cs_obj.ai_visibility_score, 1) if cs_obj.ai_visibility_score else 0,
+                }
+
+    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
+    all_issues = issues_result.scalars().all()
+    issue_count = len(all_issues)
+    critical_count = sum(1 for i in all_issues if i.severity == "CRITICAL")
+    high_count = sum(1 for i in all_issues if i.severity == "HIGH")
+
+    recs = []
+    rec_result = await db.execute(
+        select(Recommendation).where(Recommendation.audit_id == audit_id)
+    )
+    for r in rec_result.scalars().all():
+        recs.append(r)
+
+    pages = []
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    page_map = {p.url: p for p in pages_result.scalars().all()}
+
+    from app.api.action_studio import _build_action
+    actions = []
+    for i in all_issues:
+        page = page_map.get(i.page_url or "")
+        rec = None
+        for r in recs:
+            if r.page_url == (i.page_url or ""):
+                rec = r
+                break
+        actions.append(_build_action(i, page, rec))
+    order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    actions.sort(key=lambda a: (order.get(a["priority"], 9), -a["est_points_gain"]))
+    actions = actions[:50]
+    est_total_points = round(sum(a["est_points_gain"] for a in actions), 1)
+    top_moves = actions[:5]
+
+    current = your["overall"]
+    distance = max(0, 100 - current)
+    projected = min(100.0, round(current + min(est_total_points, distance) * 0.55, 1))
+    readiness = round(current + est_total_points * 0.55, 1)
+    grade = _grade(readiness)
+
+    gsc = {"available": False, "total_keywords": 0, "avg_position": None, "top_keywords": []}
+    try:
+        if audit.gsc_property or audit.website_url:
+            from app.engine.gsc_engine import GSCEngine
+            gsc_eng = GSCEngine()
+            if gsc_eng.available:
+                top_kw = gsc_eng.get_top_queries(audit.gsc_property or audit.website_url, days=28, limit=10)
+                if top_kw:
+                    positions = [k.get("position") for k in top_kw if k.get("position")]
+                    gsc = {
+                        "available": True,
+                        "total_keywords": len(top_kw),
+                        "avg_position": round(sum(positions) / len(positions), 1) if positions else None,
+                        "top_keywords": top_kw[:10],
+                    }
+    except Exception:
+        pass
+
+    from app.engine.dual_ai import PROVIDER_HEALTH
+    ai_available = any(PROVIDER_HEALTH.get(n, {}).get("status") == "ok" for n in ("gemini", "groq", "gpt-4o", "cerebras"))
+
+    resp = {
+        "audit_id": audit_id,
+        "domain": audit.website_url,
+        "your_scores": your,
+        "current_score": current,
+        "projected_score": projected,
+        "points_available": est_total_points,
+        "issues": {"total": issue_count, "critical": critical_count, "high": high_count},
+        "rank_readiness": {"score": round(readiness, 1), **grade},
+        "distance_to_100": round(distance, 1),
+        "competitor": competitor,
+        "gsc": gsc,
+        "top_moves": [{k: a.get(k) for k in ("id", "priority", "category", "what", "page_url", "where", "how_to_fix", "est_points_gain")} for a in top_moves],
+        "ai_available": ai_available,
+        "has_ai_narrative": False,
+    }
+    _set_cached(cache_key, resp)
+    return resp
+
+
+@router.post("/audit/{audit_id}/win-proof/generate")
+async def generate_win_proof(audit_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    try:
+        await request.json()
+    except Exception:
+        pass
+
+    cache_key = _cache_key("winproofai", audit_id, 0)
+    cached = _get_cached(cache_key, ttl=3600)
+    if cached:
+        return cached
+
+    base = await get_win_proof(audit_id, db)
+
+    comp_text = ""
+    if base["competitor"]["has_competitor"]:
+        comp_text = (
+            f"Competitor: {base['competitor']['url']}\n"
+            f"Competitor winning strategy: {json.dumps(base['competitor']['winning_strategy'][:5], ensure_ascii=False)}\n"
+            f"Competitor weaknesses: {json.dumps(base['competitor']['weaknesses'][:5], ensure_ascii=False)}"
+        )
+    moves_text = "\n".join(
+        f"- [{m['priority']}] {m['what']} on {m['page_url']} (+{m['est_points_gain']} pts)"
+        for m in base["top_moves"]
+    )
+
+    sys_prompt = (
+        "You are a ranking strategist. Build a tight, confident 'Path to Rank #1' plan from the data given. "
+        "Use ONLY the data provided. Never invent rankings, traffic or keywords. "
+        'Return ONLY valid JSON: {"narrative": "3-4 sentence strategy summary", '
+        '"top_3_moves": [{"move": "one concrete action", "why": "why this moves rankings", "impact": "HIGH|MEDIUM"}], '
+        '"timeframe": "how long to reach #1, based on effort"}'
+    )
+    user_prompt = (
+        f"Domain: {base['domain']}\n"
+        f"Current score: {base['current_score']}/100, projected after fixing top 50: {base['projected_score']}\n"
+        f"Issues: {base['issues']['total']} total, {base['issues']['critical']} critical, {base['issues']['high']} high\n"
+        f"Your weakest categories:\n"
+        f"{json.dumps({k: v for k, v in sorted(base['your_scores'].items(), key=lambda x: x[1])[:3]}, ensure_ascii=False)}\n"
+        f"Top moves (est. points):\n{moves_text}\n"
+        f"{comp_text}"
+    )
+
+    from app.engine.dual_ai import _run_all
+    merged = await _run_all(sys_prompt, user_prompt, 2000, task="rewrite")
+    providers = merged.get("providers_used", [])
+    parsed = _parse_json(_extract_text(merged))
+
+    narrative = ""
+    top_3 = []
+    timeframe = ""
+    if parsed and isinstance(parsed, dict):
+        narrative = parsed.get("narrative") or ""
+        top_3 = parsed.get("top_3_moves") or []
+        if isinstance(top_3, list):
+            top_3 = [m for m in top_3 if isinstance(m, dict) and m.get("move")][:3]
+        timeframe = parsed.get("timeframe") or ""
+
+    resp = {**base, "has_ai_narrative": bool(narrative), "ai_narrative": narrative, "ai_top_moves": top_3, "ai_timeframe": timeframe, "providers": providers}
     _set_cached(cache_key, resp)
     return resp
