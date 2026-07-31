@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import DataSourceBadge from '../components/DataSourceBadge';
 import AnimatedNumber from '../components/AnimatedNumber';
-import { BarChart3, TrendingUp, Globe, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, Clock, ChevronRight, Target, Sparkles, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BarChart3, TrendingUp, Globe, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, Clock, ChevronRight, Target, Sparkles, Wand2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import PdfDownloadButton from '../components/PdfDownloadButton';
 
 function ScoreRing({ score, size = 100, stroke = 8, label }) {
@@ -235,8 +235,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* AI ACTION STUDIO CTA */}
-          <div className="card card-3d animate-in" style={{ animationDelay: '80ms', marginBottom: 20, cursor: 'pointer' }}
+          {/* AI ACTION STUDIO + RANK BOOST CTAs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, marginBottom: 20 }}>
+          <div className="card card-3d animate-in" style={{ animationDelay: '80ms', marginBottom: 0, cursor: 'pointer' }}
             onClick={() => navigate(`/audit/${displayAudit.audit_id}/action-studio`)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -254,6 +255,26 @@ export default function Dashboard() {
                 Open Action Studio <ArrowRight size={13} />
               </button>
             </div>
+          </div>
+          <div className="card card-3d animate-in" style={{ animationDelay: '90ms', marginBottom: 0, cursor: 'pointer' }}
+            onClick={() => navigate(`/audit/${displayAudit.audit_id}/rank-boost`)}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--purple-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Wand2 size={20} style={{ color: 'var(--accent)' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Rank Boost</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                    AI AEO/GEO kit per page — answer snippet, FAQ schema, meta & H2 rewrites. Copy, paste, rank.
+                  </div>
+                </div>
+              </div>
+              <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                Open Rank Boost <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
           </div>
 
           {/* STATS ROW */}
