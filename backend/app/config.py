@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./seo_platform.db"
 
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_TIMEOUT: int = 45
     GEMINI_MAX_RETRIES: int = 3
 
@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "openai/gpt-4o"
+    OPENROUTER_MODEL_REWRITE: str = "qwen/qwen3-235b-a22b"
+    OPENROUTER_MODEL_COMPETITOR: str = "deepseek/deepseek-chat-v3-0324"
     OPENROUTER_TIMEOUT: int = 30
 
     GROQ_API_KEY: str = ""

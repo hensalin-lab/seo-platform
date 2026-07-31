@@ -469,10 +469,11 @@ export default function GscData() {
     );
   }
 
-  const totalClicks = overview?.total_clicks ?? 0;
-  const totalImpressions = overview?.total_impressions ?? 0;
-  const avgCtr = overview?.avg_ctr ?? 0;
-  const avgPosition = overview?.avg_position ?? 0;
+  const stats = overview?.overview || overview || {};
+  const totalClicks = stats.total_clicks ?? 0;
+  const totalImpressions = stats.total_impressions ?? 0;
+  const avgCtr = stats.avg_ctr ?? 0;
+  const avgPosition = stats.avg_position ?? 0;
 
   const topPages = overview?.top_pages || [];
   const topQueries = keywordsData?.keywords || keywordsData?.top_queries || [];

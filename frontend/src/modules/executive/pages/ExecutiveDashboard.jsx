@@ -160,6 +160,37 @@ export default function ExecutiveDashboard() {
 
   useEffect(() => { if (id) loadData(); }, [id]);
 
+  async function handleExport() {
+    const { reportData, healthData, geoData, aeoData, aiVisibilityData, cwvData } = data;
+    const exportData = {
+      audit_id: id,
+      exported_at: new Date().toISOString(),
+      site_summary: reportData?.site_summary || {},
+      geo: geoData || null,
+      aeo: aeoData || null,
+      ai_visibility: aiVisibilityData || null,
+      core_web_vitals: cwvData || null,
+      health_checks: healthData?.checks || [],
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `executive-report-${id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleRerun() {
+    try {
+      await api.request(`/audit/${id}/rerun`, { method: 'POST' });
+      navigate(`/audit/${id}/progress`);
+    } catch (err) {
+      const e = new CustomEvent('show-toast', { detail: { message: `Re-audit failed: ${err.message || 'unknown error'}`, type: 'error' } });
+      window.dispatchEvent(e);
+    }
+  }
+
   const { reportData, healthData, geoData, aeoData, aiVisibilityData, cwvData } = data;
   const siteSummary = reportData?.site_summary || {};
   const overallScore = siteSummary.overall_score;
@@ -266,14 +297,14 @@ export default function ExecutiveDashboard() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Export Report — all roles */}
-          <button onClick={() => { const e = new CustomEvent('show-toast', { detail: { message: 'Export initiated', type: 'success' } }); window.dispatchEvent(e); }}
+          <button onClick={handleExport}
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text)', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
             <Download size={14} /> Export Report
           </button>
 
           {/* Trigger Global Re-Audit — ADMIN only */}
           <ProtectedAction requiredRole="admin">
-            <button onClick={() => loadData()}
+            <button onClick={handleRerun}
               style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
               <ShieldAlert size={14} /> Trigger Global Re-Audit
             </button>

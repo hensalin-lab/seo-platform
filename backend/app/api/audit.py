@@ -97,7 +97,7 @@ async def start_audit(request: Request, req: AuditRequest, background_tasks: Bac
 
 
 @router.get("/audit/history")
-async def get_history(request: Request, limit: int = 20, db: AsyncSession = Depends(get_db)):
+async def get_history(request: Request, limit: int = 20, offset: int = 0, db: AsyncSession = Depends(get_db)):
     user_id = getattr(request.state, "user_id", None)
     stmt = (
         select(Audit, AuditScore)
@@ -105,7 +105,7 @@ async def get_history(request: Request, limit: int = 20, db: AsyncSession = Depe
     )
     if user_id:
         stmt = stmt.where(Audit.user_id == user_id)
-    stmt = stmt.order_by(Audit.created_at.desc()).limit(limit)
+    stmt = stmt.order_by(Audit.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
     rows = result.all()
     audit_ids = [a.id for a, _ in rows]

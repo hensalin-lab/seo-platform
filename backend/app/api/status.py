@@ -681,6 +681,63 @@ async def get_ai_providers_status():
     return {"providers": result}
 
 
+@router.post("/ai/prompt-test")
+async def ai_prompt_test(request: Request):
+    """Run one prompt across several LLMs, report which answer the brand is mentioned in."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
+    prompt = (body.get("prompt") or "").strip()
+    brand = (body.get("brand") or "").strip()
+    requested = body.get("models") or ["chatgpt", "gemini", "perplexity", "claude", "deepseek"]
+    if not prompt:
+        raise HTTPException(400, "Prompt is required")
+
+    from app.engine.dual_ai import _gemini_chat, _groq_chat, _openrouter_chat
+    from app.config import settings as s
+
+    sys_prompt = (
+        "Answer the user's question directly and helpfully. "
+        'Return ONLY valid JSON: {"response": "your full answer text"}'
+    )
+
+    async def run(name: str):
+        provider = ""
+        r = None
+        if name == "gemini":
+            provider, r = "gemini", await _gemini_chat(sys_prompt, prompt, 900)
+        elif name == "perplexity":
+            provider, r = "groq-llama", await _groq_chat(sys_prompt, prompt, 900)
+        elif name == "deepseek":
+            provider, r = "deepseek", await _openrouter_chat(sys_prompt, prompt, 900, s.OPENROUTER_MODEL_COMPETITOR)
+        elif name == "chatgpt":
+            provider, r = "gpt-4o", await _openrouter_chat(sys_prompt, prompt, 900, s.OPENROUTER_MODEL)
+        elif name == "claude":
+            provider, r = "claude", await _openrouter_chat(sys_prompt, prompt, 900, "anthropic/claude-3.5-sonnet")
+        else:
+            provider, r = "groq-llama", await _groq_chat(sys_prompt, prompt, 900)
+        text = ""
+        if isinstance(r, dict):
+            text = r.get("response") or r.get("answer") or r.get("content") or ""
+        text = str(text).strip()
+        return {
+            "platform": name,
+            "provider": provider,
+            "response_snippet": text[:600],
+            "brand_mentioned": bool(brand and brand.lower() in text.lower()),
+            "available": bool(text),
+        }
+
+    results = {}
+    for name in requested:
+        try:
+            results[name] = await run(name)
+        except Exception:
+            results[name] = {"platform": name, "provider": "", "response_snippet": "", "brand_mentioned": False, "available": False}
+    return {"results": results, "brand": brand}
+
+
 @router.get("/audit/{audit_id}/schema-analysis")
 async def get_schema_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))

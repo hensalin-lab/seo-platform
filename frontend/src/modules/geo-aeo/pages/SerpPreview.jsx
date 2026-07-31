@@ -66,13 +66,19 @@ function ChatGPTCitationPreview({ title, url, contentSnippet }) {
       <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <MessageSquare size={12} style={{ color: '#10a37f' }} /> ChatGPT Citation Preview
       </div>
-      <div style={{ fontSize: 13, lineHeight: 1.6, color: '#333' }}>
-        <span style={{ background: '#f0f0f0', padding: '2px 4px', borderRadius: 2 }}>According to</span>{' '}
-        <a href={url} target="_blank" rel="noopener" style={{ color: '#10a37f', textDecoration: 'underline' }}>
-          {title || url}
-        </a>
-        , {contentSnippet?.slice(0, 200) || 'this content provides valuable information about the topic...'}
-      </div>
+      {contentSnippet ? (
+        <div style={{ fontSize: 13, lineHeight: 1.6, color: '#333' }}>
+          <span style={{ background: '#f0f0f0', padding: '2px 4px', borderRadius: 2 }}>According to</span>{' '}
+          <a href={url} target="_blank" rel="noopener" style={{ color: '#10a37f', textDecoration: 'underline' }}>
+            {title || url}
+          </a>
+          , {contentSnippet.slice(0, 200)}
+        </div>
+      ) : (
+        <div style={{ fontSize: 13, color: '#999', lineHeight: 1.6 }}>
+          No citation preview available — ChatGPT would paraphrase this page without a direct "According to" citation. Add explicit cited sources and statistics to become citable.
+        </div>
+      )}
       <div style={{ marginTop: 8, padding: '6px 10px', background: '#f7f7f7', borderRadius: 6, fontSize: 11, color: '#666' }}>
         Source: {url?.replace(/^https?:\/\//, '').slice(0, 60)}
       </div>
@@ -80,7 +86,8 @@ function ChatGPTCitationPreview({ title, url, contentSnippet }) {
   );
 }
 
-function PerplexityPreview({ title, url, sources }) {
+function PerplexityPreview({ title, url, readiness }) {
+  const hasReadiness = readiness !== null && readiness !== undefined;
   return (
     <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: '#fff', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -90,12 +97,14 @@ function PerplexityPreview({ title, url, sources }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{title || 'Untitled Page'}</div>
           <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
-            This content is {sources?.length >= 3 ? 'well-cited and likely to be referenced' : 'lacking citations and may not be referenced'} by Perplexity AI.
+            {hasReadiness
+              ? (readiness >= 70 ? 'Estimated citation-readiness is strong — this page has the signals Perplexity looks for.' : readiness >= 40 ? 'Estimated citation-readiness is moderate — add cited sources and statistics to improve.' : 'Estimated citation-readiness is weak — Perplexity is unlikely to cite this page.')
+              : 'Estimated citation-readiness not available for this page.'}
           </div>
         </div>
-        {sources?.length > 0 && (
-          <div style={{ fontSize: 11, color: '#20b2aa', fontWeight: 600, textAlign: 'center', padding: '4px 8px', background: '#f0fdfa', borderRadius: 6 }}>
-            {sources.length} sources
+        {hasReadiness && (
+          <div style={{ fontSize: 11, color: '#20b2aa', fontWeight: 600, textAlign: 'center', padding: '4px 8px', background: '#f0fdfa', borderRadius: 6, alignSelf: 'flex-start' }}>
+            Est. {readiness}%
           </div>
         )}
       </div>
@@ -162,12 +171,12 @@ export default function SerpPreview() {
         <ChatGPTCitationPreview
           title={page.title}
           url={page.url}
-          contentSnippet={enterprise?.diagnostics?.why_not_ranking?.[0] ? undefined : `is a comprehensive resource that covers key aspects of this topic with ${page.word_count || 0} words of detailed analysis.`}
+          contentSnippet={enterprise?.content_snippet || enterprise?.citation_snippet}
         />
         <PerplexityPreview
           title={page.title}
           url={page.url}
-          sources={[]}
+          readiness={enterprise?.platform_scores?.perplexity}
         />
       </div>
 

@@ -68,7 +68,7 @@ export default function PortfolioDashboard() {
     </div>
   );
 
-  if (!data || data.total_audits === 0) return (
+  if (!data || !Array.isArray(data.audits) || data.audits.length === 0) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
       <LayoutDashboard size={40} color="var(--text-muted, #9ca3af)" />
       <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text, #111827)' }}>No Audits Yet</div>
@@ -76,7 +76,15 @@ export default function PortfolioDashboard() {
     </div>
   );
 
-  const { total_audits, average_score, total_pages_audited, total_issues_found, health_distribution, audits } = data;
+  const {
+    total_audits = 0,
+    average_score = null,
+    total_pages_audited = 0,
+    total_issues_found = 0,
+    health_distribution = { good: 0, fair: 0, poor: 0 },
+    audits = [],
+  } = data || {};
+  const hd = health_distribution && typeof health_distribution === 'object' ? health_distribution : { good: 0, fair: 0, poor: 0 };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -88,17 +96,17 @@ export default function PortfolioDashboard() {
       {/* Summary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
         <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <ScoreRing score={average_score} size={70} stroke={6} />
+          <ScoreRing score={average_score ?? 0} size={70} stroke={6} />
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)' }}>{average_score}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)' }}>{average_score ?? '—'}</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)' }}>Average Score</div>
           </div>
         </div>
-        {[
-          { icon: FileText, label: 'Total Audits', value: total_audits, color: '#3b82f6' },
-          { icon: Layers, label: 'Pages Audited', value: total_pages_audited.toLocaleString(), color: '#a855f7' },
-          { icon: AlertTriangle, label: 'Issues Found', value: total_issues_found.toLocaleString(), color: '#ef4444' },
-        ].map((stat, i) => (
+          {[
+            { icon: FileText, label: 'Total Audits', value: total_audits, color: '#3b82f6' },
+            { icon: Layers, label: 'Pages Audited', value: (total_pages_audited ?? 0).toLocaleString(), color: '#a855f7' },
+            { icon: AlertTriangle, label: 'Issues Found', value: (total_issues_found ?? 0).toLocaleString(), color: '#ef4444' },
+          ].map((stat, i) => (
           <div key={i} style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '20px', display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 44, height: 44, borderRadius: 10, background: `${stat.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <stat.icon size={20} color={stat.color} />
@@ -116,9 +124,9 @@ export default function PortfolioDashboard() {
         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text, #111827)', marginBottom: 14 }}>Health Distribution</div>
         <div style={{ display: 'flex', gap: 16 }}>
           {[
-            { label: 'Good', count: health_distribution.good, color: '#22c55e' },
-            { label: 'Fair', count: health_distribution.fair, color: '#f59e0b' },
-            { label: 'Poor', count: health_distribution.poor, color: '#ef4444' },
+            { label: 'Good', count: hd.good ?? 0, color: '#22c55e' },
+            { label: 'Fair', count: hd.fair ?? 0, color: '#f59e0b' },
+            { label: 'Poor', count: hd.poor ?? 0, color: '#ef4444' },
           ].map(h => (
             <div key={h.label} style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ fontSize: 28, fontWeight: 700, color: h.color }}>{h.count}</div>
@@ -147,11 +155,11 @@ export default function PortfolioDashboard() {
             </thead>
             <tbody>
               {audits.map((a, i) => (
-                <tr key={a.id || i} style={{ borderBottom: '1px solid var(--border, #e5e7eb)', cursor: 'pointer' }}
-                  onClick={() => navigate(`/audit/${a.id}`)}>
+                <tr key={a.id || a.audit_id || i} style={{ borderBottom: '1px solid var(--border, #e5e7eb)', cursor: 'pointer' }}
+                  onClick={() => navigate(`/audit/${a.id || a.audit_id}`)}>
                   <td style={{ padding: '14px 16px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent, #3b82f6)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.url}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted, #9ca3af)', marginTop: 2 }}>{a.id.slice(0, 8)}...</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent, #3b82f6)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.url || a.website_url}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted, #9ca3af)', marginTop: 2 }}>{(a.id || a.audit_id || '').slice(0, 8)}...</div>
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                     <ScoreRing score={a.scores?.overall || 0} size={50} stroke={4} />

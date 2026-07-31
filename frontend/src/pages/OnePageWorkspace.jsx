@@ -794,10 +794,10 @@ export default function OnePageWorkspace() {
           api.request(`/audit/${id}/audit-compare`).catch(() => null),
           api.getBacklinkProfile(id).catch(() => null),
           api.getOffsiteAuthority(id).catch(() => null),
-          api.getCitationAnalysis?.(id).catch(() => null),
-          api.getAiSearchIntelligence?.(id).catch(() => null),
-          api.getAiBotIntelligence?.(id).catch(() => null),
-          api.getSerpPreview?.(id).catch(() => null),
+          Promise.resolve(typeof api.getCitationAnalysis === 'function' ? api.getCitationAnalysis(id) : null).catch(() => null),
+          Promise.resolve(typeof api.getAiSearchIntelligence === 'function' ? api.getAiSearchIntelligence(id) : null).catch(() => null),
+          Promise.resolve(typeof api.getAiBotIntelligence === 'function' ? api.getAiBotIntelligence(id) : null).catch(() => null),
+          Promise.resolve(typeof api.getSerpPreview === 'function' ? api.getSerpPreview(id) : null).catch(() => null),
         ]);
         setAudit(auditData);
         setScores(allScores);

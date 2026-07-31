@@ -41,11 +41,12 @@ def _http_error_detail(name: str, status_code: int, body: str = ""):
     _record_health(name, False, f"HTTP {status_code}: {body[:200]} {guidance}")
 
 
-async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2900) -> Optional[dict]:
-    """Call OpenRouter GPT-4o."""
+async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2900, model: str = None) -> Optional[dict]:
+    """Call OpenRouter."""
     if not settings.OPENROUTER_API_KEY:
         _record_health("gpt-4o", False, "OPENROUTER_API_KEY not configured")
         return None
+    model = model or settings.OPENROUTER_MODEL
     try:
         async with httpx.AsyncClient(timeout=settings.OPENROUTER_TIMEOUT) as client:
             resp = await client.post(
@@ -57,7 +58,7 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
                     "X-Title": "AI SEO Platform",
                 },
                 json={
-                    "model": settings.OPENROUTER_MODEL,
+                    "model": model,
                     "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                     "temperature": 0.3, "max_tokens": max_tokens,
                 },
@@ -271,15 +272,28 @@ def _merge_lists(lists: list[list]) -> list:
     return merged
 
 
-async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> dict:
-    """Run all 5 providers in parallel, merge results. Each has its own timeout."""
-    task_map = {
-        "gpt-4o": _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900)),
-        "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
-        "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
-        "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
-        "gemini-2.0-flash": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
-    }
+async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default") -> dict:
+    """Run AI providers in parallel, merged. Task routes to the best model per job:
+    - default    -> all 5 providers (GPT-4o via OpenRouter, Groq, Cerebras, Ollama, Gemini)
+    - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
+    - competitor -> DeepSeek V3 (OpenRouter) + Gemini + Groq  (strong reasoning)
+    """
+    task_map = {"gpt-4o": _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900))}
+    if task == "rewrite":
+        task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
+        task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
+        task_map["gemini-2.5-flash"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+    elif task == "competitor":
+        task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)
+        task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
+        task_map["gemini-2.5-flash"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+    else:
+        task_map.update({
+            "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
+            "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
+            "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
+            "gemini-2.5-flash": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
+        })
     tasks = {name: asyncio.create_task(coro, name=name) for name, coro in task_map.items()}
     done, _ = await asyncio.wait(tasks.values(), timeout=30, return_when=asyncio.ALL_COMPLETED)
     results = {}
@@ -372,7 +386,7 @@ Known Issues:
 {issues_text}
 
 Generate a complete content optimization package with actual before/after rewrites for every element."""
-    return await _run_all(sys, user, 4000)
+    return await _run_all(sys, user, 4000, task="rewrite")
 
 
 async def quad_ai_search_optimization(url, title, content, signals):
@@ -416,7 +430,7 @@ async def quad_ai_full_strategy(audit_data, pages, issues):
     critical = [i for i in (issues or []) if i.get("severity") in ("CRITICAL", "HIGH")]
     issues_text = "\n".join([f"- {i.get('category','?')}: {i.get('title', i.get('issue','?'))}" for i in critical[:20]])
     user = f"URL: {audit_data.get('url','?')}\nSEO: {audit_data.get('seo_score',0)}\nTech: {audit_data.get('technical_score',0)}\nAEO: {audit_data.get('aeo_score',0)}\nGEO: {audit_data.get('geo_score',0)}\nPages: {len(pages)}\nIssues:\n{issues_text}"
-    return await _run_all(sys, user, 3000)
+    return await _run_all(sys, user, 3000, task="competitor")
 
 
 async def quad_ai_link_suggestions(url, content, pages):

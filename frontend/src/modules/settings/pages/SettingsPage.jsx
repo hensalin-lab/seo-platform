@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/Toast';
 import { api } from '../../../api';
-import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'password', label: 'Password', icon: Lock },
   { id: 'api-keys', label: 'API Keys', icon: Key },
+  { id: 'ai-providers', label: 'AI Providers', icon: Cpu },
   { id: 'webhooks', label: 'Webhooks', icon: Webhook },
   { id: 'scheduled', label: 'Scheduled', icon: Calendar },
   { id: 'whitelabel', label: 'White Label', icon: Palette },
@@ -38,6 +39,7 @@ export default function SettingsPage() {
           {tab === 'profile' && <ProfileTab user={user} setUser={setUser} addToast={addToast} />}
           {tab === 'password' && <PasswordTab addToast={addToast} />}
           {tab === 'api-keys' && <ApiKeysTab addToast={addToast} />}
+          {tab === 'ai-providers' && <AiProvidersTab addToast={addToast} />}
           {tab === 'webhooks' && <WebhooksTab addToast={addToast} />}
           {tab === 'scheduled' && <ScheduledTab addToast={addToast} />}
           {tab === 'whitelabel' && <WhiteLabelTab addToast={addToast} />}
@@ -185,8 +187,80 @@ function ApiKeysTab({ addToast }) {
   );
 }
 
-function WebhooksTab({ addToast }) {
-  const [hooks, setHooks] = useState([]);
+function AiProvidersTab({ addToast }) {
+  const [providers, setProviders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.request('/ai/providers-status');
+      setProviders(Array.isArray(res) ? res : res?.providers || []);
+    } catch (e) {
+      addToast(e.message || 'Failed to load AI provider status', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const statusColor = (status) =>
+    status === 'ok' ? '#22c55e' : status === 'error' ? '#ef4444' : '#6b7280';
+  const statusLabel = (status) =>
+    status === 'ok' ? 'Healthy' : status === 'error' ? 'Error' : 'Not tested yet';
+
+  return (
+    <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>AI Providers</h2>
+        <button className="btn btn-outline btn-sm" onClick={load} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+        These free providers power AI visibility checks, prompt tests, and content rewrites. Keys are set as environment variables on the server (Railway / Vercel), not stored here.
+      </p>
+      {loading ? <p style={{ color: 'var(--text-secondary)' }}>Loading...</p> : (
+        <>
+          {providers.map(p => (
+            <div key={p.name} style={{ padding: '14px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{p.label}</span>
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: p.configured ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.15)', color: p.configured ? '#22c55e' : 'var(--text-muted)' }}>
+                    {p.configured ? 'Key set' : 'No key'}
+                  </span>
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: `${statusColor(p.status)}18`, color: statusColor(p.status), display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {p.status === 'ok' ? <CheckCircle2 size={11} /> : p.status === 'error' ? <XCircle size={11} /> : null}
+                    {statusLabel(p.status)}
+                  </span>
+                </div>
+                {p.detail && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'monospace' }}>{p.detail}</div>
+                )}
+                {p.guidance && (
+                  <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4 }}>{p.guidance}</div>
+                )}
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 20, padding: 14, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Where to get free keys</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.9 }}>
+              <li><strong>Gemini</strong> (recommended): aistudio.google.com/apikey — free tier</li>
+              <li><strong>Groq</strong>: console.groq.com/keys — free tier, resets daily</li>
+              <li><strong>Cerebras</strong>: cloud.cerebras.ai — free tier</li>
+              <li><strong>OpenRouter</strong>: openrouter.ai/settings/keys — needs paid credits; free model variants are currently unavailable</li>
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(true);
 

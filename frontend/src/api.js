@@ -89,7 +89,7 @@ export const api = {
   getCoreWebVitals: (id, url = '') => request(`/audit/${id}/core-web-vitals?url=${encodeURIComponent(url)}`),
   getEeatAnalysis: (id) => request(`/audit/${id}/eeat-analysis`),
   getConversionAnalysis: (id) => request(`/audit/${id}/conversion-analysis`),
-  getHistory: (limit = 20) => request(`/audit/history?limit=${limit}`),
+  getHistory: (limit = 20, offset = 0) => request(`/audit/history?limit=${limit}&offset=${offset}`),
   deleteAudit: (id) => request(`/audit/${id}`, { method: 'DELETE' }),
   chat: (auditId, message) => request(`/audit/${auditId}/chat`, {
     method: 'POST',

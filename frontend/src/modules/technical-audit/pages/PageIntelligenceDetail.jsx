@@ -197,7 +197,7 @@ export default function PageIntelligenceDetail() {
     return (
       <div className="page-content">
         <div style={{ marginBottom: 16 }}>
-          <Link to={`/audit/${id}/page-intelligence`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none' }}>
+          <Link to={`/audit/${id}/pages`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none' }}>
             <ArrowLeft size={14} /> Back to Page Intelligence
           </Link>
         </div>
@@ -229,7 +229,7 @@ export default function PageIntelligenceDetail() {
       );
   const recommendations = data.recommendations || [];
   const headings = data.headings || data.heading_structure || [];
-  const metadata = data.metadata || data.page_metadata || {};
+  const metadata = data.page_data || data.metadata || data.page_metadata || {};
 
   const issuesByCategory = issues.reduce((acc, issue) => {
     const cat = issue.category || 'Other';
@@ -266,7 +266,7 @@ export default function PageIntelligenceDetail() {
     <div className="page-content">
       <div style={{ marginBottom: 20 }}>
         <Link
-          to={`/audit/${id}/page-intelligence`}
+          to={`/audit/${id}/pages`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 12 }}
         >
           <ArrowLeft size={14} /> Back to Page Intelligence
@@ -562,12 +562,12 @@ export default function PageIntelligenceDetail() {
         <MetaRow label="Page Type" value={data.page_type || 'UNKNOWN'} icon={Tag} />
         <MetaRow label="Meta Description" value={metadata.meta_description || metadata.description || data.meta_description} icon={MessageSquare} />
         <MetaRow label="Canonical URL" value={metadata.canonical || data.canonical} icon={Link2} />
-        <MetaRow label="Word Count" value={metadata.word_count || data.word_count} icon={FileText} />
-        <MetaRow label="Images" value={metadata.image_count != null ? `${metadata.image_count} images` : data.images_count != null ? `${data.images_count} images` : null} icon={Image} />
-        <MetaRow label="Internal Links" value={metadata.internal_links ?? data.internal_links} icon={Link2} />
-        <MetaRow label="External Links" value={metadata.external_links ?? data.external_links} icon={ExternalLink} />
+        <MetaRow label="Word Count" value={metadata.word_count ?? data.word_count} icon={FileText} />
+        <MetaRow label="Images" value={metadata.images_count != null ? `${metadata.images_count} images` : metadata.image_count != null ? `${metadata.image_count} images` : data.images_count != null ? `${data.images_count} images` : null} icon={Image} />
+        <MetaRow label="Internal Links" value={metadata.links_internal_count ?? metadata.internal_links ?? data.internal_links} icon={Link2} />
+        <MetaRow label="External Links" value={metadata.links_external_count ?? metadata.external_links ?? data.external_links} icon={ExternalLink} />
         <MetaRow label="Schema Types" value={metadata.schema_types || data.schema_types} icon={Code} />
-        <MetaRow label="Open Graph" value={metadata.og_title || data.og_title} icon={Globe} />
+        <MetaRow label="H1" value={metadata.h1 || data.h1} icon={Globe} />
       </div>
 
       {/* Heading Structure */}

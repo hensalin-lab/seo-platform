@@ -6,7 +6,7 @@ import VisualSchemaBuilder from '../components/VisualSchemaBuilder';
 
 function ScoreCard({ label, score, color, icon: Icon }) {
   const scoreColor = score >= 80 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
-  const trend = score >= 50 ? 'up' : 'down';
+  const hasScore = score !== null && score !== undefined;
   return (
     <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 12, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -15,20 +15,15 @@ function ScoreCard({ label, score, color, icon: Icon }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1.2 }}>{score ?? '—'}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1.2 }}>{hasScore ? score : '—'}</div>
         </div>
       </div>
       <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--border, #e5e7eb)' }}>
-        <div style={{ width: `${Math.min(score ?? 0, 100)}%`, height: '100%', borderRadius: 3, background: scoreColor, transition: 'width 0.5s ease' }} />
+        <div style={{ width: `${hasScore ? Math.min(score, 100) : 0}%`, height: '100%', borderRadius: 3, background: hasScore ? scoreColor : 'transparent', transition: 'width 0.5s ease' }} />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: score >= 80 ? 'rgba(34,197,94,0.12)' : score >= 50 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)', color: scoreColor }}>
-          {score >= 80 ? 'Good' : score >= 50 ? 'Needs Work' : 'Poor'}
-        </span>
-        <span style={{ fontSize: 12, color: trend === 'up' ? '#22c55e' : '#ef4444' }}>
-          {trend === 'up' ? '\u2191' : '\u2193'}
-        </span>
-      </div>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, width: 'fit-content', background: hasScore ? (score >= 80 ? 'rgba(34,197,94,0.12)' : score >= 50 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)') : 'rgba(107,114,128,0.12)', color: hasScore ? scoreColor : 'var(--text-muted, #9ca3af)' }}>
+        {hasScore ? (score >= 80 ? 'Good' : score >= 50 ? 'Needs Work' : 'Poor') : 'Data unavailable'}
+      </span>
     </div>
   );
 }

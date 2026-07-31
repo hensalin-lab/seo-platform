@@ -64,6 +64,8 @@ import AiSuggestions from './modules/content-keywords/pages/AiSuggestions';
 import IssuesExplorer from './modules/action-center/pages/IssuesExplorer';
 import Trends from './modules/executive/pages/Trends';
 import GeoAeoHub from './modules/geo-aeo/pages/GeoAeoHub';
+import AeoAnalysis from './modules/geo-aeo/pages/AeoAnalysis';
+import GeoAnalysis from './modules/geo-aeo/pages/GeoAnalysis';
 import ActionCenter from './modules/action-center/pages/ActionCenter';
 import ContentStudio from './modules/content-keywords/pages/ContentStudio';
 import './index.css';
@@ -86,6 +88,8 @@ export default function App() {
                   <Route path="/audit/:id/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/audit/:id/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
                   <Route path="/audit/:id/geo-aeo" element={<ProtectedRoute><GeoAeoHub /></ProtectedRoute>} />
+          <Route path="/audit/:id/aeo-analysis" element={<ProtectedRoute><AeoAnalysis /></ProtectedRoute>} />
+          <Route path="/audit/:id/geo-analysis" element={<ProtectedRoute><GeoAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/action-center" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-studio" element={<ProtectedRoute><ContentStudio /></ProtectedRoute>} />
                   <Route path="/audit/:id/seo" element={<ProtectedRoute><SeoAnalysis /></ProtectedRoute>} />

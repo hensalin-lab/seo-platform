@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Quote, Bot, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Sparkles, FileText, Link2, Info, Shield, Zap, BarChart3 } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -245,6 +246,7 @@ export default function CitationAnalysis() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <ScoreRing score={score} size={160} />
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Citation-Readiness Score</span>
+          <DataSourceBadge source="estimated" size="xs" />
         </div>
         <div style={{ flex: 1, minWidth: 300 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
@@ -266,12 +268,16 @@ export default function CitationAnalysis() {
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <BarChart3 size={18} color="var(--accent, #3b82f6)" />
-          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text, #111827)', margin: 0 }}>Platform Citation Rates</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text, #111827)', margin: 0 }}>Platform Citation Readiness</h2>
+          <DataSourceBadge source="estimated" size="sm" />
         </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)', margin: '0 0 12px', maxWidth: 720 }}>
+          Estimated readiness scores derived from your page signals (schema, citations, statistics, freshness, structure) — not live citation measurements from each AI platform.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
-          <PlatformCard name="ChatGPT" score={chatgptScore} color="#10a37f" description="How often ChatGPT cites your content in responses" />
-          <PlatformCard name="Gemini" score={geminiScore} color="#4285f4" description="Citation rate in Google AI Overviews and Gemini" />
-          <PlatformCard name="Perplexity" score={perplexityScore} color="#20b2aa" description="Citation frequency in Perplexity AI search results" />
+          <PlatformCard name="ChatGPT" score={chatgptScore} color="#10a37f" description="Estimated ChatGPT citation-readiness from page signals" />
+          <PlatformCard name="Gemini" score={geminiScore} color="#4285f4" description="Estimated Gemini / AI Overviews citation-readiness" />
+          <PlatformCard name="Perplexity" score={perplexityScore} color="#20b2aa" description="Estimated Perplexity citation-readiness from page signals" />
         </div>
       </div>
 
