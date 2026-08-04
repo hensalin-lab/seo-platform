@@ -17,7 +17,7 @@ function ScoreRing({ score, size = 80, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.25, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }}>{label}</span>}
+        {label && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
       </div>
     </div>
   );
@@ -25,8 +25,8 @@ function ScoreRing({ score, size = 80, label }) {
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, background: '#fff', overflow: 'hidden', marginBottom: 16 }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-white)', overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Icon size={16} style={{ color }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{title}</span>
       </div>
@@ -60,8 +60,8 @@ export default function OffsiteAuthority() {
     api.getOffsiteAuthority(id, selectedIdx).then(d => setData(d)).catch(() => setData(null));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No data available</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
 
   const presence = data.platform_presence || {};
   const brandSignals = data.brand_signals || {};
@@ -83,7 +83,7 @@ export default function OffsiteAuthority() {
         <Card title="Authority Score" icon={Award} color="#8b5cf6">
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <ScoreRing score={data.authority_score} size={90} />
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               <div>External links: {extLinks.total_external || 0}</div>
               <div>Authority links: {extLinks.authority_links || 0}</div>
               <div>Unique domains: {extLinks.domains_linked?.length || 0}</div>
@@ -92,7 +92,7 @@ export default function OffsiteAuthority() {
         </Card>
 
         <Card title="Brand Signals" icon={User} color="#059669">
-          <div style={{ fontSize: 12, color: '#64748b' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
               {brandSignals.brand_name_detected ? <span style={{ color: '#059669' }}>✅</span> : <span style={{ color: '#dc2626' }}>❌</span>}
               Brand name detected
@@ -111,7 +111,7 @@ export default function OffsiteAuthority() {
         </Card>
 
         <Card title="Content Authority" icon={Shield} color="#d97706">
-          <div style={{ fontSize: 12, color: '#64748b' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
               {authSignals.has_statistics ? <span style={{ color: '#059669' }}>✅</span> : <span style={{ color: '#dc2626' }}>❌</span>}
               Statistics
@@ -143,7 +143,7 @@ export default function OffsiteAuthority() {
                 {found ? <span style={{ color: '#059669' }}>✅</span> : <span style={{ color: '#d1d5db' }}>○</span>}
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600 }}>{label}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{p.linked ? 'Linked' : p.mentioned ? 'Mentioned' : 'Not found'}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.linked ? 'Linked' : p.mentioned ? 'Mentioned' : 'Not found'}</div>
                 </div>
               </div>
             );
@@ -155,11 +155,11 @@ export default function OffsiteAuthority() {
         <Card title="Backlink Opportunities" icon={ExternalLink} color="#2563eb">
           <div style={{ display: 'grid', gap: 8 }}>
             {opportunities.map((opp, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 6, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 6, background: 'var(--bg-secondary)', border: '1px solid #f1f5f9' }}>
                 <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: opp.priority === 'HIGH' ? '#fef2f2' : '#eff6ff', color: opp.priority === 'HIGH' ? '#dc2626' : '#2563eb' }}>{opp.priority}</span>
                 <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{opp.platform}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{opp.difficulty}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>{opp.notes}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opp.difficulty}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opp.notes}</div>
               </div>
             ))}
           </div>
@@ -171,7 +171,7 @@ export default function OffsiteAuthority() {
           {data.issues.map((issue, i) => (
             <div key={i} style={{ padding: '8px 0', borderBottom: i < data.issues.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{issue.message || issue}</div>
-              {issue.fix && <div style={{ fontSize: 12, color: '#64748b' }}>{issue.fix}</div>}
+              {issue.fix && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{issue.fix}</div>}
             </div>
           ))}
         </Card>

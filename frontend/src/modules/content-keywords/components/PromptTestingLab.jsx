@@ -18,7 +18,7 @@ const MODELS = [
 const SENTIMENT_STYLES = {
   POSITIVE: { label: 'Positive', bg: 'rgba(16,185,129,0.15)', color: '#10b981', icon: CheckCircle },
   NEGATIVE: { label: 'Negative', bg: 'rgba(239,68,68,0.15)', color: '#ef4444', icon: XCircle },
-  NEUTRAL: { label: 'Neutral', bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', icon: AlertCircle },
+  NEUTRAL: { label: 'Neutral', bg: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)', icon: AlertCircle },
 };
 
 function inferSentiment(text) {

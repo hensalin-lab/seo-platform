@@ -91,20 +91,20 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
   const scoreBorder = (s) => s >= 70 ? '#bbf7d0' : s >= 40 ? '#fde68a' : '#fecaca';
 
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
       <div style={{ padding: '12px 14px', background: 'linear-gradient(135deg, #1e293b, #334155)', borderBottom: '1px solid #e2e8f0' }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Eye size={16} color="#60a5fa" /> Actual Page View with Content Markers
         </div>
-        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
           Visual audit of your actual page content - green markers = good, orange = needs work, red = critical
         </div>
       </div>
 
-      <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: '#64748b', marginRight: 4 }}>FILTER:</span>
+      <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', marginRight: 4 }}>FILTER:</span>
         {[
-          { key: 'all', label: `All (${blocks.length})`, color: '#64748b' },
+          { key: 'all', label: `All (${blocks.length})`, color: 'var(--text-muted)' },
           { key: 'good', label: 'Good', color: '#059669' },
           { key: 'warn', label: 'Needs Work', color: '#d97706' },
           { key: 'bad', label: 'Critical', color: '#dc2626' },
@@ -124,7 +124,7 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
       </div>
 
       <div style={{ padding: 14 }}>
-        <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+        <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Tag size={12} color="#3b82f6" /> Title Tag
           </div>
@@ -141,7 +141,7 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
           </div>
         </div>
 
-        <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+        <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <FileJson size={12} color="#8b5cf6" /> Meta Description
           </div>
@@ -155,7 +155,7 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
 
         <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Layout size={12} color="#059669" /> Content Blocks ({filteredBlocks.length})
-          <span style={{ fontSize: 9, color: '#64748b', fontWeight: 400 }}>- {wordCount} words total</span>
+          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400 }}>- {wordCount} words total</span>
         </div>
 
         {filteredBlocks.map((block, i) => {
@@ -185,7 +185,7 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
                     <span style={{ fontSize: 9, fontWeight: 600, color: sc, textTransform: 'uppercase' }}>
                       {block.isHeading ? 'Heading' : `Block ${block.index + 1}`}
                     </span>
-                    <span style={{ fontSize: 8, color: '#94a3b8' }}>{block.wordCount}w</span>
+                    <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>{block.wordCount}w</span>
                     <div style={{ flex: 1 }} />
                     {block.score.strengths.slice(0, 2).map((s, si) => (
                       <span key={si} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, background: '#f0fdf4', color: '#059669', fontWeight: 600 }}>{s}</span>
@@ -241,26 +241,26 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
           );
         })}
 
-        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             <BarChart3 size={12} color="#3b82f6" /> Content Quality Summary
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            <div style={{ textAlign: 'center', padding: 8, background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+            <div style={{ textAlign: 'center', padding: 8, background: 'var(--bg-white)', borderRadius: 6, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#3b82f6' }}>{wordCount}</div>
-              <div style={{ fontSize: 8, color: '#64748b' }}>Words</div>
+              <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>Words</div>
             </div>
-            <div style={{ textAlign: 'center', padding: 8, background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+            <div style={{ textAlign: 'center', padding: 8, background: 'var(--bg-white)', borderRadius: 6, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#8b5cf6' }}>{blocks.length}</div>
-              <div style={{ fontSize: 8, color: '#64748b' }}>Blocks</div>
+              <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>Blocks</div>
             </div>
-            <div style={{ textAlign: 'center', padding: 8, background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+            <div style={{ textAlign: 'center', padding: 8, background: 'var(--bg-white)', borderRadius: 6, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: scoreColor(mega?.overall_score || 0) }}>{Math.round(mega?.overall_score || 0)}</div>
-              <div style={{ fontSize: 8, color: '#64748b' }}>Score</div>
+              <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>Score</div>
             </div>
           </div>
           <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>BLOCK SCORE DISTRIBUTION</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>BLOCK SCORE DISTRIBUTION</div>
             <div style={{ display: 'flex', gap: 2, height: 16, borderRadius: 4, overflow: 'hidden' }}>
               {blocks.length > 0 && (
                 <>
@@ -333,7 +333,7 @@ const SIGNAL_CATEGORIES = {
   mobile_optimization: { label: 'Mobile Optimization', icon: Smartphone, color: '#10b981' },
   page_speed: { label: 'Page Speed', icon: Gauge, color: '#f97316' },
   security: { label: 'Security', icon: Shield, color: '#dc2626' },
-  crawlability: { label: 'Crawlability', icon: Search, color: '#64748b' },
+  crawlability: { label: 'Crawlability', icon: Search, color: 'var(--text-muted)' },
   indexability: { label: 'Indexability', icon: CheckCircle, color: '#22c55e' },
   user_experience: { label: 'User Experience', icon: Eye, color: '#8b5cf6' },
   ai_search_readiness: { label: 'AI Search Readiness', icon: Brain, color: '#a855f7' },
@@ -351,7 +351,7 @@ const SIGNAL_CATEGORIES = {
   visual_content: { label: 'Visual Content', icon: Image, color: '#ec4899' },
   core_web_vitals_detailed: { label: 'Core Web Vitals', icon: Gauge, color: '#ef4444' },
   mobile_first: { label: 'Mobile First', icon: Smartphone, color: '#10b981' },
-  technical_integrity: { label: 'Technical Integrity', icon: Shield, color: '#64748b' },
+  technical_integrity: { label: 'Technical Integrity', icon: Shield, color: 'var(--text-muted)' },
 };
 
 function ScoreRing({ score, size = 60, stroke = 5, label }) {
@@ -368,7 +368,7 @@ function ScoreRing({ score, size = 60, stroke = 5, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.24, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 7, color: '#94a3b8', marginTop: 1 }}>{label}</span>}
+        {label && <span style={{ fontSize: 7, color: 'var(--text-muted)', marginTop: 1 }}>{label}</span>}
       </div>
     </div>
   );
@@ -378,7 +378,7 @@ function BoolField({ label, value }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
       <div style={{ width: 7, height: 7, borderRadius: 4, background: value ? '#059669' : '#dc2626', flexShrink: 0 }} />
-      <span style={{ fontSize: 11, color: '#64748b', flex: 1 }}>{label}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>{label}</span>
       <span style={{ fontSize: 11, fontWeight: 600, color: value ? '#059669' : '#dc2626' }}>{value ? 'Yes' : 'No'}</span>
     </div>
   );
@@ -387,7 +387,7 @@ function BoolField({ label, value }) {
 function MetricField({ label, value, color }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
-      <span style={{ fontSize: 11, color: '#64748b', flex: 1 }}>{label}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>{label}</span>
       <span style={{ fontSize: 12, fontWeight: 700, color: color || '#1e293b' }}>{value}</span>
     </div>
   );
@@ -397,13 +397,13 @@ function ListView({ items, label }) {
   if (!items || !items.length) return null;
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3, textTransform: 'uppercase' }}>{label} ({items.length})</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 3, textTransform: 'uppercase' }}>{label} ({items.length})</div>
       {items.slice(0, 12).map((item, i) => (
         <div key={i} style={{ padding: '3px 6px', fontSize: 11, color: '#475569', borderBottom: '1px solid #f8fafc' }}>
           {typeof item === 'string' ? item : item.text || item.url || JSON.stringify(item).slice(0, 80)}
         </div>
       ))}
-      {items.length > 12 && <div style={{ fontSize: 10, color: '#94a3b8', padding: '3px 6px' }}>+{items.length - 12} more</div>}
+      {items.length > 12 && <div style={{ fontSize: 10, color: 'var(--text-muted)', padding: '3px 6px' }}>+{items.length - 12} more</div>}
     </div>
   );
 }
@@ -418,7 +418,7 @@ function SignalCard({ signal, index }) {
   const hasIssues = signal.status === 'warn' || signal.status === 'fail';
 
   return (
-    <div style={{ border: `1px solid ${sc}30`, borderRadius: 8, marginBottom: 4, background: '#fff', borderLeft: `3px solid ${sc}` }}>
+    <div style={{ border: `1px solid ${sc}30`, borderRadius: 8, marginBottom: 4, background: 'var(--bg-white)', borderLeft: `3px solid ${sc}` }}>
       <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', background: hasIssues ? `${sc}05` : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ width: 18, height: 18, borderRadius: 4, background: `${sc}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: sc, flexShrink: 0 }}>{index + 1}</span>
         <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#1e293b' }}>{signal.name}</span>
@@ -440,7 +440,7 @@ function SignalCard({ signal, index }) {
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {signal.expected_impact && <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>Impact: {signal.expected_impact}</span>}
-            {signal.effort && <span style={{ fontSize: 9, color: '#64748b' }}>Effort: {signal.effort}</span>}
+            {signal.effort && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Effort: {signal.effort}</span>}
           </div>
         </div>
       )}
@@ -455,9 +455,9 @@ function SignalCard({ signal, index }) {
 
 function GenericSubView({ title, icon, data }) {
   const Icon = icon || Eye;
-  if (!data || typeof data !== 'object') return <div style={{ padding: 12, color: '#94a3b8', fontSize: 11 }}>No data available</div>;
+  if (!data || typeof data !== 'object') return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 11 }}>No data available</div>;
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Icon size={14} color="#3b82f6" /> {title}
       </div>
@@ -475,7 +475,7 @@ function GenericSubView({ title, icon, data }) {
 
 function SerpPreview({ title, url, description }) {
   return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#fff' }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14, background: 'var(--bg-white)' }}>
       <div style={{ fontSize: 16, color: '#1a0dab', fontWeight: 400, lineHeight: 1.3, marginBottom: 2 }}>{(title || 'Page Title').slice(0, 60)}</div>
       <div style={{ fontSize: 12, color: '#006621', marginBottom: 3 }}>{url || 'https://example.com'}</div>
       <div style={{ fontSize: 12, color: '#545454', lineHeight: 1.4 }}>{(description || 'Meta description preview...').slice(0, 160)}</div>
@@ -484,13 +484,13 @@ function SerpPreview({ title, url, description }) {
 }
 
 function GoogleCrawlView({ sv }) {
-  if (!sv) return <div style={{ padding: 12, color: '#94a3b8', fontSize: 11 }}>Loading Google crawl data...</div>;
+  if (!sv) return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 11 }}>Loading Google crawl data...</div>;
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Globe size={16} color="#3b82f6" /> How Google Sees This Page
       </div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>This is exactly what Googlebot crawls, indexes, and uses to rank your page</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>This is exactly what Googlebot crawls, indexes, and uses to rank your page</div>
       {Object.entries(sv.googlebot_view || {}).map(([key, value]) => {
         if (value === null || value === undefined) return null;
         if (typeof value === 'boolean') return <BoolField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={value} />;
@@ -512,7 +512,7 @@ function MissingSignalsView({ signals }) {
   const warnByCategory = {};
   warnings.forEach(s => { if (!warnByCategory[s.category]) warnByCategory[s.category] = []; warnByCategory[s.category].push(s); });
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <XCircle size={16} color="#dc2626" /> What Google Does Not Like - {failing.length} Failing, {warnings.length} Warnings
       </div>
@@ -521,7 +521,7 @@ function MissingSignalsView({ signals }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', marginBottom: 6, textTransform: 'uppercase' }}>Critical Failures ({failing.length})</div>
           {Object.entries(failByCategory).map(([cat, sigs]) => (
             <div key={cat} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginBottom: 3, textTransform: 'capitalize' }}>{(SIGNAL_CATEGORIES[cat]?.label || cat).replace(/_/g, ' ')} ({sigs.length})</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3, textTransform: 'capitalize' }}>{(SIGNAL_CATEGORIES[cat]?.label || cat).replace(/_/g, ' ')} ({sigs.length})</div>
               {sigs.map((s, i) => <SignalCard key={i} signal={s} index={i} />)}
             </div>
           ))}
@@ -532,7 +532,7 @@ function MissingSignalsView({ signals }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 6, textTransform: 'uppercase' }}>Warnings ({warnings.length})</div>
           {Object.entries(warnByCategory).map(([cat, sigs]) => (
             <div key={cat} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginBottom: 3, textTransform: 'capitalize' }}>{(SIGNAL_CATEGORIES[cat]?.label || cat).replace(/_/g, ' ')} ({sigs.length})</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3, textTransform: 'capitalize' }}>{(SIGNAL_CATEGORIES[cat]?.label || cat).replace(/_/g, ' ')} ({sigs.length})</div>
               {sigs.map((s, i) => <SignalCard key={i} signal={s} index={i} />)}
             </div>
           ))}
@@ -551,7 +551,7 @@ function CategoryGapsView({ catScores }) {
   const moderate = sorted.filter(([_, v]) => v >= 50 && v < 80);
   const good = sorted.filter(([_, v]) => v >= 80);
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <BarChart3 size={16} color="#3b82f6" /> Category Score Breakdown
       </div>
@@ -605,7 +605,7 @@ function QuickWinsView({ signals }) {
   const quickWins = signals.filter(s => (s.status === 'warn' || s.status === 'fail') && s.effort && s.effort.toLowerCase().includes('low'));
   const mediumEffort = signals.filter(s => (s.status === 'warn' || s.status === 'fail') && s.effort && s.effort.toLowerCase().includes('medium'));
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#059669', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Zap size={16} color="#059669" /> Quick Wins - Low Effort Fixes ({quickWins.length + mediumEffort.length})
       </div>
@@ -622,7 +622,7 @@ function QuickWinsView({ signals }) {
         </div>
       )}
       {quickWins.length === 0 && mediumEffort.length === 0 && (
-        <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 12 }}>No quick win signals found</div>
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No quick win signals found</div>
       )}
     </div>
   );
@@ -636,7 +636,7 @@ function KeywordImprovementsView({ mega, rewrite, signals }) {
   const contentKw = signals.filter(s => s.category === 'content_quality' && (s.id === 'CQ010' || s.id === 'K002' || s.id === 'K004'));
   const keywordIssues = [...kwSignal, ...contentKw].filter(s => s.status !== 'pass');
   return (
-    <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#d97706', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Key size={16} color="#d97706" /> Keyword Improvements Needed
       </div>
@@ -660,8 +660,8 @@ function KeywordImprovementsView({ mega, rewrite, signals }) {
           </div>
         </div>
       )}
-      <div style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>CONTENT KEYWORD COVERAGE</div>
+      <div style={{ padding: 8, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>CONTENT KEYWORD COVERAGE</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <div style={{ padding: '4px 8px', background: '#f0fdf4', borderRadius: 4, border: '1px solid #bbf7d0', fontSize: 10, color: '#065f46' }}><strong>In Title:</strong> {titleSignal?.status === 'pass' ? 'Yes' : 'No'}</div>
           <div style={{ padding: '4px 8px', background: '#f0fdf4', borderRadius: 4, border: '1px solid #bbf7d0', fontSize: 10, color: '#065f46' }}><strong>In H1:</strong> {h1Signal?.status === 'pass' ? 'Yes' : 'No'}</div>
@@ -680,8 +680,8 @@ function IssueCard({ issue, index }) {
   const sevColors = { CRITICAL: '#dc2626', HIGH: '#ea580c', MEDIUM: '#d97706', LOW: '#2563eb' };
   const sc = sevColors[issue.severity] || '#64748b';
   return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 4, background: '#fff', borderLeft: `3px solid ${sc}` }}>
-      <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#f8fafc', border: 'none', cursor: 'pointer', textAlign: 'left', borderRadius: 8 }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 8, marginBottom: 4, background: 'var(--bg-white)', borderLeft: `3px solid ${sc}` }}>
+      <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg-secondary)', border: 'none', cursor: 'pointer', textAlign: 'left', borderRadius: 8 }}>
         <span style={{ width: 18, height: 18, borderRadius: 4, background: `${sc}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: sc, flexShrink: 0 }}>{index + 1}</span>
         <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#1e293b' }}>{issue.signal_name || issue.name || issue.title || issue.issue || 'Issue'}</span>
         <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: `${sc}15`, color: sc, fontWeight: 700 }}>{issue.severity}</span>
@@ -701,7 +701,7 @@ function IssueCard({ issue, index }) {
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {issue.expected_impact && <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>Impact: {issue.expected_impact}</span>}
-            {issue.effort && <span style={{ fontSize: 9, color: '#64748b' }}>Effort: {issue.effort}</span>}
+            {issue.effort && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Effort: {issue.effort}</span>}
           </div>
         </div>
       )}
@@ -716,7 +716,7 @@ function PlatformScoresBar({ platformScores }) {
       {Object.entries(platformScores).map(([platform, score]) => {
         const c = score >= 70 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626';
         return (
-          <div key={platform} style={{ padding: '8px 6px', borderRadius: 6, border: `1px solid ${c}30`, background: '#fff', textAlign: 'center' }}>
+          <div key={platform} style={{ padding: '8px 6px', borderRadius: 6, border: `1px solid ${c}30`, background: 'var(--bg-white)', textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: c }}>{Math.round(score)}</div>
             <div style={{ fontSize: 9, fontWeight: 600, color: '#1e293b', textTransform: 'capitalize', marginTop: 2 }}>{platform.replace(/_/g, ' ')}</div>
             <div style={{ height: 3, background: '#e2e8f0', borderRadius: 2, marginTop: 4 }}><div style={{ height: '100%', width: `${score}%`, background: c, borderRadius: 2 }} /></div>
@@ -761,8 +761,8 @@ export default function ContentRewriter() {
     }).catch(() => setPageLoading(false));
   }, [id, selectedIdx, pages.length]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading...</p></div>;
-  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No pages found</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading...</p></div>;
+  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No pages found</div>;
 
   const page = pages[selectedIdx];
   const sv = deepData?.sub_views || {};
@@ -776,7 +776,7 @@ export default function ContentRewriter() {
   const passing = signals.filter(s => s.status === 'pass');
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '24px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '24px 16px' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto' }}>
         <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 24px', marginBottom: 20 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -787,17 +787,17 @@ export default function ContentRewriter() {
 
         <div style={{ marginBottom: 12 }}>
           <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
-            style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, background: '#fff', cursor: 'pointer' }}>
+            style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, background: 'var(--bg-white)', cursor: 'pointer' }}>
             {pages.map((p, i) => <option key={i} value={i}>{p.title || p.url} ({p.word_count || 0}w)</option>)}
           </select>
         </div>
 
         {mega && (
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 16px' }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: '12px 16px' }}>
             <ScoreRing score={mega.overall_score} size={60} label="SCORE" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{mega.page_title || page.title || page.url}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                 {mega.word_count || page.word_count || 0} words | {mega.signals_checked} signals checked
               </div>
             </div>
@@ -811,15 +811,15 @@ export default function ContentRewriter() {
         )}
 
         {pageLoading ? (
-          <div style={{ padding: 60, textAlign: 'center', background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+          <div style={{ padding: 60, textAlign: 'center', background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)' }}>
             <RefreshCw size={28} className="spin" color="#3b82f6" />
-            <p style={{ marginTop: 10, fontSize: 13, color: '#64748b', fontWeight: 600 }}>Analyzing content...</p>
-            <p style={{ marginTop: 4, fontSize: 11, color: '#94a3b8' }}>First visit ~45s (cached after this)</p>
+            <p style={{ marginTop: 10, fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>Analyzing content...</p>
+            <p style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>First visit ~45s (cached after this)</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 12, alignItems: 'start' }}>
             <div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 3 }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: 3 }}>
                 {[
                   { key: 'pageview', label: 'Page View', icon: Eye },
                   { key: 'google', label: 'Google Sees', icon: Globe },
@@ -911,7 +911,7 @@ export default function ContentRewriter() {
               )}
 
               {leftTab === 'add' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#059669', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Plus size={16} color="#059669" /> What to Add to This Page
                   </div>
@@ -967,7 +967,7 @@ export default function ContentRewriter() {
               )}
 
               {leftTab === 'signals' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Sparkles size={16} color="#3b82f6" /> All {signals.length} Signals Analyzed
                   </div>
@@ -979,7 +979,7 @@ export default function ContentRewriter() {
                     const passCount = catSignals.filter(s => s.status === 'pass').length;
                     return (
                       <div key={cat} style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '4px 8px', background: '#f8fafc', borderRadius: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 5 }}>
                           <catInfo.icon size={12} color={catInfo.color} />
                           <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', flex: 1 }}>{catInfo.label}</span>
                           <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>{passCount} pass</span>
@@ -995,7 +995,7 @@ export default function ContentRewriter() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 3, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: 3, flexWrap: 'wrap' }}>
                 {[
                   { key: 'issues', label: `Issues (${issues.length})`, icon: AlertTriangle },
                   { key: 'rewrite', label: 'AI Rewrite', icon: Sparkles },
@@ -1024,7 +1024,7 @@ export default function ContentRewriter() {
               {rightTab === 'issues' && (
                 <div>
                   {issues.length > 0 ? issues.map((issue, i) => <IssueCard key={i} issue={issue} index={i} />) : (
-                    <div style={{ padding: 24, background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                    <div style={{ padding: 24, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
                       <CheckCircle size={28} color="#059669" />
                       <p style={{ marginTop: 6, color: '#059669', fontWeight: 600, fontSize: 12 }}>No content issues found</p>
                     </div>
@@ -1033,11 +1033,11 @@ export default function ContentRewriter() {
               )}
 
               {rightTab === 'rewrite' && rewrite?.ai_rewrite && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Sparkles size={14} color="#7950f2" /> AI Content Rewrite
                   </div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Before/after rewrites with impact ratings</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px' }}>Before/after rewrites with impact ratings</p>
 
                   {rewrite.ai_rewrite.title_suggestions?.length > 0 && (
                     <div style={{ marginBottom: 12 }}>
@@ -1045,7 +1045,7 @@ export default function ContentRewriter() {
                       {rewrite.ai_rewrite.title_suggestions.map((t, i) => (
                         <div key={i} style={{ padding: '6px 8px', background: '#eff6ff', borderRadius: 5, border: '1px solid #bfdbfe', marginBottom: 3, fontSize: 11, color: '#1e40af', display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontWeight: 700 }}>{i + 1}.</span> {t}
-                          <button onClick={() => navigator.clipboard?.writeText(t)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><Copy size={10} /></button>
+                          <button onClick={() => navigator.clipboard?.writeText(t)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Copy size={10} /></button>
                         </div>
                       ))}
                     </div>
@@ -1057,7 +1057,7 @@ export default function ContentRewriter() {
                       {rewrite.ai_rewrite.meta_description_suggestions.map((m, i) => (
                         <div key={i} style={{ padding: '6px 8px', background: '#f5f3ff', borderRadius: 5, border: '1px solid #ddd6fe', marginBottom: 3, fontSize: 11, color: '#5b21b6', lineHeight: 1.5 }}>
                           {m}
-                          <button onClick={() => navigator.clipboard?.writeText(m)} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><Copy size={10} /></button>
+                          <button onClick={() => navigator.clipboard?.writeText(m)} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Copy size={10} /></button>
                         </div>
                       ))}
                     </div>
@@ -1067,11 +1067,11 @@ export default function ContentRewriter() {
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 6 }}>SECTION REWRITES ({rewrite.ai_rewrite.rewrite_sections.length})</div>
                       {rewrite.ai_rewrite.rewrite_sections.map((s, i) => (
-                        <div key={i} style={{ marginBottom: 10, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
-                          <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div key={i} style={{ marginBottom: 10, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                          <div style={{ padding: '8px 10px', background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.section || `Section ${i + 1}`}</span>
                             {s.impact && <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 3, background: s.impact === 'high' ? '#dc262615' : s.impact === 'medium' ? '#d9770615' : '#2563eb15', color: s.impact === 'high' ? '#dc2626' : s.impact === 'medium' ? '#d97706' : '#2563eb', fontWeight: 700 }}>{s.impact}</span>}
-                            {s.keyword_placement && <span style={{ fontSize: 8, color: '#64748b' }}>KW: {s.keyword_placement}</span>}
+                            {s.keyword_placement && <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>KW: {s.keyword_placement}</span>}
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
                             <div style={{ padding: 8, borderRight: '1px solid #e2e8f0', background: '#fef2f2' }}>
@@ -1083,7 +1083,7 @@ export default function ContentRewriter() {
                               <div style={{ fontSize: 10, color: '#065f46', lineHeight: 1.5, maxHeight: 100, overflow: 'auto' }}>{s.improved_text || '—'}</div>
                             </div>
                           </div>
-                          {s.reason && <div style={{ padding: '4px 10px', fontSize: 9, color: '#64748b', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>Why: {s.reason}</div>}
+                          {s.reason && <div style={{ padding: '4px 10px', fontSize: 9, color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderTop: '1px solid #e2e8f0' }}>Why: {s.reason}</div>}
                         </div>
                       ))}
                     </div>
@@ -1105,7 +1105,7 @@ export default function ContentRewriter() {
                   {rewrite.ai_rewrite.h1_rewrite && (
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#e11d48', marginBottom: 4 }}>H1 REWRITE</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
                         <div style={{ padding: 8, background: '#fef2f2', borderRight: '1px solid #e2e8f0' }}>
                           <div style={{ fontSize: 7, color: '#dc2626', fontWeight: 700, marginBottom: 2 }}>BEFORE</div>
                           <div style={{ fontSize: 12, color: '#7f1d1d', fontWeight: 500 }}>{rewrite.ai_rewrite.h1_rewrite.before}</div>
@@ -1115,14 +1115,14 @@ export default function ContentRewriter() {
                           <div style={{ fontSize: 12, color: '#065f46', fontWeight: 600 }}>{rewrite.ai_rewrite.h1_rewrite.after}</div>
                         </div>
                       </div>
-                      {rewrite.ai_rewrite.h1_rewrite.reason && <div style={{ fontSize: 9, color: '#64748b', marginTop: 3 }}>Why: {rewrite.ai_rewrite.h1_rewrite.reason}</div>}
+                      {rewrite.ai_rewrite.h1_rewrite.reason && <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3 }}>Why: {rewrite.ai_rewrite.h1_rewrite.reason}</div>}
                     </div>
                   )}
 
                   {rewrite.ai_rewrite.intro_rewrite && (
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#0ea5e9', marginBottom: 4 }}>INTRODUCTION REWRITE</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
                         <div style={{ padding: 8, background: '#fef2f2', borderRight: '1px solid #e2e8f0' }}>
                           <div style={{ fontSize: 7, color: '#dc2626', fontWeight: 700, marginBottom: 2 }}>BEFORE</div>
                           <div style={{ fontSize: 10, color: '#7f1d1d', lineHeight: 1.5 }}>{rewrite.ai_rewrite.intro_rewrite.before}</div>
@@ -1147,7 +1147,7 @@ export default function ContentRewriter() {
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#7950f2', marginBottom: 4 }}>ENTITY OPTIMIZATION</div>
                       {rewrite.ai_rewrite.entity_suggestions.missing?.length > 0 && (
                         <div style={{ marginBottom: 4 }}>
-                          <span style={{ fontSize: 9, color: '#64748b' }}>Missing entities: </span>
+                          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Missing entities: </span>
                           {rewrite.ai_rewrite.entity_suggestions.missing.map((e, i) => (
                             <span key={i} style={{ fontSize: 9, padding: '1px 4px', background: '#fef2f2', color: '#dc2626', borderRadius: 3, marginRight: 3, fontWeight: 600 }}>{e}</span>
                           ))}
@@ -1157,7 +1157,7 @@ export default function ContentRewriter() {
                         <div style={{ padding: '6px 8px', background: '#f5f3ff', borderRadius: 5, border: '1px solid #e9d5ff', fontSize: 10, color: '#4c1d95', lineHeight: 1.5 }}>
                           Suggested paragraph: {rewrite.ai_rewrite.entity_suggestions.paragraph}
                           <button onClick={() => navigator.clipboard?.writeText(rewrite.ai_rewrite.entity_suggestions.paragraph)}
-                            style={{ marginLeft: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><Copy size={9} /></button>
+                            style={{ marginLeft: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Copy size={9} /></button>
                         </div>
                       )}
                     </div>
@@ -1166,10 +1166,10 @@ export default function ContentRewriter() {
                   {rewrite.ai_rewrite.comparison_table && (
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4 }}>GENERATED COMPARISON TABLE</div>
-                      <div style={{ overflow: 'auto', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                      <div style={{ overflow: 'auto', borderRadius: 6, border: '1px solid var(--border)' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
                           <thead>
-                            <tr style={{ background: '#f8fafc' }}>
+                            <tr style={{ background: 'var(--bg-secondary)' }}>
                               {(rewrite.ai_rewrite.comparison_table.headers || []).map((h, i) => (
                                 <th key={i} style={{ padding: '5px 8px', textAlign: 'left', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
                               ))}
@@ -1214,9 +1214,9 @@ export default function ContentRewriter() {
                           { label: 'AI Search', current: rewrite.ai_rewrite.score_predictions.ai_search_current, after: rewrite.ai_rewrite.score_predictions.ai_search_after, color: '#e64980' },
                           { label: 'Readability', current: rewrite.ai_rewrite.score_predictions.readability_current, after: rewrite.ai_rewrite.score_predictions.readability_after, color: '#059669' },
                         ].map((s, i) => (
-                          <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                            <div style={{ fontSize: 9, color: '#64748b', marginBottom: 4 }}>{s.label}</div>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: '#94a3b8' }}>{s.current || '—'}</div>
+                          <div key={i} style={{ padding: 8, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4 }}>{s.label}</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-muted)' }}>{s.current || '—'}</div>
                             <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>→ {s.after || '—'}</div>
                           </div>
                         ))}
@@ -1240,25 +1240,25 @@ export default function ContentRewriter() {
                   )}
 
                   {(!rewrite.ai_rewrite.rewrite_sections || rewrite.ai_rewrite.rewrite_sections.length === 0) && !rewrite.ai_rewrite.title_suggestions?.length && (
-                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>AI rewrite data loading... Select a different page and re-run to see suggestions.</div>
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>AI rewrite data loading... Select a different page and re-run to see suggestions.</div>
                   )}
                 </div>
               )}
 
               {rightTab === 'rewrite' && !rewrite?.ai_rewrite && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center' }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 24, textAlign: 'center' }}>
                   <Sparkles size={24} color="#94a3b8" />
-                  <p style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>AI Rewrite suggestions loading...</p>
-                  <p style={{ fontSize: 10, color: '#94a3b8' }}>First load takes ~15s (cached after)</p>
+                  <p style={{ marginTop: 8, color: 'var(--text-muted)', fontSize: 12 }}>AI Rewrite suggestions loading...</p>
+                  <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>First load takes ~15s (cached after)</p>
                 </div>
               )}
 
               {rightTab === 'eeat' && rewrite?.ai_eeat && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Users size={14} color="#f59e0b" /> E-E-A-T Analysis
                   </div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Experience, Expertise, Authoritativeness, Trustworthiness</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px' }}>Experience, Expertise, Authoritativeness, Trustworthiness</p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
                     {[
@@ -1268,9 +1268,9 @@ export default function ContentRewriter() {
                       { label: 'Authoritativeness', value: rewrite.ai_eeat.authoritativeness_score, color: '#059669' },
                       { label: 'Trustworthiness', value: rewrite.ai_eeat.trustworthiness_score, color: '#10b981' },
                     ].map((item, i) => (
-                      <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div key={i} style={{ padding: 8, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'center' }}>
                         <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value ?? '—'}</div>
-                        <div style={{ fontSize: 9, color: '#64748b' }}>{item.label}</div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{item.label}</div>
                       </div>
                     ))}
                   </div>
@@ -1306,8 +1306,8 @@ export default function ContentRewriter() {
                   )}
 
                   {rewrite.ai_eeat.author_analysis && (
-                    <div style={{ marginTop: 10, padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>AUTHOR ANALYSIS</div>
+                    <div style={{ marginTop: 10, padding: 8, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>AUTHOR ANALYSIS</div>
                       <BoolField label="Author mentioned" value={rewrite.ai_eeat.author_analysis.author_mentioned} />
                       <BoolField label="Credentials shown" value={rewrite.ai_eeat.author_analysis.credentials_shown} />
                     </div>
@@ -1316,18 +1316,18 @@ export default function ContentRewriter() {
               )}
 
               {rightTab === 'eeat' && !rewrite?.ai_eeat && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center' }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 24, textAlign: 'center' }}>
                   <Users size={24} color="#94a3b8" />
-                  <p style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>E-E-A-T analysis loading...</p>
+                  <p style={{ marginTop: 8, color: 'var(--text-muted)', fontSize: 12 }}>E-E-A-T analysis loading...</p>
                 </div>
               )}
 
               {rightTab === 'keywords' && rewrite?.ai_keywords && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Key size={14} color="#d97706" /> AI Keyword Insights
                   </div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>AI-analyzed keyword placement and opportunities</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px' }}>AI-analyzed keyword placement and opportunities</p>
 
                   {rewrite.ai_keywords.primary_keyword && (
                     <div style={{ padding: 10, background: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a', marginBottom: 12 }}>
@@ -1365,7 +1365,7 @@ export default function ContentRewriter() {
                         <div key={i} style={{ padding: '5px 8px', background: '#fef2f2', borderRadius: 5, border: '1px solid #fecaca', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 11, fontWeight: 600, color: '#7f1d1d', flex: 1 }}>{kw.keyword}</span>
                           {kw.importance && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: kw.importance === 'high' ? '#dc262615' : '#d9770615', color: kw.importance === 'high' ? '#dc2626' : '#d97706', fontWeight: 600 }}>{kw.importance}</span>}
-                          {kw.where_to_add && <span style={{ fontSize: 9, color: '#64748b' }}>{kw.where_to_add}</span>}
+                          {kw.where_to_add && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{kw.where_to_add}</span>}
                         </div>
                       ))}
                     </div>
@@ -1396,14 +1396,14 @@ export default function ContentRewriter() {
               )}
 
               {rightTab === 'keywords' && !rewrite?.ai_keywords && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 24, textAlign: 'center' }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 24, textAlign: 'center' }}>
                   <Key size={24} color="#94a3b8" />
-                  <p style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>AI keyword insights loading...</p>
+                  <p style={{ marginTop: 8, color: 'var(--text-muted)', fontSize: 12 }}>AI keyword insights loading...</p>
                 </div>
               )}
 
               {rightTab === 'faq' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <HelpCircle size={14} color="#059669" /> FAQ & Schema Suggestions
                   </div>
@@ -1439,17 +1439,17 @@ export default function ContentRewriter() {
                   )}
 
                   {(!rewrite?.ai_rewrite?.faq_suggestions || rewrite.ai_rewrite.faq_suggestions.length === 0) && (!rewrite?.ai_rewrite?.schema_suggestions || rewrite.ai_rewrite.schema_suggestions.length === 0) && (
-                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No FAQ or schema suggestions available yet.</div>
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No FAQ or schema suggestions available yet.</div>
                   )}
                 </div>
               )}
 
               {rightTab === 'links' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Link2 size={14} color="#7c3aed" /> AI Internal Link Suggestions
                   </div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Suggested internal links with anchor text</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px' }}>Suggested internal links with anchor text</p>
 
                   {rewrite?.ai_links?.length > 0 ? rewrite.ai_links.map((link, i) => (
                     <div key={i} style={{ padding: '8px 10px', background: '#f5f3ff', borderRadius: 6, border: '1px solid #e9d5ff', marginBottom: 4 }}>
@@ -1462,7 +1462,7 @@ export default function ContentRewriter() {
                       {link.reason && <div style={{ fontSize: 9, color: '#7c3aed', marginTop: 2 }}>Why: {link.reason}</div>}
                     </div>
                   )) : (
-                    <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No link suggestions available yet.</div>
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No link suggestions available yet.</div>
                   )}
 
                   {rewrite?.ai_rewrite?.internal_link_suggestions?.length > 0 && (
@@ -1477,9 +1477,9 @@ export default function ContentRewriter() {
               )}
 
               {rightTab === 'serp' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Google SERP Preview</div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>How your page appears in Google search results</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px' }}>How your page appears in Google search results</p>
                   <SerpPreview title={rewrite?.ai_rewrite?.title_suggestions?.[0] || rewrite?.title || page.title} url={page.url} description={rewrite?.ai_rewrite?.meta_description_suggestions?.[0] || rewrite?.meta_description || page.meta_description} />
                   {rewrite?.ai_rewrite?.title_suggestions?.length > 1 && (
                     <div style={{ marginTop: 12 }}>
@@ -1493,7 +1493,7 @@ export default function ContentRewriter() {
               )}
 
               {rightTab === 'readability' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>Content Quality Analysis</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     {[
@@ -1502,9 +1502,9 @@ export default function ContentRewriter() {
                       { label: 'Avg Sentence', value: rewrite?.ai_readability?.avg_sentence_length || readability.avg_sentence_length ? `${rewrite?.ai_readability?.avg_sentence_length || readability.avg_sentence_length}w` : 'N/A', color: '#d97706' },
                       { label: 'Readability', value: rewrite?.ai_readability?.score || rewrite?.ai_readability?.flesch_kincaid || readability.score || readability.flesch_kincaid || 'N/A', color: '#059669' },
                     ].map((s, i) => (
-                      <div key={i} style={{ padding: 10, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div key={i} style={{ padding: 10, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'center' }}>
                         <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
-                        <div style={{ fontSize: 9, color: '#64748b' }}>{s.label}</div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{s.label}</div>
                       </div>
                     ))}
                   </div>
@@ -1528,9 +1528,9 @@ export default function ContentRewriter() {
               )}
 
               {rightTab === 'export' && (
-                <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: 14 }}>
+                <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>Export AI Rewrite Results</div>
-                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 12px' }}>Copy all AI-generated content in your preferred format</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px' }}>Copy all AI-generated content in your preferred format</p>
                   {[
                     {
                       label: 'Copy as HTML',

@@ -8,7 +8,7 @@ function GoogleSerpPreview({ url, title, description }) {
   const displayTitle = title || 'Page Title — 50-60 characters recommended';
   const displayDesc = description || 'Meta description goes here. Aim for 150-160 characters to maximize click-through rate from search results.';
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: '#fff', marginBottom: 12 }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--bg-white)', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Globe size={12} /> Google Search Result
       </div>
@@ -44,7 +44,7 @@ function AIOverviewPreview({ platformScores, title, url }) {
         const score = platformScores?.[p.key] || 0;
         const Icon = p.icon;
         return (
-          <div key={p.key} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, textAlign: 'center', background: '#fff' }}>
+          <div key={p.key} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, textAlign: 'center', background: 'var(--bg-white)' }}>
             <Icon size={18} style={{ color: p.color, marginBottom: 6 }} />
             <div style={{ fontSize: 24, fontWeight: 700, color: score >= 70 ? '#38a169' : score >= 50 ? '#d69e2e' : '#e53e3e' }}>
               {score.toFixed(0)}
@@ -62,7 +62,7 @@ function AIOverviewPreview({ platformScores, title, url }) {
 
 function ChatGPTCitationPreview({ title, url, contentSnippet }) {
   return (
-    <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: '#fff', marginBottom: 12 }}>
+    <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: 'var(--bg-white)', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <MessageSquare size={12} style={{ color: '#10a37f' }} /> ChatGPT Citation Preview
       </div>
@@ -89,7 +89,7 @@ function ChatGPTCitationPreview({ title, url, contentSnippet }) {
 function PerplexityPreview({ title, url, readiness }) {
   const hasReadiness = readiness !== null && readiness !== undefined;
   return (
-    <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: '#fff', marginBottom: 12 }}>
+    <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: 'var(--bg-white)', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Search size={12} style={{ color: '#20b2aa' }} /> Perplexity Citation Preview
       </div>
@@ -148,7 +148,7 @@ export default function SerpPreview() {
 
       <div style={{ marginBottom: 16 }}>
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
-          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, background: '#fff' }}>
+          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, background: 'var(--bg-white)' }}>
           {pages.map((p, i) => (
             <option key={i} value={i}>{p.title || p.url}</option>
           ))}
@@ -181,7 +181,7 @@ export default function SerpPreview() {
       </div>
 
       {enterprise?.diagnostics?.why_not_ranking?.length > 0 && (
-        <div style={{ marginTop: 16, border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: '#fff' }}>
+        <div style={{ marginTop: 16, border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--bg-white)' }}>
           <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
             <AlertCircle size={14} /> Why AI Won't Cite This Page
           </h3>

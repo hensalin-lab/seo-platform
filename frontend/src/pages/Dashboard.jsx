@@ -3,40 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import DataSourceBadge from '../components/DataSourceBadge';
 import AnimatedNumber from '../components/AnimatedNumber';
-import { BarChart3, TrendingUp, Globe, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, Clock, ChevronRight, Target, Sparkles, Wand2, ArrowUpRight, ArrowDownRight, ShieldCheck } from 'lucide-react';
+import ScoreRing from '../components/ScoreRing';
+import { BarChart3, TrendingUp, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, ChevronRight, Target, Sparkles, Wand2, ArrowUpRight, ArrowDownRight, ShieldCheck, Download } from 'lucide-react';
 import PdfDownloadButton from '../components/PdfDownloadButton';
-
-function ScoreRing({ score, size = 100, stroke = 8, label }) {
-  const [mounted, setMounted] = useState(false);
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = mounted ? c - (pct / 100) * c : c;
-  let color = '#fa5252';
-  let glowColor = 'rgba(250,82,82,0.3)';
-  if (pct >= 80) { color = '#12b886'; glowColor = 'rgba(18,184,134,0.3)'; }
-  else if (pct >= 60) { color = '#4c6ef5'; glowColor = 'rgba(76,110,245,0.3)'; }
-  else if (pct >= 40) { color = '#f59f00'; glowColor = 'rgba(245,159,11,0.3)'; }
-
-  useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
-
-  return (
-    <div className={pct >= 80 ? 'score-celebrate' : ''} style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', filter: `drop-shadow(0 0 8px ${glowColor})` }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef0f2" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.28, fontWeight: 800, color, lineHeight: 1 }}>
-          <AnimatedNumber value={pct} duration={1400} />
-        </span>
-        {label && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
+import AuditTable from '../components/AuditTable';
 
 function ScoreBar({ value, max = 100, color = '#4c6ef5', animated = true }) {
   const [width, setWidth] = useState(0);
@@ -196,7 +166,14 @@ export default function Dashboard() {
           <h1>Dashboard</h1>
           <p>Website intelligence overview</p>
         </div>
-        {activeId && <PdfDownloadButton auditId={activeId} />}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {activeId && (
+            <button className="btn btn-secondary btn-sm" onClick={() => api.exportCsv(activeId, 'issues').catch(e => alert(e.message))} title="Export all issues as CSV">
+              <Download size={13} /> Export CSV
+            </button>
+          )}
+          {activeId && <PdfDownloadButton auditId={activeId} />}
+        </div>
       </div>
 
       {error && <div className="error-state animate-in">{error}</div>}
@@ -692,60 +669,7 @@ export default function Dashboard() {
               <button className="btn btn-secondary btn-sm" onClick={() => navigate('/history')}>View All</button>
             </div>
             <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Website</th>
-                    <th>Score</th>
-                    <th>SEO</th>
-                    <th>AEO</th>
-                    <th>Pages</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {audits.slice(0, 8).map(a => (
-                    <tr key={a.id}>
-                      <td style={{ fontWeight: 500, color: 'var(--text)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Globe size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
-                          {a.website_url}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`badge ${(a.overall_score || 0) >= 80 ? 'badge-green' : (a.overall_score || 0) >= 60 ? 'badge-blue' : (a.overall_score || 0) >= 40 ? 'badge-yellow' : 'badge-red'}`}>
-                          {a.overall_score ? Math.round(a.overall_score) : '-'}
-                        </span>
-                      </td>
-                      <td>{a.seo_score ? Math.round(a.seo_score) : '-'}</td>
-                      <td>{a.aeo_score ? Math.round(a.aeo_score) : '-'}</td>
-                      <td>{a.total_pages ?? '-'}</td>
-                      <td>
-                        <span className={`badge ${a.status === 'COMPLETED' ? 'badge-green' : a.status === 'FAILED' ? 'badge-red' : 'badge-blue'}`}>
-                          {a.status}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {a.created_at ? new Date(a.created_at).toLocaleDateString() : '-'}
-                      </td>
-                      <td>
-                        {a.status === 'COMPLETED' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/audit/${a.audit_id}/dashboard`)}>
-                            Report <ArrowRight size={12} />
-                          </button>
-                        )}
-                        {a.status !== 'COMPLETED' && a.status !== 'FAILED' && (
-                          <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${a.audit_id}/progress`)}>
-                            <Clock size={12} /> Track
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <AuditTable audits={audits.slice(0, 8)} />
             </div>
           </div>
         </>

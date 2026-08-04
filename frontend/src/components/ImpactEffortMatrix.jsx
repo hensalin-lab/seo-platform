@@ -33,7 +33,7 @@ const QUADRANTS = [
     label: 'Fill-Ins',
     desc: 'Low Impact / Low Effort',
     icon: MessageSquare,
-    color: '#64748b',
+    color: 'var(--text-muted)',
     bg: 'rgba(148,163,184,0.06)',
     border: 'rgba(148,163,184,0.2)',
   },
@@ -73,7 +73,7 @@ export default function ImpactEffortMatrix({ issues = [], onGenerateFix, onPrevi
                   <span style={{ flex: 1, fontSize: 12, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {issue.title || issue.signal_name || issue.description?.slice(0, 60) || 'Issue'}
                   </span>
-                  <button onClick={() => onPreview?.(issue)} style={{ padding: '3px 6px', borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8' }}>
+                  <button onClick={() => onPreview?.(issue)} style={{ padding: '3px 6px', borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}>
                     <Eye size={11} />
                   </button>
                   <button onClick={() => onGenerateFix?.(issue)} style={{ padding: '3px 8px', borderRadius: 4, border: 'none', background: quad.color + '20', cursor: 'pointer', color: quad.color, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -81,7 +81,7 @@ export default function ImpactEffortMatrix({ issues = [], onGenerateFix, onPrevi
                   </button>
                 </div>
               )) : (
-                <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', padding: 8 }}>No issues in this category</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 8 }}>No issues in this category</div>
               )}
             </div>
           </div>

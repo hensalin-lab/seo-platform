@@ -353,7 +353,7 @@ export default function ContentIntelligence() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
@@ -361,7 +361,7 @@ export default function ContentIntelligence() {
             style={{
               fontSize: 26,
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--text)',
               margin: 0,
               display: 'flex',
               alignItems: 'center',
@@ -371,7 +371,7 @@ export default function ContentIntelligence() {
             <Eye size={26} color="#3b82f6" />
             Content Intelligence
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>
             Deep content analysis — gaps, quality scores, and actionable recommendations
           </p>
         </div>
@@ -379,16 +379,16 @@ export default function ContentIntelligence() {
         {/* Page Selector */}
         <div
           style={{
-            background: '#fff',
+            background: 'var(--bg-white)',
             borderRadius: 12,
-            border: '1px solid #e2e8f0',
+            border: '1px solid var(--border)',
             padding: 16,
             marginBottom: 24,
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}
         >
           <label
-            style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}
+            style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}
           >
             Select Page
           </label>
@@ -401,7 +401,7 @@ export default function ContentIntelligence() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 14px',
-                background: '#f8fafc',
+                background: 'var(--bg-secondary)',
                 border: '1px solid #cbd5e1',
                 borderRadius: 8,
                 cursor: 'pointer',
@@ -431,8 +431,8 @@ export default function ContentIntelligence() {
                   top: '100%',
                   left: 0,
                   right: 0,
-                  background: '#fff',
-                  border: '1px solid #e2e8f0',
+                  background: 'var(--bg-white)',
+                  border: '1px solid var(--border)',
                   borderRadius: 8,
                   marginTop: 4,
                   maxHeight: 280,
@@ -477,7 +477,7 @@ export default function ContentIntelligence() {
                     <div
                       style={{
                         fontSize: 11,
-                        color: '#94a3b8',
+                        color: 'var(--text-muted)',
                         marginTop: 2,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -500,7 +500,7 @@ export default function ContentIntelligence() {
               alignItems: 'center',
               justifyContent: 'center',
               padding: 60,
-              color: '#94a3b8',
+              color: 'var(--text-muted)',
               fontSize: 14,
               gap: 8,
             }}
@@ -516,7 +516,7 @@ export default function ContentIntelligence() {
             style={{
               textAlign: 'center',
               padding: 60,
-              color: '#94a3b8',
+              color: 'var(--text-muted)',
               fontSize: 14,
             }}
           >
@@ -539,9 +539,9 @@ export default function ContentIntelligence() {
                 <div
                   key={label}
                   style={{
-                    background: '#fff',
+                    background: 'var(--bg-white)',
                     borderRadius: 12,
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--border)',
                     padding: '18px 16px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                   }}
@@ -560,9 +560,9 @@ export default function ContentIntelligence() {
                     >
                       <Icon size={16} color={color} />
                     </div>
-                    <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{label}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)' }}>
                     {typeof value === 'number' ? value.toLocaleString() : value}
                   </div>
                 </div>
@@ -572,9 +572,9 @@ export default function ContentIntelligence() {
             {/* Quality Scores */}
             <div
               style={{
-                background: '#fff',
+                background: 'var(--bg-white)',
                 borderRadius: 12,
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--border)',
                 padding: 24,
                 marginBottom: 28,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
@@ -582,7 +582,7 @@ export default function ContentIntelligence() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
                 <BarChart3 size={18} color="#3b82f6" />
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>Quality Scores</h2>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Quality Scores</h2>
               </div>
               <div
                 style={{
@@ -604,9 +604,9 @@ export default function ContentIntelligence() {
             {/* Content Gaps */}
             <div
               style={{
-                background: '#fff',
+                background: 'var(--bg-white)',
                 borderRadius: 12,
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--border)',
                 padding: 24,
                 marginBottom: 28,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
@@ -614,7 +614,7 @@ export default function ContentIntelligence() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
                 <AlertTriangle size={18} color="#f59e0b" />
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>Content Gaps</h2>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Content Gaps</h2>
                 <span
                   style={{
                     fontSize: 12,

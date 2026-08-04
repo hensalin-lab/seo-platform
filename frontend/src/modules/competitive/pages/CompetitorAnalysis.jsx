@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
-import { Users, TrendingUp, AlertTriangle, ArrowRight, BarChart3, Shield, BookOpen, Link2, Gauge, Award, Brain, ExternalLink, RefreshCw, Play, Loader } from 'lucide-react'
+import { Users, TrendingUp, AlertTriangle, ArrowRight, BarChart3, Shield, BookOpen, Link2, Gauge, Award, Brain, ExternalLink, RefreshCw, Play, Loader, Star } from 'lucide-react'
 
 const DIMENSION_ICONS = { authority: Shield, content: BookOpen, schema: Brain, internal_links: Link2, cwv: Gauge, titles: TrendingUp, eeat: Award, brand_signals: TrendingUp, ai_visibility: Brain }
 const DIMENSION_LABELS = { authority: 'Authority', content: 'Content', schema: 'Schema', internal_links: 'Internal Links', cwv: 'CWV', titles: 'Titles', eeat: 'E-E-A-T', brand_signals: 'Brand', ai_visibility: 'AI Visibility' }
+
+const starRating = (score) => {
+  const filled = Math.max(0, Math.min(5, Math.round((score || 0) / 20)))
+  return (
+    <div style={{ display: 'flex', gap: 2, alignItems: 'center', marginTop: 4 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <Star key={n} size={13} style={n <= filled ? { fill: '#f59e0b', color: '#f59e0b' } : { fill: '#e2e8f0', color: '#e2e8f0' }} />
+      ))}
+    </div>
+  )
+}
 
 export default function CompetitorAnalysis() {
   const { id } = useParams()
@@ -36,7 +47,7 @@ export default function CompetitorAnalysis() {
     }
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b', fontFamily: "'Inter', sans-serif" }}>Loading...</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>Loading...</div>
 
   const competitorUrl = basic?.competitor_url || deep?.my_profile?.competitor_url || null
   const position = deep?.competitive_position || {}
@@ -47,11 +58,11 @@ export default function CompetitorAnalysis() {
   return (
     <div style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>Competitor Analysis</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px 0' }}>Competitor Analysis</h1>
         {competitorUrl ? (
           <p style={{ fontSize: 13, color: '#2563eb', margin: 0 }}>vs <strong>{competitorUrl}</strong></p>
         ) : (
-          <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>No competitor specified in this audit</p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>No competitor specified in this audit</p>
         )}
       </div>
 
@@ -73,7 +84,7 @@ export default function CompetitorAnalysis() {
               value={compUrl}
               onChange={e => setCompUrl(e.target.value)}
               placeholder={competitorUrl || 'https://competitor.com'}
-              style={{ flex: 1, minWidth: 260, padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontFamily: 'inherit' }}
+              style={{ flex: 1, minWidth: 260, padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit' }}
             />
             <button
               onClick={runAnalyze}
@@ -89,11 +100,11 @@ export default function CompetitorAnalysis() {
       )}
 
       {hasRealComparison && (
-        <div style={{ marginBottom: 20, padding: '14px 18px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, color: '#64748b' }}>Analysis complete — gaps below show exactly what to fix.</span>
+        <div style={{ marginBottom: 20, padding: '14px 18px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Analysis complete — gaps below show exactly what to fix.</span>
           <button
             onClick={() => { setCompUrl(competitorUrl || ''); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-white)', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
             <RefreshCw size={14} /> Re-run with different competitor
           </button>
@@ -102,7 +113,7 @@ export default function CompetitorAnalysis() {
 
       {Object.keys(position).length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>Competitive Position</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>Competitive Position</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
             {Object.entries(position).map(([dim, val]) => {
               const Icon = DIMENSION_ICONS[dim] || BarChart3
@@ -110,10 +121,11 @@ export default function CompetitorAnalysis() {
               const isReal = (val?.avg_competitor ?? 0) > 0
               const adv = !isReal ? null : (val?.advantage === 'US' ? '✅' : val?.advantage === 'COMPETITOR' ? '⚠️' : '—')
               return (
-                <div key={dim} style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>{DIMENSION_LABELS[dim] || dim}</div>
+                <div key={dim} style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>{DIMENSION_LABELS[dim] || dim}</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: score >= 70 ? '#22c55e' : score >= 40 ? '#eab308' : '#ef4444' }}>{score}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                  {starRating(score)}
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                     {adv}{' '}
                     {isReal ? (val?.delta > 0 ? `+${val.delta} vs competitor` : `${val.delta} vs competitor`) : 'no competitor data'}
                   </div>
@@ -126,7 +138,7 @@ export default function CompetitorAnalysis() {
 
       {basic?.keyword_opportunities?.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>Keyword Opportunities ({basic.keyword_opportunities.length})</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Keyword Opportunities ({basic.keyword_opportunities.length})</h2>
           {basic.keyword_opportunities.map((k, i) => (
             <div key={i} style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', fontSize: 13, color: '#334155' }}>{k.keyword || k.description}</div>
           ))}
@@ -135,14 +147,15 @@ export default function CompetitorAnalysis() {
 
       {profile?.backlink_signals && (
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>Your Profile</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Your Profile</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
             {['authority', 'content', 'schema', 'internal_links', 'cwv', 'eeat', 'ai_visibility'].filter(k => profile[k]?.score != null).map(key => {
               const val = profile[key]
               return (
-                <div key={key} style={{ padding: '8px 10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{DIMENSION_LABELS[key] || key}</div>
+                <div key={key} style={{ padding: '8px 10px', background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{DIMENSION_LABELS[key] || key}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: val.score >= 70 ? '#22c55e' : val.score >= 40 ? '#eab308' : '#ef4444' }}>{val.score}</div>
+                  {starRating(val.score)}
                 </div>
               )
             })}
@@ -156,7 +169,7 @@ export default function CompetitorAnalysis() {
         if (!toImprove.length) return null
         return (
           <div key={url} style={{ marginBottom: 20 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
               How to Improve{' '}
               <span style={{ fontSize: 12, fontWeight: 500, color: '#2563eb' }}>
                 <ExternalLink size={11} style={{ verticalAlign: -1 }} /> {url}
@@ -167,11 +180,11 @@ export default function CompetitorAnalysis() {
                 const Icon = DIMENSION_ICONS[key] || BarChart3
                 const target = Math.min(Math.max(d?.competitor ?? 0, 70) + 10, 100)
                 return (
-                  <div key={key} style={{ padding: '12px 14px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', borderLeft: '4px solid #f59e0b' }}>
+                  <div key={key} style={{ padding: '12px 14px', background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)', borderLeft: '4px solid #f59e0b' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <Icon size={15} color="#d97706" />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{d?.label || key}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 12, color: '#64748b' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{d?.label || key}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
                         You: <strong>{d?.mine}</strong> vs Competitor: <strong>{d?.competitor}</strong>
                       </span>
                     </div>
@@ -197,8 +210,8 @@ export default function CompetitorAnalysis() {
       })}
 
       {!competitorUrl && !hasRealComparison && (
-        <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
-          <Users size={40} style={{ color: '#94a3b8', marginBottom: 12 }} />
+        <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)', fontSize: 13 }}>
+          <Users size={40} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
           <p>Add a competitor URL above and run analysis to see comparison data</p>
         </div>
       )}

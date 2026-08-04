@@ -11,7 +11,7 @@ import {
   FileSearch, HeartPulse, TrendingUp, BarChart2,
   Megaphone, Flag, RefreshCw, ShieldAlert, Network,
   Hash, MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck,
-  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight
+  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight, Moon, Sun
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -58,6 +58,8 @@ const AUDIT_NAV = [
     label: '4. TECHNICAL AUDIT & REMEDIATION',
     items: [
       { suffix: '/issues', icon: AlertTriangle, label: 'Issue Remediation' },
+      { suffix: '/action-studio', icon: Zap, label: 'AI Action Studio' },
+      { suffix: '/rank-boost', icon: Star, label: 'Rank Boost' },
       { suffix: '/action-center', icon: ClipboardList, label: 'Action Center' },
       { suffix: '/speed', icon: Gauge, label: 'Speed & CWV' },
       { suffix: '/internal-links', icon: Link2, label: 'Internal Links' },
@@ -110,7 +112,13 @@ export default function Layout({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [openGroups, setOpenGroups] = useState({});
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const { user, isAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -177,6 +185,8 @@ export default function Layout({ children }) {
     if (p.endsWith('/social-seo')) return 'Social SEO';
     if (p.endsWith('/ai-roadmap')) return 'AI Roadmap';
     if (p.endsWith('/issues')) return 'Issue Remediation';
+    if (p.endsWith('/action-studio')) return 'AI Action Studio';
+    if (p.endsWith('/rank-boost')) return 'Rank Boost';
     return 'Report';
   };
 
@@ -280,8 +290,13 @@ export default function Layout({ children }) {
               <LogIn size={14} /> Sign In
             </Link>
           )}
-          <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.35, marginTop: 4, letterSpacing: '0.5px' }}>
-            SEO Intel v2.5
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))} style={{ background: 'none', border: 'none', color: 'var(--sidebar-text)', cursor: 'pointer', padding: 4, opacity: 0.6 }} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+            <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.35, marginLeft: 'auto', letterSpacing: '0.5px' }}>
+              SEO Intel v2.5
+            </div>
           </div>
         </div>
       </aside>

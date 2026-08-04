@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { Globe, Trash2, ArrowRight } from 'lucide-react'
-
-function scoreBadge(s) {
-  if (s >= 80) return 'badge-green'
-  if (s >= 60) return 'badge-blue'
-  if (s >= 40) return 'badge-yellow'
-  return 'badge-red'
-}
+import { Globe, ArrowRight, Download } from 'lucide-react'
+import AuditTable from '../components/AuditTable'
+import { toCsv, downloadFile } from '../utils/exportCsv'
 
 export default function History() {
   const [audits, setAudits] = useState([])
@@ -34,6 +29,29 @@ export default function History() {
     } catch {}
   }
 
+  const handleExportCsv = () => {
+    const rows = audits.map(a => ({
+      website: a.website_url,
+      score: a.overall_score ?? '',
+      seo: a.seo_score ?? '',
+      aeo: a.aeo_score ?? '',
+      pages: a.total_pages ?? '',
+      issues: a.total_issues ?? '',
+      status: a.status,
+      date: a.created_at ? new Date(a.created_at).toLocaleDateString() : '',
+    }))
+    downloadFile(toCsv(rows, [
+      { key: 'website', label: 'Website' },
+      { key: 'score', label: 'Score' },
+      { key: 'seo', label: 'SEO' },
+      { key: 'aeo', label: 'AEO' },
+      { key: 'pages', label: 'Pages' },
+      { key: 'issues', label: 'Issues' },
+      { key: 'status', label: 'Status' },
+      { key: 'date', label: 'Date' },
+    ]), `seo-audits-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
+  }
+
   if (loading) return <div className="loading-overlay"><div className="spinner" /><p>Loading...</p></div>
 
   return (
@@ -43,9 +61,14 @@ export default function History() {
           <h1>Audit History</h1>
           <p>{audits.length} audit{audits.length !== 1 ? 's' : ''}</p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => navigate('/new')}>
-          New Audit <ArrowRight size={13} />
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} disabled={audits.length === 0}>
+            <Download size={13} /> Export CSV
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/new')}>
+            New Audit <ArrowRight size={13} />
+          </button>
+        </div>
       </div>
 
       {audits.length === 0 ? (
@@ -58,60 +81,7 @@ export default function History() {
       ) : (
         <div className="card">
           <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Website</th>
-                  <th>Score</th>
-                  <th>SEO</th>
-                  <th>AEO</th>
-                  <th>Pages</th>
-                  <th>Issues</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {audits.map(a => (
-                  <tr key={a.id}>
-                    <td style={{ maxWidth: 280 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <Globe size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
-                        {a.website_url}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${scoreBadge(a.overall_score || 0)}`}>{a.overall_score ?? '-'}</span>
-                    </td>
-                    <td>{a.seo_score ?? '-'}</td>
-                    <td>{a.aeo_score ?? '-'}</td>
-                    <td>{a.total_pages ?? '-'}</td>
-                    <td>{a.total_issues ?? '-'}</td>
-                    <td>
-                      <span className={`badge ${a.status === 'COMPLETED' ? 'badge-green' : a.status === 'FAILED' ? 'badge-red' : 'badge-blue'}`}>
-                        {a.status}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {a.created_at ? new Date(a.created_at).toLocaleDateString() : '-'}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {a.status === 'COMPLETED' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/audit/${a.audit_id}/dashboard`)}>
-                            Report
-                          </button>
-                        )}
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(a.audit_id)} title="Delete">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AuditTable audits={audits} showIssues onDelete={(a) => handleDelete(a.audit_id)} />
           </div>
           {hasMore && (
             <div style={{ padding: '12px', textAlign: 'center' }}>

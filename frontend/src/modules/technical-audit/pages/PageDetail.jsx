@@ -49,7 +49,7 @@ function BoolField({ label, value }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
       <div style={{ width: 8, height: 8, borderRadius: 4, background: value ? '#059669' : '#dc2626', flexShrink: 0 }} />
-      <span style={{ fontSize: 12, color: '#64748b', flex: 1 }}>{label}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{label}</span>
       <span style={{ fontSize: 12, fontWeight: 600, color: value ? '#059669' : '#dc2626' }}>{value ? 'Yes' : 'No'}</span>
     </div>
   );
@@ -58,7 +58,7 @@ function BoolField({ label, value }) {
 function MetricField({ label, value, color }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-      <span style={{ fontSize: 12, color: '#64748b', flex: 1 }}>{label}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 700, color: color || '#1e293b' }}>{value}</span>
     </div>
   );
@@ -68,13 +68,13 @@ function ListView({ items, label }) {
   if (!items || !items.length) return null;
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4, textTransform: 'uppercase' }}>{label} ({items.length})</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>{label} ({items.length})</div>
       {items.slice(0, 10).map((item, i) => (
         <div key={i} style={{ padding: '4px 8px', fontSize: 12, color: '#475569', borderBottom: '1px solid #f8fafc' }}>
           {typeof item === 'string' ? item : item.text || item.url || JSON.stringify(item).slice(0, 80)}
         </div>
       ))}
-      {items.length > 10 && <div style={{ fontSize: 11, color: '#94a3b8', padding: '4px 8px' }}>+{items.length - 10} more</div>}
+      {items.length > 10 && <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 8px' }}>+{items.length - 10} more</div>}
     </div>
   );
 }
@@ -89,13 +89,13 @@ function Section({ title, children, color = '#1e293b' }) {
 }
 
 function GooglebotView({ data }) {
-  if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: '#94a3b8', fontSize: 12 }}>No Googlebot data</div>;
+  if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>No Googlebot data</div>;
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
       <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
         <Globe size={18} color="#3b82f6" /> How Google Sees This Page
       </div>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>This is exactly what Googlebot crawls, indexes, and uses to rank your page</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>This is exactly what Googlebot crawls, indexes, and uses to rank your page</div>
       {Object.entries(data).map(([key, value]) => {
         if (value === null || value === undefined) return null;
         if (typeof value === 'boolean') return <BoolField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={value} />;
@@ -110,9 +110,9 @@ function GooglebotView({ data }) {
 
 function GenericSubView({ title, icon, data }) {
   const Icon = icon || Eye;
-  if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: '#94a3b8', fontSize: 12 }}>No data available</div>;
+  if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>No data available</div>;
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
         <Icon size={16} color="#3b82f6" /> {title}
       </div>
@@ -138,7 +138,7 @@ function SignalCard({ signal, index }) {
   const hasIssues = signal.status === 'warn' || signal.status === 'fail';
 
   return (
-    <div style={{ border: `1px solid ${sc}30`, borderRadius: 10, marginBottom: 6, background: '#fff', borderLeft: `3px solid ${sc}` }}>
+    <div style={{ border: `1px solid ${sc}30`, borderRadius: 10, marginBottom: 6, background: 'var(--bg-white)', borderLeft: `3px solid ${sc}` }}>
       <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: hasIssues ? `${sc}05` : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ width: 20, height: 20, borderRadius: 4, background: `${sc}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: sc, flexShrink: 0 }}>{index + 1}</span>
         <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{signal.name}</span>
@@ -160,7 +160,7 @@ function SignalCard({ signal, index }) {
           )}
           <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
             {signal.expected_impact && <span style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>Impact: {signal.expected_impact}</span>}
-            {signal.effort && <span style={{ fontSize: 10, color: '#64748b' }}>Effort: {signal.effort}</span>}
+            {signal.effort && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Effort: {signal.effort}</span>}
           </div>
         </div>
       )}
@@ -182,17 +182,17 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
     api.getAiRecommendationsPage(auditId, pageIdx).then(d => { setRecs(d); setLoading(false); }).catch(() => setLoading(false));
   }, [auditId, pageIdx]);
 
-  if (loading) return <div style={{ padding: 16, textAlign: 'center' }}><Sparkles size={16} className="spin" color="#8b5cf6" /><p style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>AI analyzing...</p></div>;
-  if (!recs) return <div style={{ fontSize: 12, color: '#94a3b8', padding: 16 }}>AI recommendations unavailable</div>;
+  if (loading) return <div style={{ padding: 16, textAlign: 'center' }}><Sparkles size={16} className="spin" color="#8b5cf6" /><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>AI analyzing...</p></div>;
+  if (!recs) return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 16 }}>AI recommendations unavailable</div>;
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
       <div style={{ padding: '14px 18px', background: 'linear-gradient(135deg, #8b5cf615, #6366f115)', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Sparkles size={16} color="#8b5cf6" />
         <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>AI Expert Recommendations</span>
       </div>
       {recs.executive_summary && (
-        <div style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ padding: '12px 18px', background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>{recs.executive_summary}</div>
         </div>
       )}
@@ -273,8 +273,8 @@ export default function PageDetail() {
     }).catch(() => setPageLoading(false));
   }, [id, selectedIdx, pages.length]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading pages...</p></div>;
-  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No pages found</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
+  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No pages found</div>;
 
   const sv = deepData?.sub_views || {};
   const currentGroup = TAB_GROUPS[activeGroup];
@@ -310,14 +310,14 @@ export default function PageDetail() {
       case 'knowledge_graph': return <GenericSubView title="Knowledge Graph" icon={Globe} data={sv.knowledge_graph_readiness} />;
       case 'mega_signals':
         return (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>All 93 Signals Analyzed</div>
             {signals.map((s, i) => <SignalCard key={i} signal={s} index={i} />)}
           </div>
         );
       case 'mega_issues':
         return (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 12 }}>Issues to Fix ({issues.length})</div>
             {issues.length > 0 ? issues.map((s, i) => <SignalCard key={i} signal={s} index={i} />) : (
               <div style={{ padding: 20, textAlign: 'center' }}><CheckCircle size={28} color="#059669" /><p style={{ color: '#059669', fontWeight: 600, marginTop: 8 }}>No issues found</p></div>
@@ -329,16 +329,16 @@ export default function PageDetail() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px' }}>
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Page Intelligence Deep Dive</h1>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Everything Google sees, what is missing, and exactly how to fix it - pro SEO level</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Page Intelligence Deep Dive</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Everything Google sees, what is missing, and exactly how to fix it - pro SEO level</p>
         </div>
 
         <div style={{ marginBottom: 16 }}>
           <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
-            style={{ width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: '#fff', cursor: 'pointer' }}>
+            style={{ width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: 'var(--bg-white)', cursor: 'pointer' }}>
             {pages.map((p, i) => <option key={i} value={i}>{p.title || p.url} ({p.word_count || 0}w)</option>)}
           </select>
         </div>
@@ -353,22 +353,22 @@ export default function PageDetail() {
               { label: 'Fail', value: mega.signals_failing, color: '#dc2626' },
               { label: 'Words', value: mega.word_count || pages[selectedIdx]?.word_count || 0, color: '#8b5cf6' },
             ].map((s, i) => (
-              <div key={i} style={{ padding: 10, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+              <div key={i} style={{ padding: 10, background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)', textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 10, color: '#64748b' }}>{s.label}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.label}</div>
               </div>
             ))}
           </div>
         )}
 
         {mega && Object.keys(catScores).filter(k => catScores[k] < 100).length > 0 && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 14, marginBottom: 16 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 14, marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Category Scores (showing areas below 100%)</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6 }}>
               {Object.entries(catScores).filter(([_, v]) => v < 100).sort((a, b) => a[1] - b[1]).map(([cat, score]) => (
-                <div key={cat} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div key={cat} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</div>
                     <div style={{ height: 3, background: '#e2e8f0', borderRadius: 2, marginTop: 2 }}><div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626', borderRadius: 2 }} /></div>
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 700, color: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626' }}>{Math.round(score)}</span>
@@ -405,15 +405,15 @@ export default function PageDetail() {
             </div>
 
             {pageLoading ? (
-              <div style={{ padding: 40, textAlign: 'center', background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                <div className="spinner" /><p style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>Analyzing page...</p>
+              <div style={{ padding: 40, textAlign: 'center', background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 13 }}>Analyzing page...</p>
               </div>
             ) : renderTab()}
           </div>
 
           <div>
             {mega && (
-              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 12 }}>
+              <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16, marginBottom: 12 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Target size={16} color="#3b82f6" /> Score Breakdown
                 </div>
@@ -440,7 +440,7 @@ export default function PageDetail() {
             )}
 
             {mega && (
-              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 12 }}>
+              <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16, marginBottom: 12 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <TrendingUp size={16} color="#059669" /> Ranking Impact Estimates
                 </div>
@@ -454,7 +454,7 @@ export default function PageDetail() {
                       <span style={{ fontSize: 11, flex: 1, color: '#475569' }}>{item.label}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
                     </div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{item.impact}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{item.impact}</div>
                   </div>
                 ))}
                 <div style={{ marginTop: 10, padding: 10, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
@@ -477,9 +477,9 @@ export default function PageDetail() {
                       { label: 'Content Impact', desc: 'Words, quality, keywords', value: contentCount },
                       { label: 'AI Search Impact', desc: 'Citations, entities, E-E-A-T', value: aiCount },
                     ].map((item, i) => (
-                      <div key={i} style={{ padding: 8, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                      <div key={i} style={{ padding: 8, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
                         <div style={{ fontSize: 10, fontWeight: 600, color: '#1e293b' }}>{item.label}</div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{item.desc}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.desc}</div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: item.value > 0 ? '#d97706' : '#059669', marginTop: 2 }}>{item.value} issues</div>
                       </div>
                     ));

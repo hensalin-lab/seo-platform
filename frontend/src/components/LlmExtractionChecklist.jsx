@@ -48,7 +48,7 @@ export default function LlmExtractionChecklist({ data, onToggle }) {
               <Icon size={14} color={done ? '#12b886' : '#7c3aed'} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: done ? '#065f46' : '#1e293b' }}>{item.label}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{item.desc}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</div>
               </div>
             </div>
           );

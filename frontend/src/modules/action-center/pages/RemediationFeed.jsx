@@ -9,7 +9,7 @@ const ROLE_CONFIG = {
   SEO_SPECIALIST: { label: 'SEO Tasks', icon: Search, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
   DESIGNER: { label: 'Design Tasks', icon: Target, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
   MANAGER: { label: 'Manager Tasks', icon: Users, color: 'var(--accent)', bg: '#eef2ff', border: '#c7d2fe' },
-  OTHER: { label: 'General Tasks', icon: Settings, color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
+  OTHER: { label: 'General Tasks', icon: Settings, color: 'var(--text-muted)', bg: '#f8fafc', border: '#e2e8f0' },
 };
 
 function TaskCard({ task, index }) {
@@ -18,14 +18,14 @@ function TaskCard({ task, index }) {
   const sevColor = sevColors[task.severity] || '#64748b';
 
   return (
-    <div style={{ border: `1px solid ${sevColor}25`, borderRadius: 10, marginBottom: 8, background: '#fff', borderLeft: `3px solid ${sevColor}` }}>
+    <div style={{ border: `1px solid ${sevColor}25`, borderRadius: 10, marginBottom: 8, background: 'var(--bg-white)', borderLeft: `3px solid ${sevColor}` }}>
       <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ width: 22, height: 22, borderRadius: 6, background: `${sevColor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: sevColor, flexShrink: 0 }}>{index + 1}</span>
         <span style={{ flex: 1 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{task.title || task.issue || task.description}</span>
         </span>
         <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 3, background: `${sevColor}15`, color: sevColor, fontWeight: 600 }}>{task.severity}</span>
-        {task.estimated_time && <span style={{ fontSize: 10, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={10} /> {task.estimated_time}</span>}
+        {task.estimated_time && <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={10} /> {task.estimated_time}</span>}
         <ChevronDown size={14} color="#94a3b8" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }} />
       </button>
       {expanded && (
@@ -45,12 +45,12 @@ function TaskCard({ task, index }) {
           )}
           {task.code_example && (
             <div style={{ background: '#1e293b', borderRadius: 8, padding: 12, marginTop: 8 }}>
-              <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 4 }}>Code Example:</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>Code Example:</div>
               <pre style={{ fontSize: 11, color: '#e2e8f0', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{task.code_example}</pre>
             </div>
           )}
           {task.pages_affected?.length > 0 && (
-            <div style={{ marginTop: 10, fontSize: 11, color: '#64748b' }}>
+            <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
               <strong>Affects {task.pages_affected.length} page{task.pages_affected.length > 1 ? 's' : ''}:</strong> {task.pages_affected.slice(0, 3).join(', ')}{task.pages_affected.length > 3 ? ` +${task.pages_affected.length - 3} more` : ''}
             </div>
           )}
@@ -98,8 +98,8 @@ export default function RemediationFeed() {
     });
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading...</p></div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No data available</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading...</p></div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
 
   const allTasks = data.top_recommendations || data.recommendations?.items || data.action_items || data.tasks || [];
   const issuesByCategory = data.issues_by_category || {};
@@ -158,13 +158,13 @@ export default function RemediationFeed() {
   const highCount = [...mappedTasks, ...issues].filter(t => t.severity === 'HIGH').length;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <ListChecks size={24} color="#3b82f6" /> Remediation Feed
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>Role-grouped implementation tasks with detailed instructions</p>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Role-grouped implementation tasks with detailed instructions</p>
         </div>
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
@@ -174,14 +174,14 @@ export default function RemediationFeed() {
             { label: 'High', value: highCount, color: '#ea580c' },
             { label: 'Roles', value: Object.keys(grouped).length, color: '#8b5cf6' },
           ].map((s, i) => (
-            <div key={i} style={{ flex: 1, padding: '12px 14px', background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', borderLeft: `3px solid ${s.color}` }}>
+            <div key={i} style={{ flex: 1, padding: '12px 14px', background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', borderLeft: `3px solid ${s.color}` }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 4 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
           {[
             { key: 'by-role', label: 'By Role', icon: Users },
             { key: 'by-severity', label: 'By Severity', icon: AlertTriangle },
@@ -228,7 +228,7 @@ export default function RemediationFeed() {
           <div>
             {allTasks.length > 0 ? allTasks.map((task, i) => <TaskCard key={i} task={{ ...task, severity: task.priority || task.severity }} index={i} />) :
               issues.length > 0 ? issues.map((issue, i) => <TaskCard key={i} task={issue} index={i} />) :
-                <div style={{ padding: 30, background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <div style={{ padding: 30, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
                   <CheckCircle size={32} color="#059669" />
                   <p style={{ marginTop: 8, color: '#059669', fontWeight: 600 }}>No tasks to implement</p>
                 </div>

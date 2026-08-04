@@ -20,7 +20,7 @@ function LinkSuggestionCard({ suggestion }) {
         <strong>To:</strong> <span style={{ color: '#059669' }}>{suggestion.to_page}</span>
       </div>
       {suggestion.reason && <div style={{ fontSize: 11, color: '#059669', padding: '4px 8px', background: '#f0fdf4', borderRadius: 4, border: '1px solid #bbf7d0', marginBottom: 4 }}>{suggestion.reason}</div>}
-      {suggestion.placement_hint && <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '4px 8px', background: '#f8fafc', borderRadius: 4, border: '1px solid #e2e8f0' }}>{suggestion.placement_hint}</div>}
+      {suggestion.placement_hint && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 8px', background: 'var(--bg-secondary)', borderRadius: 4, border: '1px solid var(--border)' }}>{suggestion.placement_hint}</div>}
       {suggestion.shared_topics && suggestion.shared_topics.length > 0 && (
         <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
           {suggestion.shared_topics.map((t, i) => (
@@ -35,12 +35,12 @@ function LinkSuggestionCard({ suggestion }) {
 function PageQualityRow({ ps }) {
   const scoreColor = ps.score >= 70 ? '#059669' : ps.score >= 40 ? '#d97706' : '#dc2626';
   return (
-    <div style={{ padding: '12px 14px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 8 }}>
+    <div style={{ padding: '12px 14px', background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
         <div style={{ width: 36, height: 36, borderRadius: 8, background: scoreColor + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: scoreColor }}>{ps.score}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ps.url}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             {ps.internal_links} internal · {ps.external_links} external · {ps.word_count} words · depth {ps.crawl_depth}
           </div>
         </div>
@@ -70,7 +70,7 @@ function AnchorCard({ anchor, isGeneric }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: isGeneric ? '#fef2f2' : '#f8fafc', borderRadius: 6, border: `1px solid ${isGeneric ? '#fecaca' : '#e2e8f0'}`, marginBottom: 4 }}>
       <Anchor size={12} color={isGeneric ? '#dc2626' : '#3b82f6'} />
       <span style={{ fontSize: 12, fontWeight: 500, color: isGeneric ? '#991b1b' : '#1e293b', flex: 1 }}>"{anchor.text}"</span>
-      <span style={{ fontSize: 10, color: '#64748b', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{anchor.target}</span>
+      <span style={{ fontSize: 10, color: 'var(--text-muted)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{anchor.target}</span>
       {isGeneric && <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 600 }}>Generic</span>}
     </div>
   );
@@ -78,7 +78,7 @@ function AnchorCard({ anchor, isGeneric }) {
 
 function ClusterCard({ cluster }) {
   return (
-    <div style={{ padding: '14px 16px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 8 }}>
+    <div style={{ padding: '14px 16px', background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <Layers size={13} color="#8b5cf6" />
         <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Topic: {cluster.topic}</span>
@@ -92,7 +92,7 @@ function ClusterCard({ cluster }) {
       {cluster.pages.slice(0, 5).map((p, i) => (
         <div key={i} style={{ fontSize: 11, color: '#3b82f6', padding: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</div>
       ))}
-      {cluster.pages.length > 5 && <div style={{ fontSize: 10, color: '#94a3b8' }}>+{cluster.pages.length - 5} more</div>}
+      {cluster.pages.length > 5 && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{cluster.pages.length - 5} more</div>}
     </div>
   );
 }
@@ -104,7 +104,7 @@ function PagerankRow({ pr }) {
       <div style={{ width: 32, height: 32, borderRadius: 6, background: scoreColor + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: scoreColor, flexShrink: 0 }}>{pr.pagerank_score}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 500, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title || pr.url}</div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
           Inbound: <strong style={{ color: '#059669' }}>{pr.inbound_links}</strong> · Outbound: <strong>{pr.outbound_links}</strong>
           {pr.is_orphan && <span style={{ color: '#dc2626', fontWeight: 600, marginLeft: 6 }}>ORPHAN</span>}
         </div>
@@ -143,9 +143,9 @@ export default function InternalLinks() {
     loadLinks();
   }, [id]);
 
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center' }}><div className="spinner" /><p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>Analyzing link structure...</p></div></div>;
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center' }}><div className="spinner" /><p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>Analyzing link structure...</p></div></div>;
   if (error) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center' }}><XCircle size={40} color="#dc2626" /><p style={{ fontSize: 13, color: '#dc2626', marginTop: 8 }}>{error}</p><button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button></div></div>;
-  if (!data) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center' }}><Link2 size={40} color="#94a3b8" /><p style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>No internal links data</p></div></div>;
+  if (!data) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ textAlign: 'center' }}><Link2 size={40} color="#94a3b8" /><p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>No internal links data</p></div></div>;
 
   const totalPages = data.total_pages ?? 0;
   const avgInternal = data.avg_internal_links ?? 0;
@@ -195,13 +195,13 @@ export default function InternalLinks() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Link2 size={24} color="#3b82f6" /> Internal Link Intelligence
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>Deep analysis of link architecture, anchor text quality, PageRank flow, and topic clusters</p>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Deep analysis of link architecture, anchor text quality, PageRank flow, and topic clusters</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -213,9 +213,9 @@ export default function InternalLinks() {
             { label: 'No Links', value: noLinksCount, color: '#dc2626', bg: '#fef2f2' },
             { label: 'Orphan Pages', value: orphanCount, color: '#dc2626', bg: '#fef2f2' },
           ].map((s, i) => (
-            <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+            <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -236,7 +236,7 @@ export default function InternalLinks() {
 
         {activeSection === 'overview' && (
           <div>
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20, marginBottom: 16 }}>
+            <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 12px' }}>Link Architecture Overview</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
@@ -256,16 +256,16 @@ export default function InternalLinks() {
               </div>
             </div>
             {pages.length > 0 && (
-              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid #e2e8f0' }}>
                   <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>All Pages ({pages.length})</h3>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
-                      <tr style={{ background: '#f8fafc' }}>
+                      <tr style={{ background: 'var(--bg-secondary)' }}>
                         {[{ key: 'url', label: 'URL' }, { key: 'internal_links', label: 'Int. Links' }, { key: 'external_links', label: 'Ext. Links' }, { key: 'crawl_depth', label: 'Depth' }, { key: 'word_count', label: 'Words' }].map(col => (
-                          <th key={col.key} onClick={() => handleSort(col.key)} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          <th key={col.key} onClick={() => handleSort(col.key)} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                             {col.label} {sortKey === col.key ? (sortDir === 'asc' ? '^' : 'v') : ''}
                           </th>
                         ))}
@@ -278,7 +278,7 @@ export default function InternalLinks() {
                           <td style={{ padding: '10px 14px' }}><span style={{ padding: '2px 8px', borderRadius: 4, background: getLinksColor(page.internal_links) + '18', color: getLinksColor(page.internal_links), fontWeight: 600 }}>{page.internal_links}</span></td>
                           <td style={{ padding: '10px 14px' }}><span style={{ padding: '2px 8px', borderRadius: 4, background: page.external_links > 0 ? '#3b82f618' : '#d9770618', color: page.external_links > 0 ? '#3b82f6' : '#d97706', fontWeight: 600 }}>{page.external_links}</span></td>
                           <td style={{ padding: '10px 14px' }}><span style={{ padding: '2px 8px', borderRadius: 4, background: getDepthColor(page.crawl_depth) + '18', color: getDepthColor(page.crawl_depth), fontWeight: 600 }}>{page.crawl_depth}</span></td>
-                          <td style={{ padding: '10px 14px', fontSize: 11, color: '#64748b' }}>{page.word_count || '—'}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text-muted)' }}>{page.word_count || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -290,28 +290,28 @@ export default function InternalLinks() {
         )}
 
         {activeSection === 'suggestions' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Lightbulb size={16} color="#d97706" /> Link Suggestions ({linkSuggestions.length})
             </h3>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Specific pages to link to, with placement hints and shared topic context</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>Specific pages to link to, with placement hints and shared topic context</p>
             {linkSuggestions.length > 0 ? (
               linkSuggestions.map((s, i) => <LinkSuggestionCard key={i} suggestion={s} />)
             ) : (
-              <div style={{ padding: 24, textAlign: 'center', background: '#f8fafc', borderRadius: 8 }}>
+              <div style={{ padding: 24, textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 8 }}>
                 <Lightbulb size={32} color="#d97706" />
-                <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>No specific link suggestions. All pages appear well-connected.</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>No specific link suggestions. All pages appear well-connected.</p>
               </div>
             )}
           </div>
         )}
 
         {activeSection === 'quality' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Target size={16} color="#059669" /> Page Link Quality Scores ({pageScores.length})
             </h3>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Per-page link quality based on internal links, external links, depth, anchors, and density</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>Per-page link quality based on internal links, external links, depth, anchors, and density</p>
             {pageScores.sort((a, b) => a.score - b.score).map((ps, i) => (
               <PageQualityRow key={i} ps={ps} />
             ))}
@@ -319,22 +319,22 @@ export default function InternalLinks() {
         )}
 
         {activeSection === 'anchors' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Anchor size={16} color="#3b82f6" /> Anchor Text Analysis
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
               <div style={{ padding: 12, background: '#eff6ff', borderRadius: 8, textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#3b82f6' }}>{anchorAnalysis.total_anchors || 0}</div>
-                <div style={{ fontSize: 10, color: '#64748b' }}>Total Anchors</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Total Anchors</div>
               </div>
               <div style={{ padding: 12, background: '#f0fdf4', borderRadius: 8, textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{anchorAnalysis.unique_anchors || 0}</div>
-                <div style={{ fontSize: 10, color: '#64748b' }}>Unique Anchors</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Unique Anchors</div>
               </div>
               <div style={{ padding: 12, background: '#fef2f2', borderRadius: 8, textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#dc2626' }}>{genericAnchors.length}</div>
-                <div style={{ fontSize: 10, color: '#64748b' }}>Generic Anchors</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Generic Anchors</div>
               </div>
             </div>
             {genericAnchors.length > 0 && (
@@ -353,34 +353,34 @@ export default function InternalLinks() {
         )}
 
         {activeSection === 'clusters' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Layers size={16} color="#8b5cf6" /> Topic Clusters ({topicClusters.length})
             </h3>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Pages grouped by shared topic keywords. Use clusters to build internal link silos.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>Pages grouped by shared topic keywords. Use clusters to build internal link silos.</p>
             {topicClusters.length > 0 ? (
               topicClusters.map((c, i) => <ClusterCard key={i} cluster={c} />)
             ) : (
-              <div style={{ padding: 24, textAlign: 'center', background: '#f8fafc', borderRadius: 8 }}>
+              <div style={{ padding: 24, textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 8 }}>
                 <Layers size={32} color="#8b5cf6" />
-                <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>No topic clusters detected. Pages may not share enough keywords.</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>No topic clusters detected. Pages may not share enough keywords.</p>
               </div>
             )}
           </div>
         )}
 
         {activeSection === 'pagerank' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Network size={16} color="#20c997" /> PageRank Flow Simulation
             </h3>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Estimated link equity distribution. Pages with more inbound links from other pages receive higher scores.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>Estimated link equity distribution. Pages with more inbound links from other pages receive higher scores.</p>
             {pagerankData.map((pr, i) => <PagerankRow key={i} pr={pr} />)}
           </div>
         )}
 
         {activeSection === 'improvements' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <TrendingUp size={16} color="#059669" /> Link Improvements ({linkImprovements.length})
             </h3>
@@ -405,13 +405,13 @@ export default function InternalLinks() {
         )}
 
         {activeSection === 'nolinks' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             {noLinksUrls.length > 0 ? (
               <>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#dc2626', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <AlertTriangle size={16} color="#dc2626" /> Pages with No Internal Links ({noLinksUrls.length})
                 </h3>
-                <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>These pages have no internal links pointing to them. Add links from relevant pages.</p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>These pages have no internal links pointing to them. Add links from relevant pages.</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {noLinksUrls.map((url, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fecaca' }}>
@@ -428,13 +428,13 @@ export default function InternalLinks() {
         )}
 
         {activeSection === 'orphans' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             {orphanUrls.length > 0 ? (
               <>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#dc2626', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Unlink size={16} color="#dc2626" /> Orphan Pages ({orphanUrls.length})
                 </h3>
-                <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>These pages have zero inbound links from any other page. Search engines may not discover them.</p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>These pages have zero inbound links from any other page. Search engines may not discover them.</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {orphanUrls.map((url, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fecaca' }}>

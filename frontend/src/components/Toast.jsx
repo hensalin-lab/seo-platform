@@ -60,7 +60,7 @@ export function ToastProvider({ children }) {
               <span style={{ flex: 1, lineHeight: 1.5 }}>{t.message}</span>
               <button onClick={() => removeToast(t.id)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: 0, color: '#94a3b8', flexShrink: 0,
+                padding: 0, color: 'var(--text-muted)', flexShrink: 0,
               }}>
                 <X size={14} />
               </button>

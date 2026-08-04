@@ -82,27 +82,27 @@ function IssuesTab({ issues, loading }) {
 
   return (
     <div>
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: '1 1 260px' }}>
-            <Filter size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <Filter size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input type="text" placeholder="Search issues, pages, fixes..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(0); }}
-              style={{ width: '100%', padding: '9px 12px 9px 30px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+              style={{ width: '100%', padding: '9px 12px 9px 30px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none' }} />
           </div>
           <select value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setPage(0); }}
-            style={{ padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
+            style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
             <option value="ALL">All Severities</option>
             {Object.keys(SEVERITY_COLORS2).map(s => (<option key={s} value={s}>{s}</option>))}
           </select>
           <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(0); }}
-            style={{ padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
+            style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
             <option value="ALL">All Categories</option>
             {categories.map(c => (<option key={c} value={c}>{c}</option>))}
           </select>
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, padding: '0 4px' }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, padding: '0 4px' }}>
         Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {allIssues.length} issues
         {searchQuery && <span> matching "{searchQuery}"</span>}
       </div>
@@ -112,14 +112,14 @@ function IssuesTab({ issues, loading }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {paginated.map((issue, idx) => (
-            <div key={idx} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px' }}>
+            <div key={idx} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <span style={{ width: 60, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textAlign: 'center', color: '#fff', background: SEVERITY_COLORS2[issue.severity] || '#64748b', flexShrink: 0 }}>
                   {issue.severity}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{issue.signal_name || issue.title || issue.description}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{issue.signal_name || issue.title || issue.description}</span>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: (CAT_COLORS2[issue.category] || '#64748b') + '20', color: CAT_COLORS2[issue.category] || '#64748b' }}>{issue.category}</span>
                   </div>
                   <div style={{ fontSize: 12, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>
@@ -131,7 +131,7 @@ function IssuesTab({ issues, loading }) {
                   <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 4 }}>
                     <strong>Problem:</strong> {issue.description}
                   </div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
                     <strong>Impact:</strong> {issue.impact || 'N/A'}
                   </div>
                   {issue.current_value && (
@@ -163,9 +163,9 @@ function IssuesTab({ issues, loading }) {
 
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #e2e8f0', background: page === 0 ? '#f8fafc' : '#fff', color: page === 0 ? '#94a3b8' : '#334155', cursor: page === 0 ? 'default' : 'pointer', fontSize: 12 }}>← Prev</button>
-          <span style={{ padding: '6px 12px', fontSize: 12, color: '#64748b' }}>{page + 1}/{totalPages}</span>
-          <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #e2e8f0', background: page >= totalPages - 1 ? '#f8fafc' : '#fff', color: page >= totalPages - 1 ? '#94a3b8' : '#334155', cursor: page >= totalPages - 1 ? 'default' : 'pointer', fontSize: 12 }}>Next →</button>
+          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: page === 0 ? '#f8fafc' : '#fff', color: page === 0 ? '#94a3b8' : '#334155', cursor: page === 0 ? 'default' : 'pointer', fontSize: 12 }}>← Prev</button>
+          <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)' }}>{page + 1}/{totalPages}</span>
+          <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: page >= totalPages - 1 ? '#f8fafc' : '#fff', color: page >= totalPages - 1 ? '#94a3b8' : '#334155', cursor: page >= totalPages - 1 ? 'default' : 'pointer', fontSize: 12 }}>Next →</button>
         </div>
       )}
     </div>

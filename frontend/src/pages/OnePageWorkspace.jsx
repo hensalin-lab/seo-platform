@@ -17,6 +17,7 @@ import ScoreVelocityPredictor from '../components/ScoreVelocityPredictor';
 import AiActionModal from '../components/AiActionModal';
 import ImpactEffortMatrix from '../components/ImpactEffortMatrix';
 import DataSourceBadge from '../components/DataSourceBadge';
+import PdfDownloadButton from '../components/PdfDownloadButton';
 
 const SOURCE_BADGE_MAP = {
   live: 'measured',
@@ -41,55 +42,7 @@ function SourceBadge({ source, size = 'xs', label }) {
   );
 }
 
-function AnimatedNumber({ value, duration = 1200 }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const step = Math.max(1, Math.floor(value / 60));
-    const interval = setInterval(() => {
-      start += step;
-      if (start >= value) { start = value; clearInterval(interval); }
-      setDisplay(start);
-    }, duration / 60);
-    return () => clearInterval(interval);
-  }, [value, duration]);
-  return <>{display}</>;
-}
-
-function ScoreGauge({ score, size = 90, label, sublabel, color }) {
-  const pct = Math.min(100, Math.max(0, score ?? 0));
-  const r = (size - 10) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (pct / 100) * c;
-  const gaugeColor = color || (pct >= 80 ? '#12b886' : pct >= 60 ? '#3b82f6' : pct >= 40 ? '#f59e0b' : '#ef4444');
-  const bgColor = color ? `${color}15` : pct >= 80 ? 'rgba(18,184,134,0.1)' : pct >= 60 ? 'rgba(59,130,246,0.1)' : pct >= 40 ? 'rgba(245,159,11,0.1)' : 'rgba(239,68,68,0.1)';
-  return (
-    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#eef0f2" strokeWidth="6" />
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={gaugeColor} strokeWidth="6"
-            strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4,0,0.2,1)' }} />
-        </svg>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: size * 0.24, fontWeight: 800, color: gaugeColor, lineHeight: 1 }}>
-            <AnimatedNumber value={pct} />
-          </span>
-        </div>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{label}</div>
-        {sublabel && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sublabel}</div>}
-        <div style={{ marginTop: 6, display: 'flex', gap: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: pct >= 80 ? 'rgba(18,184,134,0.12)' : pct >= 60 ? 'rgba(59,130,246,0.12)' : pct >= 40 ? 'rgba(245,159,11,0.12)' : 'rgba(239,68,68,0.12)', color: gaugeColor }}>
-            {pct >= 80 ? 'Excellent' : pct >= 60 ? 'Good' : pct >= 40 ? 'Needs Work' : 'Poor'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
+import ScoreGauge from '../components/ScoreGauge';
 
 function QuickWinCard({ issue, index, onPreview, onGenerateFix }) {
   const title = issue.title || issue.issue || issue.signal_name || issue.name || 'Issue';
@@ -215,12 +168,12 @@ function ExecutiveDashboardSection({ data, scores, issues, onGenerateFix, compar
         ))}
       </div>
       {hasComparison ? (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#0f172a' }}>You vs Competitor — Live Comparison</div>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>You vs Competitor — Live Comparison</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <th style={{ padding: '8px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Metric</th>
+              <tr style={{ borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)' }}>
+                <th style={{ padding: '8px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Metric</th>
                 <th style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: '#6366f1' }}>Your Site</th>
                 <th style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>Competitor</th>
               </tr>
@@ -231,9 +184,9 @@ function ExecutiveDashboardSection({ data, scores, issues, onGenerateFix, compar
                 const better = isNaN(numYou) || isNaN(numComp) ? null : numYou > numComp;
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '8px 16px', color: '#0f172a', fontWeight: 500 }}>{r.label}</td>
+                    <td style={{ padding: '8px 16px', color: 'var(--text)', fontWeight: 500 }}>{r.label}</td>
                     <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 700, color: better === false ? '#ef4444' : '#0f172a' }}>{r.you}{better === true ? ' ✓' : better === false ? ' !' : ''}</td>
-                    <td style={{ padding: '8px 16px', textAlign: 'right', color: '#64748b' }}>{r.comp}</td>
+                    <td style={{ padding: '8px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>{r.comp}</td>
                   </tr>
                 );
               })}
@@ -241,7 +194,7 @@ function ExecutiveDashboardSection({ data, scores, issues, onGenerateFix, compar
           </table>
         </div>
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 16, fontSize: 12, color: '#64748b' }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, fontSize: 12, color: 'var(--text-muted)' }}>
           No competitor comparison available yet. Run a competitor analysis to benchmark your content against a rival site.
         </div>
       )}
@@ -285,9 +238,9 @@ function AuditCompareSection({ data }) {
 
 function AuditReportSection({ data }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: 24, maxWidth: 800 }}>
+    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, maxWidth: 800 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>SEO Audit Report</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>SEO Audit Report</h3>
         <button style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Download size={14} /> Download White-Label PDF
         </button>
@@ -322,7 +275,7 @@ function SeoHealthSection({ data }) {
           <TechScoreCard label="Errors" value={data?.site_stats?.error_pages ?? 0} sub="4xx/5xx pages" color={(data?.site_stats?.error_pages ?? 0) > 0 ? '#ef4444' : '#12b886'} />
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No SEO health data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No SEO health data available for this audit.</div>
       )}
       {barScores.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -344,12 +297,12 @@ function SeoHealthSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Top Issues — What's Wrong & How to Fix" count={topIssues.length} />
           {topIssues.slice(0, 10).map((iss, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: iss.severity === 'CRITICAL' || iss.severity === 'HIGH' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', color: iss.severity === 'CRITICAL' || iss.severity === 'HIGH' ? '#ef4444' : '#d97706' }}>{iss.severity}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{iss.signal_name}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{iss.signal_name}</span>
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{iss.description}{iss.page_url ? ` · ${iss.page_url}` : ''}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{iss.description}{iss.page_url ? ` · ${iss.page_url}` : ''}</div>
             </div>
           ))}
         </div>
@@ -386,9 +339,9 @@ function GeoAeoHubSection({ data }) {
           {signalEntries.map(([key, val], idx) => {
             const pass = val.pass || val.score >= 70;
             return (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
                 {pass ? <CheckCircle size={14} color="#12b886" /> : <XCircle size={14} color="#ef4444" />}
-                <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{key.replace(/_/g, ' ')}</span>
+                <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{key.replace(/_/g, ' ')}</span>
                 <span style={{ fontSize: 11, color: pass ? '#12b886' : '#ef4444' }}>{pass ? 'Pass' : 'Fail'}</span>
               </div>
             );
@@ -399,16 +352,16 @@ function GeoAeoHubSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <SectionHeading title="Why Not 100? — Problems Found Per Page" count={issues.length} />
           {topPages.map(([page, pageIssues], idx) => (
-            <div key={idx} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#2563eb', wordBreak: 'break-all' }}>{page}</div>
+            <div key={idx} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ padding: '8px 14px', background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#2563eb', wordBreak: 'break-all' }}>{page}</div>
               {pageIssues.slice(0, 5).map((issue, j) => (
                 <div key={j} style={{ padding: '8px 14px', borderBottom: j < Math.min(pageIssues.length, 5) - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{issue.signal_name}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{issue.description}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{issue.signal_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{issue.description}</div>
                   {issue.fix && <div style={{ fontSize: 11, color: '#14532d', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '5px 8px' }}><strong>Fix:</strong> {issue.fix}</div>}
                 </div>
               ))}
-              {pageIssues.length > 5 && <div style={{ padding: '6px 14px', fontSize: 11, color: '#64748b' }}>+{pageIssues.length - 5} more issues on this page</div>}
+              {pageIssues.length > 5 && <div style={{ padding: '6px 14px', fontSize: 11, color: 'var(--text-muted)' }}>+{pageIssues.length - 5} more issues on this page</div>}
             </div>
           ))}
         </div>
@@ -449,8 +402,8 @@ function AiSearchDeepSection({ data }) {
             const pct = typeof p.brand_mentioned === 'number' ? p.brand_mentioned : (p.brand_mentioned ? 65 : 25);
             const sentimentColor = p.sentiment === 'POSITIVE' ? '#12b886' : p.sentiment === 'NEGATIVE' ? '#ef4444' : '#f59e0b';
             return (
-              <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{p.platform}</div>
+              <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{p.platform}</div>
                 <div style={{ fontSize: 26, fontWeight: 800, color: pct >= 50 ? '#12b886' : '#ef4444', marginBottom: 4 }}>{pct}%</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: sentimentColor }}>
                   {p.sentiment === 'POSITIVE' ? <TrendingUp size={11} /> : p.sentiment === 'NEGATIVE' ? <ArrowDown size={11} /> : <Minus size={11} />}
@@ -461,27 +414,27 @@ function AiSearchDeepSection({ data }) {
           })}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>
           No AI platform visibility data available for this audit. Run a live AI visibility scan to measure how often ChatGPT, Perplexity, and Gemini mention your brand.
         </div>
       )}
       {hasCitations ? (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#0f172a' }}>AI Citation Source Discovery</div>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>AI Citation Source Discovery</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Source Domain</th>
-                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>DR</th>
-                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Citation Reason</th>
-                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>AI Platforms</th>
+              <tr style={{ borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)' }}>
+                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Source Domain</th>
+                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>DR</th>
+                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Citation Reason</th>
+                <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>AI Platforms</th>
               </tr>
             </thead>
             <tbody>
               {citationSources.map((s, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid #eef2f6' }}>
-                  <td style={{ padding: '7px 14px', fontWeight: 600, color: '#0f172a' }}>{s.domain || s.source_domain}</td>
-                  <td style={{ padding: '7px 14px', color: '#64748b' }}>{s.dr || s.domain_rating || '—'}</td>
+                  <td style={{ padding: '7px 14px', fontWeight: 600, color: 'var(--text)' }}>{s.domain || s.source_domain}</td>
+                  <td style={{ padding: '7px 14px', color: 'var(--text-muted)' }}>{s.dr || s.domain_rating || '—'}</td>
                   <td style={{ padding: '7px 14px', color: '#475569' }}>{s.reason || s.citation_reason || ''}</td>
                   <td style={{ padding: '7px 14px', color: '#8b5cf6', fontWeight: 500 }}>{s.platforms || s.platform || ''}</td>
                 </tr>
@@ -490,7 +443,7 @@ function AiSearchDeepSection({ data }) {
           </table>
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>
           No citation source data available yet.
         </div>
       )}
@@ -508,12 +461,12 @@ function AiBotAccessSection({ data }) {
   const issues = data?.issues ?? [];
   const recs = data?.recommendations ?? [];
   const renderBots = (list, isAllowed) => (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
       {list.length === 0 ? (
-        <div style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>None {isAllowed ? 'explicitly allowed' : 'blocked'}</div>
+        <div style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-muted)' }}>None {isAllowed ? 'explicitly allowed' : 'blocked'}</div>
       ) : list.map((b, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', borderBottom: i < list.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{typeof b === 'string' ? b : (b.bot || b.name || b.user_agent)}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{typeof b === 'string' ? b : (b.bot || b.name || b.user_agent)}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: isAllowed ? '#12b886' : '#ef4444' }}>
             {isAllowed ? <CheckCircle size={12} /> : <XCircle size={12} />}
             {isAllowed ? 'Allowed' : 'Blocked'}
@@ -531,16 +484,16 @@ function AiBotAccessSection({ data }) {
           <TechScoreCard label="AI Bots Blocked" value={blocked.length} sub="denied access" color={blocked.length > 0 ? '#ef4444' : '#12b886'} />
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No AI bot intelligence data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No AI bot intelligence data available for this audit.</div>
       )}
       {Object.keys(robots).length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>AI Bots Allowed</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>AI Bots Allowed</div>
             {renderBots(allowed, true)}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>AI Bots Blocked</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>AI Bots Blocked</div>
             {renderBots(blocked, false)}
           </div>
         </div>
@@ -549,8 +502,8 @@ function AiBotAccessSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Robots.txt Issues" count={(robots.issues ?? []).length} />
           {(robots.issues ?? []).slice(0, 8).map((iss, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{iss.message}</div>
+            <div key={i} style={{ padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{iss.message}</div>
               {iss.fix && <div style={{ fontSize: 11, color: '#14532d' }}><strong>Fix:</strong> {iss.fix}</div>}
             </div>
           ))}
@@ -560,7 +513,7 @@ function AiBotAccessSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Recommendations" count={recs.length} color="#3b82f6" />
           {recs.slice(0, 8).map((r, i) => (
-            <div key={i} style={{ fontSize: 12, color: '#0f172a', padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>{r}</div>
+            <div key={i} style={{ fontSize: 12, color: 'var(--text)', padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>{r}</div>
           ))}
         </div>
       )}
@@ -573,18 +526,18 @@ function SerpPreviewSection({ data }) {
   const url = data?.url || data?.page?.url;
   const desc = data?.description || data?.meta_description || data?.page?.meta_description;
   if (!title && !url && !desc) {
-    return <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No SERP preview data available for this audit.</div>;
+    return <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No SERP preview data available for this audit.</div>;
   }
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Google Blue Link</div>
+      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Google Blue Link</div>
         <div style={{ fontSize: 14, fontWeight: 500, color: '#1a0dab', marginBottom: 2 }}>{title || 'No title tag found'}</div>
         <div style={{ fontSize: 12, color: '#006621', marginBottom: 4 }}>{url || '—'}</div>
         <div style={{ fontSize: 12, color: '#545454', lineHeight: 1.4 }}>{desc || 'No meta description — Google will auto-generate one from page content.'}</div>
       </div>
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>AI Overview Citation</div>
+      <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>AI Overview Citation</div>
         <div style={{ fontSize: 12, color: '#1e293b', lineHeight: 1.6 }}>
           <span style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>AI-generated summary</span> based on content from <strong>{url || 'your page'}</strong> and other sources. This content is optimized for AI extraction.
         </div>
@@ -609,15 +562,15 @@ function SocialSeoSection({ data }) {
           <TechScoreCard label="Pages w/ Twitter Card" value={twCount} sub={total ? `${Math.round((twCount / total) * 100)}% of ${total}` : ''} color={twCount === total && total > 0 ? '#12b886' : '#f59e0b'} />
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No social SEO data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No social SEO data available for this audit.</div>
       )}
       {issues.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Social Sharing Issues — What's Wrong & How to Fix" count={issues.length} />
           {issues.slice(0, 6).map((iss, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{iss.signal_name}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{iss.description}</div>
+            <div key={i} style={{ padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{iss.signal_name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{iss.description}</div>
               {iss.fix && <div style={{ fontSize: 11, color: '#14532d' }}><strong>Fix:</strong> {iss.fix}</div>}
             </div>
           ))}
@@ -627,9 +580,9 @@ function SocialSeoSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Recommendations" count={recs.length} color="#3b82f6" />
           {recs.slice(0, 6).map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: r.priority === 'HIGH' ? 'rgba(239,68,68,0.12)' : r.priority === 'MEDIUM' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)', color: r.priority === 'HIGH' ? '#ef4444' : r.priority === 'MEDIUM' ? '#d97706' : '#3b82f6' }}>{r.priority}</span>
-              <div style={{ flex: 1, fontSize: 12, color: '#0f172a' }}><div>{r.action}</div><div style={{ fontSize: 11, color: '#64748b' }}>{r.impact}</div></div>
+              <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}><div>{r.action}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.impact}</div></div>
             </div>
           ))}
         </div>
@@ -652,7 +605,7 @@ function LocalSeoSection({ data }) {
           <TechScoreCard label="Pages w/ Local" value={data?.pages_with_local_signals ?? localUrls.length} sub="NAP or LocalBusiness" />
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No local SEO data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No local SEO data available for this audit.</div>
       )}
       {Object.keys(nap).length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -662,9 +615,9 @@ function LocalSeoSection({ data }) {
             { key: 'phone_found', label: 'Phone Number with tel: Link' },
             { key: 'schema_local', label: 'LocalBusiness Schema' },
           ].map((s, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               {nap[s.key] ? <CheckCircle size={14} color="#12b886" /> : <XCircle size={14} color="#ef4444" />}
-              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{s.label}</span>
+              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{s.label}</span>
               <span style={{ fontSize: 11, color: nap[s.key] ? '#12b886' : '#ef4444' }}>{nap[s.key] ? 'Found' : 'Missing'}</span>
             </div>
           ))}
@@ -674,9 +627,9 @@ function LocalSeoSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Local SEO Recommendations" count={recs.length} color="#3b82f6" />
           {recs.slice(0, 6).map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: r.priority === 'HIGH' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', color: r.priority === 'HIGH' ? '#ef4444' : '#d97706' }}>{r.priority}</span>
-              <div style={{ flex: 1, fontSize: 12, color: '#0f172a' }}><div>{r.action}</div><div style={{ fontSize: 11, color: '#64748b' }}>{r.impact}</div></div>
+              <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}><div>{r.action}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.impact}</div></div>
             </div>
           ))}
         </div>
@@ -717,9 +670,9 @@ function ContentStudioSection({ data }) {
           const val = eeat[s.key] ?? 0;
           const pass = val >= s.target;
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               {pass ? <CheckCircle size={14} color="#12b886" /> : <XCircle size={14} color="#ef4444" />}
-              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{s.label}</span>
+              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{s.label}</span>
               <span style={{ fontSize: 11, color: pass ? '#12b886' : '#ef4444' }}>{val} pages</span>
             </div>
           );
@@ -729,9 +682,9 @@ function ContentStudioSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <SectionHeading title="Thin Content Pages — Expand These" count={thinPages.length} />
           {thinPages.slice(0, 10).map((p, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#2563eb', wordBreak: 'break-all' }}>{p.url}</div>
-              <div style={{ padding: '8px 14px', fontSize: 12, color: '#0f172a' }}><strong>{p.word_count} words</strong> — expand to at least <strong>1,500 words</strong> (gap: <strong>{1500 - (p.word_count || 0)} words</strong>)</div>
+            <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ padding: '8px 14px', background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#2563eb', wordBreak: 'break-all' }}>{p.url}</div>
+              <div style={{ padding: '8px 14px', fontSize: 12, color: 'var(--text)' }}><strong>{p.word_count} words</strong> — expand to at least <strong>1,500 words</strong> (gap: <strong>{1500 - (p.word_count || 0)} words</strong>)</div>
             </div>
           ))}
         </div>
@@ -740,9 +693,9 @@ function ContentStudioSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <SectionHeading title="Content Issues — What's Wrong & How to Fix" count={issues.length} />
           {issues.slice(0, 10).map((issue, i) => (
-            <div key={i} style={{ padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{issue.signal_name}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{issue.description}</div>
+            <div key={i} style={{ padding: '10px 14px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{issue.signal_name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{issue.description}</div>
               {issue.fix && <div style={{ fontSize: 11, color: '#14532d', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 6, padding: '5px 8px' }}><strong>Fix:</strong> {issue.fix}</div>}
             </div>
           ))}
@@ -752,9 +705,9 @@ function ContentStudioSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Recommendations" count={recs.length} color="#3b82f6" />
           {recs.slice(0, 8).map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: r.priority === 'HIGH' ? 'rgba(239,68,68,0.12)' : r.priority === 'MEDIUM' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)', color: r.priority === 'HIGH' ? '#ef4444' : r.priority === 'MEDIUM' ? '#d97706' : '#3b82f6' }}>{r.priority}</span>
-              <span style={{ flex: 1, fontSize: 12, color: '#0f172a' }}>{r.action}</span>
+              <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{r.action}</span>
             </div>
           ))}
         </div>
@@ -788,7 +741,7 @@ function KeywordStrategySection({ data }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{c.root_keyword || c.name}</span>
                 <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6' }}>{c.topic_authority || c.intent || '—'}</span>
-                <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>{c.total_frequency || c.keyword_count || 0} freq · {c.keyword_count || (c.keywords?.length ?? 0)} keywords</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{c.total_frequency || c.keyword_count || 0} freq · {c.keyword_count || (c.keywords?.length ?? 0)} keywords</span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {(c.keywords ?? []).map((kw, j) => (
@@ -802,25 +755,25 @@ function KeywordStrategySection({ data }) {
       {keywords.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <SectionHeading title="Top Keywords — Why These Matter & How to Target" count={keywords.length} color="#3b82f6" />
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Keyword</th>
-                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Intent</th>
-                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Difficulty</th>
-                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Vol</th>
-                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Pages Using</th>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)' }}>
+                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Keyword</th>
+                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Intent</th>
+                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Difficulty</th>
+                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Vol</th>
+                  <th style={{ padding: '7px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Pages Using</th>
                 </tr>
               </thead>
               <tbody>
                 {keywords.slice(0, 20).map((k, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '7px 14px', fontWeight: 600, color: '#0f172a' }}>{k.keyword}</td>
+                    <td style={{ padding: '7px 14px', fontWeight: 600, color: 'var(--text)' }}>{k.keyword}</td>
                     <td style={{ padding: '7px 14px' }}><span style={{ color: intentColors[k.intent] || '#64748b', fontWeight: 600 }}>{k.intent || '—'}</span></td>
                     <td style={{ padding: '7px 14px', color: k.difficulty === 'HIGH' ? '#ef4444' : k.difficulty === 'MEDIUM' ? '#d97706' : '#12b886' }}>{k.difficulty || '—'} ({k.difficulty_score ?? '—'})</td>
-                    <td style={{ padding: '7px 14px', color: '#64748b' }}>{k.estimated_volume ?? '—'}</td>
-                    <td style={{ padding: '7px 14px', color: '#64748b' }}>{k.pages_using ?? 0}</td>
+                    <td style={{ padding: '7px 14px', color: 'var(--text-muted)' }}>{k.estimated_volume ?? '—'}</td>
+                    <td style={{ padding: '7px 14px', color: 'var(--text-muted)' }}>{k.pages_using ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -832,9 +785,9 @@ function KeywordStrategySection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <SectionHeading title="Keyword Cannibalization — Multiple Pages Competing" count={cannibalization.length} />
           {cannibalization.slice(0, 8).map((c, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{c.keyword} <span style={{ fontSize: 10, color: c.severity === 'HIGH' ? '#ef4444' : '#d97706' }}>({c.severity})</span></div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{c.competing_pages?.length || 0} pages compete for this keyword</div>
+            <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{c.keyword} <span style={{ fontSize: 10, color: c.severity === 'HIGH' ? '#ef4444' : '#d97706' }}>({c.severity})</span></div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{c.competing_pages?.length || 0} pages compete for this keyword</div>
               {c.recommendation && <div style={{ fontSize: 11, color: '#14532d' }}><strong>Fix:</strong> {c.recommendation}</div>}
             </div>
           ))}
@@ -862,15 +815,15 @@ function ContentRewriterSection({ data }) {
   if (hasPreview) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Original</div>
-          <div style={{ fontSize: 13, color: '#0f172a', lineHeight: 1.6, maxHeight: 300, overflowY: 'auto' }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Original</div>
+          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, maxHeight: 300, overflowY: 'auto' }}>
             {data.original}
           </div>
         </div>
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Rewritten</div>
-          <div style={{ fontSize: 13, color: '#0f172a', lineHeight: 1.6, maxHeight: 300, overflowY: 'auto' }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Rewritten</div>
+          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, maxHeight: 300, overflowY: 'auto' }}>
             {data.rewritten}
           </div>
         </div>
@@ -898,11 +851,11 @@ function ContentRewriterSection({ data }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
           {pages.slice(0, 12).map((p, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+            <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#3b82f6', marginBottom: 2 }}>{p.badge}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
-              <div style={{ fontSize: 11, color: '#64748b', wordBreak: 'break-all', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.url}</div>
-              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{p.word_count ? `${p.word_count} words` : 'no word count'}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', wordBreak: 'break-all', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.url}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{p.word_count ? `${p.word_count} words` : 'no word count'}</div>
             </div>
           ))}
         </div>
@@ -924,10 +877,10 @@ function ContentRevivalSection({ data }) {
       {items.length === 0 ? (
         <div style={{ fontSize: 12, color: '#12b886', padding: '8px 12px', background: 'rgba(18,184,134,0.06)', border: '1px solid rgba(18,184,134,0.2)', borderRadius: 8 }}>No {title.toLowerCase()} found — this area is healthy.</div>
       ) : items.map((p, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#2563eb', wordBreak: 'break-all' }}>{p.url}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 14px', background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#2563eb', wordBreak: 'break-all' }}>{p.url}</div>
           <div style={{ padding: '8px 14px' }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
               {p.word_count ? <strong>{p.word_count} words</strong> : null}
               {p.word_count && p.gap ? ' · ' : null}
               {p.gap ? <span style={{ color: '#ef4444' }}>needs +{p.gap} more words</span> : null}
@@ -956,9 +909,9 @@ function ContentRevivalSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Recommended Actions" count={recs.length} color="#3b82f6" />
           {recs.map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: r.priority === 'CRITICAL' ? 'rgba(239,68,68,0.12)' : r.priority === 'HIGH' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)', color: r.priority === 'CRITICAL' ? '#ef4444' : r.priority === 'HIGH' ? '#d97706' : '#3b82f6' }}>{r.priority}</span>
-              <div style={{ flex: 1, fontSize: 12, color: '#0f172a' }}><div>{r.action}</div><div style={{ fontSize: 11, color: '#64748b' }}>{r.impact} · Effort: {r.effort || '—'}</div></div>
+              <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}><div>{r.action}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.impact} · Effort: {r.effort || '—'}</div></div>
             </div>
           ))}
         </div>
@@ -974,7 +927,7 @@ function BlogAiSection({ data }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', gap: 8 }}>
-        <input placeholder="Enter blog topic..." style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', color: '#0f172a', fontSize: 13, outline: 'none' }} />
+        <input placeholder="Enter blog topic..." style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-white)', color: 'var(--text)', fontSize: 13, outline: 'none' }} />
         <button style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#f59e0b', color: '#111827', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Generate</button>
       </div>
       {data?.posts?.length > 0 && data.posts.map((post, i) => (
@@ -1002,19 +955,80 @@ function IssueRemediationSection({ data, onGenerateFix, onPreview }) {
   );
 }
 
-function SpeedSection({ data }) {
+function SpeedSection({ data, id, url }) {
+  const [lighthouse, setLighthouse] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [lhError, setLhError] = useState('');
   const score = data?.speed_score;
   const grade = data?.speed_grade;
   const avg = data?.avg_response_time_ms;
   const breakdown = data?.speed_breakdown ?? {};
   const slowPages = data?.slow_pages ?? [];
   const slowCount = data?.slow_pages_count ?? slowPages.length;
+
+  const runLighthouse = async () => {
+    setRunning(true); setLhError('');
+    try {
+      const res = await api.getPageSpeedLive(id, url || '');
+      setLighthouse(res);
+    } catch (e) {
+      setLhError(e?.message || 'Failed to run Lighthouse. The page may be unreachable from Google servers.');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const assessment = lighthouse?.core_web_vitals?._assessment || {};
+  const cwvEntries = Object.entries(assessment).filter(([k]) => k !== '_summary');
+  const statusColor = (s) => s === 'good' ? '#12b886' : s === 'needs_improvement' ? '#f59e0b' : '#ef4444';
+  const statusLabel = (s) => s === 'good' ? 'Good' : s === 'needs_improvement' ? 'Needs work' : 'Poor';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <SectionHeading title="Page Speed & Performance" count={slowCount > 0 ? `${slowCount} slow` : 'all fast'} color="#3b82f6" />
         <SourceBadge source={data?.data_source} label="data" />
+        <button
+          onClick={runLighthouse}
+          disabled={running}
+          style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', cursor: running ? 'wait' : 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text)' }}
+        >
+          <RefreshCw size={13} style={running ? { animation: 'spin 0.8s linear infinite' } : {}} />
+          {running ? 'Running Lighthouse (30-60s)...' : lighthouse ? 'Re-run Lighthouse' : 'Run Lighthouse Now'}
+        </button>
       </div>
+
+      {lhError && <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--red-bg)', border: '1px solid rgba(239,68,68,0.2)', fontSize: 12, color: 'var(--red)' }}>{lhError}</div>}
+
+      {lighthouse && (
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Activity size={15} color="#3b82f6" />
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Real Lighthouse Results</span>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', fontWeight: 600 }}>
+              {lighthouse.performance_score ? `Performance ${Math.round(lighthouse.performance_score)}/100` : 'Lab data'}
+            </span>
+            {lighthouse.field_data?._available && (
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 600 }}>
+                + CrUX field data (real users)
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            {cwvEntries.length > 0 ? cwvEntries.map(([k, v]) => (
+              <div key={k} style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{v.label || k}{v.source === 'field' ? ' (field)' : v.source === 'lab' ? ' (lab)' : ''}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: statusColor(v.status) }}>
+                  {k === 'CLS' ? v.value?.toFixed(3) : `${Math.round(v.value ?? 0)}ms`}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: statusColor(v.status) }}>{statusLabel(v.status)}</div>
+              </div>
+            )) : (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 8 }}>No Core Web Vitals assessment available for this URL.</div>
+            )}
+          </div>
+        </div>
+      )}
       {score !== undefined && score !== null ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
           <TechScoreCard label="Page Speed Score" value={Math.round(score)} sub="out of 100" />
@@ -1032,9 +1046,9 @@ function SpeedSection({ data }) {
             { label: 'Needs Work (1-3s)', val: breakdown.needs_work ?? 0, color: '#f59e0b' },
             { label: 'Slow (>3s)', val: breakdown.slow ?? 0, color: '#ef4444' },
           ].map((b, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+            <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: b.color }}>{b.val}</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{b.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.label}</div>
             </div>
           ))}
         </div>
@@ -1043,8 +1057,8 @@ function SpeedSection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <SectionHeading title={`Slow Pages — Why Not 100 & How to Fix`} count={slowPages.length} />
           {slowPages.slice(0, 10).map((p, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', wordBreak: 'break-all', marginBottom: 2 }}>{p.url}</div>
+            <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all', marginBottom: 2 }}>{p.url}</div>
               <div style={{ fontSize: 11, color: '#ef4444' }}>Responds in {p.response_time_ms}ms (over {data?.slow_threshold_ms ?? 3000}ms threshold)</div>
               <div style={{ fontSize: 11, color: '#14532d', marginTop: 4 }}><strong>Fix:</strong> Compress images, enable caching, minify JS/CSS, and use a CDN to bring this page under 1,000ms.</div>
             </div>
@@ -1082,28 +1096,28 @@ function InternalLinksSection({ data }) {
         <TechScoreCard label="Anchor Texts" value={anchorStats.total_anchors ?? 0} sub={`${anchorStats.generic_anchors?.length ?? 0} generic like "click here"`} color={(anchorStats.generic_anchors?.length ?? 0) > 0 ? '#f59e0b' : '#12b886'} />
       </div>
       {renderGroup('Orphan Pages — No Links Pointing In', orphanUrls, (url, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', wordBreak: 'break-all', marginBottom: 2 }}>{url}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all', marginBottom: 2 }}>{url}</div>
           <div style={{ fontSize: 11, color: '#14532d' }}><strong>Fix:</strong> Add internal links from related pages so crawlers can reach this page.</div>
         </div>
       ), '#ef4444')}
       {renderGroup('Link Suggestions — Related Content to Connect', suggestions, (s, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{s.from_page} <span style={{ color: '#94a3b8' }}>→</span> {s.to_title || s.to_page}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{s.reason}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{s.from_page} <span style={{ color: 'var(--text-muted)' }}>→</span> {s.to_title || s.to_page}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{s.reason}</div>
           <div style={{ fontSize: 11, color: '#14532d' }}><strong>Anchor:</strong> "{s.anchor_suggestion}" · {s.placement_hint}</div>
         </div>
       ), '#3b82f6')}
       {renderGroup('Link Improvements Needed', improvements, (s, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{s.page}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{s.issue}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{s.page}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{s.issue}</div>
           <div style={{ fontSize: 11, color: '#14532d' }}><strong>Fix:</strong> {s.suggestion}</div>
         </div>
       ), '#f59e0b')}
       {renderGroup('Weakest Pages by Link Score', weakestPages, (p, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', wordBreak: 'break-all', marginBottom: 2 }}>{p.url}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all', marginBottom: 2 }}>{p.url}</div>
           <div style={{ fontSize: 11, color: p.score >= 60 ? '#12b886' : p.score >= 40 ? '#f59e0b' : '#ef4444' }}>Score: {p.score}/100 · {p.internal_links} internal · depth {p.crawl_depth}</div>
           {(p.issues ?? []).slice(0, 3).map((iss, j) => <div key={j} style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>• {iss}</div>)}
         </div>
@@ -1121,9 +1135,9 @@ function TechScoreCard({ label, value, sub, color }) {
   const valColor = color || (num >= 80 ? '#12b886' : num >= 60 ? '#3b82f6' : num >= 40 ? '#f59e0b' : '#ef4444');
   return (
     <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: valColor }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -1131,7 +1145,7 @@ function TechScoreCard({ label, value, sub, color }) {
 function SectionHeading({ title, count, color }) {
   const c = color || '#ef4444';
   return (
-    <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
       {title}
       {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: `${c}1a`, color: c }}>{count}</span>}
     </div>
@@ -1141,9 +1155,9 @@ function SectionHeading({ title, count, color }) {
 function IssueBlock({ issue }) {
   const sev = issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? '#ef4444' : issue.severity === 'MEDIUM' ? '#f59e0b' : '#3b82f6';
   return (
-    <div style={{ padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderLeft: `4px solid ${sev}`, borderRadius: 8 }}>
+    <div style={{ padding: '10px 14px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderLeft: `4px solid ${sev}`, borderRadius: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{issue.signal_name || 'Issue'}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{issue.signal_name || 'Issue'}</span>
         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: `${sev}1a`, color: sev }}>{issue.severity || 'INFO'}</span>
       </div>
       {issue.page_url && <div style={{ fontSize: 11, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>{issue.page_url}</div>}
@@ -1156,12 +1170,12 @@ function IssueBlock({ issue }) {
 function RecommendationBlock({ rec }) {
   const sev = rec.priority === 'CRITICAL' || rec.priority === 'HIGH' ? '#ef4444' : rec.priority === 'MEDIUM' ? '#f59e0b' : '#3b82f6';
   return (
-    <div style={{ padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+    <div style={{ padding: '10px 14px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{rec.action}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{rec.action}</span>
         <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: `${sev}1a`, color: sev, flexShrink: 0 }}>{rec.priority || 'INFO'}</span>
       </div>
-      {rec.impact && <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{rec.impact}</div>}
+      {rec.impact && <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{rec.impact}</div>}
     </div>
   );
 }
@@ -1211,7 +1225,7 @@ function MobileSeoSection({ data }) {
         <TechScoreCard label="Slow Pages" value={slowPages.length} sub="over 3 seconds" color={slowPages.length > 0 ? '#f59e0b' : '#12b886'} />
       </div>
       {slowPages.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
           <SectionHeading title="Slowest Pages — Optimize These to Under 3s" count={slowPages.length} color="#f59e0b" />
           {slowPages.map((p, idx) => (
             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: idx < slowPages.length - 1 ? '1px solid #f1f5f9' : 'none', fontSize: 12 }}>
@@ -1252,7 +1266,7 @@ function SitemapRobotsSection({ data }) {
         <TechScoreCard label="Errors Found" value={data?.error_count ?? 0} sub="error pages" color={(data?.error_count ?? 0) > 0 ? '#ef4444' : '#12b886'} />
       </div>
       {patterns.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
           <SectionHeading title="URL Structure Patterns" count={patterns.length} color="#3b82f6" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
             {patterns.slice(0, 10).map((p, idx) => (
@@ -1264,7 +1278,7 @@ function SitemapRobotsSection({ data }) {
         </div>
       )}
       {errors.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #fecaca', borderRadius: 10, padding: 12 }}>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid #fecaca', borderRadius: 10, padding: 12 }}>
           <SectionHeading title="Broken Pages (4xx/5xx) — What's Wrong & How to Fix" count={errors.length} />
           {errors.map((p, idx) => (
             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '5px 0', borderBottom: idx < errors.length - 1 ? '1px solid #f1f5f9' : 'none', fontSize: 12 }}>
@@ -1337,14 +1351,14 @@ function ImageSeoSection({ data }) {
         <TechScoreCard label="Missing Alt Text" value={missing} sub="images need fixes" color={missing > 0 ? '#ef4444' : '#12b886'} />
       </div>
       {pages.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Pages with Most Images</div>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Pages with Most Images</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Page URL</th>
-                <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Images</th>
-                <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Missing Alt</th>
+              <tr style={{ borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)' }}>
+                <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Page URL</th>
+                <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Images</th>
+                <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)' }}>Missing Alt</th>
               </tr>
             </thead>
             <tbody>
@@ -1389,37 +1403,37 @@ function CompetitorSection({ data }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <SectionHeading title={title} count={items.length} color={color} />
       {items.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#64748b', padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>No data yet — run a competitor analysis to populate.</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>No data yet — run a competitor analysis to populate.</div>
       ) : items.slice(0, 10).map((item, i) => render(item, i))}
     </div>
   );
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {!compUrl && (
-        <div style={{ fontSize: 12, color: '#64748b', padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '10px 14px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
           No competitor configured for this audit. Add a competitor URL to compare content, entities, and backlinks against your site.
         </div>
       )}
       {renderList('Entity Coverage Gaps — What Competitors Have That You Don\'t', entityGaps, '#ef4444', (g, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{g.entity || g.name || g.keyword || g}</div>
-          <div style={{ fontSize: 11, color: '#64748b' }}>Competitors: {g.competitors ?? g.competitor_count ?? '—'} · You: {g.has ? 'Covered' : 'Missing'}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{g.entity || g.name || g.keyword || g}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Competitors: {g.competitors ?? g.competitor_count ?? '—'} · You: {g.has ? 'Covered' : 'Missing'}</div>
         </div>
       ))}
       {renderList('Topic Gaps', topicGaps, '#f59e0b', (t, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#0f172a' }}>{typeof t === 'string' ? t : (t.topic || t.title || t.keyword || JSON.stringify(t))}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text)' }}>{typeof t === 'string' ? t : (t.topic || t.title || t.keyword || JSON.stringify(t))}</div>
       ))}
       {renderList('Content Opportunities', contentOpps, '#3b82f6', (c, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#0f172a' }}>{typeof c === 'string' ? c : (c.opportunity || c.title || c.topic || JSON.stringify(c))}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text)' }}>{typeof c === 'string' ? c : (c.opportunity || c.title || c.topic || JSON.stringify(c))}</div>
       ))}
       {renderList('Your Weaknesses vs Competitors', weaknesses, '#ef4444', (w, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#0f172a' }}>{typeof w === 'string' ? w : (w.weakness || w.issue || w.description || JSON.stringify(w))}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text)' }}>{typeof w === 'string' ? w : (w.weakness || w.issue || w.description || JSON.stringify(w))}</div>
       ))}
       {renderList('Your Strengths', strengths, '#12b886', (s, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#0f172a' }}>{typeof s === 'string' ? s : (s.strength || s.description || JSON.stringify(s))}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text)' }}>{typeof s === 'string' ? s : (s.strength || s.description || JSON.stringify(s))}</div>
       ))}
       {renderList('Winning Strategy', strategy, '#8b5cf6', (s, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#0f172a' }}>{typeof s === 'string' ? s : (s.action || s.strategy || s.recommendation || JSON.stringify(s))}</div>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text)' }}>{typeof s === 'string' ? s : (s.action || s.strategy || s.recommendation || JSON.stringify(s))}</div>
       ))}
       {!hasAny && (
         <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13 }}>No competitor analysis data available for this audit.</div>
@@ -1448,16 +1462,16 @@ function BacklinkProfileSection({ data }) {
           <TechScoreCard label="Inbound Backlinks" value={inbound.length} sub={`${referring.length} referring domains`} />
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No backlink data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No backlink data available for this audit.</div>
       )}
       {topDomains.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Top Linked Domains" count={topDomains.length} color="#3b82f6" />
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
             {topDomains.slice(0, 10).map((d, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 14px', borderBottom: i < Math.min(topDomains.length, 10) - 1 ? '1px solid #f1f5f9' : 'none', fontSize: 12 }}>
-                <span style={{ fontWeight: 600, color: '#0f172a', wordBreak: 'break-all' }}>{d.domain}</span>
-                <span style={{ color: '#64748b' }}>{d.count} links</span>
+                <span style={{ fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>{d.domain}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{d.count} links</span>
               </div>
             ))}
           </div>
@@ -1466,11 +1480,11 @@ function BacklinkProfileSection({ data }) {
       {anchors.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Anchor Text Distribution" count={anchors.length} color="#8b5cf6" />
-          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
             {anchors.slice(0, 10).map((a, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 14px', borderBottom: i < Math.min(anchors.length, 10) - 1 ? '1px solid #f1f5f9' : 'none', fontSize: 12 }}>
-                <span style={{ color: '#0f172a', wordBreak: 'break-all' }}>{a.text}</span>
-                <span style={{ color: '#64748b' }}>{a.count}x</span>
+                <span style={{ color: 'var(--text)', wordBreak: 'break-all' }}>{a.text}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{a.count}x</span>
               </div>
             ))}
           </div>
@@ -1500,15 +1514,15 @@ function AuthoritySection({ data }) {
           <TechScoreCard label="Low Quality" value={ext.low_quality_links ?? 0} sub="domains to avoid" color={(ext.low_quality_links ?? 0) > 0 ? '#ef4444' : '#12b886'} />
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No off-site authority data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No off-site authority data available for this audit.</div>
       )}
       {platformEntries.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Platform Presence — Social & Directory Signals" count={platformEntries.length} color="#8b5cf6" />
           {platformEntries.map(([key, v], i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
               {v.linked ? <CheckCircle size={14} color="#12b886" /> : v.mentioned ? <CheckCircle size={14} color="#f59e0b" /> : <XCircle size={14} color="#ef4444" />}
-              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{key}</span>
+              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{key}</span>
               <span style={{ fontSize: 11, color: v.linked ? '#12b886' : v.mentioned ? '#d97706' : '#ef4444' }}>{v.linked ? 'Linked' : v.mentioned ? 'Mentioned only' : 'Missing'}</span>
             </div>
           ))}
@@ -1518,8 +1532,8 @@ function AuthoritySection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Authority Issues — What's Wrong & How to Fix" count={issues.length} />
           {issues.slice(0, 10).map((iss, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{iss.message || iss.title || iss.issue}</div>
+            <div key={i} style={{ padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{iss.message || iss.title || iss.issue}</div>
               {iss.fix && <div style={{ fontSize: 11, color: '#14532d' }}><strong>Fix:</strong> {iss.fix}</div>}
             </div>
           ))}
@@ -1529,7 +1543,7 @@ function AuthoritySection({ data }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SectionHeading title="Recommendations" count={recs.length} color="#3b82f6" />
           {recs.slice(0, 8).map((r, i) => (
-            <div key={i} style={{ fontSize: 12, color: '#0f172a', padding: '8px 12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}>{typeof r === 'string' ? r : (r.action || r.recommendation || JSON.stringify(r))}</div>
+            <div key={i} style={{ fontSize: 12, color: 'var(--text)', padding: '8px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8 }}>{typeof r === 'string' ? r : (r.action || r.recommendation || JSON.stringify(r))}</div>
           ))}
         </div>
       )}
@@ -1544,9 +1558,9 @@ function CitationsSection({ data }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <SectionHeading title="Citation Sources" count={items.length} color="#3b82f6" />
       {items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }}>No citation data available for this audit.</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10 }}>No citation data available for this audit.</div>
       ) : items.slice(0, 20).map((c, i) => (
-        <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#0f172a' }}>
+        <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--text)' }}>
           {c.domain || c.source || c.url || JSON.stringify(c)}
         </div>
       ))}
@@ -2034,7 +2048,7 @@ export default function OnePageWorkspace() {
         switch (displaySub) {
           case 'issues': return <IssueRemediationSection data={{ issues: fallbackIssues }} onGenerateFix={setFixModal} onPreview={setPreviewIssue} />;
           case 'action-center': return <IssueRemediationSection data={{ issues: fallbackIssues }} onGenerateFix={setFixModal} onPreview={setPreviewIssue} />;
-          case 'speed': return <SpeedSection data={s.speed || {}} />;
+          case 'speed': return <SpeedSection data={s.speed || {}} id={id} url={audit?.website_url} />;
           case 'links': return <InternalLinksSection data={s['internal-links'] || {}} />;
           case 'page-experience': return <PageExperienceSection data={s['page-experience'] || {}} />;
           case 'mobile': return <MobileSeoSection data={s.mobile || {}} />;
@@ -2047,22 +2061,22 @@ export default function OnePageWorkspace() {
             const medium = roadmapIssues.filter(i => i.severity === 'MEDIUM');
             const low = roadmapIssues.filter(i => i.severity === 'LOW');
             const phase = (title, items, color, weeks) => (
-              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
+              <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: color }}>{title}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}18`, color }}>{weeks}</span>
-                  <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>{items.length} issues</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{items.length} issues</span>
                 </div>
                 {items.length === 0 ? (
-                  <div style={{ fontSize: 12, color: '#64748b' }}>Nothing to fix in this phase.</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nothing to fix in this phase.</div>
                 ) : items.slice(0, 6).map((iss, i) => (
-                  <div key={i} style={{ fontSize: 12, color: '#0f172a', padding: '4px 0', borderTop: '1px solid #f1f5f9' }}>{iss.signal_name || iss.title}</div>
+                  <div key={i} style={{ fontSize: 12, color: 'var(--text)', padding: '4px 0', borderTop: '1px solid #f1f5f9' }}>{iss.signal_name || iss.title}</div>
                 ))}
               </div>
             );
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>SEO Roadmap — Built From Your Audit Issues</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>SEO Roadmap — Built From Your Audit Issues</div>
                 {critical.length + medium.length + low.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13 }}>No issues found to build a roadmap.</div>
                 ) : (
@@ -2133,10 +2147,8 @@ export default function OnePageWorkspace() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => window.print()} style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Download size={14} /> Export PDF
-          </button>
-          <button onClick={() => { window.location.reload(); }} style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <PdfDownloadButton auditId={id} variant="secondary" />
+          <button onClick={() => { window.location.reload(); }} style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-white)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <RotateCcw size={14} /> Re-Scan
           </button>
         </div>
@@ -2151,15 +2163,25 @@ export default function OnePageWorkspace() {
         <ScoreGauge score={allScores.speed_score} label="Speed (CWV)" sublabel="Core Web Vitals" color="#06b6d4" />
       </div>
 
-      {/* Quick Wins */}
+      {/* Unified AI Suggestions */}
       {quickWins.length > 0 && (
-        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <Zap size={16} color="#f59e0b" />
-            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Top Quick Wins</span>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(245,159,11,0.12)', color: '#f59e0b', fontWeight: 600 }}>High Impact / Low Effort</span>
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <Sparkles size={16} color="#8b5cf6" />
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>AI Suggestions</span>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', fontWeight: 600 }}>What to fix next</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => navigate(`/audit/${id}/action-studio`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                <Zap size={13} color="#6366f1" /> Fix with AI Action Studio
+              </button>
+              <button onClick={() => navigate(`/audit/${id}/rank-boost`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                <Star size={13} color="#f59e0b" /> Generate Content Kit (Rank Boost)
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {quickWins.slice(0, 5).map((issue, i) => (
               <QuickWinCard key={i} issue={issue} index={i + 1} onPreview={setPreviewIssue} onGenerateFix={setFixModal} />
             ))}

@@ -109,11 +109,11 @@ export default function EnterprisePage() {
   const score = entData?.overall_health_score || 0;
 
   if (basicLoading) return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0 }}>Enterprise Page Analysis</h1>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Loading pages...</p>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Enterprise Page Analysis</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Loading pages...</p>
         </div>
         <div className="stats-row" style={{ marginBottom: 16 }}>
           {[1,2,3,4].map(i => <div key={i} className="stat-card"><div style={{ height: 28, background: '#e2e8f0', borderRadius: 6, width: 60, animation: 'pulse 1.5s infinite' }} /></div>)}
@@ -156,21 +156,21 @@ export default function EnterprisePage() {
         <div className="stat-card">
           <div className="stat-icon"><BarChart3 size={16} style={{ color: score >= 70 ? '#12b886' : '#f59f00' }} /></div>
           <div className="stat-info">
-            <div className="stat-value">{score ? Math.round(score) : entLoading ? <span style={{ fontSize: 12, color: '#94a3b8' }}>...</span> : '-'}</div>
+            <div className="stat-value">{score ? Math.round(score) : entLoading ? <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>...</span> : '-'}</div>
             <div className="stat-label">Health Score</div>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon"><AlertTriangle size={16} style={{ color: '#fa5252' }} /></div>
           <div className="stat-info">
-            <div className="stat-value">{summary.critical_fixes ?? (entLoading ? <span style={{ fontSize: 12, color: '#94a3b8' }}>...</span> : '-')}</div>
+            <div className="stat-value">{summary.critical_fixes ?? (entLoading ? <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>...</span> : '-')}</div>
             <div className="stat-label">Critical Fixes</div>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon"><CheckCircle size={16} style={{ color: '#12b886' }} /></div>
           <div className="stat-info">
-            <div className="stat-value">{summary.low_fixes ?? (entLoading ? <span style={{ fontSize: 12, color: '#94a3b8' }}>...</span> : '-')}</div>
+            <div className="stat-value">{summary.low_fixes ?? (entLoading ? <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>...</span> : '-')}</div>
             <div className="stat-label">Low Priority</div>
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function EnterprisePage() {
                 <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                   {p.overall_health_score != null ? <ScoreBadge score={p.overall_health_score} /> : entLoading ? (
                     <div style={{ height: 20, background: '#e2e8f0', borderRadius: 10, width: 36, margin: '0 auto', animation: 'pulse 1.5s infinite' }} />
-                  ) : <span style={{ fontSize: 12, color: '#94a3b8' }}>-</span>}
+                  ) : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>-</span>}
                 </td>
                 <td style={{ padding: '10px 14px' }}>
                   {p.overall_health_score != null ? (

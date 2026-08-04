@@ -32,11 +32,11 @@ function KeywordTable({ keywords, search }) {
   const oppColors = { HIGH: '#059669', MEDIUM: '#d97706', LOW: '#94a3b8' }
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: '#f8fafc' }}>
+            <tr style={{ background: 'var(--bg-secondary)' }}>
               {[
                 { key: 'keyword', label: 'Keyword', width: '25%' },
                 { key: 'frequency', label: 'Frequency' },
@@ -47,7 +47,7 @@ function KeywordTable({ keywords, search }) {
                 { key: 'pages_using', label: 'Pages' },
               ].map(col => (
                 <th key={col.key} onClick={() => handleSort(col.key)}
-                  style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap', width: col.width }}>
+                  style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap', width: col.width }}>
                   {col.label} {sortBy === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                 </th>
               ))}
@@ -61,7 +61,7 @@ function KeywordTable({ keywords, search }) {
                     <Search size={12} color="#94a3b8" />
                     {kw.keyword}
                   </div>
-                  {kw.source && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>via {kw.source}</div>}
+                  {kw.source && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>via {kw.source}</div>}
                 </td>
                 <td style={{ padding: '10px 14px', fontWeight: 700, color: '#1e293b' }}>{kw.frequency || kw.volume || '—'}</td>
                 <td style={{ padding: '10px 14px' }}>
@@ -84,13 +84,13 @@ function KeywordTable({ keywords, search }) {
                     {kw.opportunity || 'LOW'}
                   </span>
                 </td>
-                <td style={{ padding: '10px 14px', color: '#64748b' }}>{kw.pages_using ?? '—'}</td>
+                <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{kw.pages_using ?? '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', fontSize: 12, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
         <span>Showing {filtered.length} of {keywords.length} keywords</span>
         <span style={{ color: '#059669', fontWeight: 600 }}>{keywords.filter(k => k.opportunity === 'HIGH').length} high-opportunity keywords</span>
       </div>
@@ -99,25 +99,25 @@ function KeywordTable({ keywords, search }) {
 }
 
 function TopicClusters({ clusters }) {
-  if (!clusters?.length) return <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8' }}>No topic clusters detected</div>
+  if (!clusters?.length) return <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>No topic clusters detected</div>
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
       {clusters.map((cl, i) => {
         const authColors = { HIGH: '#059669', MEDIUM: '#d97706', LOW: '#94a3b8' }
         return (
-          <div key={i} style={{ padding: '16px 18px', background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+          <div key={i} style={{ padding: '16px 18px', background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{cl.root_keyword}</span>
               <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (authColors[cl.topic_authority] || '#94a3b8') + '18', color: authColors[cl.topic_authority] || '#94a3b8' }}>
                 {cl.topic_authority} Authority
               </span>
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{cl.keyword_count} keywords · {cl.total_frequency} total frequency</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{cl.keyword_count} keywords · {cl.total_frequency} total frequency</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {cl.keywords.slice(0, 8).map((kw, j) => (
                 <span key={j} style={{ fontSize: 11, padding: '2px 8px', background: '#f1f5f9', borderRadius: 4, color: '#475569' }}>{kw}</span>
               ))}
-              {cl.keywords.length > 8 && <span style={{ fontSize: 10, color: '#94a3b8', padding: '2px 4px' }}>+{cl.keywords.length - 8} more</span>}
+              {cl.keywords.length > 8 && <span style={{ fontSize: 10, color: 'var(--text-muted)', padding: '2px 4px' }}>+{cl.keywords.length - 8} more</span>}
             </div>
             {cl.content_suggestion && (
               <div style={{ marginTop: 8, padding: '6px 8px', background: '#f0fdf4', borderRadius: 4, fontSize: 11, color: '#059669', border: '1px solid #bbf7d0' }}>
@@ -133,11 +133,11 @@ function TopicClusters({ clusters }) {
 }
 
 function QuestionKeywords({ questions }) {
-  if (!questions?.length) return <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8' }}>No question keywords detected</div>
+  if (!questions?.length) return <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>No question keywords detected</div>
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
       <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 6px' }}>People Also Ask</h3>
-      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Questions your audience is searching — create content to answer these</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>Questions your audience is searching — create content to answer these</p>
       {questions.slice(0, 20).map((q, i) => (
         <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
           <HelpCircle size={14} color="#8b5cf6" style={{ marginTop: 2, flexShrink: 0 }} />
@@ -156,13 +156,13 @@ function QuestionKeywords({ questions }) {
 }
 
 function Cannibalization({ cannibalization }) {
-  if (!cannibalization?.length) return <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8' }}>No keyword cannibalization detected</div>
+  if (!cannibalization?.length) return <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>No keyword cannibalization detected</div>
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
       <h3 style={{ fontSize: 15, fontWeight: 700, color: '#dc2626', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <AlertTriangle size={16} color="#dc2626" /> Keyword Cannibalization
       </h3>
-      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Multiple pages competing for the same keyword — consolidate or differentiate</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>Multiple pages competing for the same keyword — consolidate or differentiate</p>
       {cannibalization.map((c, i) => (
         <div key={i} style={{ padding: '12px 14px', background: '#fef2f2', borderRadius: 8, marginBottom: 10, border: '1px solid #fecaca' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -176,7 +176,7 @@ function Cannibalization({ cannibalization }) {
             <div key={j} style={{ fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, paddingLeft: 8 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.has_in_title ? '#059669' : '#d97706', flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{p.url}</span>
-              <span style={{ color: '#94a3b8', flexShrink: 0 }}>{p.word_count}w</span>
+              <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{p.word_count}w</span>
             </div>
           ))}
         </div>
@@ -189,11 +189,11 @@ function QuickWins({ keywords }) {
   const wins = keywords.filter(k => k.opportunity === 'HIGH' && k.difficulty !== 'HIGH').slice(0, 10)
   if (!wins.length) return null
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20, marginBottom: 16 }}>
+    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
       <h3 style={{ fontSize: 15, fontWeight: 700, color: '#059669', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Target size={16} color="#059669" /> Quick Win Keywords
       </h3>
-      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px' }}>High-opportunity keywords you can rank for quickly</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>High-opportunity keywords you can rank for quickly</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
         {wins.map((kw, i) => (
           <div key={i} style={{ padding: '10px 12px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -239,7 +239,7 @@ export default function KeywordStrategy() {
     setAiLoading(false);
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Researching keywords...</p></div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Researching keywords...</p></div>
 
   const allKeywords = research?.keywords || enhanced?.keywords || []
   const summary = research?.summary || {}
@@ -256,13 +256,13 @@ export default function KeywordStrategy() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Key size={24} color="#3b82f6" /> Keyword Strategy
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
             Keyword analysis from crawled content — frequency, intent, and topic clusters
             <DataSourceBadge source="crawler" size="xs" />
           </p>
@@ -277,13 +277,13 @@ export default function KeywordStrategy() {
           ].map((s, i) => {
             const Icon = s.icon
             return (
-              <div key={i} style={{ padding: 16, background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div key={i} style={{ padding: 16, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 8, background: s.color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={18} color={s.color} />
                 </div>
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.label}</div>
                 </div>
               </div>
             )
@@ -294,7 +294,7 @@ export default function KeywordStrategy() {
           <div style={{ flex: 1, position: 'relative' }}>
             <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
             <input type="text" placeholder="Search keywords..." value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '9px 12px 9px 32px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: '#fff' }} />
+              style={{ width: '100%', padding: '9px 12px 9px 32px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: 'var(--bg-white)' }} />
           </div>
         </div>
 
@@ -320,19 +320,19 @@ export default function KeywordStrategy() {
         {activeTab === 'ai' && (
           <div>
             {!aiSuggestions && !aiLoading && (
-              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 40, textAlign: 'center' }}>
+              <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 40, textAlign: 'center' }}>
                 <Sparkles size={40} color="#3b82f6" style={{ marginBottom: 12 }} />
                 <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 6px' }}>AI-Powered Keyword Suggestions</h3>
-                <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px' }}>Get personalized AI recommendations for keyword strategy</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>Get personalized AI recommendations for keyword strategy</p>
                 <button onClick={loadAiSuggestions} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   <Sparkles size={16} /> Generate AI Suggestions
                 </button>
               </div>
             )}
             {aiLoading && (
-              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 40, textAlign: 'center' }}>
+              <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 40, textAlign: 'center' }}>
                 <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-                <div style={{ fontSize: 15, color: '#64748b', fontWeight: 500 }}>AI is analyzing keywords...</div>
+                <div style={{ fontSize: 15, color: 'var(--text-muted)', fontWeight: 500 }}>AI is analyzing keywords...</div>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             )}
@@ -357,12 +357,12 @@ export default function KeywordStrategy() {
                     </div>
                   )}
                   {priority.length > 0 && (
-                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+                    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
                       <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Priority Actions</h3>
                       {priority.map((a, i) => (
-                        <div key={i} style={{ borderLeft: `3px solid ${IMPACT_COLORS[a.impact]?.color || '#f59e0b'}`, padding: '12px 16px', marginBottom: 8, background: '#f8fafc', borderRadius: 6 }}>
+                        <div key={i} style={{ borderLeft: `3px solid ${IMPACT_COLORS[a.impact]?.color || '#f59e0b'}`, padding: '12px 16px', marginBottom: 8, background: 'var(--bg-secondary)', borderRadius: 6 }}>
                           <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>{a.title}</div>
-                          <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{a.description}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>{a.description}</div>
                           {a.specific_steps?.map((step, j) => (
                             <div key={j} style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569', marginTop: 4 }}>
                               <ArrowRight size={12} color="#3b82f6" style={{ flexShrink: 0, marginTop: 3 }} /> {step}
@@ -373,7 +373,7 @@ export default function KeywordStrategy() {
                     </div>
                   )}
                   {insights.length > 0 && (
-                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+                    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
                       <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Strategic Insights</h3>
                       {insights.map((i, j) => (
                         <div key={j} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13, color: '#475569' }}>
@@ -383,14 +383,14 @@ export default function KeywordStrategy() {
                     </div>
                   )}
                   {quick.length > 0 && (
-                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+                    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
                       <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Quick Wins</h3>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
                         {quick.map((w, k) => (
                           <div key={k} style={{ border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 14, background: 'rgba(34,197,94,0.03)' }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: '#166534', marginBottom: 4 }}>{w.title}</div>
-                            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, marginBottom: 6 }}>{w.description}</div>
-                            <div style={{ fontSize: 11, color: '#64748b', display: 'flex', gap: 12 }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 6 }}>{w.description}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 12 }}>
                               {w.estimated_time && <span><Clock size={12} /> {w.estimated_time}</span>}
                               {w.expected_improvement && <span style={{ color: '#059669' }}>{w.expected_improvement}</span>}
                             </div>

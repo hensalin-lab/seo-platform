@@ -5,28 +5,7 @@ import {
   BarChart3, FileText, Layers, ExternalLink, Clock, Target
 } from 'lucide-react';
 import { api } from '../../../api';
-
-function ScoreRing({ score, size = 80, stroke = 6 }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score));
-  const offset = c - (pct / 100) * c;
-  let color = '#ef4444';
-  if (pct >= 70) color = '#22c55e';
-  else if (pct >= 40) color = '#f59e0b';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border, #e5e7eb)" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.22, fontWeight: 700, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-      </div>
-    </div>
-  );
-}
+import ScoreRing from '../../../components/ScoreRing';
 
 function HealthBadge({ status }) {
   const map = {

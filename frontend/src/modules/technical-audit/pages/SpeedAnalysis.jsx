@@ -202,13 +202,13 @@ export default function SpeedAnalysis() {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
               <CategoryScore label="Performance" score={data.perfScore || 0} icon={Gauge} />
-              <div style={{ padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
-                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+              <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
                   Accessibility, Best Practices, and SEO scores require Lighthouse. Connect Google PageSpeed Insights API or run Lighthouse for real data.
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#64748b' }}>
+            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
               {data.avgResponseTime > 0 && <span>Avg Response: <strong>{data.avgResponseTime}ms</strong></span>}
               {data.slowPages > 0 && <span style={{ color: '#dc2626' }}>{data.slowPages} slow pages (&gt;3s)</span>}
             </div>

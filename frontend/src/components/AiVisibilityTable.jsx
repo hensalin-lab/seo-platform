@@ -3,10 +3,10 @@ import { CheckCircle, XCircle, Sparkles } from 'lucide-react';
 export default function AiVisibilityTable({ platformData = [] }) {
   if (!platformData || platformData.length === 0) {
     return (
-      <div style={{ padding: 32, textAlign: 'center', background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 12 }}>
+      <div style={{ padding: 32, textAlign: 'center', background: 'var(--bg-white)', border: '1px dashed #cbd5e1', borderRadius: 12 }}>
         <Sparkles size={32} color="#94a3b8" style={{ marginBottom: 8 }} />
-        <h4 style={{ margin: '0 0 4px 0', color: '#0f172a', fontSize: 14 }}>No Platform Citations Tracked Yet</h4>
-        <p style={{ margin: 0, color: '#64748b', fontSize: 12 }}>
+        <h4 style={{ margin: '0 0 4px 0', color: 'var(--text)', fontSize: 14 }}>No Platform Citations Tracked Yet</h4>
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 12 }}>
           Run an AI Search Scan to test brand mentions across ChatGPT, Perplexity, and Gemini.
         </p>
       </div>
@@ -14,14 +14,14 @@ export default function AiVisibilityTable({ platformData = [] }) {
   }
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
-          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-            <th style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>Platform</th>
-            <th style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>Brand Mentioned?</th>
-            <th style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>Sentiment</th>
-            <th style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>Snippet / Citation</th>
+          <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+            <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600 }}>Platform</th>
+            <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600 }}>Brand Mentioned?</th>
+            <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600 }}>Sentiment</th>
+            <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600 }}>Snippet / Citation</th>
           </tr>
         </thead>
         <tbody>
@@ -35,7 +35,7 @@ export default function AiVisibilityTable({ platformData = [] }) {
 
             return (
               <tr key={idx} style={{ borderBottom: idx < platformData.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>
+                <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>
                   {row.platform || row.name || row.platform_name || 'Unknown'}
                 </td>
                 <td style={{ padding: '12px 16px' }}>

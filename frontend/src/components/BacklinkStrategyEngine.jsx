@@ -80,14 +80,14 @@ export default function BacklinkStrategyEngine({ onAction }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Strategic Backlink & Offsite Engine</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Strategic Backlink & Offsite Engine</div>
       {STRATEGIES.map(strat => {
         const Icon = strat.icon;
         const isOpen = expanded === strat.id;
         const mockData = MOCK_DATA[strat.id] || [];
 
         return (
-          <div key={strat.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+          <div key={strat.id} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
             <button
               onClick={() => toggle(strat.id)}
               style={{
@@ -100,8 +100,8 @@ export default function BacklinkStrategyEngine({ onAction }) {
                 <Icon size={15} color={strat.color} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{strat.label}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{strat.desc}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{strat.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{strat.desc}</div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); onAction?.(strat.id); }} style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: strat.color, color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Search size={11} /> {strat.action}
@@ -118,39 +118,39 @@ export default function BacklinkStrategyEngine({ onAction }) {
                       const displayFields = strat.id === 'citation-sources' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                           <Globe size={11} color="#64748b" />
-                          <span style={{ fontWeight: 600, color: '#0f172a', flex: 1 }}>{item.domain}</span>
-                          <span style={{ color: '#64748b' }}>DR {item.dr}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text)', flex: 1 }}>{item.domain}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>DR {item.dr}</span>
                           <span style={{ color: item.priority === 'High' ? '#12b886' : '#f59e0b', fontWeight: 500 }}>{item.priority}</span>
                         </div>
                       ) : strat.id === 'unlinked-mentions' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                           <Globe size={11} color="#64748b" />
-                          <span style={{ fontWeight: 600, color: '#0f172a', minWidth: 140 }}>{item.domain}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text)', minWidth: 140 }}>{item.domain}</span>
                           <span style={{ color: '#475569', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{item.mention}"</span>
                         </div>
                       ) : strat.id === 'anchor-balancer' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                          <span style={{ fontWeight: 600, color: '#0f172a', minWidth: 120 }}>{item.type}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text)', minWidth: 120 }}>{item.type}</span>
                           <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#e2e8f0', position: 'relative' }}>
                             <div style={{ width: `${item.pct}%`, height: '100%', borderRadius: 3, background: item.status === 'healthy' ? '#12b886' : item.status === 'low' ? '#f59e0b' : '#ef4444' }} />
                           </div>
-                          <span style={{ color: '#64748b', minWidth: 40 }}>{item.pct}%</span>
-                          <span style={{ color: '#94a3b8', fontSize: 10 }}>target: {item.target}</span>
+                          <span style={{ color: 'var(--text-muted)', minWidth: 40 }}>{item.pct}%</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>target: {item.target}</span>
                         </div>
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                           <Globe size={11} color="#64748b" />
-                          <span style={{ fontWeight: 600, color: '#0f172a', flex: 1 }}>{item.domain}</span>
-                          <span style={{ color: '#64748b' }}>DR {item.dr}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text)', flex: 1 }}>{item.domain}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>DR {item.dr}</span>
                           <span style={{ color: item.yourStatus === 'Missing' ? '#ef4444' : '#12b886', fontWeight: 500 }}>{item.yourStatus}</span>
                         </div>
                       );
                       const emailText = strat.id === 'unlinked-mentions' ? `Hi there,\n\nI noticed you mentioned our brand on ${item.domain} but didn't include a link. Would you consider adding one?\n\nThanks!` : '';
                       return (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: '#fff', borderRadius: 6, border: '1px solid #eef2f6' }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: 'var(--bg-white)', borderRadius: 6, border: '1px solid #eef2f6' }}>
                           {displayFields}
                           {strat.id === 'unlinked-mentions' && (
-                            <button onClick={() => copyText(emailText, itemId)} style={{ padding: '3px 8px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 10, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                            <button onClick={() => copyText(emailText, itemId)} style={{ padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-white)', cursor: 'pointer', fontSize: 10, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
                               {copiedId === itemId ? <Check size={10} color="#12b886" /> : <Mail size={10} />}
                               {copiedId === itemId ? 'Copied' : 'Email'}
                             </button>
@@ -165,7 +165,7 @@ export default function BacklinkStrategyEngine({ onAction }) {
                     })}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: 8 }}>Click "{strat.action}" to load data</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 8 }}>Click "{strat.action}" to load data</div>
                 )}
               </div>
             )}

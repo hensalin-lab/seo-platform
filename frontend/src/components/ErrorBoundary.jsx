@@ -59,10 +59,10 @@ export default class ErrorBoundary extends React.Component {
             <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
               Something went wrong
             </h2>
-            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#64748b', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
               An unexpected error occurred while rendering this page.
               {this.state.error?.message && (
-                <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#94a3b8', fontFamily: 'monospace' }}>
+                <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                   {this.state.error.message}
                 </span>
               )}
@@ -86,7 +86,7 @@ export default class ErrorBoundary extends React.Component {
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '10px 20px', borderRadius: 8,
                   background: '#f1f5f9', color: '#475569',
-                  border: '1px solid #e2e8f0', cursor: 'pointer',
+                  border: '1px solid var(--border)', cursor: 'pointer',
                   fontSize: 14, fontWeight: 600,
                 }}
               >

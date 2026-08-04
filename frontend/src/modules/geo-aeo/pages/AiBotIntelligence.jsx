@@ -17,7 +17,7 @@ function ScoreRing({ score, size = 80, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.25, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }}>{label}</span>}
+        {label && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
       </div>
     </div>
   );
@@ -25,8 +25,8 @@ function ScoreRing({ score, size = 80, label }) {
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, background: '#fff', overflow: 'hidden', marginBottom: 16 }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-white)', overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Icon size={16} style={{ color }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{title}</span>
       </div>
@@ -61,8 +61,8 @@ export default function AiBotIntelligence() {
     api.getAiBotIntelligence(id, selectedIdx).then(d => { setData(d); setPageLoading(false); }).catch(() => setPageLoading(false));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No data available</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
 
   const bots = data.bot_accessibility || {};
   const machineRead = data.machine_readability || {};
@@ -83,10 +83,10 @@ export default function AiBotIntelligence() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <ScoreRing score={data.overall_ai_accessibility_score} size={90} />
             <div>
-              <div style={{ fontSize: 13, color: '#64748b' }}>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                 {allowed.length} AI bots allowed, {blocked.length} blocked
               </div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                 robots.txt: {data.robots_txt_analysis?.exists ? '✅ Found' : '❌ Missing'}
               </div>
             </div>
@@ -96,7 +96,7 @@ export default function AiBotIntelligence() {
         <Card title="Machine Readability" icon={FileText} color="#8b5cf6">
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <ScoreRing score={machineRead.overall_readability_score || 0} size={90} />
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {['llms_txt', 'llms_full_txt', 'pricing_md', 'docs', 'api_docs', 'humans_txt', 'feed_xml', 'security_txt'].map(k => (
                 <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
                   {machineRead[k]?.present ? <CheckCircle size={11} color="#059669" /> : <XCircle size={11} color="#dc2626" />}
@@ -110,7 +110,7 @@ export default function AiBotIntelligence() {
         <Card title="Content for AI" icon={Globe} color="#059669">
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <ScoreRing score={data.content_optimization_for_ai?.extraction_score || 0} size={90} />
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {data.content_optimization_for_ai?.has_definitions && <div>✅ Has definitions</div>}
               {data.content_optimization_for_ai?.has_faq && <div>✅ Has FAQ</div>}
               {data.content_optimization_for_ai?.has_structured_data && <div>✅ Has structured data</div>}
@@ -130,10 +130,10 @@ export default function AiBotIntelligence() {
                 {bot.allowed ? <CheckCircle size={14} color="#059669" /> : <XCircle size={14} color="#dc2626" />}
                 <span style={{ fontWeight: 700, fontSize: 13 }}>{BOT_LABELS[key] || key}</span>
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 Score: {bot.score || 0}/100 | Est. pages: {bot.estimated_pages_accessible || 0}
               </div>
-              {bot.notes && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{bot.notes}</div>}
+              {bot.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{bot.notes}</div>}
             </div>
           ))}
         </div>
@@ -146,7 +146,7 @@ export default function AiBotIntelligence() {
               <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? '#fef2f2' : '#fffbeb', color: issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? '#dc2626' : '#d97706', whiteSpace: 'nowrap' }}>{issue.severity}</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{issue.message}</div>
-                {issue.fix && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{issue.fix}</div>}
+                {issue.fix && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{issue.fix}</div>}
               </div>
             </div>
           ))}
@@ -161,7 +161,7 @@ export default function AiBotIntelligence() {
                 <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600, background: '#eff6ff', color: '#2563eb' }}>{rec.priority}</span>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{rec.recommendation}</span>
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {rec.effort && `Effort: ${rec.effort}`} | {rec.impact && `Impact: ${rec.impact}`} | {rec.confidence && `Confidence: ${Math.round(rec.confidence)}%`}
               </div>
             </div>

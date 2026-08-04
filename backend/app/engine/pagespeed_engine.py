@@ -19,7 +19,12 @@ CWV_THRESHOLDS = {
 class PageSpeedEngine:
     def __init__(self):
         self.api_key = settings.PAGESPEED_API_KEY
-        self.available = bool(self.api_key)
+        self.available = True
+
+    def _params(self, base: dict) -> dict:
+        if self.api_key:
+            base["key"] = self.api_key
+        return base
 
     def _cwv_status(self, metric_key: str, value: float) -> str:
         thresholds = CWV_THRESHOLDS.get(metric_key)
@@ -36,12 +41,11 @@ class PageSpeedEngine:
             return self._empty_result(strategy)
         try:
             async with httpx.AsyncClient(timeout=90) as client:
-                params = {
+                params = self._params({
                     "url": url,
                     "strategy": strategy,
-                    "key": self.api_key,
                     "category": "PERFORMANCE,ACCESSIBILITY,BEST_PRACTICES,SEO",
-                }
+                })
                 resp = await client.get(PAGESPEED_API, params=params)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -68,7 +72,7 @@ class PageSpeedEngine:
                     "time_to_first_byte", "experimental_time_to_first_byte",
                 ],
             }
-            resp = await client.post(CRUX_API, json=payload, params={"key": self.api_key}, timeout=30)
+            resp = await client.post(CRUX_API, json=payload, params=self._params({}), timeout=30)
             if resp.status_code != 200:
                 return {"_source": "crux", "_available": False, "_note": f"CrUX API returned {resp.status_code}"}
             data = resp.json()

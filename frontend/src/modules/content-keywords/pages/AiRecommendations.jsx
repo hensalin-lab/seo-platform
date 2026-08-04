@@ -20,7 +20,7 @@ function ScoreRing({ score, size = 80, stroke = 6, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.26, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }}>{label}</span>}
+        {label && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
       </div>
     </div>
   );
@@ -31,7 +31,7 @@ function IssueCard({ issue, index }) {
   const sevColors = { CRITICAL: '#dc2626', HIGH: '#ea580c', MEDIUM: '#d97706', LOW: '#2563eb' };
   const sevColor = sevColors[issue.severity] || '#64748b';
   return (
-    <div style={{ border: `1px solid ${sevColor}25`, borderRadius: 10, marginBottom: 8, background: '#fff', borderLeft: `3px solid ${sevColor}` }}>
+    <div style={{ border: `1px solid ${sevColor}25`, borderRadius: 10, marginBottom: 8, background: 'var(--bg-white)', borderLeft: `3px solid ${sevColor}` }}>
       <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: sevColor, minWidth: 20 }}>{index + 1}.</span>
         <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{issue.title || issue.signal_name || issue.description}</span>
@@ -43,7 +43,7 @@ function IssueCard({ issue, index }) {
           {issue.what_wrong && <div style={{ padding: '8px 10px', background: '#fef2f2', borderRadius: 6, border: '1px solid #fecaca', marginBottom: 6, fontSize: 12, color: '#7f1d1d', lineHeight: 1.5 }}><strong>What is wrong:</strong> {issue.what_wrong}</div>}
           {issue.why_it_matters && <div style={{ padding: '8px 10px', background: '#fef3c7', borderRadius: 6, border: '1px solid #fde68a', marginBottom: 6, fontSize: 12, color: '#78350f', lineHeight: 1.5 }}><strong>Why it matters:</strong> {issue.why_it_matters}</div>}
           {issue.how_to_fix && <div style={{ padding: '8px 10px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0', fontSize: 12, color: '#065f46', lineHeight: 1.5 }}><strong>How to fix:</strong> {issue.how_to_fix}</div>}
-          {issue.affected_pages?.length > 0 && <div style={{ marginTop: 6, fontSize: 11, color: '#64748b' }}>Affects {issue.affected_pages.length} page(s)</div>}
+          {issue.affected_pages?.length > 0 && <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>Affects {issue.affected_pages.length} page(s)</div>}
         </div>
       )}
     </div>
@@ -78,22 +78,22 @@ export default function AiRecommendations() {
     api.getMegaAnalysis(id, selectedIdx).then(d => { setMega(d); setPageLoading(false); }).catch(() => setPageLoading(false));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading pages...</p></div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
 
   const topFixes = globalData?.prioritized_fixes || [];
   const catScores = globalData?.category_scores || {};
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Brain size={24} color="#8b5cf6" /> AI SEO Recommendations
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>Data-driven recommendations from {globalData?.total_signals || 0} signals across {globalData?.total_pages || 0} pages</p>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Data-driven recommendations from {globalData?.total_signals || 0} signals across {globalData?.total_pages || 0} pages</p>
         </div>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 4 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
           {[
             { key: 'site-wide', label: `Site-Wide (${topFixes.length} fixes)` },
             { key: 'page', label: 'Page Analysis' },
@@ -116,20 +116,20 @@ export default function AiRecommendations() {
                 { label: 'Total Issues', value: globalData?.total_issues || 0, color: '#d97706', bg: '#fffbeb' },
                 { label: 'Signals Checked', value: globalData?.total_signals || 0, color: '#3b82f6', bg: '#eff6ff' },
               ].map((s, i) => (
-                <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
                   <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.label}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16, marginBottom: 20 }}>
+            <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16, marginBottom: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Category Scores</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
                 {Object.entries(catScores).sort((a, b) => a[1] - b[1]).map(([cat, score]) => (
-                  <div key={cat} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={cat} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</div>
                       <div style={{ height: 3, background: '#e2e8f0', borderRadius: 2, marginTop: 4 }}>
                         <div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626', borderRadius: 2 }} />
                       </div>
@@ -148,18 +148,18 @@ export default function AiRecommendations() {
         {activeTab === 'page' && (
           <div>
             <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
-              style={{ width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: '#fff', cursor: 'pointer', marginBottom: 16 }}>
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: 'var(--bg-white)', cursor: 'pointer', marginBottom: 16 }}>
               {pages.map((p, i) => <option key={i} value={i}>{p.title || p.url} ({p.word_count || 0}w)</option>)}
             </select>
             {pageLoading ? (
-              <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b', fontWeight: 600 }}>Analyzing page...</p><p style={{ marginTop: 4, fontSize: 11, color: '#94a3b8' }}>First visit ~45s (cached after)</p></div>
+              <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Analyzing page...</p><p style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>First visit ~45s (cached after)</p></div>
             ) : mega ? (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: 16, background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: 16, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)' }}>
                   <ScoreRing score={mega.overall_score} size={80} label="PAGE SCORE" />
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{mega.page_title}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>{mega.word_count} words | {mega.signals_checked} signals | {mega.issues.length} issues</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{mega.word_count} words | {mega.signals_checked} signals | {mega.issues.length} issues</div>
                   </div>
                 </div>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>Issues to Fix ({mega.issues.length})</h3>
@@ -170,20 +170,20 @@ export default function AiRecommendations() {
         )}
 
         {activeTab === 'priority' && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 14px' }}>Impact vs Effort Matrix</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
                 { title: 'Quick Wins (High Impact, Low Effort)', color: '#059669', icon: Zap, fixes: topFixes.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH').slice(0, 10) },
                 { title: 'Major Projects (High Impact, High Effort)', color: '#3b82f6', icon: Target, fixes: topFixes.filter(f => f.severity === 'MEDIUM').slice(0, 10) },
                 { title: 'Fill-Ins (Low Impact, Low Effort)', color: '#d97706', icon: BarChart3, fixes: topFixes.filter(f => f.severity === 'LOW').slice(0, 10) },
-                { title: 'Thankless Tasks (Low Impact, High Effort)', color: '#94a3b8', icon: Shield, fixes: [] },
+                { title: 'Thankless Tasks (Low Impact, High Effort)', color: 'var(--text-muted)', icon: Shield, fixes: [] },
               ].map((q, i) => {
                 const Icon = q.icon;
                 return (
                   <div key={i} style={{ padding: 16, borderRadius: 10, border: `1px solid ${q.color}30`, background: `${q.color}05` }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: q.color, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon size={14} /> {q.title}</div>
-                    {q.fixes.length === 0 ? <div style={{ fontSize: 12, color: '#94a3b8' }}>None</div> :
+                    {q.fixes.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>None</div> :
                       q.fixes.map((f, j) => (
                         <div key={j} style={{ padding: '4px 0', fontSize: 12, color: '#475569', borderBottom: '1px solid #f1f5f9' }}>{f.signal_name || f.title || f.description}</div>
                       ))}

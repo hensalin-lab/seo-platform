@@ -17,7 +17,7 @@ function ScoreRing({ score, size = 70, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.22, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 7, color: '#94a3b8', marginTop: 1 }}>{label}</span>}
+        {label && <span style={{ fontSize: 7, color: 'var(--text-muted)', marginTop: 1 }}>{label}</span>}
       </div>
     </div>
   );
@@ -25,8 +25,8 @@ function ScoreRing({ score, size = 70, label }) {
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, background: '#fff', overflow: 'hidden', marginBottom: 16 }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-white)', overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Icon size={16} style={{ color }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{title}</span>
       </div>
@@ -42,7 +42,7 @@ function CopyBlock({ title, content }) {
     <div style={{ marginBottom: 8 }}>
       {title && <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{title}</div>}
       <div style={{ position: 'relative' }}>
-        <div style={{ padding: 10, background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, whiteSpace: 'pre-wrap', fontFamily: 'monospace', maxHeight: 120, overflow: 'auto' }}>{content}</div>
+        <div style={{ padding: 10, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 12, whiteSpace: 'pre-wrap', fontFamily: 'monospace', maxHeight: 120, overflow: 'auto' }}>{content}</div>
         <button onClick={copy} style={{ position: 'absolute', top: 4, right: 4, padding: '2px 8px', borderRadius: 4, background: copied ? '#059669' : '#e2e8f0', color: copied ? '#fff' : '#64748b', border: 'none', fontSize: 10, cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</button>
       </div>
     </div>
@@ -66,8 +66,8 @@ export default function PageIntelligenceV2() {
     api.getPageIntelligenceV2(id, selectedIdx).then(d => setData(d)).catch(() => {});
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>No data available</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
 
   const scores = data.category_scores || {};
   const beforeAfter = data.before_after_fixes || {};
@@ -111,7 +111,7 @@ export default function PageIntelligenceV2() {
             <Card key={cat} title={cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} icon={Layers} color="#3b82f6">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <ScoreRing score={info.score} size={60} />
-                <div style={{ fontSize: 11, color: '#64748b' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   <div>Target: {info.target}</div>
                   <div>Passed: {info.passed || 0}</div>
                   <div>Failed: {info.failed || 0}</div>
@@ -133,7 +133,7 @@ export default function PageIntelligenceV2() {
               </div>}
             </Card>
           ))}
-          {Object.keys(scores).length === 0 && <div style={{ padding: 20, color: '#94a3b8' }}>No score breakdown available</div>}
+          {Object.keys(scores).length === 0 && <div style={{ padding: 20, color: 'var(--text-muted)' }}>No score breakdown available</div>}
         </div>
       )}
 
@@ -145,7 +145,7 @@ export default function PageIntelligenceV2() {
           {beforeAfter.intro && <Card title="Introduction" icon={Layers} color="#3b82f6"><CopyBlock title="Current" content={beforeAfter.intro.current} /><CopyBlock title="Recommended" content={beforeAfter.intro.recommended} /></Card>}
           {beforeAfter.generated_faq && <Card title="FAQ" icon={Layers} color="#8b5cf6"><CopyBlock title="Generated FAQ" content={Array.isArray(beforeAfter.generated_faq) ? beforeAfter.generated_faq.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n') : beforeAfter.generated_faq} /></Card>}
           {beforeAfter.generated_schema && <Card title="Schema" icon={FileCode} color="#059669"><CopyBlock title="Generated JSON-LD" content={typeof beforeAfter.generated_schema === 'string' ? beforeAfter.generated_schema : JSON.stringify(beforeAfter.generated_schema, null, 2)} /></Card>}
-          {!beforeAfter.title && !beforeAfter.h1 && <div style={{ padding: 20, color: '#94a3b8' }}>No before/after data available</div>}
+          {!beforeAfter.title && !beforeAfter.h1 && <div style={{ padding: 20, color: 'var(--text-muted)' }}>No before/after data available</div>}
         </>
       )}
 
@@ -156,8 +156,8 @@ export default function PageIntelligenceV2() {
               <div style={{ fontWeight: 600 }}>{item.issue}</div>
               <div>SEO: <span style={{ color: item.seo_impact === 'High' ? '#dc2626' : '#d97706' }}>{item.seo_impact}</span></div>
               <div>AI: <span style={{ color: item.ai_impact === 'High' ? '#dc2626' : '#d97706' }}>{item.ai_impact}</span></div>
-              <div style={{ color: '#64748b' }}>{item.difficulty}</div>
-              <div style={{ color: '#64748b' }}>{item.time}</div>
+              <div style={{ color: 'var(--text-muted)' }}>{item.difficulty}</div>
+              <div style={{ color: 'var(--text-muted)' }}>{item.time}</div>
               <div style={{ color: '#059669', fontSize: 11 }}>{item.expected_effect}</div>
             </div>
           ))}
@@ -168,7 +168,7 @@ export default function PageIntelligenceV2() {
         <Card title="AI Search Readiness by Platform" icon={Brain} color="#8b5cf6">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
             {Object.entries(aiSearch.platforms || {}).map(([platform, info]) => (
-              <div key={platform} style={{ padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <div key={platform} style={{ padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, textTransform: 'capitalize' }}>{platform.replace(/_/g, ' ')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <ScoreRing score={info.score} size={45} />
@@ -205,7 +205,7 @@ export default function PageIntelligenceV2() {
           {(internalLinks.suggestions || internalLinks.suggested_links || []).map((s, i) => (
             <div key={i} style={{ padding: '10px 0', borderBottom: i < (internalLinks.suggestions || internalLinks.suggested_links || []).length - 1 ? '1px solid #f1f5f9' : 'none', display: 'grid', gridTemplateColumns: '1fr 1fr 2fr 1fr', gap: 8, alignItems: 'center', fontSize: 12 }}>
               <div style={{ fontWeight: 600, color: '#2563eb' }}>{s.anchor_text}</div>
-              <div style={{ color: '#64748b' }}>{s.destination || s.destination_url}</div>
+              <div style={{ color: 'var(--text-muted)' }}>{s.destination || s.destination_url}</div>
               <div style={{ color: '#374151' }}>{s.reason}</div>
               <div style={{ color: '#059669' }}>{Math.round(s.confidence || s.confidence_score || 0)}% confidence</div>
             </div>
@@ -229,8 +229,8 @@ export default function PageIntelligenceV2() {
                   <div key={i} style={{ padding: '6px 0', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <ArrowRight size={12} color={label === 'critical' ? '#dc2626' : label === 'high' ? '#d97706' : '#2563eb'} />
                     <span style={{ flex: 1 }}>{item.task || item.recommendation || item.issue}</span>
-                    <span style={{ color: '#64748b' }}>{item.time || item.time_to_fix}</span>
-                    <span style={{ color: '#94a3b8' }}>{item.effort || item.difficulty}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{item.time || item.time_to_fix}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{item.effort || item.difficulty}</span>
                   </div>
                 ))}
               </div>
@@ -243,8 +243,8 @@ export default function PageIntelligenceV2() {
         <Card title="Business Impact Estimates" icon={TrendingUp} color="#059669">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
             {Object.entries(business).map(([key, value]) => (
-              <div key={key} style={{ padding: 12, borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 11, color: '#64748b', textTransform: 'capitalize', marginBottom: 4 }}>{key.replace(/_/g, ' ')}</div>
+              <div key={key} style={{ padding: 12, borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize', marginBottom: 4 }}>{key.replace(/_/g, ' ')}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b' }}>{typeof value === 'number' ? value.toLocaleString() : value}</div>
               </div>
             ))}
@@ -253,11 +253,11 @@ export default function PageIntelligenceV2() {
             <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Score Predictions</div>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div><div style={{ fontSize: 11, color: '#64748b' }}>Current</div><div style={{ fontSize: 20, fontWeight: 800 }}>{Math.round(predictions.current_score)}</div></div>
+                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Current</div><div style={{ fontSize: 20, fontWeight: 800 }}>{Math.round(predictions.current_score)}</div></div>
                 <ArrowRight size={20} color="#3b82f6" />
-                <div><div style={{ fontSize: 11, color: '#64748b' }}>After Critical</div><div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{Math.round(predictions.after_critical_fixes || 0)}</div></div>
+                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>After Critical</div><div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{Math.round(predictions.after_critical_fixes || 0)}</div></div>
                 <ArrowRight size={20} color="#3b82f6" />
-                <div><div style={{ fontSize: 11, color: '#64748b' }}>After All</div><div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{Math.round(predictions.after_all_fixes || 0)}</div></div>
+                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>After All</div><div style={{ fontSize: 20, fontWeight: 800, color: '#059669' }}>{Math.round(predictions.after_all_fixes || 0)}</div></div>
               </div>
             </div>
           )}

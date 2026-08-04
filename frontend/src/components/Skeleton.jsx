@@ -71,7 +71,7 @@ export function SkeletonStatCards({ count = 4 }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${count}, 1fr)`, gap: 16, marginBottom: 24 }}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} style={{ padding: 20, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+        <div key={i} style={{ padding: 20, borderRadius: 8, border: '1px solid var(--border)' }}>
           <SkeletonLine width="60%" height={12} style={{ marginBottom: 12 }} />
           <SkeletonLine width="40%" height={28} />
         </div>
@@ -88,7 +88,7 @@ export function SkeletonPage() {
         <SkeletonLine width="200px" height={14} />
       </div>
       <SkeletonStatCards />
-      <div style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}>
+      <div style={{ borderRadius: 8, border: '1px solid var(--border)' }}>
         <SkeletonTable rows={8} cols={6} />
       </div>
     </div>

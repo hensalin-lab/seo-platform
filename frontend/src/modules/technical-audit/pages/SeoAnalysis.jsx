@@ -21,7 +21,7 @@ function ScoreRing({ score, size = 100, stroke = 8, label }) {
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: size * 0.28, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, fontWeight: 500 }}>{label}</span>}
+        {label && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 500 }}>{label}</span>}
       </div>
     </div>
   );
@@ -36,7 +36,7 @@ function SignalCard({ signal, index }) {
   const statusColor = statusColors[signal.status] || '#64748b';
 
   return (
-    <div style={{ border: `1px solid ${signal.status === 'pass' ? '#e2e8f0' : sevColor + '30'}`, borderRadius: 10, marginBottom: 8, background: '#fff', borderLeft: `3px solid ${statusColor}`, opacity: signal.status === 'pass' ? 0.85 : 1 }}>
+    <div style={{ border: `1px solid ${signal.status === 'pass' ? '#e2e8f0' : sevColor + '30'}`, borderRadius: 10, marginBottom: 8, background: 'var(--bg-white)', borderLeft: `3px solid ${statusColor}`, opacity: signal.status === 'pass' ? 0.85 : 1 }}>
       <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ width: 18, height: 18, borderRadius: 4, background: `${statusColor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: statusColor, flexShrink: 0 }}>
           {signal.status === 'pass' ? <CheckCircle size={10} /> : signal.status === 'fail' ? <AlertTriangle size={10} /> : '!'}
@@ -44,7 +44,7 @@ function SignalCard({ signal, index }) {
         <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{signal.name}</span>
         {signal.severity && signal.status !== 'pass' && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: `${sevColor}12`, color: sevColor, fontWeight: 600 }}>{signal.severity}</span>}
         <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: `${statusColor}12`, color: statusColor, fontWeight: 700 }}>{statusLabels[signal.status]}</span>
-        {signal.status !== 'pass' && <span style={{ fontSize: 10, color: '#94a3b8' }}>{signal.effort}</span>}
+        {signal.status !== 'pass' && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{signal.effort}</span>}
         {signal.status !== 'pass' && <ChevronDown size={12} color="#94a3b8" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }} />}
       </button>
       {expanded && signal.status !== 'pass' && (
@@ -92,7 +92,7 @@ function SignalCard({ signal, index }) {
             </div>
           )}
           {signal.expected_impact && (
-            <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
               <BarChart3 size={11} /> <strong>Expected Impact:</strong> {signal.expected_impact}
             </div>
           )}
@@ -129,8 +129,8 @@ export default function SeoAnalysis() {
     }).catch(() => setAnalysisLoading(false));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: '#64748b' }}>Loading pages...</p></div>;
-  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No pages found</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
+  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No pages found</div>;
 
   const allSignals = mega?.all_signals || [];
   const issues = mega?.issues || [];
@@ -153,34 +153,34 @@ export default function SeoAnalysis() {
   const categories = Object.entries(catScores).sort((a, b) => a[1] - b[1]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '32px 24px' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Search size={24} color="#3b82f6" /> SEO Signal Analysis
             <DataSourceBadge source="crawler" size="xs" />
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked across 25 categories. All data from on-page HTML crawl.</p>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked across 25 categories. All data from on-page HTML crawl.</p>
         </div>
 
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
-          style={{ width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: '#fff', cursor: 'pointer', marginBottom: 16 }}>
+          style={{ width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: 'var(--bg-white)', cursor: 'pointer', marginBottom: 16 }}>
           {pages.map((p, i) => <option key={i} value={i}>{p.title || p.url} ({p.word_count || 0}w)</option>)}
         </select>
 
         {analysisLoading ? (
-          <div style={{ padding: 60, textAlign: 'center', background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+          <div style={{ padding: 60, textAlign: 'center', background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)' }}>
             <RefreshCw size={32} className="spin" color="#3b82f6" />
-            <p style={{ marginTop: 12, fontSize: 14, color: '#64748b' }}>Running 269+ signal analysis...</p>
-            <p style={{ marginTop: 4, fontSize: 11, color: '#94a3b8' }}>First visit ~45s (cached after this)</p>
+            <p style={{ marginTop: 12, fontSize: 14, color: 'var(--text-muted)' }}>Running 269+ signal analysis...</p>
+            <p style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>First visit ~45s (cached after this)</p>
           </div>
         ) : mega ? (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 20, marginBottom: 24 }}>
-              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <ScoreRing score={mega.overall_score} size={120} stroke={10} label="SCORE" />
                 <div style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{mega.page_title || 'Page'}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{mega.word_count} words | {mega.signals_checked} signals</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{mega.word_count} words | {mega.signals_checked} signals</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                 {[
@@ -189,15 +189,15 @@ export default function SeoAnalysis() {
                   { label: 'Passing', value: mega.signals_passing, color: '#059669', bg: '#ecfdf5' },
                   { label: 'Total', value: mega.signals_checked, color: '#3b82f6', bg: '#eff6ff' },
                 ].map((s, i) => (
-                  <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{s.label}</div>
                   </div>
                 ))}
                 {categories.slice(0, 8).map(([cat, score], i) => (
-                  <div key={cat} style={{ padding: '8px 12px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={cat} style={{ padding: '8px 12px', background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{cat.replace(/_/g, ' ')}</div>
                       <div style={{ height: 4, background: '#e2e8f0', borderRadius: 2, marginTop: 4 }}>
                         <div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626', borderRadius: 2 }} />
                       </div>
@@ -217,7 +217,7 @@ export default function SeoAnalysis() {
                 { key: 'pass', label: `Pass (${passSignals.length})` },
               ].map(f => (
                 <button key={f.key} onClick={() => setFilter(f.key)} style={{
-                  padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
                   background: filter === f.key ? '#3b82f6' : '#fff',
                   color: filter === f.key ? '#fff' : '#64748b',
                 }}>{f.label}</button>
@@ -226,7 +226,7 @@ export default function SeoAnalysis() {
 
             <div>
               {displayedSignals.length === 0 ? (
-                <div style={{ padding: 30, background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <div style={{ padding: 30, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
                   <CheckCircle size={32} color="#059669" />
                   <p style={{ marginTop: 8, color: '#059669', fontWeight: 600 }}>
                     {filter === 'fail' ? 'No failing signals!' : filter === 'warn' ? 'No warnings!' : 'No signals match your search'}
@@ -238,9 +238,9 @@ export default function SeoAnalysis() {
             </div>
           </>
         ) : (
-          <div style={{ padding: 40, textAlign: 'center', background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+          <div style={{ padding: 40, textAlign: 'center', background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)' }}>
             <Search size={32} color="#94a3b8" />
-            <p style={{ marginTop: 8, color: '#64748b' }}>Select a page to run 500+ signal analysis</p>
+            <p style={{ marginTop: 8, color: 'var(--text-muted)' }}>Select a page to run 500+ signal analysis</p>
           </div>
         )}
       </div>
