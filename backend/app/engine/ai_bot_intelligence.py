@@ -91,9 +91,9 @@ class AiBotIntelligenceEngine:
                 "traditional_bots": [],
                 "total_disallow_rules": 0,
                 "has_sitemap_reference": False,
-                "issues": [{"severity": "critical", "message": "No robots.txt found",
+                "issues": [{"severity": "warning", "message": "No robots.txt found",
                             "fix": "Create a robots.txt at the root of the domain",
-                            "impact": "AI bots cannot determine crawl rules; defaults vary by bot"}],
+                            "impact": "Per RFC 9309, all crawlers (including GPTBot, ClaudeBot, PerplexityBot) default to allowed. This means your content is crawlable, but you have no control to block or throttle specific AI bots."}],
             }
 
         lines = raw.strip().splitlines()

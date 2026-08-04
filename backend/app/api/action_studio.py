@@ -1,11 +1,13 @@
 import json
 import re
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.config import settings
 from app.database import get_db
-from app.models import Audit, Page, Issue, Recommendation, AuditScore
+from app.models import Audit, Page, Issue, Recommendation, AuditScore, FixAction
 
 router = APIRouter(prefix="/api", tags=["action-studio"])
 
@@ -81,6 +83,56 @@ def _est_points(severity, impact, difficulty):
     mult = IMPACT_MULT.get(impact, 1.0)
     diff = {"EASY": 1.0, "MEDIUM": 0.8, "HARD": 0.6}.get(difficulty, 0.8)
     return round(base * mult * diff, 1)
+
+
+def _projected_score(current, gained_points):
+    current = float(current or 0.0)
+    distance = max(0.0, 100.0 - current)
+    return round(min(100.0, current + min(float(gained_points), distance) * 0.55), 1)
+
+
+def _impact_plan(actions, current_score):
+    diff_rank = {"EASY": 1, "MEDIUM": 2, "HARD": 3}
+    ranked = sorted(
+        actions,
+        key=lambda a: (-a.get("est_points_gain", 0), diff_rank.get(a.get("difficulty"), 2)),
+    )
+
+    by_category = {}
+    for a in actions:
+        c = a.get("category") or "OTHER"
+        entry = by_category.setdefault(c, {"count": 0, "points": 0.0, "critical_high": 0})
+        entry["count"] += 1
+        entry["points"] += a.get("est_points_gain", 0)
+        if a.get("priority") in ("CRITICAL", "HIGH"):
+            entry["critical_high"] += 1
+    by_category = {
+        k: {**v, "points": round(v["points"], 1)}
+        for k, v in sorted(by_category.items(), key=lambda kv: -kv[1]["points"])
+    }
+
+    batches = []
+    cumulative = 0.0
+    top = ranked[:15]
+    for i in range(0, len(top), 3):
+        batch = top[i:i + 3]
+        cumulative += sum(b.get("est_points_gain", 0) for b in batch)
+        batches.append({
+            "start": i + 1,
+            "count": len(batch),
+            "cumulative_points": round(cumulative, 1),
+            "projected_score": _projected_score(current_score, cumulative),
+            "actions": [{k: b.get(k) for k in ("issue_id", "what", "category", "priority", "difficulty", "page_url", "est_points_gain")} for b in batch],
+        })
+
+    total_points = round(sum(a.get("est_points_gain", 0) for a in actions), 1)
+    return {
+        "ranked": top,
+        "by_category": by_category,
+        "batches": batches,
+        "total_points": total_points,
+        "projected_score_full": _projected_score(current_score, total_points),
+    }
 
 
 def _build_action(issue, page, rec):
@@ -169,6 +221,7 @@ async def get_action_studio(audit_id: str, db: AsyncSession = Depends(get_db)):
     )
 
     content_count = sum(1 for a in actions if a["category"] in CONTENT_CATS)
+    current_score = round(scores.overall_score, 1) if scores else 0
 
     return {
         "audit_id": audit_id,
@@ -177,10 +230,11 @@ async def get_action_studio(audit_id: str, db: AsyncSession = Depends(get_db)):
             "by_severity": summary_counts,
             "est_total_points": round(total_gain, 1),
             "content_actions": content_count,
-            "current_score": round(scores.overall_score, 1) if scores else 0,
+            "current_score": current_score,
             "ai_available": ai_available,
         },
         "actions": actions,
+        "impact_plan": _impact_plan(actions, current_score),
     }
 
 
@@ -268,3 +322,346 @@ async def generate_action_fix(audit_id: str, request: Request, db: AsyncSession 
         "after": issue.fix or "",
         "explanation": "Live AI was unavailable, so this is the rule-based fix captured during the audit.",
     }
+
+
+def _norm_url(url: str) -> str:
+    u = (url or "").strip()
+    while u.endswith("/"):
+        u = u[:-1]
+    return u.lower()
+
+
+@router.get("/audit/{audit_id}/fixes")
+async def get_applied_fixes(audit_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(FixAction).where(FixAction.audit_id == audit_id).order_by(FixAction.applied_at.desc())
+    )
+    return {
+        "audit_id": audit_id,
+        "fixes": [
+            {
+                "id": f.id,
+                "issue_id": f.issue_id,
+                "page_url": f.page_url,
+                "signal_name": f.signal_name,
+                "category": f.category,
+                "severity": f.severity,
+                "applied_at": f.applied_at.isoformat() if f.applied_at else None,
+            }
+            for f in result.scalars().all()
+        ],
+    }
+
+
+@router.post("/audit/{audit_id}/fixes")
+async def mark_fix_applied(audit_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON body")
+    issue_id = (body.get("issue_id") or "").strip()
+    if not issue_id:
+        raise HTTPException(400, "issue_id is required")
+
+    issue_result = await db.execute(
+        select(Issue).where(Issue.id == issue_id, Issue.audit_id == audit_id)
+    )
+    issue = issue_result.scalar_one_or_none()
+    if not issue:
+        raise HTTPException(404, "Issue not found")
+
+    existing = await db.execute(
+        select(FixAction).where(FixAction.audit_id == audit_id, FixAction.issue_id == issue_id)
+    )
+    found = existing.scalar_one_or_none()
+    if not found:
+        found = FixAction(
+            audit_id=audit_id,
+            issue_id=issue.id,
+            page_url=issue.page_url or "",
+            signal_name=issue.signal_name or "",
+            category=(issue.category or "").upper(),
+            severity=issue.severity or "LOW",
+        )
+        db.add(found)
+        await db.commit()
+        await db.refresh(found)
+
+    return {
+        "id": found.id,
+        "issue_id": found.issue_id,
+        "page_url": found.page_url,
+        "signal_name": found.signal_name,
+        "category": found.category,
+        "severity": found.severity,
+        "applied": True,
+    }
+
+
+@router.delete("/audit/{audit_id}/fixes/{fix_id}")
+async def unmark_fix(audit_id: str, fix_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(FixAction).where(FixAction.id == fix_id, FixAction.audit_id == audit_id)
+    )
+    fix = result.scalar_one_or_none()
+    if not fix:
+        raise HTTPException(404, "Applied fix not found")
+    await db.delete(fix)
+    await db.commit()
+    return {"deleted": True}
+
+
+@router.get("/audit/{audit_id}/fix-validation")
+async def get_fix_validation(audit_id: str, db: AsyncSession = Depends(get_db)):
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(404, "Audit not found")
+
+    fixes_result = await db.execute(
+        select(FixAction).where(FixAction.audit_id == audit_id)
+    )
+    fixes = fixes_result.scalars().all()
+
+    newer = await db.execute(
+        select(Audit)
+        .where(Audit.website_url == audit.website_url, Audit.id != audit_id, Audit.status == "COMPLETED")
+        .order_by(Audit.created_at.desc())
+        .limit(1)
+    )
+    newer_audit = newer.scalar_one_or_none()
+
+    async def _score_obj(aid):
+        r = await db.execute(select(AuditScore).where(AuditScore.audit_id == aid))
+        return r.scalar_one_or_none()
+
+    current_scores = await _score_obj(audit_id)
+    newer_scores = await _score_obj(newer_audit.id) if newer_audit else None
+
+    items = []
+    resolved = 0
+    still_present = 0
+    unchecked = 0
+    if newer_audit:
+        newer_issues = await db.execute(select(Issue).where(Issue.audit_id == newer_audit.id))
+        present = {
+            (_norm_url(i.page_url), (i.signal_name or "").lower())
+            for i in newer_issues.scalars().all()
+        }
+        for fix in fixes:
+            key = (_norm_url(fix.page_url), (fix.signal_name or "").lower())
+            still = key in present
+            status = "STILL_PRESENT" if still else "RESOLVED"
+            if still:
+                still_present += 1
+            else:
+                resolved += 1
+            items.append({
+                "id": fix.id,
+                "issue_id": fix.issue_id,
+                "page_url": fix.page_url,
+                "signal_name": fix.signal_name,
+                "category": fix.category,
+                "severity": fix.severity,
+                "applied_at": fix.applied_at.isoformat() if fix.applied_at else None,
+                "status": status,
+                "newer_audit_id": newer_audit.id,
+            })
+    else:
+        unchecked = len(fixes)
+        for fix in fixes:
+            items.append({
+                "id": fix.id,
+                "issue_id": fix.issue_id,
+                "page_url": fix.page_url,
+                "signal_name": fix.signal_name,
+                "category": fix.category,
+                "severity": fix.severity,
+                "applied_at": fix.applied_at.isoformat() if fix.applied_at else None,
+                "status": "UNCHECKED",
+                "newer_audit_id": None,
+            })
+
+    delta = None
+    if newer_audit and newer_scores and current_scores:
+        delta = round((newer_scores.overall_score or 0) - (current_scores.overall_score or 0), 1)
+
+    return {
+        "audit_id": audit_id,
+        "applied_count": len(fixes),
+        "resolved": resolved,
+        "still_present": still_present,
+        "unchecked": unchecked,
+        "newer_audit_id": newer_audit.id if newer_audit else None,
+        "newer_audit_created_at": newer_audit.created_at.isoformat() if newer_audit and newer_audit.created_at else None,
+        "score_before": round(current_scores.overall_score, 1) if current_scores else None,
+        "score_after": round(newer_scores.overall_score, 1) if newer_scores else None,
+        "score_delta": delta,
+        "items": items,
+    }
+
+
+@router.get("/audit/{audit_id}/impact-report")
+async def get_impact_report(audit_id: str, db: AsyncSession = Depends(get_db)):
+    """Forward-looking validated impact: fixes applied in the PREVIOUS audit, checked against this audit."""
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(404, "Audit not found")
+
+    prev = await db.execute(
+        select(Audit)
+        .where(Audit.website_url == audit.website_url, Audit.id != audit_id, Audit.status == "COMPLETED")
+        .order_by(Audit.created_at.desc())
+        .limit(1)
+    )
+    prev_audit = prev.scalar_one_or_none()
+
+    async def _score_obj(aid):
+        r = await db.execute(select(AuditScore).where(AuditScore.audit_id == aid))
+        return r.scalar_one_or_none()
+
+    current_scores = await _score_obj(audit_id)
+    prev_scores = await _score_obj(prev_audit.id) if prev_audit else None
+
+    items = []
+    resolved = 0
+    still_present = 0
+    if prev_audit:
+        fixes_result = await db.execute(
+            select(FixAction).where(FixAction.audit_id == prev_audit.id)
+        )
+        fixes = fixes_result.scalars().all()
+        current_issues = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
+        present = {
+            (_norm_url(i.page_url), (i.signal_name or "").lower())
+            for i in current_issues.scalars().all()
+        }
+        for fix in fixes:
+            key = (_norm_url(fix.page_url), (fix.signal_name or "").lower())
+            still = key in present
+            status = "STILL_PRESENT" if still else "RESOLVED"
+            points = _est_points(fix.severity or "LOW", fix.severity or "LOW", "MEDIUM")
+            if still:
+                still_present += 1
+            else:
+                resolved += 1
+            items.append({
+                "fix_id": fix.id,
+                "page_url": fix.page_url,
+                "signal_name": fix.signal_name,
+                "category": fix.category,
+                "severity": fix.severity,
+                "applied_at": fix.applied_at.isoformat() if fix.applied_at else None,
+                "status": status,
+                "est_points": points,
+            })
+    else:
+        items = []
+
+    validated_points = round(sum(it["est_points"] for it in items if it["status"] == "RESOLVED"), 1)
+    score_before = round(prev_scores.overall_score, 1) if prev_scores else None
+    score_after = round(current_scores.overall_score, 1) if current_scores else None
+    score_delta = round(score_after - score_before, 1) if score_before is not None and score_after is not None else None
+
+    return {
+        "audit_id": audit_id,
+        "website_url": audit.website_url,
+        "previous_audit_id": prev_audit.id if prev_audit else None,
+        "previous_created_at": prev_audit.created_at.isoformat() if prev_audit and prev_audit.created_at else None,
+        "applied_count": len(items),
+        "resolved": resolved,
+        "still_present": still_present,
+        "validated_points": validated_points,
+        "score_before": score_before,
+        "score_after": score_after,
+        "score_delta": score_delta,
+        "items": items,
+    }
+
+
+def _site_host(website_url: str) -> str:
+    parsed = urlparse(website_url or "")
+    return (parsed.netloc or (website_url or "").strip()).lower()
+
+
+@router.get("/audit/{audit_id}/indexnow/status")
+async def get_indexnow_status(audit_id: str, db: AsyncSession = Depends(get_db)):
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(404, "Audit not found")
+    host = _site_host(audit.website_url)
+
+    fixes_result = await db.execute(select(FixAction).where(FixAction.audit_id == audit_id))
+    applied_urls = sorted({f.page_url for f in fixes_result.scalars().all() if f.page_url})
+
+    pages_result = await db.execute(select(Page.url).where(Page.audit_id == audit_id))
+    page_urls = sorted({u for (u,) in pages_result.all() if u})
+
+    return {
+        "audit_id": audit_id,
+        "configured": bool(settings.INDEXNOW_KEY),
+        "host": host,
+        "key": (settings.INDEXNOW_KEY[:4] + "…") if settings.INDEXNOW_KEY else "",
+        "key_location": f"https://{host}/{settings.INDEXNOW_KEY}.txt" if settings.INDEXNOW_KEY and host else "",
+        "applied_fix_urls": len(applied_urls),
+        "total_page_urls": len(page_urls),
+        "setup_help": "Set INDEXNOW_KEY (your IndexNow key) in backend env and place a text file at https://<host>/<key>.txt containing the key.",
+    }
+
+
+@router.post("/audit/{audit_id}/indexnow/push")
+async def push_indexnow(audit_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    if not settings.INDEXNOW_KEY:
+        return {
+            "configured": False,
+            "submitted": 0,
+            "message": "Set INDEXNOW_KEY in backend env to push URLs to IndexNow.",
+        }
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    explicit = body.get("page_urls") or []
+    if isinstance(explicit, str):
+        explicit = [explicit]
+
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(404, "Audit not found")
+    host = _site_host(audit.website_url)
+
+    if not explicit:
+        fixes_result = await db.execute(select(FixAction).where(FixAction.audit_id == audit_id))
+        explicit = sorted({f.page_url for f in fixes_result.scalars().all() if f.page_url})
+    if not explicit:
+        pages_result = await db.execute(select(Page.url).where(Page.audit_id == audit_id))
+        explicit = sorted({u for (u,) in pages_result.all() if u})[:100]
+
+    urls = [u for u in explicit if u and u.startswith(("http://", "https://"))][:100]
+    if not urls:
+        return {"configured": True, "submitted": 0, "urls": [], "message": "No URLs to push."}
+
+    payload = {
+        "host": host,
+        "key": settings.INDEXNOW_KEY,
+        "keyLocation": f"https://{host}/{settings.INDEXNOW_KEY}.txt",
+        "urlList": urls,
+    }
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post("https://api.indexnow.org/indexnow", json=payload)
+        status_code = resp.status_code
+        resp_text = (resp.text or "")[:200]
+    except Exception as exc:
+        return {"configured": True, "submitted": 0, "urls": [], "error": f"IndexNow request failed: {exc}"}
+
+    if status_code == 200:
+        return {"configured": True, "submitted": len(urls), "urls": urls, "host": host, "message": "Submitted to IndexNow successfully."}
+    if status_code == 202:
+        return {"configured": True, "submitted": len(urls), "urls": urls, "host": host, "message": "Accepted — some URLs may already be indexed."}
+    return {"configured": True, "submitted": 0, "urls": [], "host": host, "error": f"IndexNow returned {status_code}: {resp_text}"}

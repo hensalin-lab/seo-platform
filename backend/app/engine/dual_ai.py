@@ -96,9 +96,10 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
 
 
 FREE_MODELS = [
-    "qwen/qwen3-30b-a3b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "deepseek/deepseek-chat-v3-0324:free",
+    "inclusionai/ling-3.0-flash:free",
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
 ]
 
 
@@ -111,7 +112,7 @@ async def _openrouter_free_chat(system_prompt: str, user_prompt: str, max_tokens
     if settings.OPENROUTER_MODEL_FREE:
         models = [settings.OPENROUTER_MODEL_FREE] + FREE_MODELS
     last_detail = ""
-    for model in models:
+    for model in models[:2]:
         try:
             async with httpx.AsyncClient(timeout=settings.OPENROUTER_TIMEOUT) as client:
                 resp = await client.post(
@@ -339,7 +340,7 @@ def _merge_lists(lists: list[list]) -> list:
     return merged
 
 
-async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default") -> dict:
+async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 30.0) -> dict:
     """Run AI providers in parallel, merged. Task routes to the best model per job:
     - default    -> all 5 providers (GPT-4o via OpenRouter, Groq, Cerebras, Ollama, Gemini)
     - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
@@ -350,20 +351,20 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
         task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2500))
+        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000))
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     elif task == "competitor":
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
         task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2500))
+        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000))
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     else:
         task_map.update({
             "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
             "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
             "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
-            "openrouter-free": _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2500)),
+            "openrouter-free": _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
             "gemini": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
         })
     task_map = {
@@ -373,7 +374,7 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
     if not task_map:
         return {"providers_used": []}
     tasks = {name: asyncio.create_task(coro, name=name) for name, coro in task_map.items()}
-    done, _ = await asyncio.wait(tasks.values(), timeout=30, return_when=asyncio.ALL_COMPLETED)
+    done, _ = await asyncio.wait(tasks.values(), timeout=timeout, return_when=asyncio.ALL_COMPLETED)
     results = {}
     for task in done:
         if task.cancelled():

@@ -17,7 +17,13 @@ STOP_WORDS = frozenset(
     "both during each few more most other some such own same than these those up down out "
     "off over under where when how what which who whom why its being been are am will would "
     "could should can may might shall must do does did has have had you we our us they them "
-    "their he she him her me my i the their there then them".split()
+    "their he she him her me my i the their there then them your yours yourself myself "
+    "herself himself itself ourselves themselves anyone someone everyone nobody everybody "
+    "anything something everything nothing another either neither several themselves "
+    "into one every make day today keep real low ask level right high like don get use "
+    "way time work need want know good great new free many much long short next last "
+    "first best top plus also even still yet since until while during within without "
+    "across along around behind below beneath beside beyond toward towards upon".split()
 )
 
 NAV_WORDS = frozenset(
@@ -31,7 +37,8 @@ NAV_WORDS = frozenset(
     "revenue beta read more learn more see more view all show calculator "
     "fit comics podcast request quote contact book platform product sales "
     "agents win personal data expand ready company built talk inc security "
-    "website stop".split()
+    "website stop gtm analytics javascript enable consent cookies "
+    "click here read learn visit online web".split()
 )
 
 QUESTION_STARTERS = {"how", "what", "why", "when", "where", "who", "which", "is", "are", "can", "does", "do", "should", "will", "could", "would", "may", "might"}
@@ -57,16 +64,16 @@ def _clean_html(text: str) -> str:
 
 def _is_meaningful_term(term: str) -> bool:
     words = term.lower().split()
-    for w in words:
-        if w in NAV_WORDS or w in STOP_WORDS:
-            return False
-    if len(term) < 4:
+    if not words:
+        return False
+    if len(term) < 3:
         return False
     if term.lower() in NAV_WORDS:
         return False
     if re.match(r"^[\d\s\.\,\-\_]+$", term):
         return False
-    return True
+    meaningful = [w for w in words if w not in NAV_WORDS and w not in STOP_WORDS and len(w) > 2]
+    return len(meaningful) > 0
 
 
 def _is_title_heading(term: str) -> bool:
@@ -114,6 +121,9 @@ class KeywordResearchEngine:
         for kw, freq in raw_keywords[:80]:
             if not _is_meaningful_term(kw):
                 continue
+            if len(kw.split()) == 1:
+                if not any(kw in (t or "").lower() for t in all_titles) and not any(kw in (h or "").lower() for h in all_h1s):
+                    continue
             intent = self._classify_intent(kw, all_clean_text)
             difficulty = self._estimate_difficulty(kw, freq, len(pages))
             opportunity = self._score_opportunity(kw, freq, intent, difficulty, all_titles, all_h1s)
@@ -188,7 +198,7 @@ class KeywordResearchEngine:
 
     def _extract_keywords(self, text):
         clean = _clean_html(text).lower()
-        words = re.findall(r'\b[a-zA-Z]{4,}\b', clean)
+        words = re.findall(r'\b[a-zA-Z]{3,}\b', clean)
         words = [w for w in words if w not in STOP_WORDS and w not in NAV_WORDS]
         return Counter(words).most_common(80)
 
@@ -207,11 +217,13 @@ class KeywordResearchEngine:
                     return intent
         if "?" in keyword:
             return "INFORMATIONAL"
+        if kw_lower in NAV_WORDS:
+            return "NAVIGATIONAL"
         word_count = len(keyword.split())
+        if word_count == 1:
+            return "INFORMATIONAL"
         if word_count >= 4:
             return "INFORMATIONAL"
-        if word_count == 1:
-            return "NAVIGATIONAL"
         return "INFORMATIONAL"
 
     def _estimate_difficulty(self, keyword, frequency, total_pages):

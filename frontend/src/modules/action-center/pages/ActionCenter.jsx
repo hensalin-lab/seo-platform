@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
-import { AlertTriangle, Lightbulb, Activity, CheckCircle, XCircle, Filter, RefreshCw, Clock, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Lightbulb, Activity, CheckCircle, XCircle, Filter, RefreshCw, Clock, ArrowRight, ExternalLink } from 'lucide-react';
 
 const SEVERITY_COLORS = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
 const PRIORITY_LABELS = { P0: 'Critical', P1: 'High', P2: 'Medium', P3: 'Low' };

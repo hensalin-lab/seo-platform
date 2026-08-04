@@ -140,9 +140,11 @@ export default function AiVisibility() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [severityFilter, setSeverityFilter] = useState('ALL');
+  const [aoData, setAoData] = useState(null);
 
   useEffect(() => {
     api.getAIVisibility(id).then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
+    api.request(`/audit/${id}/ai-overviews`).then(setAoData).catch(() => setAoData(null));
   }, [id]);
 
   const issues = data?.issues || [];
@@ -251,6 +253,73 @@ export default function AiVisibility() {
           <PlatformBar name="Gemini" score={geminiScore} color="#4285f4" description="Visibility in Google AI Overviews — estimated from content signals" />
           <PlatformBar name="Perplexity" score={perplexityScore} color="#20b2aa" description="Citation rate in Perplexity — estimated from content signals" />
         </div>
+      </div>
+
+      <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <Zap size={18} color="var(--accent, #3b82f6)" />
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text, #111827)', margin: 0 }}>Live AI Overviews Check</h2>
+          {aoData?.configured && <DataSourceBadge source="measured" size="xs" />}
+        </div>
+
+        {!aoData ? (
+          <div style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)' }}>Checking live AI Overviews for your top keywords...</div>
+        ) : !aoData.configured ? (
+          <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-sm, 8px)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#b45309', marginBottom: 4 }}>Live monitoring not configured</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-secondary, #6b7280)', lineHeight: 1.6 }}>
+              Set <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 5px', borderRadius: 4 }}>SERP_API_KEY</code> (SerpAPI) in the backend env to check whether your site actually appears in Google AI Overviews for your keywords — real results, not estimates.
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 14 }}>
+              {[
+                { label: 'Keywords Checked', value: aoData.summary?.keywords_checked ?? 0, color: 'var(--accent, #3b82f6)' },
+                { label: 'AI Overview Triggered', value: aoData.summary?.with_ai_overview ?? 0, color: 'var(--yellow, #f59e0b)' },
+                { label: 'Your Site Cited', value: aoData.summary?.mentioned_in_ai_overview ?? 0, color: 'var(--green, #22c55e)' },
+              ].map((s, i) => (
+                <div key={i} style={{ padding: '12px 14px', background: 'var(--bg, #f9fafb)', borderRadius: 'var(--radius-sm, 8px)', border: '1px solid var(--border-light, #f3f4f6)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted, #6b7280)', fontWeight: 500, marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(aoData.results || []).map((r, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 'var(--radius-sm, 8px)', background: 'var(--bg, #f9fafb)', border: '1px solid var(--border-light, #f3f4f6)' }}>
+                  <span style={{ marginTop: 2 }}>
+                    {r.mentioned_in_ai_overview ? (
+                      <CheckCircle size={16} color="var(--green, #22c55e)" />
+                    ) : r.has_ai_overview ? (
+                      <AlertTriangle size={16} color="var(--yellow, #f59e0b)" />
+                    ) : (
+                      <Info size={16} color="var(--text-muted, #9ca3af)" />
+                    )}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #111827)' }}>{r.keyword}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 4, background: r.mentioned_in_ai_overview ? 'rgba(34,197,94,0.12)' : r.has_ai_overview ? 'rgba(245,158,11,0.12)' : 'rgba(107,114,128,0.12)', color: r.mentioned_in_ai_overview ? '#22c55e' : r.has_ai_overview ? '#f59e0b' : '#6b7280' }}>
+                        {r.mentioned_in_ai_overview ? 'Cited in AI Overview' : r.has_ai_overview ? 'AI Overview shown — not you' : 'No AI Overview'}
+                      </span>
+                    </div>
+                    {r.ai_overview_text && (
+                      <div style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)', marginTop: 4, lineHeight: 1.5 }}>{r.ai_overview_text}</div>
+                    )}
+                    {r.top_cited_domains?.length > 0 && (
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted, #6b7280)', marginTop: 4 }}>
+                        Top organic results: {r.top_cited_domains.join(', ')}
+                      </div>
+                    )}
+                    {r.error && <div style={{ fontSize: 11.5, color: '#ef4444', marginTop: 4 }}>{r.error}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {missingSignals.length > 0 && (

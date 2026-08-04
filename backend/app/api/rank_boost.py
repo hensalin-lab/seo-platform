@@ -100,6 +100,18 @@ def _extract_text(merged):
     return merged.get("text", "") or ""
 
 
+def _merged_artifacts(merged):
+    """Return the merged artifact dict from _run_all if it actually contains AI output."""
+    if not isinstance(merged, dict):
+        return None
+    artifact_keys = ("answer_snippet", "faq_pairs", "faq_schema", "title_rewrite",
+                     "meta_rewrite", "h2_rewrites", "llm_intro", "projection",
+                     "narrative", "top_3_moves", "timeframe")
+    if any(k in merged for k in artifact_keys):
+        return merged
+    return None
+
+
 def _fallback_artifacts(page):
     return {
         "generated": False,
@@ -197,19 +209,19 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
         "You are a world-class AEO (Answer Engine Optimization) and GEO (Generative Engine Optimization) "
         "specialist. Your output must help this page get cited by Google AI Overviews, ChatGPT, Perplexity, "
         "Gemini and Bing Copilot. Use ONLY the page data provided. Never invent URLs, traffic or rankings.\n"
-        'Return ONLY valid JSON with EXACTLY this structure:\n'
+        'Return ONLY valid JSON with EXACTLY this structure (be concise, keep total under 1400 tokens):\n'
         '{\n'
-        '  "answer_snippet": "45-60 word definitive definition-style answer that directly answers the pages primary question, entity-dense, self-contained, citable",\n'
-        '  "faq_pairs": [{"question": "...", "answer": "definitive 2-3 sentence answer"}],\n'
-        '  "faq_schema": "valid JSON-LD string for a FAQPage with the above Q&A pairs, as compact JSON (no code fences)",\n'
-        '  "title_rewrite": {"before": "...", "after": "...", "reason": "..."},\n'
-        '  "meta_rewrite": {"before": "...", "after": "max 155 chars with keyword front-loaded", "reason": "..."},\n'
-        '  "h2_rewrites": [{"before": "current H2", "after": "question-form H2 that matches how people ask AI", "reason": "..."}],\n'
-        '  "llm_intro": {"before": "first paragraph", "after": "rewritten intro that states topic + entities + data in first 2 sentences", "reason": "..."},\n'
+        '  "answer_snippet": "40-50 word definitive definition-style answer that directly answers the pages primary question, entity-dense, self-contained, citable",\n'
+        '  "faq_pairs": [{"question": "...", "answer": "1-2 sentence definitive answer"}],\n'
+        '  "faq_schema": "valid compact JSON-LD string for a FAQPage with the above Q&A pairs (minified, no code fences)",\n'
+        '  "title_rewrite": {"before": "...", "after": "...", "reason": "8 words max"},\n'
+        '  "meta_rewrite": {"before": "...", "after": "max 155 chars with keyword front-loaded", "reason": "8 words max"},\n'
+        '  "h2_rewrites": [{"before": "current H2", "after": "question-form H2 that matches how people ask AI", "reason": "8 words max"}],\n'
+        '  "llm_intro": {"before": "first paragraph", "after": "rewritten intro that states topic + entities + data in first 2 sentences", "reason": "8 words max"},\n'
         '  "projection": {"citation_current": 0, "citation_projected": 0, "page_score_current": 0, "page_score_projected": 0}\n'
         '}\n'
-        "CRITICAL RULES: faq_schema must be a plain JSON string (already serialized). 5-8 FAQ pairs. "
-        "Every before/after must use the actual current text from the page, not placeholders."
+        "CRITICAL RULES: faq_schema must be a plain JSON string (already serialized). Exactly 3 FAQ pairs. "
+        "Max 3 H2 rewrites. Every before/after must use the actual current text from the page, not placeholders."
     )
     user_prompt = (
         f"URL: {page['url']}\n"
@@ -221,15 +233,14 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
     )
 
     from app.engine.dual_ai import _run_all
-    merged = await _run_all(sys_prompt, user_prompt, 3000, task="rewrite")
+    merged = await _run_all(sys_prompt, user_prompt, 3000, task="rewrite", timeout=75)
     providers_used = merged.get("providers_used", [])
 
-    parsed = _parse_json(_extract_text(merged))
+    parsed = _merged_artifacts(merged)
     if not parsed:
         resp = _fallback_artifacts(page)
         resp["page"] = page
         resp["providers"] = providers_used
-        _set_cached(cache_key, resp)
         return resp
 
     faq_pairs = parsed.get("faq_pairs") or []
@@ -265,6 +276,8 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
             return {"before": v.get("before") or "", "after": v.get("after") or "", "reason": v.get("reason") or ""}
         return None
 
+    proj_cur_cit = projection.get("citation_current", 40) or 40
+    proj_cur_score = projection.get("page_score_current", 55) or 55
     resp = {
         "generated": True,
         "providers": providers_used,
@@ -276,10 +289,10 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
         "h2_rewrites": h2_rewrites[:6],
         "llm_intro": _pair("llm_intro"),
         "projection": {
-            "citation_current": projection.get("citation_current", 40) or 40,
-            "citation_projected": projection.get("citation_projected", 65) or 65,
-            "page_score_current": projection.get("page_score_current", 55) or 55,
-            "page_score_projected": projection.get("page_score_projected", 75) or 75,
+            "citation_current": proj_cur_cit,
+            "citation_projected": max(projection.get("citation_projected", 65) or 65, proj_cur_cit),
+            "page_score_current": proj_cur_score,
+            "page_score_projected": max(projection.get("page_score_projected", 75) or 75, proj_cur_score),
         },
         "page": page,
     }
@@ -477,9 +490,9 @@ async def generate_win_proof(audit_id: str, request: Request, db: AsyncSession =
     )
 
     from app.engine.dual_ai import _run_all
-    merged = await _run_all(sys_prompt, user_prompt, 2000, task="rewrite")
+    merged = await _run_all(sys_prompt, user_prompt, 2000, task="rewrite", timeout=75)
     providers = merged.get("providers_used", [])
-    parsed = _parse_json(_extract_text(merged))
+    parsed = _merged_artifacts(merged)
 
     narrative = ""
     top_3 = []

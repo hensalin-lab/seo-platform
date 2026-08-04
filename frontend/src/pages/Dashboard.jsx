@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import DataSourceBadge from '../components/DataSourceBadge';
 import AnimatedNumber from '../components/AnimatedNumber';
-import { BarChart3, TrendingUp, Globe, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, Clock, ChevronRight, Target, Sparkles, Wand2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BarChart3, TrendingUp, Globe, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, Clock, ChevronRight, Target, Sparkles, Wand2, ArrowUpRight, ArrowDownRight, ShieldCheck } from 'lucide-react';
 import PdfDownloadButton from '../components/PdfDownloadButton';
 
 function ScoreRing({ score, size = 100, stroke = 8, label }) {
@@ -41,7 +41,6 @@ function ScoreRing({ score, size = 100, stroke = 8, label }) {
 function ScoreBar({ value, max = 100, color = '#4c6ef5', animated = true }) {
   const [width, setWidth] = useState(0);
   useEffect(() => { const t = setTimeout(() => setWidth((value / max) * 100), 100); return () => clearTimeout(t); }, [value, max]);
-
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ width: 50, fontSize: 12, fontWeight: 600, color: 'var(--text)', textAlign: 'right' }}>
@@ -51,6 +50,33 @@ function ScoreBar({ value, max = 100, color = '#4c6ef5', animated = true }) {
         <div style={{ height: '100%', width: `${width}%`, background: `linear-gradient(90deg, ${color}, ${color}dd)`, borderRadius: 3, transition: 'width 1.2s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: `0 0 8px ${color}40` }} />
       </div>
     </div>
+  );
+}
+
+function ScoreTrendChart({ points }) {
+  const w = 560, h = 170, pad = 26;
+  const scores = points.map(p => p.score);
+  const min = Math.min(...scores, 0);
+  const max = Math.max(...scores, 100);
+  const range = Math.max(max - min, 1);
+  const x = (i) => pad + (i / (points.length - 1)) * (w - pad * 2);
+  const y = (v) => h - pad - ((v - min) / range) * (h - pad * 2);
+  const line = points.map((p, i) => `${x(i).toFixed(1)},${y(p.score).toFixed(1)}`).join(' ');
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
+      {[0.25, 0.5, 0.75].map(t => {
+        const yy = (h - pad * 2) * (1 - t) + pad;
+        return <line key={t} x1={pad} x2={w - pad} y1={yy} y2={yy} stroke="var(--border)" strokeDasharray="4 4" strokeWidth={1} />;
+      })}
+      <polyline points={line} fill="none" stroke="#12b886" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={x(i)} cy={y(p.score)} r={4} fill="#12b886" stroke="var(--bg-page)" strokeWidth={2} />
+          <text x={x(i)} y={Math.max(y(p.score) - 10, 12)} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--text-muted)">{Math.round(p.score)}</text>
+          <text x={x(i)} y={h - 8} textAnchor="middle" fontSize={10} fill="var(--text-muted)">{p.label}</text>
+        </g>
+      ))}
+    </svg>
   );
 }
 
@@ -111,6 +137,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [deepData, setDeepData] = useState(null);
   const [deepLoading, setDeepLoading] = useState(false);
+  const [impact, setImpact] = useState(null);
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -130,6 +157,15 @@ export default function Dashboard() {
   const displayAudit = (id ? audits.find(a => a.audit_id === id && a.status === 'COMPLETED') : null) || latest;
   const activeId = id || latest?.audit_id;
 
+  const siteKey = (u) => (u || '').replace(/\/+$/, '').toLowerCase();
+  const trend = displayAudit?.website_url
+    ? audits
+        .filter(a => a.status === 'COMPLETED' && a.website_url && siteKey(a.website_url) === siteKey(displayAudit.website_url) && a.created_at)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        .map(a => ({ score: a.overall_score || 0, label: new Date(a.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }))
+    : [];
+  const trendDelta = trend.length >= 2 ? (trend[trend.length - 1].score - trend[0].score) : 0;
+
   useEffect(() => {
     if (!activeId) return;
     let cancelled = false;
@@ -141,6 +177,15 @@ export default function Dashboard() {
       } catch { /* ok */ } finally { if (!cancelled) setDeepLoading(false); }
     }
     loadDeep();
+    return () => { cancelled = true; };
+  }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    let cancelled = false;
+    api.request(`/audit/${activeId}/impact-report`).then((res) => {
+      if (!cancelled) setImpact(res);
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, [activeId]);
 
@@ -207,6 +252,81 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* SCORE TREND */}
+          {trend.length >= 2 && (
+            <div className="card card-3d animate-in" style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <TrendingUp size={17} style={{ color: '#12b886' }} />
+                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>Score Trend</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{trend.length} audit{trend.length > 1 ? 's' : ''}</span>
+                </div>
+                <span className={`badge ${trendDelta >= 0 ? 'badge-green' : 'badge-red'}`}>
+                  {trendDelta >= 0 ? '+' : ''}{trendDelta} since first
+                </span>
+              </div>
+              <ScoreTrendChart points={trend} />
+            </div>
+          )}
+
+          {/* VALIDATED IMPACT */}
+          {impact && impact.previous_audit_id && impact.applied_count > 0 && (
+            <div className="card card-3d animate-in" style={{ marginBottom: 20, border: '1px solid rgba(34,197,94,0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldCheck size={17} style={{ color: '#22c55e' }} />
+                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>Validated Impact</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    vs previous audit {impact.previous_created_at ? new Date(impact.previous_created_at).toLocaleDateString() : ''}
+                  </span>
+                </div>
+                {impact.score_delta != null && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    Score <b style={{ color: 'var(--text)' }}>{impact.score_before}</b> →
+                    <b style={{ color: impact.score_delta >= 0 ? '#22c55e' : '#ef4444' }}> {impact.score_after}</b>
+                    <b style={{ color: impact.score_delta >= 0 ? '#22c55e' : '#ef4444', marginLeft: 6 }}>{impact.score_delta >= 0 ? '+' : ''}{impact.score_delta}</b>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{impact.applied_count}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>FIXES APPLIED</div>
+                </div>
+                <div style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a' }}>{impact.resolved}</div>
+                  <div style={{ fontSize: 10.5, color: '#16a34a', fontWeight: 600 }}>RESOLVED</div>
+                </div>
+                <div style={{ background: 'rgba(239,68,68,0.08)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#ef4444' }}>{impact.still_present}</div>
+                  <div style={{ fontSize: 10.5, color: '#ef4444', fontWeight: 600 }}>STILL PRESENT</div>
+                </div>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a' }}>+{impact.validated_points}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>VALIDATED PTS</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto', marginBottom: 12 }}>
+                {impact.items.map((it, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+                      background: it.status === 'RESOLVED' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+                      color: it.status === 'RESOLVED' ? '#16a34a' : '#ef4444' }}>
+                      {it.status === 'RESOLVED' ? 'Resolved' : 'Still present'}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.signal_name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>{it.page_url}</span>
+                  </div>
+                ))}
+              </div>
+              {impact.still_present > 0 && (
+                <button className="btn btn-primary btn-sm" onClick={() => navigate(`/audit/${activeId}/action-studio`)}>
+                  Fix the remaining {impact.still_present} <ArrowRight size={13} className="arrow-bounce" />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* SCORE BREAKDOWN */}
           <div className="card animate-in" style={{ animationDelay: '100ms', marginBottom: 20 }}>

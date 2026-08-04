@@ -11,7 +11,7 @@ import {
   FileSearch, HeartPulse, TrendingUp, BarChart2,
   Megaphone, Flag, RefreshCw, ShieldAlert, Network,
   Hash, MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck,
-  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User, AlertTriangle
+  PenTool, Star, Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight
 } from 'lucide-react';
 
 const MAIN_NAV = [
@@ -61,11 +61,18 @@ const AUDIT_NAV = [
       { suffix: '/action-center', icon: ClipboardList, label: 'Action Center' },
       { suffix: '/speed', icon: Gauge, label: 'Speed & CWV' },
       { suffix: '/internal-links', icon: Link2, label: 'Internal Links' },
-      { suffix: '/page-experience', icon: HeartPulse, label: 'Page Experience' },
-      { suffix: '/mobile-seo', icon: Smartphone, label: 'Mobile SEO' },
-      { suffix: '/sitemap-robots', icon: Globe, label: 'Sitemap & Robots' },
-      { suffix: '/security-headers', icon: ShieldAlert, label: 'Security Headers' },
-      { suffix: '/image-seo', icon: Camera, label: 'Image SEO' },
+      {
+        label: 'Crawlability & Indexation',
+        icon: Globe,
+        group: true,
+        children: [
+          { suffix: '/page-experience', icon: HeartPulse, label: 'Page Experience' },
+          { suffix: '/mobile-seo', icon: Smartphone, label: 'Mobile SEO' },
+          { suffix: '/sitemap-robots', icon: Globe, label: 'Sitemap & Robots' },
+          { suffix: '/security-headers', icon: ShieldAlert, label: 'Security Headers' },
+          { suffix: '/image-seo', icon: Camera, label: 'Image SEO' },
+        ],
+      },
       { suffix: '/roadmap', icon: Flag, label: 'SEO Roadmap' },
     ],
   },
@@ -74,6 +81,7 @@ const AUDIT_NAV = [
     items: [
       { suffix: '/competitor', icon: Users, label: 'Competitor Analysis' },
       { suffix: '/backlinks', icon: Link2, label: 'Backlinks' },
+      { suffix: '/rankings', icon: TrendingUp, label: 'Rank Tracking' },
       { suffix: '/offsite-authority', icon: Award, label: 'Off-Site Authority' },
       { suffix: '/citations', icon: MessageCircle, label: 'Citations' },
     ],
@@ -87,9 +95,9 @@ const AUDIT_NAV = [
   },
 ];
 
-function SidebarLink({ to, icon: Icon, label, active }) {
+function SidebarLink({ to, icon: Icon, label, active, nested }) {
   return (
-    <Link to={to} className={`sidebar-link ${active ? 'active' : ''}`}>
+    <Link to={to} className={`sidebar-link ${active ? 'active' : ''} ${nested ? 'sidebar-link-nested' : ''}`}>
       <Icon size={15} />
       <span>{label}</span>
     </Link>
@@ -100,6 +108,8 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
+  const [openGroups, setOpenGroups] = useState({});
   const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
@@ -153,6 +163,7 @@ export default function Layout({ children }) {
     if (p.endsWith('/compare')) return 'Audit Compare';
     if (p.endsWith('/report')) return 'Audit Report';
     if (p.endsWith('/backlinks')) return 'Backlink Profile';
+    if (p.endsWith('/rankings')) return 'Rank Tracking';
     if (p.endsWith('/blog-ai')) return 'Blog AI';
     if (p.endsWith('/citations')) return 'Citation Analysis';
     if (p.endsWith('/image-seo')) return 'Image SEO';
@@ -191,20 +202,64 @@ export default function Layout({ children }) {
               ))}
             </div>
           )}
-          {isReport && AUDIT_NAV.map(section => (
-            <div className="sidebar-section" key={section.label}>
-              <div className="sidebar-section-label">{section.label}</div>
-              {section.items.map(item => (
-                <SidebarLink
-                  key={item.suffix}
-                  to={`/audit/${auditId}${item.suffix}`}
-                  icon={item.icon}
-                  label={item.label}
-                  active={location.pathname.endsWith(item.suffix)}
-                />
-              ))}
-            </div>
-          ))}
+          {isReport && AUDIT_NAV.map(section => {
+            const sectionKey = section.label;
+            const hasActiveItem = section.items.some(item =>
+              item.group
+                ? item.children.some(c => location.pathname.endsWith(c.suffix))
+                : location.pathname.endsWith(item.suffix)
+            );
+            const isCollapsed = collapsedSections[sectionKey] && !hasActiveItem;
+            return (
+              <div className="sidebar-section" key={sectionKey}>
+                <button
+                  onClick={() => setCollapsedSections(s => ({ ...s, [sectionKey]: !s[sectionKey] }))}
+                  className="sidebar-section-label"
+                  title={isCollapsed ? 'Expand section' : 'Collapse section'}
+                >
+                  <span>{section.label}</span>
+                  <ChevronRight size={12} style={{ transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)', transition: 'transform 0.15s', opacity: 0.6 }} />
+                </button>
+                {!isCollapsed && section.items.map(item => {
+                  if (item.group) {
+                    const open = openGroups[item.label] ?? item.children.some(c => location.pathname.endsWith(c.suffix));
+                    return (
+                      <div key={item.label}>
+                        <button
+                          onClick={() => setOpenGroups(g => ({ ...g, [item.label]: !open }))}
+                          className={`sidebar-link-group ${item.children.some(c => location.pathname.endsWith(c.suffix)) ? 'active' : ''}`}
+                          title={open ? 'Collapse group' : 'Expand group'}
+                        >
+                          <item.icon size={15} />
+                          <span>{item.label}</span>
+                          <ChevronRight size={12} style={{ marginLeft: 'auto', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', opacity: 0.6 }} />
+                        </button>
+                        {open && item.children.map(child => (
+                          <SidebarLink
+                            key={child.suffix}
+                            to={`/audit/${auditId}${child.suffix}`}
+                            icon={child.icon}
+                            label={child.label}
+                            active={location.pathname.endsWith(child.suffix)}
+                            nested
+                          />
+                        ))}
+                      </div>
+                    );
+                  }
+                  return (
+                    <SidebarLink
+                      key={item.suffix}
+                      to={`/audit/${auditId}${item.suffix}`}
+                      icon={item.icon}
+                      label={item.label}
+                      active={location.pathname.endsWith(item.suffix)}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
         <div className="sidebar-footer">
           {isAuthenticated && user ? (
@@ -225,7 +280,7 @@ export default function Layout({ children }) {
               <LogIn size={14} /> Sign In
             </Link>
           )}
-          <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.5, marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.35, marginTop: 4, letterSpacing: '0.5px' }}>
             SEO Intel v2.5
           </div>
         </div>

@@ -10,6 +10,7 @@ import NewAudit from './pages/NewAudit';
 import AuditProgress from './pages/AuditProgress';
 import History from './pages/History';
 import Dashboard from './pages/Dashboard';
+import OnePageWorkspace from './pages/OnePageWorkspace';
 import SeoAnalysis from './modules/technical-audit/pages/SeoAnalysis';
 import SpeedAnalysis from './modules/technical-audit/pages/SpeedAnalysis';
 import SchemaAnalysis from './modules/technical-audit/pages/SchemaAnalysis';
@@ -70,6 +71,7 @@ import ActionCenter from './modules/action-center/pages/ActionCenter';
 import ActionStudio from './modules/action-center/pages/ActionStudio';
 import ContentStudio from './modules/content-keywords/pages/ContentStudio';
 import RankBoost from './modules/geo-aeo/pages/RankBoost';
+import Rankings from './modules/technical-audit/pages/Rankings';
 import './index.css';
 
 export default function App() {
@@ -95,7 +97,8 @@ export default function App() {
                   <Route path="/audit/:id/action-center" element={<ProtectedRoute><ActionCenter /></ProtectedRoute>} />
           <Route path="/audit/:id/action-studio" element={<ProtectedRoute><ActionStudio /></ProtectedRoute>} />
                   <Route path="/audit/:id/content-studio" element={<ProtectedRoute><ContentStudio /></ProtectedRoute>} />
-          <Route path="/audit/:id/rank-boost" element={<ProtectedRoute><RankBoost /></ProtectedRoute>} />
+                  <Route path="/audit/:id/rank-boost" element={<ProtectedRoute><RankBoost /></ProtectedRoute>} />
+                  <Route path="/audit/:id/rankings" element={<ProtectedRoute><Rankings /></ProtectedRoute>} />
                   <Route path="/audit/:id/seo" element={<ProtectedRoute><SeoAnalysis /></ProtectedRoute>} />
                   <Route path="/audit/:id/pages" element={<ProtectedRoute><PageIntelligenceV2 /></ProtectedRoute>} />
                   <Route path="/audit/:id/speed" element={<ProtectedRoute><SpeedAnalysis /></ProtectedRoute>} />
@@ -153,7 +156,7 @@ export default function App() {
                   <Route path="/trends" element={<ProtectedRoute><Trends /></ProtectedRoute>} />
                   <Route path="/audit/:id/chat" element={<ProtectedRoute><AiChat /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                  <Route path="/audit/:id" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/audit/:id" element={<ProtectedRoute><OnePageWorkspace /></ProtectedRoute>} />
                 </Routes>
               </Layout>
             </ErrorBoundary>

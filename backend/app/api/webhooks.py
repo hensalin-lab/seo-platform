@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 
+@router.get("/email-status")
+async def get_email_status(user: User = Depends(get_current_active_user)):
+    from app.engine.emailer import email_configured
+    return {
+        "configured": email_configured(),
+        "host": settings.SMTP_HOST or "",
+        "port": settings.SMTP_PORT or 587,
+        "from_email": settings.EMAIL_FROM or "",
+        "app_url": settings.APP_URL or "",
+        "setup_help": "Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and EMAIL_FROM environment variables to enable audit email alerts.",
+    }
+
+
 class WebhookRequest(BaseModel):
     url: str
     events: list[str] = ["audit.completed", "audit.failed"]

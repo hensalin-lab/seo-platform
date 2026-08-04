@@ -471,6 +471,19 @@ class WhiteLabelSettings(Base):
     user = relationship("User", back_populates="white_label")
 
 
+class DigestPreference(Base):
+    __tablename__ = "digest_preferences"
+    __table_args__ = (
+        Index("ix_digest_prefs_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), unique=True)
+    enabled = Column(Boolean, default=True)
+    frequency = Column(String, default="weekly")
+    last_sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
 class Backlink(Base):
     __tablename__ = "backlinks"
     __table_args__ = (
@@ -511,6 +524,24 @@ class ReferringDomain(Base):
     audit = relationship("Audit")
 
 
+class FixAction(Base):
+    __tablename__ = "fix_actions"
+    __table_args__ = (
+        Index("ix_fix_actions_audit_id", "audit_id"),
+        Index("ix_fix_actions_issue_id", "issue_id"),
+        Index("ix_fix_actions_page_url", "page_url"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"), nullable=False)
+    issue_id = Column(String, default="")
+    page_url = Column(String, default="")
+    signal_name = Column(String, default="")
+    category = Column(String, default="")
+    severity = Column(String, default="LOW")
+    applied_at = Column(DateTime, default=_dt.datetime.utcnow)
+    audit = relationship("Audit")
+
+
 class CoreWebVitals(Base):
     __tablename__ = "core_web_vitals"
     __table_args__ = (
@@ -530,4 +561,22 @@ class CoreWebVitals(Base):
     field_data = Column(JSON, default=dict)
     lab_data = Column(JSON, default=dict)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    audit = relationship("Audit")
+
+
+class RankPosition(Base):
+    __tablename__ = "rank_positions"
+    __table_args__ = (
+        Index("ix_rank_audit_id", "audit_id"),
+        Index("ix_rank_keyword", "keyword"),
+        Index("ix_rank_audit_keyword", "audit_id", "keyword"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"), nullable=False)
+    keyword = Column(String, default="")
+    position = Column(Integer, nullable=True)
+    previous_position = Column(Integer, nullable=True)
+    page_url = Column(String, default="")
+    source = Column(String, default="estimated")  # live | estimated
+    captured_at = Column(DateTime, default=_dt.datetime.utcnow)
     audit = relationship("Audit")

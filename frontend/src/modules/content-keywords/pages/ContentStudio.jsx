@@ -6,6 +6,7 @@ import ProtectedAction from '../../../components/ProtectedAction';
 import {
   FileText, Edit3, PenTool, RefreshCw,
   Star, BarChart3, BookOpen, Sparkles, Eye, EyeOff, MessageSquare,
+  Search, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import PromptTestingLab from '../components/PromptTestingLab';
 
@@ -18,8 +19,9 @@ const TABS = [
 ];
 
 function ScoreCard({ label, score, color, icon: Icon }) {
-  const scoreVal = score ?? 0;
-  const scoreColor = scoreVal >= 80 ? '#22c55e' : scoreVal >= 50 ? '#f59e0b' : '#ef4444';
+  const hasScore = score !== null && score !== undefined;
+  const scoreVal = hasScore ? Math.max(0, Math.min(100, Number(score) || 0)) : 0;
+  const scoreColor = hasScore ? (scoreVal >= 80 ? '#22c55e' : scoreVal >= 50 ? '#f59e0b' : '#ef4444') : '#6b7280';
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -28,15 +30,15 @@ function ScoreCard({ label, score, color, icon: Icon }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', lineHeight: 1.2 }}>{score !== null && score !== undefined ? score : '—'}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', lineHeight: 1.2 }}>{hasScore ? Math.round(scoreVal) : '—'}</div>
         </div>
       </div>
       <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--border)' }}>
-        <div style={{ width: `${Math.min(scoreVal, 100)}%`, height: '100%', borderRadius: 3, background: scoreColor, transition: 'width 0.5s ease' }} />
+        <div style={{ width: `${scoreVal}%`, height: '100%', borderRadius: 3, background: scoreColor, transition: 'width 0.5s ease' }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: scoreVal >= 80 ? 'rgba(34,197,94,0.15)' : scoreVal >= 50 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)', color: scoreColor }}>
-          {scoreVal >= 80 ? 'Good' : scoreVal >= 50 ? 'Needs Work' : 'Poor'}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: hasScore ? (scoreVal >= 80 ? 'rgba(34,197,94,0.15)' : scoreVal >= 50 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)') : 'rgba(107,114,128,0.15)', color: scoreColor }}>
+          {hasScore ? (scoreVal >= 80 ? 'Good' : scoreVal >= 50 ? 'Needs Work' : 'Poor') : 'N/A'}
         </span>
       </div>
     </div>
@@ -91,27 +93,61 @@ function LoadingSpinner({ message }) {
 }
 
 function OverviewTab({ contentData, qualityData, opportunitiesData }) {
-  const qualityScore = qualityData?.quality_score ?? qualityData?.score ?? null;
-  const readabilityScore = qualityData?.readability_score ?? contentData?.readability ?? null;
-  const seoScore = contentData?.seo_score ?? contentData?.score ?? null;
+  const qualityScore = qualityData?.content_quality_score ?? qualityData?.quality_score ?? qualityData?.score ?? null;
+  const readabilityScore = qualityData?.readability_score ?? qualityData?.readability ?? null;
+  const seoScore = contentData?.content_score ?? contentData?.seo_score ?? contentData?.score ?? null;
 
-  const rawPages = contentData?.pages ?? contentData?.issues ?? [];
-  const pageList = Array.isArray(rawPages) ? rawPages.map(p => ({
-    ...p,
-    url: p.url || p.page_url || p.page,
-    score: p.score ?? p.quality ?? null,
-    issues: p.issues ?? (p.signal_name ? [p] : []),
-  })) : [];
+  const rawIssues = contentData?.issues ?? contentData?.pages ?? [];
+  const issueRows = Array.isArray(rawIssues) ? rawIssues : [];
+  const byPage = new Map();
+  for (const p of issueRows) {
+    const url = p.page_url || p.url || p.page || 'Unknown page';
+    if (!byPage.has(url)) byPage.set(url, { url, issues: [] });
+    byPage.get(url).issues.push({
+      signal_name: p.signal_name || p.issue || p.title || 'Content issue',
+      description: p.description || '',
+      fix: p.fix || '',
+      impact: p.impact || '',
+      severity: p.severity || 'LOW',
+    });
+  }
+  const pageList = [...byPage.values()];
+  const totalIssues = pageList.reduce((sum, p) => sum + p.issues.length, 0);
+
+  const typeCount = new Map();
+  for (const p of pageList) for (const i of p.issues) typeCount.set(i.signal_name, (typeCount.get(i.signal_name) || 0) + 1);
+  const typeSummary = [...typeCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  const sevCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+  for (const i of issueRows) sevCounts[i.severity] = (sevCounts[i.severity] || 0) + 1;
+
+  const [search, setSearch] = useState('');
+  const [sevFilter, setSevFilter] = useState('ALL');
+  const [pageIdx, setPageIdx] = useState(0);
+  const PAGE_SIZE = 25;
+
+  const filtered = pageList.filter(p => {
+    const urlOk = !search.trim() || p.url.toLowerCase().includes(search.trim().toLowerCase());
+    const sevOk = sevFilter === 'ALL' || p.issues.some(i => i.severity === sevFilter);
+    return urlOk && sevOk;
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const cur = Math.min(pageIdx, totalPages - 1);
+  const rows = filtered.slice(cur * PAGE_SIZE, cur * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => { setPageIdx(0); }, [search, sevFilter]);
 
   const opps = opportunitiesData?.opportunities ?? opportunitiesData?.keywords_to_add ?? [];
   const oppList = Array.isArray(opps) ? opps : [];
 
   const quickStats = [
     { label: 'Total Pages', value: pageList.length, color: '#3b82f6' },
-    { label: 'Issues Found', value: pageList.filter((p) => p.issues?.length || p.status === 'error').length, color: '#ef4444' },
-    { label: 'Opportunities', value: oppList.length, color: '#22c55e' },
-    { label: 'Avg Quality', value: qualityScore ?? '—', color: '#f59e0b' },
+    { label: 'Issues Found', value: totalIssues, color: '#ef4444' },
+    { label: 'Issue Types', value: typeSummary.length, color: '#f59e0b' },
+    { label: 'Avg Quality', value: qualityScore ?? '—', color: '#22c55e' },
   ];
+
+  const severityColor = (s) => s === 'CRITICAL' ? '#ef4444' : s === 'HIGH' ? '#f59e0b' : s === 'MEDIUM' ? '#3b82f6' : '#6b7280';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -121,50 +157,100 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
         <ScoreCard label="SEO Score" score={seoScore} color="#3b82f6" icon={BarChart3} />
       </div>
 
+      {typeSummary.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {typeSummary.map(([name, count]) => (
+            <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontSize: 12 }}>
+              <span style={{ fontWeight: 800, color: '#ef4444' }}>{count}</span>
+              <span style={{ color: 'var(--text)', fontWeight: 500 }}>{name}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <SectionCard title="Page Content Analysis" icon={FileText} iconColor="#3b82f6" badge={`${pageList.length} pages`} unavailable={!contentData}>
+          <SectionCard title="Page Content Analysis" icon={FileText} iconColor="#3b82f6" badge={`${pageList.length} pages · ${totalIssues} issues`} unavailable={!contentData}>
             {contentData ? (
-              pageList.length > 0 ? (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Page</th>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Issues</th>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pageList.map((p, i) => {
-                        const issueCount = Array.isArray(p.issues) ? p.issues.length : (p.signal_name ? 1 : 0);
-                        const pageScore = p.score;
-                        return (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--bg-secondary)' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url || p.page_url || p.title || `Issue ${i + 1}`}</td>
-                            <td style={{ padding: '10px 12px' }}>
-                              {issueCount > 0 ? (
-                                <span style={{ color: issueCount > 5 ? '#ef4444' : '#f59e0b', fontWeight: 500 }}>{issueCount} issues</span>
-                              ) : (
-                                <span style={{ color: '#22c55e' }}>OK</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              {pageScore !== null ? (
-                                <span style={{ fontWeight: 600, color: pageScore >= 80 ? '#22c55e' : pageScore >= 50 ? '#f59e0b' : '#ef4444' }}>{pageScore}</span>
-                              ) : (
-                                <span style={{ color: '#6b7280' }}>—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              <>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                    <Search size={15} color="var(--text-muted)" />
+                    <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search pages..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text)' }} />
+                  </div>
+                  <select value={sevFilter} onChange={(e) => setSevFilter(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', fontSize: 13, color: 'var(--text)' }}>
+                    <option value="ALL">All severities</option>
+                    <option value="CRITICAL">Critical ({sevCounts.CRITICAL})</option>
+                    <option value="HIGH">High ({sevCounts.HIGH})</option>
+                    <option value="MEDIUM">Medium ({sevCounts.MEDIUM})</option>
+                    <option value="LOW">Low ({sevCounts.LOW})</option>
+                  </select>
                 </div>
-              ) : (
-                <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>No page data available.</div>
-              )
+                {rows.length > 0 ? (
+                  <>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                            <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Page</th>
+                            <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>Issues</th>
+                            <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>What's Wrong</th>
+                            <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600, color: 'var(--text-muted)' }}>How to Fix</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((p, i) => {
+                            const issueCount = p.issues.length;
+                            const top = p.issues[0];
+                            const more = p.issues.length - 1;
+                            const topSev = top.severity;
+                            return (
+                              <tr key={i} style={{ borderBottom: '1px solid var(--bg-secondary)', verticalAlign: 'top' }}>
+                                <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url}</td>
+                                <td style={{ padding: '10px 12px' }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: severityColor(topSev) }} />
+                                    <span style={{ fontWeight: 700, color: issueCount > 1 ? '#ef4444' : severityColor(topSev) }}>{issueCount}</span>
+                                  </span>
+                                </td>
+                                <td style={{ padding: '10px 12px', color: 'var(--text)', maxWidth: 320 }}>
+                                  <div>{top.signal_name}</div>
+                                  {top.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{top.description}</div>}
+                                  {top.impact && <div style={{ fontSize: 11, color: severityColor(topSev), marginTop: 2 }}>{top.impact}</div>}
+                                  {more > 0 && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 2 }}>+{more} more issue{more > 1 ? 's' : ''}</div>}
+                                </td>
+                                <td style={{ padding: '10px 12px', color: '#2563eb', maxWidth: 320 }}>{top.fix || 'No fix suggested'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Showing {rows.length} of {filtered.length} pages</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button
+                          onClick={() => setPageIdx(Math.max(0, cur - 1))}
+                          disabled={cur === 0}
+                          style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text)', cursor: cur === 0 ? 'not-allowed' : 'pointer', opacity: cur === 0 ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 60, textAlign: 'center' }}>{cur + 1} / {totalPages}</span>
+                        <button
+                          onClick={() => setPageIdx(Math.min(totalPages - 1, cur + 1))}
+                          disabled={cur >= totalPages - 1}
+                          style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text)', cursor: cur >= totalPages - 1 ? 'not-allowed' : 'pointer', opacity: cur >= totalPages - 1 ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>No pages match the current filter.</div>
+                )}
+              </>
             ) : (
               <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Content analysis data was not returned from the API.</div>
             )}
@@ -471,23 +557,20 @@ export default function ContentStudio() {
   const [qualityData, setQualityData] = useState(null);
   const [opportunitiesData, setOpportunitiesData] = useState(null);
   const [revivalData, setRevivalData] = useState(null);
-  const [blogAiData, setBlogAiData] = useState(null);
 
   useEffect(() => {
     async function loadAll() {
       setLoading(true);
-      const [content, quality, opps, revival, blog] = await Promise.all([
+      const [content, quality, opps, revival] = await Promise.all([
         api.getContentAnalysis(id).catch(() => null),
         api.getContentQuality(id).catch(() => null),
         api.request(`/audit/${id}/content-opportunities`).catch(() => null),
         api.getContentRevival(id).catch(() => null),
-        api.getBlogAi(id).catch(() => null),
       ]);
       setContentData(content);
       setQualityData(quality);
       setOpportunitiesData(opps);
       setRevivalData(revival);
-      setBlogAiData(blog);
       setLoading(false);
     }
     loadAll();
@@ -497,7 +580,7 @@ export default function ContentStudio() {
     return <LoadingSpinner message="Loading Content Studio..." />;
   }
 
-  const allNull = !contentData && !qualityData && !opportunitiesData && !revivalData && !blogAiData;
+  const allNull = !contentData && !qualityData && !opportunitiesData && !revivalData;
   if (allNull) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>

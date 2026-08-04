@@ -123,6 +123,35 @@ class AnalyzerEngine:
     SIGNAL_ID_COUNTER = 1000
 
     @staticmethod
+    def _expects_author_attribution(page):
+        """Only editorial content pages (blog, resource, case study, long-form
+        article) should require an author byline — never legal/utility/home pages."""
+        page_type = str(getattr(page, "page_type", "") or "").upper()
+        editorial = {"BLOG", "RESOURCE", "CASE_STUDY", "CONTENT", "ARTICLE", "NEWS", "PUBLICATION", "PODCAST"}
+        non_editorial = {"HOMEPAGE", "PRICING", "PRODUCT", "SOLUTIONS", "SERVICES", "FEATURE",
+                         "DOCUMENTATION", "FAQ", "ABOUT", "CONTACT", "DEMO", "LEGAL", "LANDING_PAGE",
+                         "CAREERS", "AUTHOR", "TAG", "ARCHIVE", "CATEGORY", "SEARCH", "PAGINATION",
+                         "ERROR_404", "PROFILE", "ACCOUNT", "CART", "CHECKOUT"}
+        if page_type in editorial:
+            return True
+        if page_type in non_editorial:
+            return False
+        url = (page.url or "").lower()
+        title = (page.title or "").lower()
+        junk = ["/privacy", "/terms", "/cookie", "/legal", "/policy", "/disclaimer", "/agreement",
+                "/get-a-demo", "/demo", "/signup", "/login", "/register", "/cart", "/checkout",
+                "/account", "/status", "/careers", "/jobs", "/pricing", "/contact", "/about",
+                "/resources/blog", "/404", "page-not-found"]
+        if any(k in url for k in junk):
+            return False
+        if any(k in url for k in ["/blog", "/post", "/article", "/news", "/journal", "/case-stud",
+                                  "/resource", "/whitepaper", "/ebook", "/podcast", "/story"]):
+            return True
+        if any(k in title for k in ["blog", "article", "post", "news", "case study"]):
+            return True
+        return False
+
+    @staticmethod
     def _detect_page_type(page):
         url = (page.url or "").lower()
         title = (page.title or "").lower()
@@ -416,7 +445,7 @@ class AnalyzerEngine:
         sid = self._sid()
         has_author = any(s in (page.html_raw or "").lower() for s in ["author", "written by", "byline", "posted by"])
         result.add_signal(sid, "Author Attribution", "CONTENT", 1.0 if has_author else 0.2, 0.4, "Author info present" if has_author else "No author attribution", page.url, page.url)
-        if not has_author and wc > 500:
+        if not has_author and wc > 500 and self._expects_author_attribution(page):
             result.add_issue(page.url, "CONTENT", "LOW", sid, "No Author", "Content has no author attribution", "Author signals build E-E-A-T for AI and Google", "Add author name, bio, and credentials")
 
         sid = self._sid()

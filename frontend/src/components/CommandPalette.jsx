@@ -62,6 +62,7 @@ function buildSearchItems(auditId) {
     { id: 'roadmap', label: 'SEO Roadmap', suffix: '/roadmap', icon: 'Flag' },
     { id: 'competitor', label: 'Competitor Analysis', suffix: '/competitor', icon: 'Users' },
     { id: 'backlinks', label: 'Backlinks', suffix: '/backlinks', icon: 'Link2' },
+    { id: 'rankings', label: 'Rank Tracking', suffix: '/rankings', icon: 'TrendingUp' },
     { id: 'offsite-authority', label: 'Off-Site Authority', suffix: '/offsite-authority', icon: 'Award' },
     { id: 'citations', label: 'Citations', suffix: '/citations', icon: 'MessageCircle' },
     { id: 'page-detail', label: 'Page Analysis', suffix: '/page-detail', icon: 'Layers' },

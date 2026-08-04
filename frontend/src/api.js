@@ -21,7 +21,8 @@ async function request(path, options = {}) {
     clearTimeout(timeoutId);
 
     if (res.status === 401 && path !== '/auth/login') {
-      persistToken(null);
+      _authToken = null;
+      localStorage.removeItem('token');
       window.location.href = '/login';
       throw new Error('Session expired');
     }
@@ -67,6 +68,10 @@ export const api = {
     return request(url);
   },
   getCompetitorData: (id) => request(`/audit/${id}/competitor`),
+  runCompetitorAnalysis: (id, competitorUrl = null) => request(`/audit/${id}/competitor/analyze`, {
+    method: 'POST',
+    body: JSON.stringify({ competitor_url: competitorUrl }),
+  }),
   getAuditPages: (id, params = {}) => {
     let url = `/audit/${id}/pages?limit=${params.limit || 200}`;
     if (params.offset) url += `&offset=${params.offset}`;
@@ -156,6 +161,15 @@ export const api = {
   listWebhooks: () => request('/webhooks'),
   deleteWebhook: (id) => request(`/webhooks/${id}`, { method: 'DELETE' }),
   testWebhook: (id, payload) => request(`/webhooks/${id}/test`, { method: 'POST', body: JSON.stringify({ payload }) }),
+  getEmailStatus: () => request('/webhooks/email-status'),
+  getDigestPreferences: () => request('/digest/preferences'),
+  updateDigestPreferences: (data) => request('/digest/preferences', { method: 'PUT', body: JSON.stringify(data) }),
+  getDigestStatus: () => request('/digest/status'),
+  sendDigest: () => request('/digest/send', { method: 'POST' }),
+
+  // Rank tracking
+  getRankings: (id) => request(`/audit/${id}/rankings`),
+  captureRankings: (id, keywords) => request(`/audit/${id}/rankings/capture`, { method: 'POST', body: JSON.stringify({ keywords } || {}) }),
 
   // Scheduled
   createScheduled: (data) => request('/scheduled', { method: 'POST', body: JSON.stringify(data) }),

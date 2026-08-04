@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/Toast';
 import { api } from '../../../api';
-import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send } from 'lucide-react';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -9,6 +9,7 @@ const TABS = [
   { id: 'api-keys', label: 'API Keys', icon: Key },
   { id: 'ai-providers', label: 'AI Providers', icon: Cpu },
   { id: 'webhooks', label: 'Webhooks', icon: Webhook },
+  { id: 'digest', label: 'Digest', icon: Mail },
   { id: 'scheduled', label: 'Scheduled', icon: Calendar },
   { id: 'whitelabel', label: 'White Label', icon: Palette },
 ];
@@ -41,6 +42,7 @@ export default function SettingsPage() {
           {tab === 'api-keys' && <ApiKeysTab addToast={addToast} />}
           {tab === 'ai-providers' && <AiProvidersTab addToast={addToast} />}
           {tab === 'webhooks' && <WebhooksTab addToast={addToast} />}
+          {tab === 'digest' && <DigestTab addToast={addToast} />}
           {tab === 'scheduled' && <ScheduledTab addToast={addToast} />}
           {tab === 'whitelabel' && <WhiteLabelTab addToast={addToast} />}
         </div>
@@ -263,9 +265,11 @@ function AiProvidersTab({ addToast }) {
 function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(true);
+  const [emailStatus, setEmailStatus] = useState(null);
 
   const load = async () => {
     try { setHooks(await api.listWebhooks()); } catch (e) { addToast(e.message, 'error'); }
+    try { setEmailStatus(await api.getEmailStatus()); } catch (e) { /* non-critical */ }
     setLoading(false);
   };
 
@@ -289,7 +293,27 @@ function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
   };
 
   return (
-    <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Email Alerts</h2>
+          {emailStatus && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, color: emailStatus.configured ? '#065f46' : '#92400e', background: emailStatus.configured ? '#d1fae5' : '#fef3c7' }}>
+              {emailStatus.configured ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+              {emailStatus.configured ? 'Enabled' : 'Not configured'}
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          Receive an email when an audit completes or fails, including validated fix results.
+          {emailStatus?.configured ? (
+            <> Delivery from <b>{emailStatus.from_email}</b> via <b>{emailStatus.host}</b>.</>
+          ) : (
+            <> Set <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4 }}>SMTP_HOST</code>, <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4 }}>SMTP_PORT</code>, <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4 }}>SMTP_USER</code>, <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4 }}>SMTP_PASSWORD</code> and <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4 }}>EMAIL_FROM</code> to enable.</>
+          )}
+        </p>
+      </div>
+      <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20 }}>Webhooks</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-webhook-url.com"
@@ -312,6 +336,87 @@ function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
           </div>
         </div>
       ))}
+      </div>
+    </div>
+  );
+}
+
+function DigestTab({ addToast }) {
+  const [status, setStatus] = useState(null);
+  const [enabled, setEnabled] = useState(true);
+  const [frequency, setFrequency] = useState('weekly');
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const load = async () => {
+    try {
+      const s = await api.getDigestStatus();
+      setStatus(s);
+      setEnabled(s.preference?.enabled ?? true);
+      setFrequency(s.preference?.frequency ?? 'weekly');
+    } catch (e) { addToast(e.message, 'error'); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const p = await api.updateDigestPreferences({ enabled, frequency });
+      setStatus(prev => ({ ...prev, preference: p }));
+      addToast('Digest preferences saved', 'success');
+    } catch (e) { addToast(e.message, 'error'); }
+    setSaving(false);
+  };
+
+  const sendNow = async () => {
+    setSending(true);
+    try {
+      await api.sendDigest();
+      addToast('Digest sent — check your inbox', 'success');
+    } catch (e) { addToast(e.message, 'error'); }
+    setSending(false);
+  };
+
+  return (
+    <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Weekly AI Coach Digest</h2>
+        {status && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, color: status.configured ? '#065f46' : '#92400e', background: status.configured ? '#d1fae5' : '#fef3c7' }}>
+            {status.configured ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+            {status.configured ? 'Email enabled' : 'SMTP not configured'}
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16 }}>
+        Get a weekly email with score movement across your sites, open critical/high issues, validated fix wins, and an AI coach priority call-out.
+        {!status?.configured && <> Set <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: 4 }}>SMTP_*</code> variables to enable delivery.</>}
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ width: 16, height: 16 }} />
+        <label style={{ fontSize: 13, color: 'var(--text-primary)' }}>Enable digest emails</label>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Frequency</label>
+        <select value={frequency} onChange={e => setFrequency(e.target.value)}
+          style={{ padding: '9px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 14 }}>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        {status?.preference?.last_sent_at && (
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Last sent: {new Date(status.preference.last_sent_at).toLocaleString()}</span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button className="btn btn-outline" onClick={sendNow} disabled={sending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Send size={14} /> {sending ? 'Sending...' : 'Send test digest now'}
+        </button>
+      </div>
     </div>
   );
 }

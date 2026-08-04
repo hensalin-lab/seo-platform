@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import datetime as _dt
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +19,8 @@ from app.api.whitelabel import router as whitelabel_router
 from app.api.oauth import router as oauth_router
 from app.api.action_studio import router as action_studio_router
 from app.api.rank_boost import router as rank_boost_router
+from app.api.digest import router as digest_router
+from app.api.rankings import router as rankings_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -39,8 +43,86 @@ async def lifespan(app: FastAPI):
     logger.info("Starting AI SEO Intelligence Platform v2.0...")
     await init_db()
     logger.info("Database initialized")
+    try:
+        from app.database import async_session
+        from app.engine.issue_cleanup import cleanup_stale_no_author_issues
+        async with async_session() as db:
+            await cleanup_stale_no_author_issues(db)
+    except Exception as e:
+        logger.warning(f"Issue cleanup failed (non-fatal): {e}")
+
+    scheduler_task = asyncio.create_task(_scheduled_audit_worker())
+    logger.info("Scheduled audit worker started")
+    digest_task = asyncio.create_task(_digest_worker())
+    logger.info("Digest worker started")
     yield
+    scheduler_task.cancel()
+    digest_task.cancel()
+    try:
+        await scheduler_task
+        await digest_task
+    except asyncio.CancelledError:
+        pass
     logger.info("Shutting down...")
+
+
+_FREQ_DAYS = {"daily": 1, "weekly": 7, "monthly": 30}
+
+
+async def _scheduled_audit_worker():
+    """Run due scheduled audits. Every 5 minutes, find scheduled audits whose
+    next_run has passed, create the Audit row, and kick off the audit task."""
+    from sqlalchemy import select
+    from app.database import async_session
+    from app.models import Audit, ScheduledAudit
+
+    while True:
+        try:
+            async with async_session() as db:
+                now = _dt.datetime.utcnow()
+                result = await db.execute(
+                    select(ScheduledAudit).where(
+                        ScheduledAudit.is_active == True,
+                        ScheduledAudit.next_run != None,
+                        ScheduledAudit.next_run <= now,
+                    )
+                )
+                due = result.scalars().all()
+                for sa in due:
+                    audit = Audit(
+                        website_url=sa.website_url,
+                        competitor_url=sa.competitor_url,
+                        status="queued",
+                        progress=0,
+                        user_id=sa.user_id,
+                    )
+                    db.add(audit)
+                    await db.flush()
+                    days = _FREQ_DAYS.get(sa.frequency, 7)
+                    sa.next_run = _dt.datetime.utcnow() + _dt.timedelta(days=days)
+                    logger.info(f"Scheduled audit triggered: {sa.website_url} -> audit {audit.id}")
+                    try:
+                        from app.api.audit import run_audit_task
+                        asyncio.create_task(run_audit_task(audit.id))
+                    except Exception as e:
+                        logger.warning(f"Could not launch scheduled audit {audit.id}: {e}")
+                if due:
+                    await db.commit()
+        except Exception as e:
+            logger.warning(f"Scheduled audit worker error (non-fatal): {e}")
+        await asyncio.sleep(300)
+
+
+async def _digest_worker():
+    """Send due AI SEO digests. Checks every 15 minutes."""
+    from app.engine.digest import check_and_send_digests
+
+    while True:
+        try:
+            await check_and_send_digests()
+        except Exception as e:
+            logger.warning(f"Digest worker error (non-fatal): {e}")
+        await asyncio.sleep(900)
 
 
 app = FastAPI(
@@ -70,6 +152,8 @@ app.include_router(whitelabel_router)
 app.include_router(oauth_router)
 app.include_router(action_studio_router)
 app.include_router(rank_boost_router)
+app.include_router(digest_router)
+app.include_router(rankings_router)
 
 
 @app.get("/api/health")

@@ -2,7 +2,7 @@ import logging
 import datetime as _dt
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, outerjoin
+from sqlalchemy import select, outerjoin, func
 from sqlalchemy.orm import selectinload
 from slowapi import Limiter
 
@@ -322,6 +322,168 @@ async def _warm_cache(audit_id: str, website_url: str):
             logger.info(f"Cache warmed for audit {audit_id}")
     except Exception as e:
         logger.error(f"Cache warming failed for {audit_id}: {e}")
+
+
+async def _notify_audit_completed(audit_id: str):
+    from app.database import async_session
+    from app.models import Audit, AuditScore, Issue, Page, FixAction, User, WhiteLabelSettings
+    from app.api.action_studio import _norm_url, _est_points
+    from app.api.webhooks import fire_webhook
+    from app.engine.emailer import send_audit_completed
+    from app.config import settings
+
+    try:
+        async with async_session() as db:
+            audit = (await db.execute(select(Audit).where(Audit.id == audit_id))).scalar_one_or_none()
+            if not audit:
+                return
+
+            website_url = audit.website_url or ""
+            prev = (await db.execute(
+                select(Audit)
+                .where(Audit.website_url == website_url, Audit.id != audit_id, Audit.status == "COMPLETED")
+                .order_by(Audit.created_at.desc())
+                .limit(1)
+            )).scalar_one_or_none()
+
+            async def _score_obj(aid):
+                return (await db.execute(select(AuditScore).where(AuditScore.audit_id == aid))).scalar_one_or_none()
+
+            current_scores = await _score_obj(audit_id)
+            prev_scores = await _score_obj(prev.id) if prev else None
+            score = round(current_scores.overall_score or 0, 1) if current_scores else None
+            score_before = round(prev_scores.overall_score or 0, 1) if prev_scores else None
+            score_delta = round(score - score_before, 1) if score is not None and score_before is not None else None
+
+            total_issues = (await db.execute(
+                select(func.count()).select_from(Issue).where(Issue.audit_id == audit_id)
+            )).scalar_one()
+            total_pages = (await db.execute(
+                select(func.count()).select_from(Page).where(Page.audit_id == audit_id)
+            )).scalar_one()
+
+            resolved = 0
+            still_present = 0
+            validated_points = None
+            if prev:
+                fixes = (await db.execute(
+                    select(FixAction).where(FixAction.audit_id == prev.id)
+                )).scalars().all()
+                if fixes:
+                    present = {
+                        (_norm_url(i.page_url), (i.signal_name or "").lower())
+                        for i in (await db.execute(select(Issue).where(Issue.audit_id == audit_id))).scalars().all()
+                    }
+                    for fix in fixes:
+                        key = (_norm_url(fix.page_url), (fix.signal_name or "").lower())
+                        if key in present:
+                            still_present += 1
+                        else:
+                            resolved += 1
+                    validated_points = round(sum(
+                        _est_points(f.severity or "LOW", f.severity or "LOW", "MEDIUM")
+                        for f in fixes if (_norm_url(f.page_url), (f.signal_name or "").lower()) not in present
+                    ), 1)
+
+            user_email = None
+            if audit.user_id:
+                user = (await db.execute(select(User).where(User.id == audit.user_id))).scalar_one_or_none()
+                if user:
+                    user_email = user.email
+                await fire_webhook(audit.user_id, "audit.completed", {
+                    "event": "audit.completed",
+                    "audit_id": audit_id,
+                    "website_url": website_url,
+                    "score": score,
+                    "score_delta": score_delta,
+                    "total_issues": total_issues,
+                    "total_pages": total_pages,
+                    "validated": {
+                        "resolved": resolved, "still_present": still_present,
+                        "validated_points": validated_points,
+                    } if prev else None,
+                })
+
+            if user_email:
+                branding = {}
+                wl = (await db.execute(select(WhiteLabelSettings).where(WhiteLabelSettings.user_id == audit.user_id))).scalar_one_or_none()
+                if wl and wl.is_active:
+                    branding = {
+                        "primary": wl.primary_color or "#3b82f6",
+                        "secondary": wl.secondary_color or "#8b5cf6",
+                        "company": wl.company_name or "",
+                        "logo": wl.logo_url or "",
+                    }
+                await send_audit_completed(
+                    user_email,
+                    website_url=website_url,
+                    audit_id=audit_id,
+                    score=score or 0,
+                    score_delta=score_delta,
+                    total_issues=total_issues,
+                    total_pages=total_pages,
+                    resolved=resolved if prev else None,
+                    still_present=still_present if prev else None,
+                    validated_points=validated_points if prev else None,
+                    app_url=settings.APP_URL or "",
+                    **branding,
+                )
+            logger.info(f"Completion notifications sent for audit {audit_id}")
+            _queue_rank_capture(audit_id)
+    except Exception as e:
+        logger.error(f"Completion notification failed for {audit_id}: {e}")
+
+
+def _queue_rank_capture(audit_id: str):
+    try:
+        import asyncio
+        from app.api.rankings import auto_capture_rankings
+        asyncio.get_running_loop().create_task(auto_capture_rankings(audit_id))
+    except Exception as e:
+        logger.warning(f"Rank capture queue failed for {audit_id}: {e}")
+
+
+async def _notify_audit_failed(audit_id: str, error: str):
+    from app.database import async_session
+    from app.models import Audit, User, WhiteLabelSettings
+    from app.api.webhooks import fire_webhook
+    from app.engine.emailer import send_audit_failed
+    from app.config import settings
+
+    try:
+        async with async_session() as db:
+            audit = (await db.execute(select(Audit).where(Audit.id == audit_id))).scalar_one_or_none()
+            if not audit:
+                return
+            website_url = audit.website_url or ""
+            user_email = None
+            if audit.user_id:
+                user = (await db.execute(select(User).where(User.id == audit.user_id))).scalar_one_or_none()
+                if user:
+                    user_email = user.email
+                await fire_webhook(audit.user_id, "audit.failed", {
+                    "event": "audit.failed",
+                    "audit_id": audit_id,
+                    "website_url": website_url,
+                    "error": (error or "")[:500],
+                })
+            if user_email:
+                branding = {}
+                wl = (await db.execute(select(WhiteLabelSettings).where(WhiteLabelSettings.user_id == audit.user_id))).scalar_one_or_none()
+                if wl and wl.is_active:
+                    branding = {
+                        "primary": wl.primary_color or "#3b82f6",
+                        "secondary": wl.secondary_color or "#8b5cf6",
+                        "company": wl.company_name or "",
+                        "logo": wl.logo_url or "",
+                    }
+                await send_audit_failed(
+                    user_email, website_url=website_url, audit_id=audit_id,
+                    error=error, app_url=settings.APP_URL or "", **branding,
+                )
+            logger.info(f"Failure notifications sent for audit {audit_id}")
+    except Exception as e:
+        logger.error(f"Failure notification failed for {audit_id}: {e}")
 
 
 async def run_audit_task(audit_id: str):
@@ -778,6 +940,7 @@ async def run_audit_task(audit_id: str):
 
             import asyncio
             asyncio.create_task(_warm_cache(audit_id, website_url))
+            asyncio.create_task(_notify_audit_completed(audit_id))
 
         except Exception as e:
             logger.error(f"Audit {audit_id} failed: {e}", exc_info=True)
@@ -791,3 +954,5 @@ async def run_audit_task(audit_id: str):
                     await db.commit()
             except Exception:
                 pass
+            import asyncio
+            asyncio.create_task(_notify_audit_failed(audit_id, str(e)))

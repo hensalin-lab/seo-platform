@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     OPENROUTER_MODEL: str = "openai/gpt-4o"
     OPENROUTER_MODEL_REWRITE: str = "qwen/qwen3-235b-a22b"
     OPENROUTER_MODEL_COMPETITOR: str = "deepseek/deepseek-chat-v3-0324"
-    OPENROUTER_MODEL_FREE: str = "qwen/qwen3-30b-a3b:free"
-    OPENROUTER_TIMEOUT: int = 30
+    OPENROUTER_MODEL_FREE: str = "poolside/laguna-s-2.1:free"
+    OPENROUTER_TIMEOUT: int = 80
 
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
@@ -84,6 +84,17 @@ class Settings(BaseSettings):
 
     DATAFORSEO_LOGIN: str = ""
     DATAFORSEO_PASSWORD: str = ""
+
+    SERP_API_KEY: str = ""
+
+    INDEXNOW_KEY: str = ""
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = ""
+    APP_URL: str = "https://seo-platform-xi.vercel.app"
 
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 

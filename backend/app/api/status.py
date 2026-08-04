@@ -245,6 +245,54 @@ def _strip_tail_punct(s: str) -> str:
     return re.sub(r"[\s.?!;:]+$", "", s or "").rstrip()
 
 
+def _og_get(open_graph, key: str):
+    """open_graph is stored as a JSON string column; return value or None."""
+    if not open_graph:
+        return None
+    if isinstance(open_graph, dict):
+        return open_graph.get(key)
+    if isinstance(open_graph, str):
+        try:
+            data = json.loads(open_graph)
+        except Exception:
+            return None
+        return data.get(key) if isinstance(data, dict) else None
+    return None
+
+
+_VOWELS = set("aeiouy")
+
+
+def _fast_syllables(word: str) -> int:
+    word = (word or "").lower()
+    if not word:
+        return 0
+    count = 0
+    prev_vowel = False
+    for ch in word:
+        is_v = ch in _VOWELS
+        if is_v and not prev_vowel:
+            count += 1
+        prev_vowel = is_v
+    if word.endswith("e") and count > 1 and not word.endswith(("le", "me", "ne")):
+        count -= 1
+    return max(1, count)
+
+
+def _page_readability(text: str):
+    """Fast Flesch-style readability. Returns (reading_ease 0-100, grade level) or None."""
+    sentences = [s for s in re.split(r"[.!?]+", text or "") if s.strip()]
+    words = re.findall(r"[A-Za-z']+", text or "")
+    if len(words) < 20 or len(sentences) < 2:
+        return None
+    total_syl = sum(_fast_syllables(w) for w in words)
+    wps = len(words) / len(sentences)
+    spw = total_syl / max(len(words), 1)
+    ease = max(0.0, min(100.0, 206.835 - 1.015 * wps - 84.6 * spw))
+    grade = max(0.0, 0.39 * wps + 11.8 * spw - 15.59)
+    return ease, grade
+
+
 def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dict:
     name = signal_name or ""
     lower = name.lower()
@@ -458,6 +506,100 @@ async def get_competitor_data(audit_id: str, db: AsyncSession = Depends(get_db))
         "backlink_gap": (comp.backlink_gap if comp else []) or [],
         "serp_gap": (comp.serp_gap if comp else []) or [],
         "intelligence_analysis": analysis,
+    }
+
+
+@router.post("/audit/{audit_id}/competitor/analyze")
+async def run_competitor_analysis(audit_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Crawl the competitor for real, compute comparison + how-to-improve gaps, store, return."""
+    body = {}
+    try:
+        body = await request.json() or {}
+    except Exception:
+        pass
+
+    comp_url = (body.get("competitor_url") or "").strip().rstrip("/")
+    if comp_url and not comp_url.startswith("http"):
+        comp_url = "https://" + comp_url
+
+    audit = (await db.execute(select(Audit).where(Audit.id == audit_id))).scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    if comp_url:
+        audit.competitor_url = comp_url
+        await db.commit()
+    if not audit.competitor_url:
+        raise HTTPException(status_code=400, detail="Provide a competitor_url")
+
+    my_pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    if not my_pages:
+        raise HTTPException(status_code=400, detail="No pages in this audit")
+
+    from app.engine.crawler import CrawlerEngine
+    from app.engine.competitor import CompetitorEngine
+    from app.engine.competitor_intelligence import CompetitorIntelligenceEngine
+    from app.engine.crawl_snapshot import build_snapshots
+
+    comp_pages = []
+    comp_crawler = CrawlerEngine()
+    try:
+        try:
+            comp_pages = await comp_crawler.crawl(audit.competitor_url, max_pages=20)
+        except Exception as e:
+            logger.warning("Competitor crawl failed for %s: %s", audit.competitor_url, e)
+    finally:
+        await comp_crawler.close()
+
+    my_snaps = build_snapshots(my_pages)
+    comp_snaps = build_snapshots(comp_pages) if comp_pages else []
+
+    if comp_snaps:
+        basic = CompetitorEngine().analyze(my_snaps, comp_snaps)
+        deep = CompetitorIntelligenceEngine().analyze(my_snaps, {audit.competitor_url: comp_snaps})
+    else:
+        basic = {}
+        deep = {
+            "my_profile": CompetitorIntelligenceEngine().crawler.analyze_competitor(my_snaps, ""),
+            "competitors": {},
+            "gaps": {},
+            "competitive_position": {},
+            "dimensions_analyzed": [],
+            "error": f"Could not crawl {audit.competitor_url}",
+        }
+
+    fields = {
+        "competitor_url": audit.competitor_url,
+        "keyword_opportunities": basic.get("keyword_opportunities", []),
+        "content_opportunities": basic.get("content_opportunities", []),
+        "entity_gaps": basic.get("entity_gaps", []),
+        "topic_gaps": basic.get("topic_gaps", []),
+        "seo_comparison": basic.get("seo_comparison", {}),
+        "strengths": basic.get("strengths", []),
+        "weaknesses": basic.get("weaknesses", []),
+        "winning_strategy": basic.get("winning_strategy", []),
+        "backlink_gap": {"_deep": deep},
+        "serp_gap": basic.get("serp_gap", []),
+    }
+    existing = (await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))).scalar_one_or_none()
+    if existing:
+        for k, v in fields.items():
+            setattr(existing, k, v)
+    else:
+        db.add(CompetitorData(audit_id=audit_id, **fields))
+    await db.commit()
+
+    return {
+        "competitor_url": audit.competitor_url,
+        "keyword_opportunities": fields["keyword_opportunities"],
+        "content_opportunities": fields["content_opportunities"],
+        "entity_gaps": fields["entity_gaps"],
+        "topic_gaps": fields["topic_gaps"],
+        "seo_comparison": fields["seo_comparison"],
+        "strengths": fields["strengths"],
+        "weaknesses": fields["weaknesses"],
+        "winning_strategy": fields["winning_strategy"],
+        "serp_gap": fields["serp_gap"],
+        "deep": deep,
     }
 
 
@@ -756,6 +898,7 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
     result = {
         "ai_visibility_score": ai_visibility_score,
         "score_source": score_source,
+        "data_source": {"live": "measured", "signals": "estimated", "stored": "simulated"}.get(score_source, "simulated"),
         "chatgpt_visibility": chatgpt_avg,
         "gemini_visibility": gemini_avg,
         "perplexity_visibility": perplexity_avg,
@@ -1249,6 +1392,7 @@ async def get_page_speed(audit_id: str, db: AsyncSession = Depends(get_db)):
     speed_grade = "A" if speed_score >= 90 else "B" if speed_score >= 80 else "C" if speed_score >= 70 else "D" if speed_score >= 60 else "F"
     return {
         "total_pages": total,
+        "data_source": "crawler",
         "avg_response_time_ms": round(avg_time),
         "speed_score": speed_score,
         "speed_grade": speed_grade,
@@ -1283,7 +1427,7 @@ async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     seo_issues = issues_result.scalars().all()
     eeat_signals = {
         "author_signals": len([p for p in pages if p.content_text and "author" in p.content_text.lower()]),
-        "date_signals": len([p for p in pages if p.open_graph and p.open_graph.get("article:published_time")]),
+        "date_signals": len([p for p in pages if _og_get(p.open_graph, "article:published_time")]),
         "source_signals": len([p for p in pages if p.links_external and len(p.links_external) > 0]),
         "expertise_signals": len([p for p in pages if p.word_count and p.word_count > 500]),
         "trust_signals": len([p for p in pages if p.canonical]),
@@ -1308,7 +1452,7 @@ async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
 
         elif "multiple h1" in signal:
             if page:
-                headings = page.headings or []
+                headings = page.headers or []
                 if isinstance(headings, str):
                     try:
                         headings = json.loads(headings)
@@ -2409,41 +2553,77 @@ async def get_content_revival(audit_id: str, db: AsyncSession = Depends(get_db))
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
 
+    JUNK_URL_PATTERNS = [
+        "login", "log-in", "signup", "sign-up", "register", "account", "checkout",
+        "cart", "wishlist", "privacy", "terms", "conditions", "thank-you", "thankyou",
+        "404", "page-not-found", "wp-login", "wp-admin", "admin", "dashboard",
+        "password", "forgot", "reset", "cookie", "legal", "disclaimer", "imprint",
+        "sitemap", "feed", "rss", ".xml", ".pdf", ".jpg", ".png", ".css", ".js",
+        "mailto:", "tel:", "javascript:", "#", "cdn", "assets", "images",
+    ]
+
+    def _is_content_page(url, title):
+        u = url.lower()
+        t = (title or "").lower()
+        if any(p in u for p in JUNK_URL_PATTERNS):
+            return False
+        if any(p in t for p in ("privacy", "terms", "thank you", "404", "login", "sign up", "register")):
+            return False
+        return True
+
+    def _topic_for(title, h1):
+        raw = (title or h1 or "").strip()
+        raw = re.sub(r"\s*[|\-–—·:]\s*.{0,60}$", "", raw)
+        raw = re.sub(r"\s*[|\-–—·:]\s*.{0,40}$", "", raw)
+        raw = re.sub(r"\b(home|homepage|index|page|blog)\b", "", raw, flags=re.I).strip()
+        raw = re.sub(r"\s{2,}", " ", raw).strip(" |–—·:-")
+        return raw[:60] or "the page"
+
     thin_content = []
     outdated_content = []
     orphan_pages = []
 
     for page in pages:
+        if not _is_content_page(page.url, page.title):
+            continue
         word_count = page.word_count or 0
         signals = page.signals or {}
         if word_count > 0 and word_count < 300:
+            topic = _topic_for(page.title, page.h1)
             thin_content.append({
                 "url": page.url, "title": page.title or "Untitled", "word_count": word_count,
-                "recommended_minimum": 1500, "gap": 1500 - word_count,
+                "topic": topic, "recommended_minimum": 1500, "gap": 1500 - word_count,
                 "severity": "CRITICAL" if word_count < 100 else "HIGH",
-                "suggestion": f"Increase content from {word_count} to at least 1,500 words with comprehensive coverage.",
+                "suggestion": f"Expand your {topic} content from {word_count} to at least 1,500 words covering subtopics, use cases, and FAQs.",
             })
         has_date_schema = any(isinstance(s, dict) and s.get("@type") in ("Article", "BlogPosting", "NewsArticle") for s in (page.schema_markup or []))
         if 0 < word_count < 800 and not has_date_schema:
+            topic = _topic_for(page.title, page.h1)
             outdated_content.append({
                 "url": page.url, "title": page.title or "Untitled", "word_count": word_count,
-                "severity": "MEDIUM",
+                "topic": topic, "severity": "MEDIUM",
                 "reason": "Short content without date markup suggests stale page",
-                "suggestion": "Add datePublished/dateModified schema, update content, expand to 1,500+ words.",
+                "suggestion": f"Add datePublished/dateModified schema to your {topic} page, update the copy with current data, and expand to 1,500+ words.",
             })
         internal_links = page.links_internal or []
         external_links = page.links_external or []
         if len(internal_links) + len(external_links) == 0 and word_count > 0:
+            topic = _topic_for(page.title, page.h1)
             orphan_pages.append({
                 "url": page.url, "title": page.title or "Untitled", "word_count": word_count,
-                "severity": "HIGH",
+                "topic": topic, "severity": "HIGH",
                 "reason": "Orphan page - no internal or external links found",
-                "suggestion": "Add internal links from relevant pages and contextual external links.",
+                "suggestion": f"Add internal links to your {topic} page from related articles and add contextual external citations.",
             })
 
-    total = len(pages)
+    total = sum(1 for p in pages if _is_content_page(p.url, p.title))
     thin_pct = (len(thin_content) / max(total, 1)) * 100
-    freshness_score = round(max(0, 100 - thin_pct * 2 - len(outdated_content) * 5 - len(orphan_pages) * 3), 1)
+    outdated_pct = (len(outdated_content) / max(total, 1)) * 100
+    orphan_pct = (len(orphan_pages) / max(total, 1)) * 100
+    thin_pen = min(40, thin_pct * 1.5)
+    outdated_pen = min(40, outdated_pct * 2.5)
+    orphan_pen = min(20, orphan_pct * 2.0)
+    freshness_score = round(max(0, 100 - thin_pen - outdated_pen - orphan_pen), 1)
 
     return {
         "audit_id": audit_id,
@@ -3257,6 +3437,22 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
     score = scores.content_score if scores else 50
     score = round(score)
 
+    read_eases = []
+    read_grades = []
+    measured = 0
+    for p in pages:
+        if not (p.content_text or "").strip():
+            continue
+        res = _page_readability(p.content_text)
+        if res:
+            read_eases.append(res[0])
+            read_grades.append(res[1])
+            measured += 1
+        if measured >= 150:
+            break
+    readability_score = round(sum(read_eases) / max(len(read_eases), 1)) if read_eases else None
+    avg_reading_grade = round(sum(read_grades) / max(len(read_grades), 1), 1) if read_grades else None
+
     recs = []
     if len(thin) > 0:
         recs.append({"priority": "HIGH", "action": f"Expand {len(thin)} thin content pages ({thin_pct}% of site) to 1,500+ words", "impact": "Thin content rarely ranks and hurts site authority"})
@@ -3272,6 +3468,9 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
 
     return {
         "content_quality_score": score,
+        "readability_score": readability_score,
+        "avg_reading_grade": avg_reading_grade,
+        "pages_measured": measured,
         "total_pages": total,
         "avg_word_count": avg_words,
         "thin_content_count": len(thin),
@@ -3286,6 +3485,123 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
         "top_content_pages": [{"url": p.url, "word_count": p.word_count or 0, "title": p.title or ""} for p in sorted(pages, key=lambda x: x.word_count or 0, reverse=True)[:10]],
         "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in content_issues[:30]],
         "recommendations": recs,
+    }
+
+
+@router.get("/audit/{audit_id}/ai-overviews")
+async def get_ai_overviews(audit_id: str, limit: int = 6, db: AsyncSession = Depends(get_db)):
+    """Live AI Overviews check: for the audit's top keywords, does the site actually appear in Google AI Overviews?
+
+    Requires SERP_API_KEY to be configured. Returns a clear 'configured: false' state otherwise.
+    """
+    import httpx
+
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    domain = _normalize_url(audit.website_url)
+    host = re.sub(r"^https?://", "", domain).split("/")[0].lower()
+
+    from app.config import settings
+    if not settings.SERP_API_KEY:
+        return {
+            "configured": False,
+            "domain": host,
+            "message": "Set SERP_API_KEY (SerpAPI) in backend env to enable live AI Overview monitoring.",
+            "results": [],
+            "summary": {"keywords_checked": 0, "with_ai_overview": 0, "mentioned_in_ai_overview": 0},
+        }
+
+    kw_result = await db.execute(
+        select(KeywordRecord).where(KeywordRecord.audit_id == audit_id).order_by(KeywordRecord.frequency.desc()).limit(limit)
+    )
+    keywords = [k.keyword for k in kw_result.scalars().all() if k.keyword and len(k.keyword) > 2][:limit]
+
+    if not keywords:
+        try:
+            from app.engine.keyword_research import KeywordResearchEngine
+            from app.engine.crawler import PageData
+            pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+            pages = pages_result.scalars().all()
+            page_objects = []
+            for p in pages:
+                pd = PageData()
+                pd.url = p.url
+                pd.title = p.title or ""
+                pd.h1 = p.h1 or ""
+                pd.meta_description = p.meta_description or ""
+                pd.content_text = p.content_text or ""
+                pd.word_count = p.word_count or 0
+                page_objects.append(pd)
+            research = KeywordResearchEngine().analyze(pages=page_objects, competitor_pages=None, gsc_data=None)
+            candidates = research.get("keywords", []) if isinstance(research, dict) else []
+            for c in candidates[:limit]:
+                if isinstance(c, dict):
+                    k = c.get("keyword") or c.get("term")
+                else:
+                    k = str(c)
+                if k and len(k) > 2:
+                    keywords.append(k)
+        except Exception as e:
+            logger.warning(f"AI Overviews keyword fallback failed: {e}")
+
+    results = []
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            for keyword in keywords[:limit]:
+                try:
+                    r = await client.get(
+                        "https://serpapi.com/search",
+                        params={"engine": "google", "q": keyword, "num": 10, "api_key": settings.SERP_API_KEY, "ai_overview": "true"},
+                    )
+                    data = r.json()
+                    raw = r.text
+                    ai_text = ""
+                    ao = data.get("ai_overview")
+                    if isinstance(ao, dict):
+                        ai_text = ao.get("text") or ao.get("answer") or json.dumps(ao)
+                    elif isinstance(ao, str):
+                        ai_text = ao
+                    elif '"ai_overview"' in raw:
+                        ai_text = raw
+
+                    has_ai_overview = bool(ai_text and len(ai_text) > 20)
+                    low = (ai_text or "").lower()
+                    mentioned = bool(has_ai_overview and (host in low or host.split(".")[0] in low))
+
+                    cited_domains = []
+                    try:
+                        for o in (data.get("organic_results") or [])[:5]:
+                            link = (o.get("link") or "") if isinstance(o, dict) else ""
+                            m = re.search(r"https?://(?:www\.)?([^/]+)", link)
+                            if m:
+                                cited_domains.append(m.group(1))
+                    except Exception:
+                        pass
+
+                    results.append({
+                        "keyword": keyword,
+                        "has_ai_overview": has_ai_overview,
+                        "mentioned_in_ai_overview": mentioned,
+                        "ai_overview_text": (ai_text[:400] + "...") if has_ai_overview else "",
+                        "top_cited_domains": cited_domains,
+                    })
+                except Exception as e:
+                    logger.warning(f"SerpAPI AI overview check failed for '{keyword}': {e}")
+                    results.append({"keyword": keyword, "has_ai_overview": False, "mentioned_in_ai_overview": False, "ai_overview_text": "", "error": str(e)})
+    except Exception as e:
+        logger.warning(f"AI Overviews probe failed: {e}")
+
+    with_ao = sum(1 for x in results if x.get("has_ai_overview"))
+    mentioned = sum(1 for x in results if x.get("mentioned_in_ai_overview"))
+    return {
+        "configured": True,
+        "domain": host,
+        "checked_at": _dt.datetime.utcnow().isoformat(),
+        "results": results,
+        "summary": {"keywords_checked": len(results), "with_ai_overview": with_ao, "mentioned_in_ai_overview": mentioned},
     }
 
 
@@ -3730,6 +4046,8 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
     research = engine.analyze(pages=page_objects, competitor_pages=None, gsc_data=None)
 
     research["summary"]["total_internal_keywords"] = len(internal_kws)
+    research["data_source"] = "estimated"
+    research["data_source_note"] = "Keyword volume, difficulty and intent are estimated from crawled content. Connect DataForSEO credentials for live search-volume data."
 
     _cache_set(cache_key, research)
     return research
@@ -4777,6 +5095,11 @@ async def get_competitor_deep(audit_id: str, page_idx: int, db: AsyncSession = D
 
     comp_result = await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))
     comp_data = comp_result.scalar_one_or_none()
+
+    if comp_data and isinstance(comp_data.backlink_gap, dict):
+        stored_deep = comp_data.backlink_gap.get("_deep")
+        if isinstance(stored_deep, dict) and (stored_deep.get("competitive_position") or stored_deep.get("competitors")):
+            return stored_deep
 
     page_adapters = [PageAdapter(pages[page_idx])]
 

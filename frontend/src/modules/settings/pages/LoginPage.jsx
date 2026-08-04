@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useToast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 import { LogIn, Mail, Lock } from 'lucide-react';
@@ -9,14 +9,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
+  const from = location.state?.from || '/';
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       await login(email, password);
       addToast('Logged in successfully', 'success');
-      navigate('/');
+      navigate(from, { replace: true });
     } catch (err) {
       addToast(err.message || 'Login failed', 'error');
     }
@@ -27,7 +29,9 @@ export default function LoginPage() {
       <div style={{ width: 400, padding: 40, background: 'var(--bg-secondary)', borderRadius: 12, border: '1px solid var(--border)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>SEO Intel</div>
-          <div style={{ color: 'var(--text-secondary)', marginTop: 8 }}>Sign in to your account</div>
+          <div style={{ color: 'var(--text-secondary)', marginTop: 8 }}>
+            {from && from !== '/' ? 'Sign in to continue to the requested page' : 'Sign in to your account'}
+          </div>
         </div>
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 16 }}>

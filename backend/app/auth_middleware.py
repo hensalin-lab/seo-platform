@@ -9,8 +9,8 @@ from app.auth import decode_access_token
 logger = logging.getLogger(__name__)
 
 PUBLIC_PATHS = {
-    "/api/health",
     "/",
+    "/api/health",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -19,10 +19,34 @@ PUBLIC_PATHS = {
 PUBLIC_PREFIXES = [
     "/api/auth/register",
     "/api/auth/login",
-    "/api/audit/status/",
+    "/api/oauth/",
 ]
 
 PUBLIC_METHODS = {"OPTIONS", "HEAD"}
+
+_AUDIT_ID_RE = re.compile(r"/api/audit/(?:status/)?([a-f0-9-]+)")
+_MEGA_RE = re.compile(r"/api/(?:mega-analysis|full-strategy|all-pages-mega)/([a-f0-9-]+)")
+
+
+def _is_public(path: str, method: str) -> bool:
+    if method in PUBLIC_METHODS:
+        return True
+    if path in PUBLIC_PATHS:
+        return True
+    for prefix in PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    return False
+
+
+def _extract_audit_id(path: str) -> str | None:
+    m = _AUDIT_ID_RE.match(path)
+    if m:
+        return m.group(1)
+    m = _MEGA_RE.match(path)
+    if m:
+        return m.group(1)
+    return None
 
 
 async def _extract_user_id(request: Request) -> str | None:
@@ -50,86 +74,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method
 
-        if method in PUBLIC_METHODS:
+        if _is_public(path, method):
             return await call_next(request)
 
-        if path in PUBLIC_PATHS:
-            return await call_next(request)
-
-        for prefix in PUBLIC_PREFIXES:
-            if path.startswith(prefix):
-                return await call_next(request)
-
-        if path.startswith("/api/audit/"):
-            is_status_poll = path.startswith("/api/audit/status/")
-            is_post_like = method in ("POST", "PUT", "DELETE", "PATCH")
-
-            if is_status_poll and method in ("GET", "HEAD"):
-                return await call_next(request)
-
-            if path == "/api/audit/history" and method == "GET":
-                user_id = await _extract_user_id(request)
-                if not user_id:
-                    return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
-                request.state.user_id = user_id
-                return await call_next(request)
-
-            if path == "/api/audit/start" and method == "POST":
-                user_id = await _extract_user_id(request)
-                if not user_id:
-                    return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
-                request.state.user_id = user_id
-                return await call_next(request)
-
-            if is_post_like:
-                user_id = await _extract_user_id(request)
-                if not user_id:
-                    return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
-                request.state.user_id = user_id
-
-                if not is_status_poll:
-                    audit_id_match = re.match(r"/api/audit/([a-f0-9-]+)", path)
-                    if audit_id_match:
-                        audit_id = audit_id_match.group(1)
-                        owner = await self._check_audit_owner(audit_id, user_id)
-                        if owner is False:
-                            return JSONResponse(status_code=403, content={"detail": "Access denied"})
-
-                return await call_next(request)
-
-            if method in ("GET", "HEAD", "DELETE"):
-                user_id = await _extract_user_id(request)
-                if user_id:
-                    request.state.user_id = user_id
-                else:
-                    request.state.user_id = None
-
-                if method == "DELETE":
-                    if not user_id:
-                        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
-                    audit_id_match = re.match(r"/api/audit/([a-f0-9-]+)$", path)
-                    if audit_id_match:
-                        audit_id = audit_id_match.group(1)
-                        owner = await self._check_audit_owner(audit_id, user_id)
-                        if owner is False:
-                            return JSONResponse(status_code=403, content={"detail": "Access denied"})
-
-                if user_id:
-                    audit_id_match = re.match(r"/api/audit/([a-f0-9-]+)", path)
-                    if audit_id_match:
-                        audit_id = audit_id_match.group(1)
-                        owner = await self._check_audit_owner(audit_id, user_id)
-                        if owner is False:
-                            return JSONResponse(status_code=403, content={"detail": "Access denied"})
-
-                return await call_next(request)
-
-        if path == "/api/portfolio":
+        # Everything else under /api requires authentication (default-deny).
+        if path.startswith("/api"):
             user_id = await _extract_user_id(request)
             if not user_id:
                 return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
             request.state.user_id = user_id
-            return await call_next(request)
+
+            audit_id = _extract_audit_id(path)
+            if audit_id:
+                owner = await self._check_audit_owner(audit_id, user_id)
+                if owner is False:
+                    return JSONResponse(status_code=403, content={"detail": "Access denied"})
 
         return await call_next(request)
 

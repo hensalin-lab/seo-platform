@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Sparkles, AlertTriangle, MapPin, FileText, CheckCircle2, Circle,
-  RefreshCw, Copy, Wrench, Search, ArrowRight, Target
+  RefreshCw, Copy, Wrench, Search, ArrowRight, Target,
+  TrendingUp, ShieldCheck, History, ListOrdered, Flame, Send
 } from 'lucide-react';
 import { api } from '../../../api';
 import { useToast } from '../../../components/Toast';
@@ -79,15 +80,12 @@ export default function ActionStudio() {
   const [severityFilter, setSeverityFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [query, setQuery] = useState('');
-  const [done, setDone] = useState({});
+  const [fixes, setFixes] = useState({});
+  const [fixLoading, setFixLoading] = useState(false);
+  const [validation, setValidation] = useState(null);
+  const [indexnow, setIndexnow] = useState(null);
+  const [pushing, setPushing] = useState(false);
   const [generating, setGenerating] = useState({});
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(`action-studio-done:${id}`) || '{}');
-      setDone(stored);
-    } catch (e) { /* ignore */ }
-  }, [id]);
 
   const load = async () => {
     setLoading(true);
@@ -104,12 +102,67 @@ export default function ActionStudio() {
 
   useEffect(() => { load(); }, [id]);
 
-  const toggleDone = (actionId) => {
-    setDone(prev => {
-      const next = { ...prev, [actionId]: !prev[actionId] };
-      localStorage.setItem(`action-studio-done:${id}`, JSON.stringify(next));
-      return next;
-    });
+  useEffect(() => {
+    let cancelled = false;
+    api.request(`/audit/${id}/fixes`).then((res) => {
+      if (cancelled) return;
+      const map = {};
+      (res.fixes || []).forEach(f => { map[f.issue_id] = f; });
+      setFixes(map);
+    }).catch(() => {});
+    api.request(`/audit/${id}/fix-validation`).then((res) => {
+      if (!cancelled) setValidation(res);
+    }).catch(() => {});
+    api.request(`/audit/${id}/indexnow/status`).then((res) => {
+      if (!cancelled) setIndexnow(res);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
+
+  const toggleDone = async (issueId) => {
+    if (fixLoading) return;
+    const existing = fixes[issueId];
+    setFixLoading(true);
+    try {
+      if (existing) {
+        await api.request(`/audit/${id}/fixes/${existing.id}`, { method: 'DELETE' });
+        setFixes(prev => { const next = { ...prev }; delete next[issueId]; return next; });
+        addToast('Fix marked as not applied', 'info');
+      } else {
+        const res = await api.request(`/audit/${id}/fixes`, {
+          method: 'POST',
+          body: JSON.stringify({ issue_id: issueId }),
+        });
+        setFixes(prev => ({ ...prev, [issueId]: { id: res.id, issue_id: issueId } }));
+        addToast('Fix marked as applied', 'success');
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to update fix status', 'error');
+    } finally {
+      setFixLoading(false);
+    }
+  };
+
+  const pushIndexNow = async () => {
+    if (pushing) return;
+    setPushing(true);
+    try {
+      const res = await api.request(`/audit/${id}/indexnow/push`, { method: 'POST', body: JSON.stringify({}) });
+      if (res.configured === false) {
+        addToast(res.message || 'IndexNow not configured', 'warning');
+      } else if (res.submitted > 0) {
+        addToast(`${res.submitted} URL${res.submitted > 1 ? 's' : ''} pushed to IndexNow`, 'success');
+        setIndexnow(prev => ({ ...prev, applied_fix_urls: 0 }));
+      } else if (res.error) {
+        addToast(res.error, 'error');
+      } else {
+        addToast(res.message || 'Nothing to push', 'info');
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to push to IndexNow', 'error');
+    } finally {
+      setPushing(false);
+    }
   };
 
   const generateFix = async (action) => {
@@ -172,7 +225,7 @@ export default function ActionStudio() {
   const summary = data?.summary || {};
   const bySeverity = summary.by_severity || {};
   const total = summary.total_actions || 0;
-  const doneCount = Object.values(done).filter(Boolean).length;
+  const doneCount = Object.keys(fixes).length;
   const donePct = total ? Math.round((doneCount / total) * 100) : 0;
 
   return (
@@ -213,13 +266,164 @@ export default function ActionStudio() {
 
         <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
-            <span>{doneCount} of {total} done</span>
+            <span>{doneCount} of {total} applied</span>
             <span>{donePct}%</span>
           </div>
           <div style={{ height: 8, background: 'var(--bg-secondary)', borderRadius: 4, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${donePct}%`, background: 'linear-gradient(90deg, #22c55e, #3b82f6)', borderRadius: 4, transition: 'width 0.3s' }} />
           </div>
         </div>
+
+        {/* Impact roadmap */}
+        {data?.impact_plan?.batches?.length > 0 && (
+          <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Flame size={16} color="#f97316" />
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>What to fix first — ranked by impact</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Score now <b style={{ color: 'var(--text)' }}>{data.summary.current_score}</b> → fixing all <b style={{ color: 'var(--text)' }}>+{data.impact_plan.total_points} pts</b> →
+                projected <b style={{ color: '#22c55e' }}>{data.impact_plan.projected_score_full}</b>
+              </div>
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Fixes grouped in batches of 3, highest estimated score gain first. Click a fix to jump to its card below.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+              {data.impact_plan.batches.map((b, bi) => (
+                <div key={bi} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', background: 'var(--bg-page)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      Batch {bi + 1} · {b.count} fixes
+                    </span>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 800, color: '#16a34a' }}>+{b.cumulative_points} pts</span>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>projected {b.projected_score}</div>
+                    </div>
+                  </div>
+                  {b.actions.map(a => (
+                    <button key={a.issue_id}
+                      onClick={() => document.getElementById(`action-${a.issue_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', marginBottom: 5, cursor: 'pointer' }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 12, background: SEVERITY_COLORS[a.priority] || '#6b7280', color: '#fff', flexShrink: 0 }}>{a.priority}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.what}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', flexShrink: 0 }}>+{a.est_points_gain}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            {data.impact_plan.by_category && Object.keys(data.impact_plan.by_category).length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+                {Object.entries(data.impact_plan.by_category).map(([cat, v]) => (
+                  <span key={cat} style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
+                    {cat} · {v.count} fixes · <span style={{ color: '#16a34a' }}>+{v.points} pts</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fix validation */}
+        <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <ShieldCheck size={16} color="#22c55e" />
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>Fix validation</span>
+            {validation?.newer_audit_id && (
+              <a href={`/audit/${validation.newer_audit_id}/action-studio`} style={{ fontSize: 11.5, color: 'var(--accent)', textDecoration: 'none', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <History size={12} /> Validated against latest audit <ArrowRight size={11} />
+              </a>
+            )}
+          </div>
+          {!validation ? (
+            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Loading validation…</div>
+          ) : validation.newer_audit_id ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{validation.applied_count}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>FIXES APPLIED</div>
+                </div>
+                <div style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a' }}>{validation.resolved}</div>
+                  <div style={{ fontSize: 10.5, color: '#16a34a', fontWeight: 600 }}>RESOLVED</div>
+                </div>
+                <div style={{ background: 'rgba(239,68,68,0.08)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#ef4444' }}>{validation.still_present}</div>
+                  <div style={{ fontSize: 10.5, color: '#ef4444', fontWeight: 600 }}>STILL PRESENT</div>
+                </div>
+                {validation.score_delta != null && (
+                  <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '8px 12px' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: validation.score_delta >= 0 ? '#16a34a' : '#ef4444' }}>
+                      {validation.score_delta >= 0 ? '+' : ''}{validation.score_delta}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>
+                      SCORE {validation.score_before} → {validation.score_after}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                {validation.items.map(it => (
+                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+                      background: it.status === 'RESOLVED' ? 'rgba(34,197,94,0.12)' : it.status === 'STILL_PRESENT' ? 'rgba(239,68,68,0.12)' : 'rgba(107,114,128,0.12)',
+                      color: it.status === 'RESOLVED' ? '#16a34a' : it.status === 'STILL_PRESENT' ? '#ef4444' : '#6b7280' }}>
+                      {it.status === 'RESOLVED' ? 'Resolved' : it.status === 'STILL_PRESENT' ? 'Still present' : 'Unchecked'}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.signal_name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>{it.page_url}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : validation.applied_count > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--text-muted)' }}>
+              <RefreshCw size={13} /> {validation.applied_count} fix{validation.applied_count > 1 ? 'es' : ''} marked as applied — run a new audit to validate which ones are actually resolved.
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+              Mark fixes as <strong style={{ color: 'var(--text)' }}>applied</strong> below to build a validated win list. After you re-run the audit, this panel shows exactly which fixes are resolved and how your score moved.
+            </div>
+          )}
+        </div>
+
+        {/* IndexNow */}
+        {indexnow && (
+          <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Send size={16} color={indexnow.configured ? '#3b82f6' : '#9ca3af'} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>IndexNow</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: indexnow.configured ? 'rgba(34,197,94,0.12)' : 'var(--bg-secondary)', color: indexnow.configured ? '#16a34a' : 'var(--text-muted)' }}>
+                {indexnow.configured ? 'Configured' : 'Not configured'}
+              </span>
+            </div>
+            {indexnow.configured ? (
+              <>
+                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10 }}>
+                  Ask search engines to re-crawl the pages you've fixed — host <b style={{ color: 'var(--text)' }}>{indexnow.host}</b>, key file at{' '}
+                  <span style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{indexnow.key_location}</span>.
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <button onClick={pushIndexNow} disabled={pushing || (indexnow.applied_fix_urls === 0 && !pushing)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}>
+                    {pushing ? <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={13} />}
+                    {pushing ? 'Pushing…' : `Push ${indexnow.applied_fix_urls} applied-fix URL${indexnow.applied_fix_urls === 1 ? '' : 's'} to IndexNow`}
+                  </button>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                    {indexnow.applied_fix_urls === 0 ? 'Mark fixes as applied above to push them. Falls back to all crawled pages.' : 'Sends one request with all changed URLs.'}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                {indexnow.setup_help || 'Set INDEXNOW_KEY in the backend environment to enable instant re-indexing of fixed pages.'}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(s => (
@@ -248,7 +452,7 @@ export default function ActionStudio() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>No issues match the current filters.</p>
           </div>
         ) : filtered.map(action => (
-          <div key={action.issue_id} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 12, overflow: 'hidden', opacity: done[action.issue_id] ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+          <div key={action.issue_id} id={`action-${action.issue_id}`} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 12, overflow: 'hidden', opacity: fixes[action.issue_id] ? 0.6 : 1, transition: 'opacity 0.2s' }}>
             <div style={{ borderLeft: `4px solid ${SEVERITY_COLORS[action.priority] || '#6b7280'}`, padding: '16px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -260,10 +464,10 @@ export default function ActionStudio() {
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Difficulty: {action.difficulty}</span>
                   <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>+{action.est_points_gain} pts</span>
                 </div>
-                <button onClick={() => toggleDone(action.issue_id)} title="Mark as done"
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: done[action.issue_id] ? '#16a34a' : 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-                  {done[action.issue_id] ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                  {done[action.issue_id] ? 'Done' : 'Mark done'}
+                <button onClick={() => toggleDone(action.issue_id)} disabled={fixLoading} title={fixes[action.issue_id] ? 'Mark as not applied' : 'Mark as applied'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: fixes[action.issue_id] ? '#16a34a' : 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                  {fixes[action.issue_id] ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                  {fixes[action.issue_id] ? 'Applied' : 'Mark applied'}
                 </button>
               </div>
 
