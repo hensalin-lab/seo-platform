@@ -61,6 +61,8 @@ const AUDIT_NAV = [
       { suffix: '/action-studio', icon: Zap, label: 'AI Action Studio' },
       { suffix: '/rank-boost', icon: Star, label: 'Rank Boost' },
       { suffix: '/action-center', icon: ClipboardList, label: 'Action Center' },
+      { suffix: '/pages', icon: FileCode, label: 'Pages' },
+      { suffix: '/schema', icon: Network, label: 'Schema' },
       { suffix: '/speed', icon: Gauge, label: 'Speed & CWV' },
       { suffix: '/internal-links', icon: Link2, label: 'Internal Links' },
       {
@@ -168,6 +170,7 @@ export default function Layout({ children }) {
     if (p.endsWith('/action-center')) return 'Action Center';
     if (p.endsWith('/content-studio')) return 'Content Studio';
     if (p.endsWith('/pages')) return 'Page Analysis';
+    if (p.endsWith('/schema')) return 'Schema';
     if (p.endsWith('/compare')) return 'Audit Compare';
     if (p.endsWith('/report')) return 'Audit Report';
     if (p.endsWith('/backlinks')) return 'Backlink Profile';
