@@ -2,7 +2,7 @@ import logging
 import datetime as _dt
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, outerjoin, func
+from sqlalchemy import select, outerjoin, func, update
 from sqlalchemy.orm import selectinload
 from slowapi import Limiter
 
@@ -577,7 +577,7 @@ async def run_audit_task(audit_id: str):
                     title=page.title, meta_description=page.meta_description,
                     canonical=page.canonical, h1=page.h1,
                     content_text=page.content_text[:50000], word_count=page.word_count,
-                    html_raw=page.html_raw[:100000] if page.html_raw else "",
+                    html_raw=page.html_raw[:40000] if page.html_raw else "",
                     headers=page.headings, images=page.images,
                     links_internal=page.links_internal[:100],
                     links_external=page.links_external[:100],
@@ -937,6 +937,13 @@ async def run_audit_task(audit_id: str):
             audit.completed_at = _dt.datetime.utcnow()
             await db.commit()
             logger.info(f"Audit {audit_id} completed successfully")
+
+            try:
+                res = await db.execute(update(Page).where(Page.audit_id == audit_id).values(html_raw=""))
+                await db.commit()
+                logger.info(f"Audit {audit_id}: cleared raw HTML from {res.rowcount or 0} pages to reclaim disk")
+            except Exception as e:
+                logger.warning(f"Audit {audit_id}: could not clear raw HTML (non-fatal): {e}")
 
             import asyncio
             asyncio.create_task(_warm_cache(audit_id, website_url))

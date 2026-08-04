@@ -51,6 +51,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Issue cleanup failed (non-fatal): {e}")
 
+    try:
+        from app.engine.db_maintenance import run_startup_maintenance
+        maint = await run_startup_maintenance()
+        logger.info(f"Startup maintenance result: {maint}")
+    except Exception as e:
+        logger.warning(f"Startup maintenance failed (non-fatal): {e}")
+
     scheduler_task = asyncio.create_task(_scheduled_audit_worker())
     logger.info("Scheduled audit worker started")
     digest_task = asyncio.create_task(_digest_worker())

@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     CRAWLER_SITEMAP_SEEDING: bool = True
     CRAWLER_SITEMAP_MAX_PAGES: int = 300
     CRAWLER_JS_RENDER: bool = False
-    CRAWLER_HTML_RAW_LIMIT: int = 200000
+    CRAWLER_HTML_RAW_LIMIT: int = 40000
 
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
