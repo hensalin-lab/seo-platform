@@ -1,18 +1,22 @@
-"""Shared test setup: ensure all tables exist before API tests run."""
+"""Shared test setup: use an isolated test DB so runs are hermetic and idempotent.
+
+Must set DATABASE_URL before any app import so the engine binds to the test DB.
+"""
 import asyncio
+import os
 
-import pytest
+_TEST_DB = os.path.join(os.path.dirname(__file__), "test_seo_platform.db")
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///" + _TEST_DB.replace("\\", "/")
 
-from app.database import engine, init_db
+import pytest  # noqa: E402
 
-_initialized = False
+from app.database import engine, init_db  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _ensure_db_schema():
-    global _initialized
-    if not _initialized:
-        asyncio.run(init_db())
-        asyncio.run(engine.dispose())
-        _initialized = True
+    if os.path.exists(_TEST_DB):
+        os.remove(_TEST_DB)
+    asyncio.run(init_db())
+    asyncio.run(engine.dispose())
     yield

@@ -5,6 +5,19 @@ from app.main import app
 transport = ASGITransport(app=app)
 
 
+async def _auth_headers(client, email):
+    await client.post("/api/auth/register", json={
+        "email": email,
+        "username": email.split("@")[0],
+        "password": "password123",
+    })
+    resp = await client.post("/api/auth/login", json={
+        "email": email,
+        "password": "password123",
+    })
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
 @pytest.mark.asyncio
 async def test_health_check():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -24,7 +37,8 @@ async def test_root():
 @pytest.mark.asyncio
 async def test_history_empty():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.get("/api/audit/history")
+        headers = await _auth_headers(client, "history@example.com")
+        resp = await client.get("/api/audit/history", headers=headers)
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
@@ -32,7 +46,8 @@ async def test_history_empty():
 @pytest.mark.asyncio
 async def test_audit_not_found():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.get("/api/audit/nonexistent")
+        headers = await _auth_headers(client, "missing@example.com")
+        resp = await client.get("/api/audit/nonexistent", headers=headers)
         assert resp.status_code == 404
 
 
