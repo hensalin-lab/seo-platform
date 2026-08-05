@@ -6,7 +6,7 @@ import {
   BarChart2, Megaphone, Flag, RefreshCw, ShieldAlert, Network, Hash,
   MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck, PenTool, Star,
   Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight, Moon, Sun,
-  LayoutGrid,
+  LayoutGrid, Copy, Code2, KeyRound, Webhook, Languages, Play, Pause, ArrowRight, Plug,
 } from 'lucide-react';
 
 import SeoAnalysis from '../modules/technical-audit/pages/SeoAnalysis';
@@ -72,6 +72,20 @@ import History from '../pages/History';
 import Dashboard from '../pages/Dashboard';
 import SettingsPage from '../modules/settings/pages/SettingsPage';
 import ProgrammaticSeo from '../modules/content-keywords/pages/ProgrammaticSeo';
+import DriftDetection from '../modules/advanced/pages/DriftDetection';
+import HreflangAnalysis from '../modules/advanced/pages/HreflangAnalysis';
+import RedirectAudit from '../modules/advanced/pages/RedirectAudit';
+import DuplicateContent from '../modules/advanced/pages/DuplicateContent';
+import DomainAuthority from '../modules/advanced/pages/DomainAuthority';
+import JsDependency from '../modules/advanced/pages/JsDependency';
+import ContentBriefs from '../modules/advanced/pages/ContentBriefs';
+import UptimeMonitor from '../modules/advanced/pages/UptimeMonitor';
+import Workspaces from '../modules/advanced/pages/Workspaces';
+import UsageMetering from '../modules/advanced/pages/UsageMetering';
+import ApiReference from '../modules/advanced/pages/ApiReference';
+import Providers from '../modules/advanced/pages/Providers';
+import KeywordVolumes from '../modules/advanced/pages/KeywordVolumes';
+import BrandMonitor from '../modules/advanced/pages/BrandMonitor';
 
 export const ICON_MAP = {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2, Gauge, BookOpen,
@@ -81,7 +95,7 @@ export const ICON_MAP = {
   BarChart2, Megaphone, Flag, RefreshCw, ShieldAlert, Network, Hash,
   MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck, PenTool, Star,
   Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight, Moon, Sun,
-  LayoutGrid,
+  LayoutGrid, Copy, Code2, KeyRound, Webhook, Languages, Play, Pause, ArrowRight, Plug,
 };
 
 export function getIcon(name) {
@@ -94,6 +108,11 @@ export const mainNav = [
   { path: '/portfolio', icon: 'FolderOpen', label: 'Portfolio', title: 'Portfolio Dashboard', component: PortfolioDashboard },
   { path: '/trends', icon: 'TrendingUp', label: 'Trends', title: 'Trends', component: Trends },
   { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO', title: 'Programmatic SEO', component: ProgrammaticSeo },
+  { path: '/workspaces', icon: 'FolderOpen', label: 'Workspaces', title: 'Client Workspaces', component: Workspaces },
+  { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
+  { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },
+  { path: '/api-reference', icon: 'Code2', label: 'API Reference', title: 'API Reference', component: ApiReference },
+  { path: '/integrations', icon: 'Plug', label: 'Integrations', title: 'Data Provider Integrations', component: Providers },
   { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings', component: SettingsPage },
 ];
 
@@ -116,6 +135,7 @@ export const auditSections = [
       { suffix: '/aeo-analysis', icon: 'Brain', label: 'AEO Analysis', title: 'AEO Analysis', component: AeoAnalysis },
       { suffix: '/geo-analysis', icon: 'Globe', label: 'GEO Analysis', title: 'GEO Analysis', component: GeoAnalysis },
       { suffix: '/ai-visibility', icon: 'Sparkles', label: 'AI Search & Visibility', title: 'AI Search & Visibility', component: AiVisibility },
+      { suffix: '/brand-monitor', icon: 'Sparkles', label: 'Brand Monitor', title: 'Brand & AI-Citation Monitor', component: BrandMonitor },
       { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access', title: 'AI Bot Intelligence', component: AiBotIntelligence },
       { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview', title: 'SERP & AI Preview', component: SerpPreview },
       { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis', title: 'E-E-A-T Analysis', component: EeatAnalysis },
@@ -130,6 +150,7 @@ export const auditSections = [
       { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio', title: 'Content Studio', component: ContentStudio },
       { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy', title: 'Keywords', component: KeywordStrategy },
       { suffix: '/keyword-opportunities', icon: 'TrendingUp', label: 'Keyword Opportunities', title: 'Keyword Opportunities', component: KeywordOpportunities },
+      { suffix: '/keyword-volumes', icon: 'BarChart3', label: 'Keyword Volumes', title: 'Keyword Volumes', component: KeywordVolumes },
       { suffix: '/content', icon: 'FileText', label: 'Content Analysis', title: 'Content Analysis', component: ContentAnalysis },
       { suffix: '/content-intel', icon: 'Cpu', label: 'Content Intelligence', title: 'Content Intelligence', component: ContentIntelligence },
       { suffix: '/content-quality', icon: 'ShieldCheck', label: 'Content Quality', title: 'Content Quality', component: ContentQuality },
@@ -191,6 +212,18 @@ export const auditSections = [
     label: '6. SETTINGS & ADMIN',
     items: [
       { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings' },
+    ],
+  },
+  {
+    label: '7. ADVANCED & MONITORING',
+    items: [
+      { suffix: '/drift', icon: 'GitCompare', label: 'Drift & Changes', title: 'Drift & Change Detection', component: DriftDetection },
+      { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang', title: 'Hreflang & i18n', component: HreflangAnalysis },
+      { suffix: '/redirects', icon: 'ArrowRight', label: 'Redirects', title: 'Redirect Analysis', component: RedirectAudit },
+      { suffix: '/duplicates', icon: 'Copy', label: 'Duplicates', title: 'Duplicate Content', component: DuplicateContent },
+      { suffix: '/domain-authority', icon: 'Award', label: 'Domain Authority', title: 'Domain Authority', component: DomainAuthority },
+      { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency', title: 'JavaScript Dependency', component: JsDependency },
+      { suffix: '/content-briefs', icon: 'FileText', label: 'Content Briefs', title: 'Content Briefs', component: ContentBriefs },
     ],
   },
 ];

@@ -23,6 +23,11 @@ from app.api.digest import router as digest_router
 from app.api.rankings import router as rankings_router
 from app.api.gsc_settings import router as gsc_settings_router
 from app.api.programmatic import router as programmatic_router
+from app.api.insights import router as insights_router
+from app.api.uptime import router as uptime_router
+from app.api.workspaces import router as workspaces_router
+from app.api.providers import router as providers_router
+from app.api.brand_monitor import router as brand_monitor_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -64,12 +69,16 @@ async def lifespan(app: FastAPI):
     logger.info("Scheduled audit worker started")
     digest_task = asyncio.create_task(_digest_worker())
     logger.info("Digest worker started")
+    uptime_task = asyncio.create_task(_uptime_worker())
+    logger.info("Uptime monitor worker started")
     yield
     scheduler_task.cancel()
     digest_task.cancel()
+    uptime_task.cancel()
     try:
         await scheduler_task
         await digest_task
+        await uptime_task
     except asyncio.CancelledError:
         pass
     logger.info("Shutting down...")
@@ -134,6 +143,20 @@ async def _digest_worker():
         await asyncio.sleep(900)
 
 
+async def _uptime_worker():
+    """Run due uptime checks every 60 seconds."""
+    from app.database import async_session
+    from app.engine.uptime import run_due_checks
+
+    while True:
+        try:
+            async with async_session() as db:
+                await run_due_checks(db)
+        except Exception as e:
+            logger.warning(f"Uptime worker error (non-fatal): {e}")
+        await asyncio.sleep(60)
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -165,6 +188,11 @@ app.include_router(digest_router)
 app.include_router(rankings_router)
 app.include_router(gsc_settings_router)
 app.include_router(programmatic_router)
+app.include_router(insights_router)
+app.include_router(uptime_router)
+app.include_router(workspaces_router)
+app.include_router(providers_router)
+app.include_router(brand_monitor_router)
 
 @app.get("/api/health")
 @limiter.exempt

@@ -647,3 +647,236 @@ class ProgrammaticPage(Base):
     word_count = Column(Integer, default=0)
     warnings = Column(JSON, default=list)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+    __table_args__ = (
+        Index("ix_workspaces_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    members = relationship("WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan")
+    audit_links = relationship("WorkspaceAudit", back_populates="workspace", cascade="all, delete-orphan")
+
+
+class WorkspaceMember(Base):
+    __tablename__ = "workspace_members"
+    __table_args__ = (
+        Index("ix_ws_members_workspace_id", "workspace_id"),
+        Index("ix_ws_members_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    workspace_id = Column(String, ForeignKey("workspaces.id"))
+    user_id = Column(String, ForeignKey("users.id"))
+    role = Column(String, default="viewer")  # owner | editor | viewer
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    workspace = relationship("Workspace", back_populates="members")
+
+
+class WorkspaceAudit(Base):
+    __tablename__ = "workspace_audits"
+    __table_args__ = (
+        Index("ix_ws_audits_workspace_id", "workspace_id"),
+        Index("ix_ws_audits_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    workspace_id = Column(String, ForeignKey("workspaces.id"))
+    audit_id = Column(String, ForeignKey("audits.id"))
+    added_at = Column(DateTime, default=_dt.datetime.utcnow)
+    workspace = relationship("Workspace", back_populates="audit_links")
+
+
+class UptimeTarget(Base):
+    __tablename__ = "uptime_targets"
+    __table_args__ = (
+        Index("ix_uptime_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    name = Column(String, default="")
+    url = Column(String, nullable=False)
+    interval_minutes = Column(Integer, default=5)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    last_checked_at = Column(DateTime, nullable=True)
+    last_status_code = Column(Integer, nullable=True)
+    last_is_up = Column(Boolean, nullable=True)
+    checks = relationship("UptimeCheck", back_populates="target", cascade="all, delete-orphan")
+
+
+class UptimeCheck(Base):
+    __tablename__ = "uptime_checks"
+    __table_args__ = (
+        Index("ix_uptime_checks_target_id", "target_id"),
+        Index("ix_uptime_checks_checked_at", "checked_at"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    target_id = Column(String, ForeignKey("uptime_targets.id"))
+    status_code = Column(Integer, nullable=True)
+    is_up = Column(Boolean, default=False)
+    response_time_ms = Column(Integer, default=0)
+    error = Column(String, default="")
+    checked_at = Column(DateTime, default=_dt.datetime.utcnow)
+    target = relationship("UptimeTarget", back_populates="checks")
+
+
+class DriftReport(Base):
+    __tablename__ = "drift_reports"
+    __table_args__ = (
+        Index("ix_drift_audit_id", "audit_id"),
+        Index("ix_drift_website_url", "website_url"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"), nullable=False)
+    previous_audit_id = Column(String, default="")
+    website_url = Column(String, default="")
+    score_delta = Column(Float, default=0.0)
+    regression_count = Column(Integer, default=0)
+    improvement_count = Column(Integer, default=0)
+    summary = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class DuplicateGroup(Base):
+    __tablename__ = "duplicate_groups"
+    __table_args__ = (
+        Index("ix_dupes_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    kind = Column(String, default="content")  # content | title
+    key = Column(String, default="")
+    count = Column(Integer, default=0)
+    urls = Column(JSON, default=list)
+    title = Column(Text, default="")
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class RedirectRecord(Base):
+    __tablename__ = "redirect_records"
+    __table_args__ = (
+        Index("ix_redirects_audit_id", "audit_id"),
+        Index("ix_redirects_url", "url"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    url = Column(String, default="")
+    status_code = Column(Integer, default=0)
+    final_url = Column(String, default="")
+    chain = Column(JSON, default=list)
+    chain_length = Column(Integer, default=0)
+    is_chain = Column(Boolean, default=False)
+    http_to_https = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class HreflangAnalysis(Base):
+    __tablename__ = "hreflang_analyses"
+    __table_args__ = (
+        Index("ix_hreflang_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"), unique=True)
+    has_hreflang = Column(Boolean, default=False)
+    coverage = Column(Float, default=0.0)
+    language_count = Column(Integer, default=0)
+    pages = Column(JSON, default=list)
+    issues = Column(JSON, default=list)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class DomainAuthority(Base):
+    __tablename__ = "domain_authority"
+    __table_args__ = (
+        Index("ix_da_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"), unique=True)
+    score = Column(Float, default=0.0)
+    factors = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class UsageEvent(Base):
+    __tablename__ = "usage_events"
+    __table_args__ = (
+        Index("ix_usage_user_id", "user_id"),
+        Index("ix_usage_event_type", "event_type"),
+        Index("ix_usage_created_at", "created_at"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    event_type = Column(String, default="")
+    details = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class TopicCluster(Base):
+    __tablename__ = "topic_clusters"
+    __table_args__ = (
+        Index("ix_topic_clusters_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    name = Column(String, default="")
+    keywords = Column(JSON, default=list)
+    opportunity = Column(String, default="MEDIUM")
+    pages = Column(JSON, default=list)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class ContentBrief(Base):
+    __tablename__ = "content_briefs"
+    __table_args__ = (
+        Index("ix_briefs_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    cluster_id = Column(String, default="")
+    title = Column(Text, default="")
+    target_keyword = Column(String, default="")
+    search_intent = Column(String, default="informational")
+    outline = Column(JSON, default=list)
+    word_count_target = Column(Integer, default=1200)
+    related_keywords = Column(JSON, default=list)
+    competitor_pages = Column(JSON, default=list)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class ProviderSetting(Base):
+    """Per-user third-party provider configuration (keyword volume, backlinks,
+    SERP ranks, AI citations, GSC). Config holds provider-specific API keys."""
+    __tablename__ = "provider_settings"
+    __table_args__ = (
+        Index("ix_provider_user", "user_id", "provider", unique=True),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    provider = Column(String, default="")
+    config = Column(JSON, default=dict)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    updated_at = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
+
+
+class AiCitationRecord(Base):
+    """Brand / AI-citation monitoring results for an audit."""
+    __tablename__ = "ai_citation_records"
+    __table_args__ = (
+        Index("ix_ai_citations_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    brand_name = Column(String, default="")
+    mention_count = Column(Integer, default=0)
+    ai_crawlable = Column(Boolean, default=False)
+    llms_txt = Column(Boolean, default=False)
+    robots_ai_rules = Column(Boolean, default=False)
+    citation_estimate = Column(Integer, default=0)
+    provider = Column(String, default="keyless")
+    details = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)

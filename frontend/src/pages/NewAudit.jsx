@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, ArrowRight, BarChart3, Zap, Brain, Target } from 'lucide-react'
+import { Globe, ArrowRight, BarChart3, Zap, Brain, Target, Sparkles } from 'lucide-react'
 import { api } from '../api'
 
 export default function NewAudit() {
@@ -8,6 +8,7 @@ export default function NewAudit() {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [competitorUrl, setCompetitorUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
   const [error, setError] = useState('')
   const submitting = useRef(false)
 
@@ -31,6 +32,19 @@ export default function NewAudit() {
     } catch (e) {
       setError(e.message || 'Failed to start audit')
     } finally { setLoading(false); submitting.current = false }
+  }
+
+  async function handleDemo() {
+    if (submitting.current) return
+    setError('')
+    submitting.current = true
+    setDemoLoading(true)
+    try {
+      const result = await api.createDemo()
+      navigate(`/audit/${result.audit_id}/dashboard`)
+    } catch (e) {
+      setError(e.message || 'Failed to create demo audit')
+    } finally { setDemoLoading(false); submitting.current = false }
   }
 
   return (
@@ -61,6 +75,14 @@ export default function NewAudit() {
           {loading && <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.5 }}>
             Crawling your website and running AI analysis. This usually takes <strong>3 to 5 minutes</strong> depending on site size.
           </p>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+          <button type="button" className="btn" disabled={demoLoading} onClick={handleDemo} style={{ width: '100%', marginTop: 14 }}>
+            {demoLoading ? <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Creating sample audit...</> : <><Sparkles size={14} /> Try a sample audit</>}
+          </button>
         </form>
       </div>
 

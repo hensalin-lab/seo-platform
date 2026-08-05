@@ -93,6 +93,12 @@ async def start_audit(request: Request, req: AuditRequest, background_tasks: Bac
     await db.commit()
     await db.refresh(audit)
     background_tasks.add_task(run_audit_task, audit.id)
+    if user_id:
+        try:
+            from app.engine.advanced_insights import record_usage
+            await record_usage(db, user_id, "audit.started", {"audit_id": audit.id, "website_url": req.website_url})
+        except Exception as e:
+            logger.warning(f"Usage record failed: {e}")
     return AuditStartResponse(audit_id=audit.id, status=AuditStatus.QUEUED.value, message="Audit started")
 
 
@@ -430,6 +436,19 @@ async def _notify_audit_completed(audit_id: str):
                 )
             logger.info(f"Completion notifications sent for audit {audit_id}")
             _queue_rank_capture(audit_id)
+            if audit.user_id:
+                try:
+                    from app.engine.advanced_insights import record_usage
+                    await record_usage(db, audit.user_id, "audit.completed", {
+                        "audit_id": audit_id, "website_url": website_url, "score": score,
+                    })
+                except Exception:
+                    pass
+            try:
+                from app.engine.advanced_insights import compute_drift
+                await compute_drift(db, audit_id)
+            except Exception as e:
+                logger.warning(f"Drift computation failed for {audit_id}: {e}")
     except Exception as e:
         logger.error(f"Completion notification failed for {audit_id}: {e}")
 
@@ -504,6 +523,15 @@ async def run_audit_task(audit_id: str):
             audit = result.scalar_one_or_none()
             if not audit:
                 return
+
+            try:
+                from app.api.webhooks import fire_webhook
+                await fire_webhook(audit.user_id or "", "audit.started", {
+                    "event": "audit.started", "audit_id": audit_id,
+                    "website_url": audit.website_url,
+                })
+            except Exception as e:
+                logger.warning(f"audit.started webhook failed: {e}")
 
             async def update_status(status, progress, step=""):
                 audit.status = status
@@ -585,6 +613,7 @@ async def run_audit_task(audit_id: str):
                     twitter_card=page.twitter_card, crawl_depth=page.crawl_depth,
                     response_time_ms=page.response_time_ms, content_hash=page.content_hash,
                     page_type=page_type, context_issues=ctx_issues,
+                    signals=getattr(page, "signals", {}) or {},
                     snapshot_hash=page_snap.snapshot_hash,
                 ))
             await db.commit()

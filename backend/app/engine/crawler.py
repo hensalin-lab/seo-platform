@@ -26,6 +26,36 @@ USER_AGENTS = [
 HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml", "application/xhtml", "text/plain")
 
 
+def _detect_js_framework(html: str) -> str:
+    """Best-effort client-side framework detection from raw HTML."""
+    if not html:
+        return "none"
+    markers = {
+        "next.js": ["__NEXT_DATA__", "/_next/", "data-next-head"],
+        "nuxt": ["__NUXT__", "data-v-app"],
+        "vue": ["data-v-", "__VUE__", "vue@"],
+        "react": ["data-reactroot", "data-reactid", "react@", "react-dom"],
+        "angular": ["ng-version", "ng-app", "ng-controller"],
+        "gatsby": ["___gatsby", "gatsby-"],
+        "svelte": ["__svelte", "svelte-hmr"],
+        "astro": ["data-astro-", "astro-island"],
+        "remix": ["__remixContext"],
+    }
+    lowered = html.lower()
+    for name, patterns in markers.items():
+        if any(p.lower() in lowered for p in patterns):
+            return name
+    return "none"
+
+
+def _has_hydration_marker(html: str) -> bool:
+    if not html:
+        return False
+    lowered = html.lower()
+    markers = ("__next_data__", "__nuxt__", "data-reactroot", "ng-version", "___gatsby", "__remixcontext", 'id="root"', 'id="app"', "data-server-rendered", "window.__")
+    return any(m in lowered for m in markers)
+
+
 class PageData:
     def __init__(self):
         self.url: str = ""
@@ -255,6 +285,20 @@ class CrawlerEngine:
                 page.https = url.startswith("https")
                 page.html_raw = html[:settings.CRAWLER_HTML_RAW_LIMIT]
                 page.headers_response = {k: v for k, v in response.headers.items()}
+                page.signals = {
+                    "redirect_chain": redirect_chain,
+                    "response_status": response.status_code,
+                    "response_headers": {
+                        k: v for k, v in response.headers.items()
+                        if k.lower() in ("content-type", "server", "x-robots-tag", "cache-control", "content-encoding", "x-redirect-by", "location", "link")
+                    },
+                    "scheme": "https" if url.startswith("https") else "http",
+                    "http_version": getattr(response, "http_version", ""),
+                    "rendered_with_js": False,
+                    "hreflang_tags": [],
+                    "language": "",
+                    "js_signals": {},
+                }
 
                 if settings.CRAWLER_JS_RENDER and response.status_code == 200:
                     rendered = await self._render_with_js(url)
@@ -335,6 +379,36 @@ class CrawlerEngine:
                             page.links_external.append({"url": normalized, "text": a.get_text(strip=True)[:100]})
 
                     page.content_hash = hashlib.md5(page.content_text.encode()).hexdigest()
+
+                    # ---- Enrichment signals: hreflang, language, JS dependency ----
+                    html_tag = soup.find("html")
+                    if html_tag and html_tag.get("lang"):
+                        page.signals["language"] = html_tag.get("lang", "")[:20]
+                    hreflang_tags = []
+                    for link in soup.find_all("link", rel="alternate"):
+                        hl = link.get("hreflang") or ""
+                        href = link.get("href") or ""
+                        if hl and href:
+                            hreflang_tags.append({"hreflang": hl.strip(), "href": href.strip()})
+                    xdefault = soup.find("link", attrs={"rel": "alternate", "hreflang": "x-default"})
+                    if hreflang_tags:
+                        page.signals["hreflang_tags"] = hreflang_tags
+                        page.signals["hreflang_x_default"] = bool(xdefault)
+                    script_tags = soup.find_all("script")
+                    inline_scripts = [s for s in script_tags if not (s.get("src") or "")]
+                    external_scripts = [s for s in script_tags if s.get("src")]
+                    raw_html = page.html_raw or ""
+                    page.signals["js_signals"] = {
+                        "script_count": len(script_tags),
+                        "external_scripts": len(external_scripts),
+                        "inline_scripts": len(inline_scripts),
+                        "content_empty_with_js": page.word_count == 0 and len(script_tags) > 0,
+                        "framework": _detect_js_framework(raw_html),
+                        "hydration_marker": _has_hydration_marker(raw_html),
+                        "inline_handler_count": len(re.findall(r"\son\w+=", raw_html)),
+                    }
+                    if page.rendered_with_js:
+                        page.signals["rendered_with_js"] = True
 
                     if response.status_code == 200 and depth < settings.CRAWLER_MAX_DEPTH:
                         for link in page.links_internal:

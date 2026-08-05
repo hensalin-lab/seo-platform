@@ -262,8 +262,14 @@ function AiProvidersTab({ addToast }) {
   );
 }
 
+const WEBHOOK_EVENTS = [
+  'audit.completed', 'audit.failed', 'audit.started',
+  'drift.regression', 'uptime.down', 'webhook.test',
+];
+
 function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
   const [url, setUrl] = useState('');
+  const [events, setEvents] = useState(['audit.completed', 'audit.failed']);
   const [loading, setLoading] = useState(true);
   const [emailStatus, setEmailStatus] = useState(null);
 
@@ -277,11 +283,15 @@ function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
 
   const create = async () => {
     try {
-      await api.createWebhook(url, ['audit.completed', 'audit.failed']);
+      await api.createWebhook(url, events);
       setUrl('');
       addToast('Webhook created', 'success');
       load();
     } catch (e) { addToast(e.message, 'error'); }
+  };
+
+  const toggleEvent = (ev) => {
+    setEvents(prev => prev.includes(ev) ? prev.filter(x => x !== ev) : [...prev, ev]);
   };
 
   const del = async (id) => {
@@ -315,12 +325,24 @@ function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
       </div>
       <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20 }}>Webhooks</h2>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-webhook-url.com"
           style={{ flex: 1, padding: '10px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 14 }} />
         <button className="btn btn-primary btn-sm" onClick={create} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <Plus size={13} /> Add
         </button>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+        {WEBHOOK_EVENTS.map(ev => (
+          <button
+            key={ev}
+            onClick={() => toggleEvent(ev)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 999, border: '1px solid var(--border)', cursor: 'pointer', background: events.includes(ev) ? 'rgba(139,92,246,0.14)' : 'var(--bg-primary)', color: events.includes(ev) ? '#8b5cf6' : 'var(--text-secondary)' }}
+          >
+            {events.includes(ev) && <CheckCircle2 size={11} />}
+            {ev}
+          </button>
+        ))}
       </div>
       {loading ? <p style={{ color: 'var(--text-secondary)' }}>Loading...</p> : hooks.length === 0 ? (
         <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No webhooks configured</p>

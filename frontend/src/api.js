@@ -244,6 +244,57 @@ export const api = {
   getContentDeepV2: (id, idx) => request(`/audit/${id}/content-deep-v2/${idx}`),
   getPageIntelligenceV2: (id, idx) => request(`/audit/${id}/page-intelligence-v2/${idx}`),
   getEnterpriseDashboard: (id) => request(`/audit/${id}/enterprise-dashboard`),
+
+  // Advanced insights (Phase 1)
+  getDrift: (id) => request(`/audit/${id}/drift`),
+  getHreflang: (id) => request(`/audit/${id}/hreflang`),
+  getRedirects: (id) => request(`/audit/${id}/redirects`),
+  getDuplicates: (id) => request(`/audit/${id}/duplicates`),
+  getDomainAuthority: (id) => request(`/audit/${id}/domain-authority`),
+  getJsDependency: (id) => request(`/audit/${id}/js-dependency`),
+  getContentBriefs: (id) => request(`/audit/${id}/content-briefs`),
+  getUsage: (days = 30) => request(`/usage?days=${days}`),
+  createDemo: () => request('/demo', { method: 'POST' }),
+  getPublicApiInfo: () => request('/public/info'),
+
+  // Uptime monitoring
+  listUptimeTargets: () => request('/uptime/targets'),
+  createUptimeTarget: (data) => request('/uptime/targets', { method: 'POST', body: JSON.stringify(data) }),
+  updateUptimeTarget: (id, data) => request(`/uptime/targets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUptimeTarget: (id) => request(`/uptime/targets/${id}`, { method: 'DELETE' }),
+  checkUptimeNow: (id) => request(`/uptime/targets/${id}/check`, { method: 'POST' }),
+  getUptimeChecks: (id, limit = 50) => request(`/uptime/targets/${id}/checks?limit=${limit}`),
+
+  // Client workspaces
+  listWorkspaces: () => request('/workspaces'),
+  createWorkspace: (data) => request('/workspaces', { method: 'POST', body: JSON.stringify(data) }),
+  updateWorkspace: (id, data) => request(`/workspaces/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteWorkspace: (id) => request(`/workspaces/${id}`, { method: 'DELETE' }),
+  getWorkspaceAudits: (id) => request(`/workspaces/${id}/audits`),
+  assignWorkspaceAudits: (id, auditIds) => request(`/workspaces/${id}/audits`, { method: 'POST', body: JSON.stringify({ audit_ids: auditIds }) }),
+  unassignWorkspaceAudit: (id, auditId) => request(`/workspaces/${id}/audits/${auditId}`, { method: 'DELETE' }),
+  getWorkspaceMembers: (id) => request(`/workspaces/${id}/members`),
+  addWorkspaceMember: (id, email, role) => request(`/workspaces/${id}/members`, { method: 'POST', body: JSON.stringify({ email, role }) }),
+  removeWorkspaceMember: (id, memberId) => request(`/workspaces/${id}/members/${memberId}`, { method: 'DELETE' }),
+
+  // Data provider integrations (Phase 2)
+  getProviders: () => request('/providers'),
+  getProviderCapabilities: () => request('/providers/capabilities'),
+  getProviderFields: (name) => request(`/providers/${name}/fields`),
+  saveProvider: (name, config, isActive = true) => request(`/providers/${name}`, {
+    method: 'PUT',
+    body: JSON.stringify({ config, is_active: isActive }),
+  }),
+  deleteProvider: (name) => request(`/providers/${name}`, { method: 'DELETE' }),
+  testProvider: (name, config = null, capability = null) => request(`/providers/${name}/test`, {
+    method: 'POST',
+    body: JSON.stringify({ config, capability }),
+  }),
+  getGoogleOAuthStatus: () => request('/oauth/google/status'),
+  getKeywordVolumes: (id, limit = 50) => request(`/audit/${id}/keyword-volumes?limit=${limit}`),
+  getBrandMonitor: (id, brand = '') => request(`/audit/${id}/brand-monitor${brand ? `?brand=${encodeURIComponent(brand)}` : ''}`),
+  getBrandMonitorHistory: (id) => request(`/audit/${id}/brand-monitor/history`),
+
   request,
   setToken,
 };
