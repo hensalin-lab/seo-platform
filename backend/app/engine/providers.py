@@ -98,6 +98,16 @@ PROVIDER_CATALOG = [
         "scaffold": False,
     },
     {
+        "name": "pagerank",
+        "label": "Open PageRank (free)",
+        "capabilities": ["backlinks"],
+        "env_keys": ["OPEN_PAGERANK_API_KEY"],
+        "config_fields": [{"key": "api_key", "label": "Open PageRank API key", "secret": True}],
+        "docs": "https://openpagerank.com",
+        "scaffold": False,
+        "free": True,
+    },
+    {
         "name": "gsc",
         "label": "Google Search Console",
         "capabilities": ["gsc"],
@@ -142,6 +152,7 @@ _ENV_CONFIG = {
     "moz": {"access_id": settings.MOZ_ACCESS_ID, "secret_key": settings.MOZ_SECRET_KEY},
     "profound": {"api_key": settings.PROFOUND_API_KEY},
     "se_ranking": {"token": settings.SE_RANKING_TOKEN},
+    "pagerank": {"api_key": settings.OPEN_PAGERANK_API_KEY},
     "gsc": {"service_account_json": "", "property_url": ""},
 }
 
@@ -213,7 +224,7 @@ def resolve_for_capability(capability: str, user_config: dict | None = None) -> 
     order = {
         "keyword_volume": ["dataforseo", "se_ranking", "keyless_volume"],
         "serp_ranks": ["google_cse", "serpapi", "dataforseo", "keyless_serp"],
-        "backlinks": ["dataforseo", "moz", "keyless_backlinks"],
+        "backlinks": ["dataforseo", "moz", "pagerank", "keyless_backlinks"],
         "ai_citations": ["llm_citations", "profound", "se_ranking", "dataforseo", "keyless_citations"],
         "gsc": ["gsc", "keyless_gsc"],
     }
@@ -417,6 +428,56 @@ class MozBacklinkProvider(BacklinkProvider):
         try:
             await self.summary("seo-platform.example")
             return {"ok": True, "message": "Moz credentials valid"}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Open PageRank (free backlink index) implementation
+# ---------------------------------------------------------------------------
+
+OPEN_PAGERANK_API = "https://openpagerank.com/api/v1.0/getPageRank"
+
+
+class OpenPageRankBacklinkProvider(BacklinkProvider):
+    """Free PageRank / domain authority from openpagerank.com (free API key)."""
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+
+    def _headers(self) -> dict:
+        return {"API-OPR": self.cfg.get("api_key", "")}
+
+    async def summary(self, target: str) -> dict:
+        host = (urlparse(target).hostname or target).lstrip("www.")
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                OPEN_PAGERANK_API,
+                params={"domains[]": host},
+                headers=self._headers(),
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"Open PageRank {resp.status_code}: {resp.text[:300]}")
+            data = resp.json()
+        rows = data.get("response") or []
+        if not rows:
+            return {"source": "pagerank", "note": "no result for this domain"}
+        r = rows[0]
+        return {
+            "domain_authority": r.get("domain_authority", 0),
+            "page_rank": r.get("page_rank_decimal") or r.get("page_rank_integer", 0),
+            "rank": r.get("rank", 0),
+            "spam_score": r.get("spam_score", 0),
+            "backlinks_count": 0,
+            "referring_domains": 0,
+            "source": "pagerank",
+            "note": "Free PageRank index from Open PageRank — limited to PageRank/DA, not full backlink counts.",
+        }
+
+    async def test(self) -> dict:
+        try:
+            await self.summary("example.com")
+            return {"ok": True, "message": "Open PageRank API key valid"}
         except Exception as e:
             return {"ok": False, "message": str(e)}
 
@@ -1129,6 +1190,8 @@ def build_provider(capability: str, provider: str, cfg: dict):
         return LlmCitationProvider(cfg)
     if provider == "moz":
         return MozBacklinkProvider(cfg)
+    if provider == "pagerank":
+        return OpenPageRankBacklinkProvider(cfg)
     if provider == "se_ranking":
         if capability == "keyword_volume":
             return SeRankingVolumeProvider(cfg)

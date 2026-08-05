@@ -13,6 +13,7 @@ from app.engine.providers import (
     GscOAuthProvider,
     LlmCitationProvider,
     MozBacklinkProvider,
+    OpenPageRankBacklinkProvider,
     ProfoundCitationProvider,
     SeRankingCitationProvider,
     SeRankingVolumeProvider,
@@ -263,6 +264,43 @@ async def test_llm_citations_no_mention():
         res = await prov.analyze("Example", {"pages": [], "audit": None})
     assert res["mention_count"] == 0
     assert res["citation_estimate"] == 0
+
+
+# ---------------- Open PageRank (free backlinks) ----------------
+
+@pytest.mark.asyncio
+async def test_open_pagerank_summary():
+    routes = {"getPageRank": FakeResponse({"status": 200, "response": [
+        {"domain": "example.com", "page_rank_integer": 7, "page_rank_decimal": "7.4",
+         "rank": "1,234", "domain_authority": 52, "spam_score": 1},
+    ]})}
+    with _patch(routes):
+        prov = OpenPageRankBacklinkProvider({"api_key": "opr-key"})
+        res = await prov.summary("https://www.example.com")
+    assert res["source"] == "pagerank"
+    assert res["domain_authority"] == 52
+    assert res["page_rank"] == "7.4"
+
+
+@pytest.mark.asyncio
+async def test_open_pagerank_test_ok():
+    routes = {"getPageRank": FakeResponse({"status": 200, "response": [
+        {"domain": "example.com", "page_rank_decimal": "5.2", "domain_authority": 30},
+    ]})}
+    with _patch(routes):
+        prov = OpenPageRankBacklinkProvider({"api_key": "opr-key"})
+        res = await prov.test()
+    assert res["ok"] is True
+
+
+def test_pagerank_in_catalog_and_resolution():
+    by_name = {p["name"]: p for p in providers_mod.PROVIDER_CATALOG}
+    assert by_name["pagerank"]["free"] is True
+    assert "backlinks" in by_name["pagerank"]["capabilities"]
+    assert resolve_for_capability("backlinks", {"pagerank": {"api_key": "k"}})["provider"] == "pagerank"
+    assert is_configured("pagerank", {"api_key": "k"}) is True
+    assert is_configured("pagerank", {}) is False
+    assert isinstance(build_provider("backlinks", "pagerank", {"api_key": "k"}), OpenPageRankBacklinkProvider)
 
 
 # ---------------- Registry integration ----------------

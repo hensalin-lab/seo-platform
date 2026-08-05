@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../../../api';
 import {
   Plug, KeyRound, Check, X, Trash2, ExternalLink, RefreshCw, Wifi, WifiOff, Globe,
@@ -10,6 +10,31 @@ import {
 } from './ui';
 
 const ACCENT = '#8b5cf6';
+
+const FREE_SETUP = {
+  google_cse: {
+    what: 'Real Google SERP positions — up to 100 queries/day at zero cost.',
+    steps: [
+      { text: 'Create an API key in Google Cloud:', href: 'https://console.cloud.google.com/apis/credentials', label: 'console.cloud.google.com/apis/credentials' },
+      { text: 'Create a search engine ID (cx):', href: 'https://programmablesearchengine.google.com/controlpanel/create', label: 'programmablesearchengine.google.com/controlpanel/create' },
+      { text: 'Click Configure below and paste both.', href: null },
+    ],
+  },
+  llm_citations: {
+    what: 'Checks if your site is cited by ChatGPT / Gemini / Perplexity — free Gemini tier, no card.',
+    steps: [
+      { text: 'Get a free Gemini API key:', href: 'https://aistudio.google.com/apikey', label: 'aistudio.google.com/apikey' },
+      { text: 'Click Configure below and paste it.', href: null },
+    ],
+  },
+  pagerank: {
+    what: 'Free PageRank / domain authority index — a real backlink-strength metric without Ahrefs.',
+    steps: [
+      { text: 'Get a free Open PageRank API key:', href: 'https://openpagerank.com/register', label: 'openpagerank.com/register' },
+      { text: 'Click Configure below and paste it.', href: null },
+    ],
+  },
+};
 
 const CAP_ICONS = {
   keyword_volume: BarChart3,
@@ -129,6 +154,7 @@ export default function Providers() {
   const [testing, setTesting] = useState(null);
   const [testResult, setTestResult] = useState(null);
   const [oauth, setOauth] = useState(null);
+  const rowRefs = useRef({});
 
   const load = async () => {
     setLoading(true);
@@ -174,6 +200,14 @@ export default function Providers() {
 
   const connectGoogle = () => { window.location.href = api.googleAuth(); };
 
+  const configureProvider = (name) => {
+    setEditing(editing === name ? null : name);
+    setTestResult(null);
+    if (editing !== name) {
+      setTimeout(() => rowRefs.current[name]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    }
+  };
+
   if (loading) return <LoadingSpinner message="Loading provider integrations…" />;
   if (error) return <EmptyState icon={Plug} title="Failed to load integrations" message={error} action={<button style={btnPrimary} onClick={load}><RefreshCw size={14} /> Retry</button>} />;
 
@@ -182,6 +216,7 @@ export default function Providers() {
   const providers = data.providers || [];
   const configuredProviders = providers.filter(p => !p.name.startsWith('keyless'));
   const keylessProviders = providers.filter(p => p.name.startsWith('keyless'));
+  const freeProviders = providers.filter(p => p.free);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -218,11 +253,48 @@ export default function Providers() {
       </Card>
 
       <Card>
+        <CardHeader icon={Sparkles} title="Free data — zero cost" subtitle="Free providers give real measured data without paying. Set up any of these in ~2 minutes per user." />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          {freeProviders.map(p => {
+            const setup = FREE_SETUP[p.name] || { what: 'Free to use.', steps: [] };
+            return (
+              <div key={p.name} style={{ padding: 14, borderRadius: 10, border: '1px solid rgba(20,184,166,0.35)', background: 'rgba(20,184,166,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p.label}</div>
+                  <Badge color="#14b8a6">Free</Badge>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{setup.what}</div>
+                <ol style={{ fontSize: 11.5, color: 'var(--text-muted)', paddingLeft: 18, margin: '0 0 10px', lineHeight: 1.7 }}>
+                  {setup.steps.map((s, i) => (
+                    <li key={i}>
+                      {s.href
+                        ? <a href={s.href} target="_blank" rel="noreferrer" style={{ color: ACCENT, textDecoration: 'underline' }}>{s.label}</a>
+                        : s.text}
+                    </li>
+                  ))}
+                </ol>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button style={{ ...btnGhost, padding: '7px 14px', fontSize: 12 }} onClick={() => configureProvider(p.name)}>
+                    <KeyRound size={13} /> {editing === p.name ? 'Close' : 'Configure'}
+                  </button>
+                  {p.docs && (
+                    <a href={p.docs} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: ACCENT, paddingTop: 8 }}>
+                      Docs <ExternalLink size={11} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
         <CardHeader icon={KeyRound} title="Configured providers" subtitle="Credentials are encrypted at rest and override environment variables" />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {configuredProviders.map(p => {
             return (
-              <div key={p.name} style={{ padding: 14, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <div key={p.name} ref={el => { rowRefs.current[p.name] = el; }} style={{ padding: 14, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.label}</div>
@@ -232,10 +304,7 @@ export default function Providers() {
                     </div>
                   </div>
                   <ProviderBadge source={p.source} configured={p.configured} scaffold={p.scaffold} />
-                  <button style={btnGhost} onClick={() => {
-                    setEditing(editing === p.name ? null : p.name);
-                    setTestResult(null);
-                  }}>
+                  <button style={btnGhost} onClick={() => configureProvider(p.name)}>
                     {editing === p.name ? <X size={13} /> : <KeyRound size={13} />}
                     {editing === p.name ? 'Close' : 'Configure'}
                   </button>
