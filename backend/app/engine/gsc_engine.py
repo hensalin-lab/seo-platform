@@ -4,6 +4,8 @@ import os
 import datetime as _dt
 from typing import Optional
 
+from app.config import settings
+
 
 class GSCEngine:
     """Fetch real search performance data from Google Search Console API."""
@@ -23,7 +25,7 @@ class GSCEngine:
 
     def __init__(self, service_account_json=None):
         self._service = None
-        self._json = service_account_json or ""
+        self._json = service_account_json or settings.GSC_SERVICE_ACCOUNT_JSON or ""
         self._available = bool(self._json) or os.path.exists(self.SERVICE_ACCOUNT_FILE)
 
     @property

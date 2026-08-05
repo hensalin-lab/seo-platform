@@ -31,6 +31,7 @@ async def _gsc_for_user(db: AsyncSession, user, default_property: str = ""):
     stored service account, then the global service account file."""
     from app.engine.providers import GscOAuthProvider
     from app.engine.gsc_engine import GSCEngine
+    from app.config import settings
     from app.models import GSCSettings, ProviderSetting
 
     if user is not None:
@@ -57,7 +58,7 @@ async def _gsc_for_user(db: AsyncSession, user, default_property: str = ""):
 
     gsc = GSCEngine()
     if gsc.available:
-        return gsc, default_property
+        return gsc, default_property or settings.GSC_PROPERTY_URL
     return None, default_property
 router = APIRouter(prefix="/api", tags=["status"])
 

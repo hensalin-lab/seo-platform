@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     SE_RANKING_TOKEN: str = ""
     PROFOUND_API_KEY: str = ""
 
+    GSC_SERVICE_ACCOUNT_JSON: str = ""
+    GSC_PROPERTY_URL: str = ""
+
     INDEXNOW_KEY: str = ""
 
     SMTP_HOST: str = ""
