@@ -9,7 +9,9 @@ import pytest
 from app.engine import providers as providers_mod
 from app.engine.providers import (
     DataForSEOCitationProvider,
+    GoogleCseSerpProvider,
     GscOAuthProvider,
+    LlmCitationProvider,
     MozBacklinkProvider,
     ProfoundCitationProvider,
     SeRankingCitationProvider,
@@ -220,6 +222,49 @@ async def test_gsc_oauth_resolve_property_matches_host():
     assert site == "https://example.com/"
 
 
+# ---------------- Free providers ----------------
+
+@pytest.mark.asyncio
+async def test_google_cse_serp_position():
+    routes = {"customsearch/v1": FakeResponse({"items": [
+        {"link": "https://other.com/page"},
+        {"link": "https://example.com/guide"},
+    ]})}
+    with _patch(routes):
+        prov = GoogleCseSerpProvider({"api_key": "k", "cx": "c"})
+        res = await prov.live_position("seo audit", "example.com")
+    assert res["source"] == "google_cse"
+    assert res["position"] == 2
+    assert res["page_url"] == "https://example.com/guide"
+
+
+@pytest.mark.asyncio
+async def test_llm_citations_mentions_brand():
+    routes = {"generateContent": FakeResponse({"candidates": [{
+        "content": {"parts": [{"text": "Example is a leading platform in this space."}]},
+        "groundingMetadata": {"webSearchSources": [{"uri": "https://example.com"}]},
+    }]})}
+    with _patch(routes):
+        prov = LlmCitationProvider({"api_key": "gem-key"})
+        res = await prov.analyze("Example", {"pages": [], "audit": None})
+    assert res["provider"] == "llm_citations"
+    assert res["mention_count"] == 1
+    assert res["citations"] == ["https://example.com"]
+
+
+@pytest.mark.asyncio
+async def test_llm_citations_no_mention():
+    routes = {"generateContent": FakeResponse({"candidates": [{
+        "content": {"parts": [{"text": "Some unrelated answer."}]},
+        "groundingMetadata": {"webSearchSources": []},
+    }]})}
+    with _patch(routes):
+        prov = LlmCitationProvider({"api_key": "gem-key"})
+        res = await prov.analyze("Example", {"pages": [], "audit": None})
+    assert res["mention_count"] == 0
+    assert res["citation_estimate"] == 0
+
+
 # ---------------- Registry integration ----------------
 
 def test_resolve_ai_citations_prefers_profound():
@@ -263,3 +308,26 @@ def test_scaffold_flags_removed():
     assert by_name["profound"]["scaffold"] is False
     assert by_name["se_ranking"]["scaffold"] is False
     assert "ai_citations" in by_name["dataforseo"]["capabilities"]
+
+
+def test_free_providers_flagged():
+    by_name = {p["name"]: p for p in providers_mod.PROVIDER_CATALOG}
+    assert by_name["google_cse"]["free"] is True
+    assert by_name["llm_citations"]["free"] is True
+    assert "free" in providers_mod.provider_status("google_cse", {})
+
+
+def test_resolve_prefers_free_when_configured():
+    cfg = {"google_cse": {"api_key": "k", "cx": "c"}}
+    assert resolve_for_capability("serp_ranks", cfg)["provider"] == "google_cse"
+    assert resolve_for_capability("serp_ranks", {})["provider"] == "keyless_serp"
+
+
+def test_llm_citations_user_key_counts_configured():
+    assert is_configured("llm_citations", {}) is False
+    assert is_configured("llm_citations", {"api_key": "k"}) is True
+
+
+def test_build_free_providers():
+    assert isinstance(build_provider("serp_ranks", "google_cse", {"api_key": "k", "cx": "c"}), GoogleCseSerpProvider)
+    assert isinstance(build_provider("ai_citations", "llm_citations", {"api_key": "k"}), LlmCitationProvider)

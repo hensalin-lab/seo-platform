@@ -51,6 +51,26 @@ PROVIDER_CATALOG = [
         "scaffold": False,
     },
     {
+        "name": "google_cse",
+        "label": "Google Custom Search (free)",
+        "capabilities": ["serp_ranks"],
+        "env_keys": ["GOOGLE_CSE_API_KEY", "GOOGLE_CSE_CX"],
+        "config_fields": [{"key": "api_key", "label": "API key", "secret": True}, {"key": "cx", "label": "Search engine ID (cx)"}],
+        "docs": "https://developers.google.com/custom-search/v1/overview",
+        "scaffold": False,
+        "free": True,
+    },
+    {
+        "name": "llm_citations",
+        "label": "LLM citation check (free)",
+        "capabilities": ["ai_citations"],
+        "env_keys": [],
+        "config_fields": [{"key": "api_key", "label": "Gemini API key", "secret": True}],
+        "docs": "https://ai.google.dev",
+        "scaffold": False,
+        "free": True,
+    },
+    {
         "name": "moz",
         "label": "Moz",
         "capabilities": ["backlinks"],
@@ -117,6 +137,8 @@ def _catalog(name: str) -> dict:
 _ENV_CONFIG = {
     "dataforseo": {"login": settings.DATAFORSEO_LOGIN, "password": settings.DATAFORSEO_PASSWORD},
     "serpapi": {"api_key": settings.SERP_API_KEY},
+    "google_cse": {"api_key": settings.GOOGLE_CSE_API_KEY, "cx": settings.GOOGLE_CSE_CX},
+    "llm_citations": {},
     "moz": {"access_id": settings.MOZ_ACCESS_ID, "secret_key": settings.MOZ_SECRET_KEY},
     "profound": {"api_key": settings.PROFOUND_API_KEY},
     "se_ranking": {"token": settings.SE_RANKING_TOKEN},
@@ -169,6 +191,7 @@ def provider_status(provider: str, user_config: dict | None = None) -> dict:
         "configured": configured,
         "source": "keyless" if provider.startswith("keyless") else source,
         "scaffold": catalog.get("scaffold", provider.startswith("keyless") and False),
+        "free": catalog.get("free", False),
         "env_keys": catalog.get("env_keys", []),
         "config_fields": catalog.get("config_fields", []),
         "docs": catalog.get("docs", ""),
@@ -189,9 +212,9 @@ def resolve_for_capability(capability: str, user_config: dict | None = None) -> 
     `user_config` is the full {provider: config} dict from get_user_provider_config."""
     order = {
         "keyword_volume": ["dataforseo", "se_ranking", "keyless_volume"],
-        "serp_ranks": ["serpapi", "dataforseo", "keyless_serp"],
+        "serp_ranks": ["google_cse", "serpapi", "dataforseo", "keyless_serp"],
         "backlinks": ["dataforseo", "moz", "keyless_backlinks"],
-        "ai_citations": ["profound", "se_ranking", "dataforseo", "keyless_citations"],
+        "ai_citations": ["llm_citations", "profound", "se_ranking", "dataforseo", "keyless_citations"],
         "gsc": ["gsc", "keyless_gsc"],
     }
     for name in order.get(capability, []):
@@ -858,6 +881,103 @@ class SerpApiRankProvider(SerpRankProvider):
 
 
 # ---------------------------------------------------------------------------
+# Free implementations (Google Custom Search, Gemini)
+# ---------------------------------------------------------------------------
+
+class GoogleCseSerpProvider(SerpRankProvider):
+    """Free SERP ranks via the Google Custom Search JSON API (100 queries/day)."""
+
+    API = "https://www.googleapis.com/customsearch/v1"
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+
+    async def live_position(self, keyword: str, host: str, **ctx) -> dict:
+        params = {
+            "key": self.cfg.get("api_key"),
+            "cx": self.cfg.get("cx"),
+            "q": keyword,
+            "num": 10,
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(self.API, params=params)
+            if resp.status_code != 200:
+                raise RuntimeError(f"Google CSE {resp.status_code}: {resp.text[:300]}")
+            data = resp.json()
+        for idx, item in enumerate(data.get("items") or []):
+            link = (item.get("link") or "") or ""
+            if link and (urlparse(link).hostname or "").lower().lstrip("www.") == host.lower().lstrip("www."):
+                return {"position": idx + 1, "page_url": link, "source": "google_cse"}
+        return {"position": None, "page_url": "", "source": "google_cse"}
+
+    async def test(self) -> dict:
+        try:
+            await self.live_position("seo audit", "seo-platform.example")
+            return {"ok": True, "message": "Google Custom Search key valid"}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+
+GEMINI_GEN_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+class LlmCitationProvider(AiCitationProvider):
+    """Free AI-citation check powered by Gemini (uses GEMINI_API_KEY, Google
+    Search grounding). Zero-cost alternative to Profound/SE Ranking."""
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+
+    def _api_key(self) -> str:
+        return self.cfg.get("api_key") or settings.GEMINI_API_KEY
+
+    async def analyze(self, brand: str, site_data: dict) -> dict:
+        model = settings.GEMINI_MODEL
+        prompt = (
+            f"Recommend the best SEO and marketing platforms. Is '{brand}' a recognized "
+            "authority worth mentioning in this answer? If yes, mention it explicitly and "
+            "cite its website. Be concise and only mention the brand if it is genuinely relevant."
+        )
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{GEMINI_GEN_URL.format(model=model)}?key={self._api_key()}",
+                json={
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "tools": [{"google_search": {}}],
+                },
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"Gemini {resp.status_code}: {resp.text[:300]}")
+            data = resp.json()
+        text = ""
+        citations = []
+        for cand in data.get("candidates", []):
+            for part in (cand.get("content") or {}).get("parts", []):
+                text += part.get("text", "") or ""
+            for src in ((cand.get("groundingMetadata") or {}).get("webSearchSources") or []):
+                uri = src.get("uri") or ""
+                if uri:
+                    citations.append(uri)
+        mentioned = bool(brand and brand.lower() in text.lower())
+        return {
+            "brand": brand,
+            "mention_count": 1 if mentioned else 0,
+            "answer": text[:2000],
+            "citations": citations[:25],
+            "citation_estimate": 100 if mentioned else 0,
+            "provider": "llm_citations",
+            "note": "Measured via Gemini (free tier) with Google Search grounding.",
+        }
+
+    async def test(self) -> dict:
+        try:
+            await self.analyze("example", {"pages": [], "audit": None})
+            return {"ok": True, "message": "Gemini citation check works"}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+
+# ---------------------------------------------------------------------------
 # Keyless fallbacks
 # ---------------------------------------------------------------------------
 
@@ -1003,6 +1123,10 @@ def build_provider(capability: str, provider: str, cfg: dict):
             return DataForSEOCitationProvider(cfg)
     if provider == "serpapi":
         return SerpApiRankProvider(cfg)
+    if provider == "google_cse":
+        return GoogleCseSerpProvider(cfg)
+    if provider == "llm_citations":
+        return LlmCitationProvider(cfg)
     if provider == "moz":
         return MozBacklinkProvider(cfg)
     if provider == "se_ranking":

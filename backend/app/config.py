@@ -87,6 +87,9 @@ class Settings(BaseSettings):
 
     SERP_API_KEY: str = ""
 
+    GOOGLE_CSE_API_KEY: str = ""
+    GOOGLE_CSE_CX: str = ""
+
     MOZ_ACCESS_ID: str = ""
     MOZ_SECRET_KEY: str = ""
     SE_RANKING_TOKEN: str = ""

@@ -228,6 +228,7 @@ export default function Providers() {
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.label}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       {(p.capabilities || []).map(c => <Badge key={c} color="#64748b">{c.replace('_', ' ')}</Badge>)}
+                      {p.free && <Badge color="#14b8a6">Free</Badge>}
                     </div>
                   </div>
                   <ProviderBadge source={p.source} configured={p.configured} scaffold={p.scaffold} />
@@ -290,7 +291,7 @@ export default function Providers() {
       </Card>
 
       <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, padding: '0 4px' }}>
-        Provider resolution is capability-based: for each capability the first configured provider wins, otherwise the keyless estimate is used. Moz, SE Ranking, Profound and DataForSEO now return measured data when their credentials are configured; Google Search Console uses your per-user OAuth connection.
+        Provider resolution is capability-based and per-user: each user's saved keys override shared environment config, and free providers (Google Custom Search, LLM citation check) are used before paid ones when enabled. If nothing is configured, the keyless estimate — free for all users — is used.
       </div>
     </div>
   );
