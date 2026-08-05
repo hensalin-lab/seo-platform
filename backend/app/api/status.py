@@ -19,12 +19,37 @@ from app.models import (
 logger = logging.getLogger(__name__)
 
 
+async def _gsc_call(fn, *args, **kwargs):
+    """Await async GSC providers (GscOAuthProvider) or run sync GSCEngine in a thread."""
+    if asyncio.iscoroutinefunction(fn):
+        return await fn(*args, **kwargs)
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
 async def _gsc_for_user(db: AsyncSession, user, default_property: str = ""):
-    """Build a GSCEngine from the user's stored service account, else global file."""
+    """Build a GSC data source for the user: per-user OAuth token first, then a
+    stored service account, then the global service account file."""
+    from app.engine.providers import GscOAuthProvider
     from app.engine.gsc_engine import GSCEngine
-    from app.models import GSCSettings
+    from app.models import GSCSettings, ProviderSetting
 
     if user is not None:
+        result = await db.execute(select(ProviderSetting).where(
+            ProviderSetting.user_id == user.id, ProviderSetting.provider == "gsc"
+        ))
+        row = result.scalar_one_or_none()
+        if row and row.is_active:
+            cfg = row.config or {}
+            if cfg.get("oauth_access_token") or cfg.get("oauth_refresh_token"):
+                provider = GscOAuthProvider(cfg)
+
+                async def _persist(updated_cfg):
+                    row.config = updated_cfg
+                    await db.commit()
+
+                provider.persist_cb = _persist
+                return provider, cfg.get("property_url") or default_property
+
         result = await db.execute(select(GSCSettings).where(GSCSettings.user_id == user.id))
         gs = result.scalar_one_or_none()
         if gs and gs.service_account_json:
@@ -2867,10 +2892,10 @@ async def get_gsc_overview(audit_id: str, days: int = 28, user: User = Depends(o
     if gsc is None or not gsc.available:
         return {"available": False, "error": "GSC service account not configured. Add your Search Console credentials in the GSC settings."}
 
-    data = gsc.get_search_analytics(property_url, days=days)
-    page_data = gsc.get_page_performance(property_url, days=days)
-    top_queries = gsc.get_top_queries(property_url, days=days, limit=25)
-    long_tail = gsc.get_long_tail_keywords(property_url, days=days)
+    data = await _gsc_call(gsc.get_search_analytics, property_url, days=days)
+    page_data = await _gsc_call(gsc.get_page_performance, property_url, days=days)
+    top_queries = await _gsc_call(gsc.get_top_queries, property_url, days=days, limit=25)
+    long_tail = await _gsc_call(gsc.get_long_tail_keywords, property_url, days=days)
 
     return {
         "available": True,
@@ -2903,8 +2928,8 @@ async def get_gsc_keywords(audit_id: str, days: int = 28, user: User = Depends(o
     if gsc is None or not gsc.available:
         return {"available": False, "keywords": []}
 
-    all_queries = gsc.get_top_queries(property_url, days=days, limit=200)
-    long_tail = gsc.get_long_tail_keywords(property_url, days=days)
+    all_queries = await _gsc_call(gsc.get_top_queries, property_url, days=days, limit=200)
+    long_tail = await _gsc_call(gsc.get_long_tail_keywords, property_url, days=days)
 
     def classify_intent(query):
         q = query.lower()

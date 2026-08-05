@@ -30,11 +30,11 @@ function ProviderBadge({ source, configured, scaffold }) {
   return <Badge color={scaffold ? '#eab308' : '#94a3b8'}>{scaffold ? 'Scaffold' : 'Not configured'}</Badge>;
 }
 
-function ProviderForm({ provider, savedConfig, onSave, onDelete, onCancel, onTest, testing, testResult }) {
+function ProviderForm({ provider, hasSaved, onSave, onDelete, onCancel, onTest, testing, testResult }) {
   const fields = provider.config_fields || [];
   const [values, setValues] = useState(() => {
     const init = {};
-    fields.forEach(f => { init[f.key] = (savedConfig && savedConfig[f.key]) || ''; });
+    fields.forEach(f => { init[f.key] = ''; });
     return init;
   });
   const [saving, setSaving] = useState(false);
@@ -50,7 +50,7 @@ function ProviderForm({ provider, savedConfig, onSave, onDelete, onCancel, onTes
     }
   };
 
-  const isSecretSaved = (f) => f.secret && savedConfig && savedConfig[f.key];
+  const isSecretSaved = (f) => f.secret && hasSaved;
 
   return (
     <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'rgba(139,92,246,0.05)', border: '1px dashed rgba(139,92,246,0.35)' }}>
@@ -100,7 +100,7 @@ function ProviderForm({ provider, savedConfig, onSave, onDelete, onCancel, onTes
         >
           <RefreshCw size={13} className={testing ? 'spin' : ''} /> Test
         </button>
-        {savedConfig && Object.keys(savedConfig).length > 0 && (
+        {hasSaved && (
           <button
             style={{ ...btnGhost, padding: '7px 14px', fontSize: 12, color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }}
             onClick={onDelete}
@@ -242,7 +242,7 @@ export default function Providers() {
                 {editing === p.name && (
                   <ProviderForm
                     provider={p}
-                    savedConfig={p.source === 'user' ? p.config || {} : {}}
+                    hasSaved={Boolean(p.has_config)}
                     onSave={cfg => save(p.name, cfg)}
                     onDelete={() => remove(p.name)}
                     onCancel={() => setEditing(null)}
@@ -290,7 +290,7 @@ export default function Providers() {
       </Card>
 
       <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, padding: '0 4px' }}>
-        Provider resolution is capability-based: for each capability the first configured provider wins, otherwise the keyless estimate is used. Scaffold providers are wired into the registry and UI but return unavailable until credentials are supplied.
+        Provider resolution is capability-based: for each capability the first configured provider wins, otherwise the keyless estimate is used. Moz, SE Ranking, Profound and DataForSEO now return measured data when their credentials are configured; Google Search Console uses your per-user OAuth connection.
       </div>
     </div>
   );

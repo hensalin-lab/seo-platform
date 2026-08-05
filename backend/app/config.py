@@ -87,6 +87,11 @@ class Settings(BaseSettings):
 
     SERP_API_KEY: str = ""
 
+    MOZ_ACCESS_ID: str = ""
+    MOZ_SECRET_KEY: str = ""
+    SE_RANKING_TOKEN: str = ""
+    PROFOUND_API_KEY: str = ""
+
     INDEXNOW_KEY: str = ""
 
     SMTP_HOST: str = ""
