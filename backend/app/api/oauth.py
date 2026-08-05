@@ -80,6 +80,29 @@ async def google_callback(code: str = "", state: str = "", db: AsyncSession = De
         await db.refresh(user)
 
     jwt_token = create_access_token({"sub": user.id, "role": user.role})
+
+    # Persist Google tokens as a per-user provider config (GSC OAuth scaffold).
+    try:
+        from app.models import ProviderSetting
+        from sqlalchemy import select as _select
+        row = (await db.execute(_select(ProviderSetting).where(
+            ProviderSetting.user_id == user.id, ProviderSetting.provider == "gsc"
+        ))).scalar_one_or_none()
+        config = {
+            "oauth_access_token": tokens.get("access_token", ""),
+            "oauth_refresh_token": tokens.get("refresh_token", ""),
+            "oauth_expires_in": tokens.get("expires_in", 3600),
+            "oauth_email": email,
+        }
+        if not row:
+            row = ProviderSetting(user_id=user.id, provider="gsc", config=config)
+            db.add(row)
+        else:
+            row.config = {**(row.config or {}), **config}
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to persist google provider tokens: {e}")
+
     return {
         "access_token": jwt_token,
         "user": {
@@ -93,4 +116,21 @@ async def google_callback(code: str = "", state: str = "", db: AsyncSession = De
             "refresh_token": tokens.get("refresh_token"),
             "expires_in": tokens.get("expires_in"),
         },
+    }
+
+
+@router.get("/google/status")
+async def google_status(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
+    """Report per-user Google OAuth connectivity (GSC provider scaffold)."""
+    from app.models import ProviderSetting
+    from sqlalchemy import select as _select
+    row = (await db.execute(_select(ProviderSetting).where(
+        ProviderSetting.user_id == user.id, ProviderSetting.provider == "gsc"
+    ))).scalar_one_or_none()
+    cfg = (row.config if row else {}) or {}
+    return {
+        "connected": bool(cfg.get("oauth_refresh_token") or cfg.get("oauth_access_token")),
+        "email": cfg.get("oauth_email", ""),
+        "scopes": SCOPES.split(" "),
+        "note": "Tokens stored per-user. Revoke by connecting to Google or deleting the GSC provider config in Integrations.",
     }

@@ -107,6 +107,22 @@ async def _live_position(keyword: str, host: str, client: httpx.AsyncClient) -> 
     return {"position": None, "page_url": ""}
 
 
+async def _serp_provider(user, db):
+    """Resolve the active SERP provider via the Phase 2 provider registry.
+    Returns (provider_obj, provider_name, configured)."""
+    from app.engine.providers import (
+        build_provider, effective_config, get_user_provider_config,
+        resolve_for_capability,
+    )
+    user_config = await get_user_provider_config(db, user.id) if user else {}
+    resolved = resolve_for_capability("serp_ranks", user_config)
+    provider = build_provider(
+        "serp_ranks", resolved["provider"],
+        effective_config(resolved["provider"], user_config),
+    )
+    return provider, resolved["provider"], resolved["configured"]
+
+
 async def _latest_for(db: AsyncSession, audit_id: str, keyword: str) -> Optional[RankPosition]:
     result = await db.execute(
         select(RankPosition)
@@ -144,56 +160,59 @@ async def capture_rankings(
         raise HTTPException(status_code=400, detail="No keywords found. Run an audit first or pass keywords in the body.")
 
     host = _host_of(audit.website_url or "")
-    pages = []
     from app.models import Page
     pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
 
-    live = bool(settings.SERP_API_KEY)
+    provider, provider_name, configured = await _serp_provider(user, db)
+    live = configured
     now = _dt.datetime.utcnow()
     results = []
-    async with httpx.AsyncClient(timeout=30) as client:
-        for kw in keywords:
-            prev = await _latest_for(db, audit_id, kw)
-            if live:
-                try:
-                    live_result = await _live_position(kw, host, client)
-                    position = live_result["position"]
-                    page_url = live_result["page_url"]
-                    source = "live"
-                except Exception as e:
-                    logger.warning(f"SERP live check failed for '{kw}': {e}")
-                    position = _estimate_position(kw, audit, pages)
-                    page_url = ""
-                    source = "estimated"
-            else:
+    for kw in keywords:
+        prev = await _latest_for(db, audit_id, kw)
+        if live:
+            try:
+                if provider_name == "serpapi":
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        live_result = await provider.live_position(kw, host, client=client)
+                else:
+                    live_result = await provider.live_position(kw, host, pages=pages, audit=audit)
+                position = live_result["position"]
+                page_url = live_result.get("page_url", "")
+                source = provider_name
+            except Exception as e:
+                logger.warning(f"SERP live check failed for '{kw}' via {provider_name}: {e}")
                 position = _estimate_position(kw, audit, pages)
                 page_url = ""
                 source = "estimated"
+        else:
+            position = _estimate_position(kw, audit, pages)
+            page_url = ""
+            source = "estimated"
 
-            row = RankPosition(
-                audit_id=audit_id,
-                keyword=_norm_keyword(kw),
-                position=position,
-                previous_position=prev.position if prev else None,
-                page_url=page_url,
-                source=source,
-                captured_at=now,
-            )
-            db.add(row)
-            results.append({
-                "keyword": _norm_keyword(kw),
-                "position": position,
-                "previous_position": prev.position if prev else None,
-                "change": (prev.position - position) if (prev and prev.position and position) else None,
-                "page_url": page_url,
-                "source": source,
-            })
+        row = RankPosition(
+            audit_id=audit_id,
+            keyword=_norm_keyword(kw),
+            position=position,
+            previous_position=prev.position if prev else None,
+            page_url=page_url,
+            source=source,
+            captured_at=now,
+        )
+        db.add(row)
+        results.append({
+            "keyword": _norm_keyword(kw),
+            "position": position,
+            "previous_position": prev.position if prev else None,
+            "change": (prev.position - position) if (prev and prev.position and position) else None,
+            "page_url": page_url,
+            "source": source,
+        })
     await db.commit()
     return {
         "audit_id": audit_id,
         "captured_at": now.isoformat(),
         "configured": live,
-        "mode": "live" if live else "estimated",
+        "mode": provider_name if live else "estimated",
         "total": len(results),
         "rankings": results,
     }
@@ -240,10 +259,11 @@ async def get_rankings(
             "history": [_serialize(p) for p in positions[-history:]],
         })
     keywords_out.sort(key=lambda k: (k["latest_position"] is None, k["latest_position"] or 999))
+    provider, provider_name, configured = await _serp_provider(user, db)
     return {
         "audit_id": audit_id,
-        "configured": bool(settings.SERP_API_KEY),
-        "mode": "live" if settings.SERP_API_KEY else "estimated",
+        "configured": configured,
+        "mode": provider_name if configured else "estimated",
         "last_captured_at": last_captured.isoformat() if last_captured else None,
         "total_keywords": len(keywords_out),
         "keywords": keywords_out,
@@ -265,18 +285,22 @@ async def auto_capture_rankings(audit_id: str):
             host = _host_of(audit.website_url or "")
             pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
             now = _dt.datetime.utcnow()
-            if settings.SERP_API_KEY:
-                async with httpx.AsyncClient(timeout=30) as client:
-                    for kw in keywords[:10]:
-                        try:
-                            live_result = await _live_position(kw, host, client)
-                            db.add(RankPosition(
-                                audit_id=audit_id, keyword=_norm_keyword(kw),
-                                position=live_result["position"], page_url=live_result["page_url"],
-                                source="live", captured_at=now,
-                            ))
-                        except Exception as e:
-                            logger.warning(f"auto rank capture failed for '{kw}': {e}")
+            provider, provider_name, configured = await _serp_provider(None, db)
+            if configured:
+                for kw in keywords[:10]:
+                    try:
+                        if provider_name == "serpapi":
+                            async with httpx.AsyncClient(timeout=30) as client:
+                                live_result = await provider.live_position(kw, host, client=client)
+                        else:
+                            live_result = await provider.live_position(kw, host, pages=pages, audit=audit)
+                        db.add(RankPosition(
+                            audit_id=audit_id, keyword=_norm_keyword(kw),
+                            position=live_result["position"], page_url=live_result.get("page_url", ""),
+                            source=provider_name, captured_at=now,
+                        ))
+                    except Exception as e:
+                        logger.warning(f"auto rank capture failed for '{kw}' via {provider_name}: {e}")
             else:
                 for kw in keywords[:25]:
                     db.add(RankPosition(
