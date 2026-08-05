@@ -321,14 +321,41 @@ function RewriterTab() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [rewriteReady, setRewriteReady] = useState(false);
 
   const handleAnalyze = async () => {
     if (!url.trim()) return;
     setLoading(true);
     const data = await api.getContentRewriteByUrl(id, url.trim()).catch(() => null);
     setResult(data);
+    setRewriteReady(false);
     setLoading(false);
   };
+
+  const handleGenerateRewrite = () => {
+    if (!result) return;
+    setRewriteReady(true);
+  };
+
+  const composeRewrite = (ai) => {
+    if (!ai) return '';
+    const parts = [];
+    if (ai.h1_rewrite?.after) parts.push(`## H1\n${ai.h1_rewrite.after}`);
+    if (ai.intro_rewrite?.after) parts.push(`## Intro\n${ai.intro_rewrite.after}`);
+    if (Array.isArray(ai.rewrite_sections) && ai.rewrite_sections.length) {
+      ai.rewrite_sections.forEach((s) => {
+        if (s.improved_text) parts.push(`## ${s.section || 'Section'}\n${s.improved_text}`);
+      });
+    }
+    if (Array.isArray(ai.title_suggestions) && ai.title_suggestions.length) {
+      parts.push(`## Title Suggestions\n${ai.title_suggestions.map((t) => `- ${t}`).join('\n')}`);
+    }
+    return parts.join('\n\n');
+  };
+
+  const original = result?.current_content || result?.original || result?.original_content || '';
+  const rewritten = result?.rewritten || result?.rewritten_content || result?.content || '';
+  const composed = composeRewrite(result?.ai_rewrite || {});
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -364,7 +391,7 @@ function RewriterTab() {
                 <Eye size={14} /> Original
               </div>
               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: 'var(--text)', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                {result.original || result.original_content || 'No original content available.'}
+                {original || 'No original content available.'}
               </div>
             </div>
             <div>
@@ -372,7 +399,7 @@ function RewriterTab() {
                 <EyeOff size={14} /> Rewritten
               </div>
               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, fontSize: 13, color: 'var(--text)', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                {result.rewritten || result.rewritten_content || result.content || 'No rewritten content available.'}
+                {rewriteReady && composed ? composed : rewritten ? rewritten : !rewriteReady ? 'Click "Generate Rewrite" to create an AI-optimized version of this content.' : 'No rewritten content available.'}
               </div>
             </div>
           </div>
@@ -396,6 +423,7 @@ function RewriterTab() {
             Automatically rewrite the analyzed content with AI-optimized improvements.
           </p>
           <button
+            onClick={handleGenerateRewrite}
             disabled={!result}
             style={{
               padding: '10px 20px', borderRadius: 8, border: 'none', cursor: result ? 'pointer' : 'not-allowed',
@@ -415,15 +443,32 @@ function BlogAiTab() {
   const { id } = useParams();
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
-  const [posts, setPosts] = useState(null);
+  const [data, setData] = useState(null);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     setLoading(true);
-    const data = await api.getBlogAi(id).catch(() => null);
-    setPosts(data);
+    const res = await api.getBlogAi(id).catch(() => null);
+    setData(res);
     setLoading(false);
   };
+
+  const allIdeas = Array.isArray(data?.blog_ideas) ? data.blog_ideas : [];
+  const hasTopic = !!topic.trim();
+  const matched = hasTopic ? allIdeas.filter((idea) => {
+    const t = topic.trim().toLowerCase();
+    const hay = `${idea.title || ''} ${idea.primary_keyword || ''} ${(idea.related_keywords || []).join(' ')}`.toLowerCase();
+    return hay.includes(t) || t.split(/\s+/).some((w) => w.length > 2 && hay.includes(w));
+  }) : allIdeas;
+  const ideas = hasTopic && matched.length ? matched : allIdeas;
+
+  const summary = data?.summary || {};
+  const summaryCards = [
+    { label: 'Blog Ideas', value: summary.total_blog_ideas ?? allIdeas.length, color: '#f59e0b' },
+    { label: 'Calendar Items', value: summary.content_calendar_items ?? data?.content_calendar?.length ?? 0, color: '#0891b2' },
+    { label: 'Internal Linking', value: summary.internal_linking_opportunities ?? data?.internal_linking?.length ?? 0, color: '#22c55e' },
+    { label: 'Featured Snippets', value: summary.featured_snippet_targets ?? data?.featured_snippets?.length ?? 0, color: '#8b5cf6' },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -456,18 +501,57 @@ function BlogAiTab() {
 
         {loading ? (
           <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Generating blog post...</div>
-        ) : posts ? (
+        ) : data ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {(posts.posts ?? posts.articles ?? posts.generated ?? [posts]).map((post, i) => {
-              const title = post.title || post.heading || `Blog Post ${i + 1}`;
-              const content = post.content || post.body || post.text || '';
-              return (
-                <div key={i} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{title}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{content}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              {summaryCards.map((s) => (
+                <div key={s.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {hasTopic && !matched.length && (
+              <div style={{ padding: 14, borderRadius: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12, color: '#f59e0b' }}>
+                No blog ideas matched "{topic.trim()}" — showing all generated ideas.
+              </div>
+            )}
+
+            {ideas.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {ideas.map((idea) => {
+                  const priorityColor = idea.priority === 'HIGH' ? '#ef4444' : idea.priority === 'MEDIUM' ? '#f59e0b' : '#22c55e';
+                  return (
+                    <div key={idea.id ?? idea.title} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 6 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{idea.title}</div>
+                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 6, background: `${priorityColor}22`, color: priorityColor }}>
+                          {idea.priority || 'MEDIUM'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(59,130,246,0.12)', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{idea.type || 'GUIDE'}</span>
+                        {idea.primary_keyword && <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6' }}>#{idea.primary_keyword}</span>}
+                        {idea.target_words && <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(8,145,178,0.12)', color: '#0891b2' }}>{idea.target_words} words</span>}
+                        {idea.estimated_traffic_potential && <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>{idea.estimated_traffic_potential} traffic</span>}
+                      </div>
+                      {Array.isArray(idea.related_keywords) && idea.related_keywords.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {idea.related_keywords.map((kw, j) => (
+                            <span key={j} style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 5, background: 'var(--border)', opacity: 0.8 }}>{kw}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+                No blog ideas generated for this audit.
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
@@ -480,49 +564,57 @@ function BlogAiTab() {
 }
 
 function RevivalTab({ revivalData }) {
-  const pages = revivalData?.pages ?? revivalData?.suggestions ?? revivalData?.items ?? [];
-  const pageList = Array.isArray(pages) ? pages : [];
+  const categories = [
+    { key: 'thin_content', label: 'Thin Content', color: '#f59e0b' },
+    { key: 'outdated_content', label: 'Outdated', color: '#ef4444' },
+    { key: 'orphan_pages', label: 'Orphan', color: '#8b5cf6' },
+  ];
+  const all = [];
+  if (revivalData) {
+    categories.forEach((cat) => {
+      const items = revivalData[cat.key];
+      if (Array.isArray(items)) {
+        items.forEach((item) => all.push({ ...item, _category: cat.label, _color: cat.color }));
+      }
+    });
+  }
+  const freshness = revivalData?.freshness_score ?? null;
+  const summaryCounts = revivalData?.summary || {};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <SectionCard title="Content Revival" icon={RefreshCw} iconColor="#0891b2" badge={`${pageList.length} pages`} unavailable={!revivalData}>
+      <SectionCard title="Content Revival" icon={RefreshCw} iconColor="#0891b2" badge={`${all.length} pages`} unavailable={!revivalData}>
         {revivalData ? (
-          pageList.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {pageList.map((page, i) => {
-                const pageTitle = page.url || page.page || page.title || `Page ${i + 1}`;
-                const lastUpdated = page.last_updated ?? page.updated_at ?? page.date ?? null;
-                const revivalScore = page.revival_score ?? page.score ?? null;
-                const suggestions = page.suggestions ?? page.updates ?? page.suggested_updates ?? [];
-                const suggestionList = Array.isArray(suggestions) ? suggestions : typeof suggestions === 'string' ? [suggestions] : [];
-                return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: freshness !== null && freshness >= 70 ? '#22c55e' : freshness !== null && freshness >= 40 ? '#f59e0b' : '#ef4444' }}>
+                {freshness !== null ? Math.round(freshness) : '—'}
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Freshness Score</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{summaryCounts.thin_content_count ?? 0} thin, {summaryCounts.outdated_content_count ?? 0} outdated, {summaryCounts.orphan_pages_count ?? 0} orphan pages</div>
+              </div>
+            </div>
+            {all.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {all.map((page, i) => (
                   <div key={i} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 6 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{pageTitle}</div>
-                        {lastUpdated && (
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Last updated: {lastUpdated}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{page.title || page.url || `Page ${i + 1}`}</div>
+                        {page.url && <div style={{ fontSize: 12, color: 'var(--text-muted)', wordBreak: 'break-all' }}>{page.url}</div>}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 6, background: `${page._color}22`, color: page._color }}>{page._category}</span>
+                        {page.severity && (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 5, background: page.severity === 'HIGH' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)', color: page.severity === 'HIGH' ? '#ef4444' : '#f59e0b' }}>{page.severity}</span>
                         )}
                       </div>
-                      {revivalScore !== null && (
-                        <span style={{
-                          fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 6,
-                          background: revivalScore >= 70 ? 'rgba(34,197,94,0.15)' : revivalScore >= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: revivalScore >= 70 ? '#22c55e' : revivalScore >= 40 ? '#f59e0b' : '#ef4444',
-                        }}>
-                          {revivalScore}
-                        </span>
-                      )}
                     </div>
-                    {suggestionList.length > 0 && (
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Suggested updates:</div>
-                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>
-                          {suggestionList.map((s, j) => (
-                            <li key={j}>{s}</li>
-                          ))}
-                        </ul>
-                      </div>
+                    {page.word_count ? <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>{page.word_count} words</div> : null}
+                    {page.reason && <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>{page.reason}</div>}
+                    {page.suggestion && (
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.5 }}>{page.suggestion}</div>
                     )}
                     <ProtectedAction requiredRole="VIEWER">
                       <button style={{
@@ -534,12 +626,12 @@ function RevivalTab({ revivalData }) {
                       </button>
                     </ProtectedAction>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>No content revival suggestions available.</div>
-          )
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>No content revival suggestions available.</div>
+            )}
+          </>
         ) : (
           <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Revival data was not returned from the API.</div>
         )}

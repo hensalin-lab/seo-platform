@@ -107,6 +107,10 @@ export const api = {
   getContentRevival: (id) => request(`/audit/${id}/content-revival`),
   getGscOverview: (id, days = 28) => request(`/audit/${id}/gsc-overview?days=${days}`),
   getGscKeywords: (id, days = 28) => request(`/audit/${id}/gsc-keywords?days=${days}`),
+  getGscSettings: () => request('/gsc/settings'),
+  saveGscSettings: (data) => request('/gsc/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  testGscSettings: (data) => request('/gsc/test', { method: 'POST', body: JSON.stringify(data) }),
+  deleteGscSettings: () => request('/gsc/settings', { method: 'DELETE' }),
   getKeywordsEnhanced: (id, days = 28) => request(`/audit/${id}/keywords-enhanced?days=${days}`),
   generateContent: (id, data) => request(`/audit/${id}/generate-content`, { method: 'POST', body: data }),
   getReportData: (id) => request(`/audit/${id}/report-data`),
@@ -155,6 +159,26 @@ export const api = {
   createApiKey: (name) => request('/auth/api-keys', { method: 'POST', body: JSON.stringify({ name }) }),
   listApiKeys: () => request('/auth/api-keys'),
   revokeApiKey: (id) => request(`/auth/api-keys/${id}`, { method: 'DELETE' }),
+
+  // Programmatic SEO
+  listProgrammaticTemplates: (auditId = '') => {
+    let url = '/programmatic/templates';
+    if (auditId) url += `?audit_id=${encodeURIComponent(auditId)}`;
+    return request(url);
+  },
+  getProgrammaticTemplate: (id) => request(`/programmatic/templates/${id}`),
+  createProgrammaticTemplate: (data) => request('/programmatic/templates', { method: 'POST', body: JSON.stringify(data) }),
+  updateProgrammaticTemplate: (id, data) => request(`/programmatic/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteProgrammaticTemplate: (id) => request(`/programmatic/templates/${id}`, { method: 'DELETE' }),
+  getProgrammaticEntries: (id) => request(`/programmatic/templates/${id}/entries`),
+  addProgrammaticEntries: (id, entries, clear = false) => request(`/programmatic/templates/${id}/entries`, { method: 'POST', body: JSON.stringify({ entries, clear }) }),
+  clearProgrammaticEntries: (id) => request(`/programmatic/templates/${id}/entries`, { method: 'DELETE' }),
+  parseProgrammaticCsv: (csvText, hasHeader = true, delimiter = ',') => request('/programmatic/parse-csv', { method: 'POST', body: JSON.stringify({ csv_text: csvText, has_header: hasHeader, delimiter }) }),
+  previewProgrammatic: (id, entries = [], limit = 5) => request(`/programmatic/templates/${id}/preview`, { method: 'POST', body: JSON.stringify({ entries, limit }) }),
+  generateProgrammatic: (id) => request(`/programmatic/templates/${id}/generate`, { method: 'POST' }),
+  getProgrammaticPages: (id, offset = 0, limit = 100) => request(`/programmatic/templates/${id}/pages?offset=${offset}&limit=${limit}`),
+  deleteProgrammaticPage: (pageId) => request(`/programmatic/pages/${pageId}`, { method: 'DELETE' }),
+  exportProgrammatic: (id, format = 'json') => request(`/programmatic/templates/${id}/export?format=${format}`),
 
   // Webhooks
   createWebhook: (url, events) => request('/webhooks', { method: 'POST', body: JSON.stringify({ url, events }) }),

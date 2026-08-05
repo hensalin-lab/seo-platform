@@ -21,6 +21,8 @@ from app.api.action_studio import router as action_studio_router
 from app.api.rank_boost import router as rank_boost_router
 from app.api.digest import router as digest_router
 from app.api.rankings import router as rankings_router
+from app.api.gsc_settings import router as gsc_settings_router
+from app.api.programmatic import router as programmatic_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -161,7 +163,8 @@ app.include_router(action_studio_router)
 app.include_router(rank_boost_router)
 app.include_router(digest_router)
 app.include_router(rankings_router)
-
+app.include_router(gsc_settings_router)
+app.include_router(programmatic_router)
 
 @app.get("/api/health")
 @limiter.exempt

@@ -276,9 +276,9 @@ export default function AiChat() {
             <div style={styles.sideSection}>
               <div style={styles.sideHeading}>Pages: {auditInfo?.total_pages || '-'}</div>
               <SidebarStat label="SEO Analysis" value="" onClick={() => navigate(`/audit/${id}/seo`)} />
-              <SidebarStat label="Recommendations" value="" onClick={() => navigate(`/audit/${id}/recommendations`)} />
+              <SidebarStat label="Recommendations" value="" onClick={() => navigate(`/audit/${id}/action-center`)} />
               <SidebarStat label="Content Audit" value="" onClick={() => navigate(`/audit/${id}/content`)} />
-              <SidebarStat label="Full Strategy" value="" onClick={() => navigate(`/audit/${id}/recommendations`)} />
+              <SidebarStat label="Full Strategy" value="" onClick={() => navigate(`/audit/${id}/action-center`)} />
               <SidebarStat label="AI Visibility" value="" onClick={() => navigate(`/audit/${id}/ai-visibility`)} />
             </div>
 

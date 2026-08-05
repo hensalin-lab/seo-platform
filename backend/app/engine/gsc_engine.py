@@ -9,15 +9,22 @@ class GSCEngine:
     """Fetch real search performance data from Google Search Console API."""
 
     SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
-    SERVICE_ACCOUNT_FILE = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        "credentials",
-        "gsc_service_account.json",
+    SERVICE_ACCOUNT_FILE = next(
+        (
+            p
+            for p in [
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), "credentials", "gsc_service_account.json"),
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "credentials", "gsc_service_account.json"),
+            ]
+            if os.path.exists(p)
+        ),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "credentials", "gsc_service_account.json"),
     )
 
-    def __init__(self):
+    def __init__(self, service_account_json=None):
         self._service = None
-        self._available = os.path.exists(self.SERVICE_ACCOUNT_FILE)
+        self._json = service_account_json or ""
+        self._available = bool(self._json) or os.path.exists(self.SERVICE_ACCOUNT_FILE)
 
     @property
     def available(self) -> bool:
@@ -30,9 +37,14 @@ class GSCEngine:
             from google.oauth2 import service_account
             from googleapiclient.discovery import build
 
-            credentials = service_account.Credentials.from_service_account_file(
-                self.SERVICE_ACCOUNT_FILE, scopes=self.SCOPES
-            )
+            if self._json:
+                credentials = service_account.Credentials.from_service_account_info(
+                    json.loads(self._json), scopes=self.SCOPES
+                )
+            else:
+                credentials = service_account.Credentials.from_service_account_file(
+                    self.SERVICE_ACCOUNT_FILE, scopes=self.SCOPES
+                )
             self._service = build("searchconsole", "v1", credentials=credentials)
             return self._service
         except Exception as e:

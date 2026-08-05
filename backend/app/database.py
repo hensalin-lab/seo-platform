@@ -31,7 +31,7 @@ async def init_db():
         RoadmapItem, KeywordData, ContentData, AIVisibilityData,
         User, APIKey, Session, Webhook, ScheduledAudit, WhiteLabelSettings,
         Backlink, ReferringDomain, CoreWebVitals, FixAction, DigestPreference,
-        RankPosition,
+        RankPosition, ProgrammaticTemplate, ProgrammaticEntry, ProgrammaticPage,
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

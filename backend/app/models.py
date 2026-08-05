@@ -471,6 +471,19 @@ class WhiteLabelSettings(Base):
     user = relationship("User", back_populates="white_label")
 
 
+class GSCSettings(Base):
+    __tablename__ = "gsc_settings"
+    __table_args__ = (
+        Index("ix_gsc_settings_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), unique=True)
+    service_account_json = Column(Text, default="")
+    property_url = Column(String, default="")
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    updated_at = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
+
+
 class DigestPreference(Base):
     __tablename__ = "digest_preferences"
     __table_args__ = (
@@ -580,3 +593,57 @@ class RankPosition(Base):
     source = Column(String, default="estimated")  # live | estimated
     captured_at = Column(DateTime, default=_dt.datetime.utcnow)
     audit = relationship("Audit")
+
+
+class ProgrammaticTemplate(Base):
+    __tablename__ = "programmatic_templates"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), index=True)
+    audit_id = Column(String, nullable=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    base_url = Column(String, default="")
+    url_pattern = Column(String, default="")
+    title_template = Column(Text, default="")
+    meta_template = Column(Text, default="")
+    h1_template = Column(Text, default="")
+    sections = Column(JSON, default=list)
+    schema_type = Column(String, default="Article")
+    schema_fields = Column(JSON, default=dict)
+    faq_enabled = Column(Boolean, default=False)
+    faq_section = Column(JSON, default=list)
+    min_words_target = Column(Integer, default=800)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    updated_at = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
+
+
+class ProgrammaticEntry(Base):
+    __tablename__ = "programmatic_entries"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    template_id = Column(String, ForeignKey("programmatic_templates.id"), index=True)
+    user_id = Column(String, index=True)
+    data = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class ProgrammaticPage(Base):
+    __tablename__ = "programmatic_pages"
+    __table_args__ = (
+        Index("ix_programmatic_pages_url", "url"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    template_id = Column(String, ForeignKey("programmatic_templates.id"), index=True)
+    entry_id = Column(String, nullable=True)
+    user_id = Column(String, index=True)
+    url = Column(String, nullable=False)
+    slug = Column(String, default="")
+    title = Column(Text, default="")
+    meta_description = Column(Text, default="")
+    h1 = Column(Text, default="")
+    sections = Column(JSON, default=list)
+    faq = Column(JSON, default=list)
+    schema_markup = Column(JSON, default=list)
+    internal_links = Column(JSON, default=list)
+    word_count = Column(Integer, default=0)
+    warnings = Column(JSON, default=list)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from urllib.parse import urlparse
 import ipaddress
 
@@ -83,3 +83,46 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     sources: list = []
+
+
+class ProgrammaticSection(BaseModel):
+    heading: str
+    body: str = ""
+    keywords: Optional[str] = None
+
+
+class ProgrammaticFaq(BaseModel):
+    q: str
+    a: str
+
+
+class ProgrammaticTemplateRequest(BaseModel):
+    name: str
+    description: str = ""
+    base_url: str = ""
+    url_pattern: str = ""
+    title_template: str = ""
+    meta_template: str = ""
+    h1_template: str = ""
+    sections: List[ProgrammaticSection] = []
+    schema_type: str = "Article"
+    schema_fields: Dict[str, Any] = {}
+    faq_enabled: bool = False
+    faq_section: List[ProgrammaticFaq] = []
+    min_words_target: int = 800
+
+
+class ProgrammaticEntriesRequest(BaseModel):
+    entries: List[Dict[str, Any]] = []
+    clear: bool = False
+
+
+class ProgrammaticCsvRequest(BaseModel):
+    csv_text: str
+    has_header: bool = True
+    delimiter: str = ","
+
+
+class ProgrammaticPreviewRequest(BaseModel):
+    entries: List[Dict[str, Any]] = []
+    limit: int = 5

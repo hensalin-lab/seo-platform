@@ -609,7 +609,7 @@ export default function Dashboard() {
                   <CheckCircle size={16} style={{ color: '#12b886' }} />
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Quick Wins</span>
                 </div>
-                {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/recommendations`)}>View All</button>}
+                {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/action-center`)}>View All</button>}
               </div>
               {deepLoading && !deepData && (
                 <div>{[1,2,3].map(i => <div key={i} className="shimmer shimmer-bar" style={{ marginBottom: 12 }} />)}</div>

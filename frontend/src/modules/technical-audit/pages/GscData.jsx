@@ -109,46 +109,169 @@ function TabBar({ tabs, activeTab, setActiveTab }) {
   );
 }
 
-function GscSetupNotice() {
+function GscConnectCard({ settings, onSaved, onDeleted }) {
+  const [editing, setEditing] = useState(!settings?.configured);
+  const [saJson, setSaJson] = useState('');
+  const [propertyUrl, setPropertyUrl] = useState(settings?.property_url || '');
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+
+  const handleTest = async () => {
+    if (!saJson.trim()) { setMessage({ type: 'error', text: 'Paste your service account JSON first.' }); return; }
+    setTesting(true);
+    setMessage(null);
+    setTestResult(null);
+    const res = await api.testGscSettings({ service_account_json: saJson.trim(), property_url: propertyUrl.trim() }).catch((e) => ({ error: e.message }));
+    setTesting(false);
+    if (res.error) { setMessage({ type: 'error', text: res.error }); return; }
+    setTestResult(res);
+    if (!res.property_matched) setMessage({ type: 'warn', text: 'Credentials work, but the property URL did not match any site the account can access. Fix the URL or grant the service account access.' });
+  };
+
+  const handleSave = async () => {
+    if (!saJson.trim()) { setMessage({ type: 'error', text: 'Paste your service account JSON first.' }); return; }
+    if (!propertyUrl.trim()) { setMessage({ type: 'error', text: 'Enter your Search Console property URL (e.g. https://www.example.com/).' }); return; }
+    setSaving(true);
+    setMessage(null);
+    const res = await api.saveGscSettings({ service_account_json: saJson.trim(), property_url: propertyUrl.trim() }).catch((e) => ({ error: e.message }));
+    setSaving(false);
+    if (res.error) { setMessage({ type: 'error', text: res.error }); return; }
+    setEditing(false);
+    setMessage({ type: 'ok', text: `Connected to ${res.property_url}${res.property_matched ? '' : ' (property did not match any accessible site)'}` });
+    if (onSaved) onSaved();
+  };
+
+  const handleDisconnect = async () => {
+    await api.deleteGscSettings().catch(() => {});
+    setEditing(true);
+    setMessage(null);
+    setTestResult(null);
+    if (onDeleted) onDeleted();
+  };
+
+  if (!editing && settings?.configured) {
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(34,197,94,0.06), rgba(59,130,246,0.06))',
+        border: '1px solid rgba(34,197,94,0.25)',
+        borderRadius: 12, padding: '18px 24px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <CheckCircle size={20} color="#22c55e" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary, #111827)' }}>Google Search Console connected</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #6b7280)' }}>{settings.property_url}{settings.client_email ? ` · ${settings.client_email}` : ''}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => { setEditing(true); setMessage(null); }}
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-color, #e5e7eb)', background: '#fff', color: 'var(--text-primary, #111827)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            Edit Credentials
+          </button>
+          <button onClick={handleDisconnect}
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            Disconnect
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, rgba(59,130,246,0.05), rgba(139,92,246,0.05))',
       border: '1px solid rgba(59,130,246,0.2)',
-      borderRadius: 12,
-      padding: '32px 40px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      textAlign: 'center',
-      gap: 16,
+      borderRadius: 12, padding: '24px 28px',
     }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: 14,
-        background: 'rgba(59,130,246,0.1)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Search size={28} color="#3b82f6" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Search size={20} color="#3b82f6" />
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary, #111827)' }}>Connect Google Search Console</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary, #6b7280)' }}>Paste your service account key to see real search performance data.</div>
+        </div>
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary, #111827)' }}>
-        Connect Google Search Console
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary, #6b7280)', marginBottom: 6 }}>Service Account JSON</div>
+          <textarea
+            value={saJson}
+            onChange={(e) => setSaJson(e.target.value)}
+            rows={7}
+            placeholder='{"type":"service_account","project_id":"...","client_email":"...","private_key":"...", ...}'
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border-color, #e5e7eb)',
+              background: '#fff', color: 'var(--text-primary, #111827)', fontSize: 12, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
+            }}
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary, #6b7280)', marginBottom: 6 }}>Property URL</div>
+          <input
+            type="text"
+            value={propertyUrl}
+            onChange={(e) => setPropertyUrl(e.target.value)}
+            placeholder="https://www.example.com/  or  sc-domain:example.com"
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border-color, #e5e7eb)',
+              background: '#fff', color: 'var(--text-primary, #111827)', fontSize: 13, outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {testResult && (
+          <div style={{ fontSize: 12, color: 'var(--text-secondary, #6b7280)', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontWeight: 700, color: '#3b82f6', marginBottom: 4 }}>Connection test passed · {testResult.client_email}</div>
+            <div>Sites accessible: {testResult.sites_visible?.length ? testResult.sites_visible.join(', ') : 'none'}</div>
+            {testResult.property_matched ? <div style={{ color: '#22c55e' }}>Property matches an accessible site.</div> : <div style={{ color: '#f59e0b' }}>Property URL did not match any accessible site.</div>}
+          </div>
+        )}
+
+        {message && (
+          <div style={{
+            fontSize: 13, padding: '10px 14px', borderRadius: 8,
+            background: message.type === 'ok' ? 'rgba(34,197,94,0.1)' : message.type === 'warn' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${message.type === 'ok' ? 'rgba(34,197,94,0.3)' : message.type === 'warn' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            color: message.type === 'ok' ? '#22c55e' : message.type === 'warn' ? '#f59e0b' : '#ef4444',
+          }}>{message.text}</div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={handleTest} disabled={testing}
+            style={{
+              padding: '9px 18px', borderRadius: 8, border: '1px solid var(--border-color, #e5e7eb)',
+              background: '#fff', color: 'var(--text-primary, #111827)', fontSize: 13, fontWeight: 600,
+              cursor: testing ? 'wait' : 'pointer', opacity: testing ? 0.6 : 1,
+            }}>
+            {testing ? 'Testing...' : 'Test Connection'}
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            style={{
+              padding: '9px 18px', borderRadius: 8, border: 'none',
+              background: '#3b82f6', color: '#fff', fontSize: 13, fontWeight: 600,
+              cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.6 : 1,
+            }}>
+            {saving ? 'Saving...' : 'Save & Connect'}
+          </button>
+        </div>
       </div>
-      <div style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', maxWidth: 500, lineHeight: 1.6 }}>
-        No GSC data found for this property. To see real search performance data:
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left', maxWidth: 460 }}>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 16 }}>
         {[
-          'Verify your site is added as a property in Google Search Console',
-          'Ensure the service account email has Owner or Full permission',
-          'Make sure the property URL matches exactly (with/without www, trailing slash)',
-          'Data may take 24-48 hours to appear after first connection',
+          'Create a service account key: Google Cloud Console → IAM & Admin → Service Accounts → Create Key (JSON)',
+          'Enable the Google Search Console API in Google Cloud Console',
+          'Add the service account email (client_email) as a User with Full permission in Search Console → Settings → Users',
+          'Use the exact property URL from Search Console (www vs non-www, trailing slash, or sc-domain:)',
         ].map((step, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: 'var(--text-secondary, #6b7280)' }}>
-            <div style={{
-              width: 22, height: 22, borderRadius: 6,
-              background: 'rgba(59,130,246,0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, fontSize: 11, fontWeight: 700, color: '#3b82f6',
-            }}>{i + 1}</div>
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 12, color: 'var(--text-secondary, #6b7280)' }}>
+            <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#3b82f6' }}>{i + 1}</div>
             <span>{step}</span>
           </div>
         ))}
@@ -415,24 +538,29 @@ export default function GscData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('pages');
+  const [settings, setSettings] = useState(null);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      const [overviewRes, keywordsRes, settingsRes] = await Promise.all([
+        api.getGscOverview(id, 28),
+        api.getGscKeywords(id, 28),
+        api.getGscSettings().catch(() => null),
+      ]);
+      setOverview(overviewRes);
+      setKeywordsData(keywordsRes);
+      setSettings(settingsRes);
+    } catch (err) {
+      setError(err.message || 'Failed to load GSC data');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [overviewRes, keywordsRes] = await Promise.all([
-          api.getGscOverview(id, 28),
-          api.getGscKeywords(id, 28),
-        ]);
-        setOverview(overviewRes);
-        setKeywordsData(keywordsRes);
-      } catch (err) {
-        setError(err.message || 'Failed to load GSC data');
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading) {
@@ -518,8 +646,21 @@ export default function GscData() {
         </p>
       </div>
 
-      {/* GSC Setup Notice */}
-      {hasNoData && <GscSetupNotice />}
+      {/* GSC Connect Card */}
+      <GscConnectCard settings={settings} onSaved={loadData} onDeleted={loadData} />
+
+      {hasNoData && settings?.configured && (
+        <div style={{
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
+          borderRadius: 12, padding: '16px 24px',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <AlertTriangle size={18} color="#f59e0b" style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: 13, color: 'var(--text-secondary, #6b7280)' }}>
+            No search performance data returned yet. If you just connected, data can take up to 48 hours to appear. Otherwise confirm the property URL matches and the service account has Full permission in Search Console.
+          </div>
+        </div>
+      )}
 
       {/* Search Performance Overview */}
       {!hasNoData && (

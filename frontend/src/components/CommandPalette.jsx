@@ -1,29 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Search, Command, FileText, LayoutDashboard, Brain, BookOpen,
-  Gauge, Users, AlertTriangle, Settings, Plus, GitCompare, FileSearch,
-  ShieldCheck, Sparkles, Bot, Eye, Megaphone, MapPin, Key, Edit3,
-  RefreshCw, PenTool, MessageSquare, ClipboardList, Link2, HeartPulse,
-  Smartphone, Globe, ShieldAlert, Camera, Flag, Award, MessageCircle,
-  Layers, Star, FolderOpen, TrendingUp, LogIn, LogOut, Zap, BarChart3,
-  ExternalLink, Activity, Lightbulb, Filter, Cpu, Network, Hash, Rss,
-  BarChart2, FileCode, Sparkle, User
-} from 'lucide-react';
-
-const ICON_MAP = {
-  LayoutDashboard, Brain, BookOpen, Gauge, Users, AlertTriangle, Settings,
-  Plus, FileText, GitCompare, FileSearch, ShieldCheck, Sparkles, Bot, Eye,
-  Megaphone, MapPin, Key, Edit3, RefreshCw, PenTool, MessageSquare,
-  ClipboardList, Link2, HeartPulse, Smartphone, Globe, ShieldAlert, Camera,
-  Flag, Award, MessageCircle, Layers, FolderOpen, TrendingUp, LogIn, LogOut,
-  Zap, BarChart3, ExternalLink, Activity, Lightbulb, Filter, Cpu, Network,
-  Hash, Rss, BarChart2, FileCode, Sparkle, User, Star, Command, Search
-};
-
-function getIcon(name) {
-  return ICON_MAP[name] || FileText;
-}
+import { Search, Command, FileText, Plus } from 'lucide-react';
+import { getIcon, mainNav, flattenAuditItems } from '../config/routes.config';
 
 function buildSearchItems(auditId) {
   const base = auditId ? `/audit/${auditId}` : '';
@@ -33,41 +11,9 @@ function buildSearchItems(auditId) {
   items.push({ id: 'export-report', label: 'Export Report', category: 'Actions', action: 'export', icon: 'FileText' });
   items.push({ id: 'history', label: 'Audit History', category: 'Actions', path: '/history', icon: 'FileText' });
 
-  const pages = [
-    { id: 'exec-dash', label: 'Executive Dashboard', suffix: '/executive-dashboard', icon: 'LayoutDashboard' },
-    { id: 'audit-compare', label: 'Audit Compare', suffix: '/compare', icon: 'GitCompare' },
-    { id: 'audit-report', label: 'Audit Report', suffix: '/report', icon: 'FileSearch' },
-    { id: 'seo-health', label: 'SEO Health', suffix: '/seo-health', icon: 'ShieldCheck' },
-    { id: 'geo-aeo', label: 'GEO & AEO Hub', suffix: '/geo-aeo', icon: 'Brain' },
-    { id: 'ai-deep', label: 'AI Search Deep', suffix: '/ai-deep', icon: 'Sparkles' },
-    { id: 'ai-bots', label: 'AI Bot Access', suffix: '/ai-bots', icon: 'Bot' },
-    { id: 'serp-preview', label: 'SERP & AI Preview', suffix: '/serp-preview', icon: 'Eye' },
-    { id: 'social-seo', label: 'Social SEO', suffix: '/social-seo', icon: 'Megaphone' },
-    { id: 'local-seo', label: 'Local SEO', suffix: '/local-seo', icon: 'MapPin' },
-    { id: 'content-studio', label: 'Content Studio', suffix: '/content-studio', icon: 'BookOpen' },
-    { id: 'keywords', label: 'Keyword Strategy', suffix: '/keywords', icon: 'Key' },
-    { id: 'content-rewrite', label: 'Content Rewriter', suffix: '/content-rewrite', icon: 'Edit3' },
-    { id: 'content-revival', label: 'Content Revival', suffix: '/content-revival', icon: 'RefreshCw' },
-    { id: 'blog-ai', label: 'Blog AI', suffix: '/blog-ai', icon: 'PenTool' },
-    { id: 'ai-chat', label: 'AI Chat', suffix: '/chat', icon: 'MessageSquare' },
-    { id: 'issues', label: 'Issue Remediation', suffix: '/issues', icon: 'AlertTriangle' },
-    { id: 'action-center', label: 'Action Center', suffix: '/action-center', icon: 'ClipboardList' },
-    { id: 'speed', label: 'Speed & CWV', suffix: '/speed', icon: 'Gauge' },
-    { id: 'internal-links', label: 'Internal Links', suffix: '/internal-links', icon: 'Link2' },
-    { id: 'page-experience', label: 'Page Experience', suffix: '/page-experience', icon: 'HeartPulse' },
-    { id: 'mobile-seo', label: 'Mobile SEO', suffix: '/mobile-seo', icon: 'Smartphone' },
-    { id: 'sitemap-robots', label: 'Sitemap & Robots', suffix: '/sitemap-robots', icon: 'Globe' },
-    { id: 'security-headers', label: 'Security Headers', suffix: '/security-headers', icon: 'ShieldAlert' },
-    { id: 'image-seo', label: 'Image SEO', suffix: '/image-seo', icon: 'Camera' },
-    { id: 'roadmap', label: 'SEO Roadmap', suffix: '/roadmap', icon: 'Flag' },
-    { id: 'competitor', label: 'Competitor Analysis', suffix: '/competitor', icon: 'Users' },
-    { id: 'backlinks', label: 'Backlinks', suffix: '/backlinks', icon: 'Link2' },
-    { id: 'rankings', label: 'Rank Tracking', suffix: '/rankings', icon: 'TrendingUp' },
-    { id: 'offsite-authority', label: 'Off-Site Authority', suffix: '/offsite-authority', icon: 'Award' },
-    { id: 'citations', label: 'Citations', suffix: '/citations', icon: 'MessageCircle' },
-    { id: 'page-detail', label: 'Page Analysis', suffix: '/page-detail', icon: 'Layers' },
-    { id: 'ai-roadmap', label: 'AI Roadmap', suffix: '/ai-roadmap', icon: 'Flag' },
-  ];
+  const pages = flattenAuditItems()
+    .filter(p => p.suffix)
+    .map(p => ({ id: p.suffix.slice(1), label: p.label, suffix: p.suffix, icon: p.icon }));
 
   if (auditId) {
     pages.forEach(p => {
@@ -80,9 +26,10 @@ function buildSearchItems(auditId) {
     });
   }
 
-  items.push({ id: 'portfolio', label: 'Portfolio Dashboard', category: 'Pages', path: '/portfolio', icon: 'FolderOpen' });
-  items.push({ id: 'trends', label: 'Trends', category: 'Pages', path: '/trends', icon: 'TrendingUp' });
-  items.push({ id: 'settings', label: 'Settings', category: 'Pages', path: '/settings', icon: 'Settings' });
+  mainNav.forEach(m => {
+    if (m.path === '/new' || m.path === '/history') return;
+    items.push({ id: m.path.slice(1), label: m.label, category: 'Pages', path: m.path, icon: m.icon });
+  });
 
   return items;
 }

@@ -8,14 +8,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
+from app.api.auth import optional_current_user
 from app.models import (
     Audit, Page, Issue, Recommendation, CompetitorData,
     AuditScore, PageAnalysisRecord, KeywordRecord, RoadmapRecord,
     ChatMessage, KeywordData, ContentData, AIVisibilityData,
-    CoreWebVitals,
+    CoreWebVitals, User,
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def _gsc_for_user(db: AsyncSession, user, default_property: str = ""):
+    """Build a GSCEngine from the user's stored service account, else global file."""
+    from app.engine.gsc_engine import GSCEngine
+    from app.models import GSCSettings
+
+    if user is not None:
+        result = await db.execute(select(GSCSettings).where(GSCSettings.user_id == user.id))
+        gs = result.scalar_one_or_none()
+        if gs and gs.service_account_json:
+            return GSCEngine(service_account_json=gs.service_account_json), gs.property_url or default_property
+
+    gsc = GSCEngine()
+    if gsc.available:
+        return gsc, default_property
+    return None, default_property
 router = APIRouter(prefix="/api", tags=["status"])
 
 # In-memory cache for expensive endpoint results
@@ -2835,22 +2853,19 @@ async def get_report_data(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/audit/{audit_id}/gsc-overview")
-async def get_gsc_overview(audit_id: str, days: int = 28):
+async def get_gsc_overview(audit_id: str, days: int = 28, user: User = Depends(optional_current_user), db: AsyncSession = Depends(get_db)):
     """Get GSC search performance overview."""
-    from app.engine.gsc_engine import GSCEngine
     from app.models import Audit
 
-    gsc = GSCEngine()
-    if not gsc.available:
-        return {"available": False, "error": "GSC service account not configured. Place gsc_service_account.json in backend/credentials/"}
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    property_url = audit.gsc_property or audit.website_url
 
-    from app.database import engine as _db_engine
-    async with AsyncSession(_db_engine, expire_on_commit=False) as db:
-        audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
-        audit = audit_result.scalar_one_or_none()
-        if not audit:
-            raise HTTPException(status_code=404, detail="Audit not found")
-        property_url = audit.gsc_property or audit.website_url
+    gsc, property_url = await _gsc_for_user(db, user, property_url)
+    if gsc is None or not gsc.available:
+        return {"available": False, "error": "GSC service account not configured. Add your Search Console credentials in the GSC settings."}
 
     data = gsc.get_search_analytics(property_url, days=days)
     page_data = gsc.get_page_performance(property_url, days=days)
@@ -2874,22 +2889,19 @@ async def get_gsc_overview(audit_id: str, days: int = 28):
 
 
 @router.get("/audit/{audit_id}/gsc-keywords")
-async def get_gsc_keywords(audit_id: str, days: int = 28):
+async def get_gsc_keywords(audit_id: str, days: int = 28, user: User = Depends(optional_current_user), db: AsyncSession = Depends(get_db)):
     """Get all keywords with GSC performance data for the site."""
-    from app.engine.gsc_engine import GSCEngine
     from app.models import Audit
 
-    gsc = GSCEngine()
-    if not gsc.available:
-        return {"available": False, "keywords": []}
+    audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = audit_result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    property_url = audit.gsc_property or audit.website_url
 
-    from app.database import engine as _db_engine
-    async with AsyncSession(_db_engine, expire_on_commit=False) as db:
-        audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
-        audit = audit_result.scalar_one_or_none()
-        if not audit:
-            raise HTTPException(status_code=404, detail="Audit not found")
-        property_url = audit.gsc_property or audit.website_url
+    gsc, property_url = await _gsc_for_user(db, user, property_url)
+    if gsc is None or not gsc.available:
+        return {"available": False, "keywords": []}
 
     all_queries = gsc.get_top_queries(property_url, days=days, limit=200)
     long_tail = gsc.get_long_tail_keywords(property_url, days=days)
@@ -3687,15 +3699,223 @@ async def get_seo_health(audit_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+def _normalize_ai_suggestions(sugg):
+    """Map provider response shapes to the frontend's expected suggestion keys."""
+    if not isinstance(sugg, dict):
+        return None
+    summary = sugg.get("summary") or sugg.get("executive_summary") or ""
+    if not summary and not sugg.get("priority_actions") and not sugg.get("quick_wins"):
+        return None
+
+    pa = []
+    for item in (sugg.get("priority_actions") or sugg.get("google_dislikes") or [])[:8]:
+        if isinstance(item, dict):
+            title = item.get("title") or item.get("element") or item.get("issue") or ""
+            if title:
+                steps = [str(x) for x in (item.get("specific_steps") or []) if x]
+                if not steps and item.get("fix"):
+                    steps = [str(item["fix"])]
+                pa.append({
+                    "title": title,
+                    "description": item.get("description") or " ".join(str(x) for x in [item.get("why"), item.get("fix")] if x) or "",
+                    "impact": (item.get("impact") or "HIGH").upper(),
+                    "effort": (item.get("effort") or item.get("difficulty") or "MEDIUM").upper(),
+                    "category": item.get("category") or "SEO",
+                    "specific_steps": steps,
+                })
+    for item in (sugg.get("technical_fixes") or [])[:6]:
+        if isinstance(item, dict) and item.get("issue"):
+            pa.append({
+                "title": item["issue"],
+                "description": item.get("fix") or item.get("description") or "",
+                "impact": "HIGH",
+                "effort": (item.get("effort") or "MEDIUM").upper(),
+                "category": "Technical SEO",
+                "specific_steps": [str(item["fix"])] if item.get("fix") else [],
+            })
+
+    qw = []
+    for w in (sugg.get("quick_wins") or [])[:8]:
+        if isinstance(w, dict):
+            title = w.get("title") or w.get("element") or ""
+            if title:
+                qw.append({
+                    "title": title,
+                    "description": w.get("description") or w.get("fix") or "",
+                    "estimated_time": w.get("estimated_time") or "2-4 hours",
+                    "expected_improvement": w.get("expected_improvement") or "",
+                })
+        elif isinstance(w, str) and w:
+            qw.append({"title": w, "description": "", "estimated_time": "2-4 hours", "expected_improvement": ""})
+
+    si = []
+    for s in (sugg.get("strategic_insights") or sugg.get("google_likes") or [])[:6]:
+        if isinstance(s, str) and s:
+            si.append(s)
+        elif isinstance(s, dict):
+            text = f"{s.get('element', 'Signal')}: {s.get('why', '')}".strip(": ")
+            if text and text not in si:
+                si.append(text)
+    for s in (sugg.get("long_term_strategy") or [])[:4]:
+        if isinstance(s, str) and s:
+            si.append(s)
+        elif isinstance(s, dict) and (s.get("title") or s.get("insight")):
+            si.append(s.get("title") or s.get("insight"))
+    for s in (sugg.get("competitor_gap") or [])[:4]:
+        if isinstance(s, str) and s:
+            si.append(s)
+        elif isinstance(s, dict) and (s.get("gap") or s.get("suggestion")):
+            si.append(s.get("gap") or s.get("suggestion"))
+
+    cr = []
+    for item in (sugg.get("content_recommendations") or [])[:10]:
+        if isinstance(item, dict) and item.get("title"):
+            cr.append({
+                "topic": item["title"],
+                "priority": (item.get("priority") or "MEDIUM").upper(),
+                "type": item.get("type") or "Article",
+                "target_words": item.get("target_words") or 1000,
+                "keywords": item.get("keywords") or [],
+            })
+
+    return {"summary": summary, "priority_actions": pa, "quick_wins": qw, "strategic_insights": si, "content_recommendations": cr}
+
+
+def _build_rule_suggestions(audit_data):
+    """Deterministic 'how to increase traffic' suggestions built from audit results."""
+    s = audit_data
+    total = s.get("total_pages", 0)
+    overall = s.get("overall_score", 0)
+    weak = None
+    for name, key in [("SEO", "seo_score"), ("Technical", "technical_score"),
+                      ("Content", "content_score"), ("AI search", "ai_visibility_score"), ("GEO", "geo_score")]:
+        if s.get(key) is not None:
+            if weak is None or s.get(key) < weak[1]:
+                weak = (name, s.get(key))
+    signals = s.get("issue_signals") or {}
+    top_issues = s.get("top_issues") or []
+
+    summary_parts = []
+    if total:
+        summary_parts.append(f"We analyzed {total} pages and your site scores {overall}/100 overall.")
+    else:
+        summary_parts.append(f"Your site scores {overall}/100 overall.")
+    if weak and weak[1] is not None and weak[1] < 70:
+        summary_parts.append(f"Your biggest traffic opportunity is {weak[0]} ({weak[1]}/100) — improving it has the highest impact on search visibility.")
+    if s.get("high_issues", 0):
+        summary_parts.append(f"Resolving the {s['high_issues']} high/critical issues detected is the fastest way to unlock rankings and traffic.")
+    elif not weak or weak[1] >= 70:
+        summary_parts.append("Core signals look healthy, so focus on content expansion, internal linking, and AI-search visibility to grow traffic.")
+    summary = " ".join(summary_parts)
+
+    pa = []
+    if s.get("high_issues", 0):
+        steps = [f"{i.get('signal', 'Issue')} — {i.get('page', '')}".strip(" —") for i in top_issues[:5]]
+        pa.append({
+            "title": f"Fix {s['high_issues']} high/critical issues blocking rankings",
+            "description": "Critical and high-priority issues suppress crawl efficiency and rankings. Fix them before expanding content.",
+            "impact": "HIGH", "effort": "MEDIUM", "category": "Technical SEO",
+            "specific_steps": steps or ["Review and fix each critical issue in the Issues Explorer"],
+        })
+    if weak and weak[0] == "Technical" and weak[1] < 70:
+        pa.append({
+            "title": "Improve Core Web Vitals and technical crawl health",
+            "description": "Speed and technical hygiene directly affect rankings and how much of your site search engines can crawl.",
+            "impact": "HIGH", "effort": "MEDIUM", "category": "Technical SEO",
+            "specific_steps": ["Compress and convert images to modern formats", "Eliminate render-blocking resources", "Ensure HTTPS and a fast mobile layout", "Fix crawl errors and improve internal linking"],
+        })
+    if weak and weak[0] == "Content" and weak[1] < 70:
+        steps = [f"Expand or rewrite: {u}" for u in (s.get("thin_pages") or [])[:3]]
+        pa.append({
+            "title": "Expand thin content and strengthen on-page optimization",
+            "description": "Thin or weak pages rarely rank. Give every important page a clear keyword and comprehensive coverage.",
+            "impact": "HIGH", "effort": "HIGH", "category": "Content",
+            "specific_steps": steps or ["Add 800+ words of comprehensive coverage per key page", "Use one H1 and question-based H2s", "Add internal links from related pages"],
+        })
+    if weak and weak[0] in ("AI search", "GEO") and weak[1] < 70:
+        pa.append({
+            "title": "Optimize for AI search visibility (AEO/GEO)",
+            "description": "ChatGPT, Gemini and Google AI Overviews increasingly route answers. Structure content so AI platforms can cite you.",
+            "impact": "MEDIUM", "effort": "MEDIUM", "category": "AI Search",
+            "specific_steps": ["Add FAQPage and Article schema", "Answer common questions in plain, citable sentences", "Add author, dates, and statistics for E-E-A-T", "Provide an llms.txt file for AI crawlers"],
+        })
+    if weak and weak[0] == "SEO" and weak[1] < 70:
+        pa.append({
+            "title": "Fix on-page SEO fundamentals",
+            "description": "Titles, meta descriptions, headings, and internal links are the foundation of rankings.",
+            "impact": "HIGH", "effort": "LOW", "category": "On-Page SEO",
+            "specific_steps": ["Write unique, keyword-rich titles for every page", "Add compelling meta descriptions to lift CTR", "Use one clear H1 per page", "Add 3-5 contextual internal links per page"],
+        })
+
+    qw = []
+    quick_map = {
+        "Missing Meta Description": {"title": "Write meta descriptions to lift click-through rate", "description": "Compelling meta descriptions increase CTR, which feeds back into rankings.", "estimated_time": "2-4 hours", "expected_improvement": "+5-10% CTR"},
+        "Missing Title": {"title": "Add missing title tags", "description": "Pages without a title have no primary ranking signal.", "estimated_time": "1-2 hours", "expected_improvement": "Better indexing & rankings"},
+        "Missing Alt Text": {"title": "Add alt text to images", "description": "Descriptive alt text improves image SEO and accessibility.", "estimated_time": "1-3 hours", "expected_improvement": "Image traffic + accessibility"},
+        "Missing Canonical": {"title": "Add canonical tags", "description": "Prevent duplicate-content signals from splitting your rankings.", "estimated_time": "1-2 hours", "expected_improvement": "Consolidated ranking strength"},
+        "Missing H1": {"title": "Add a clear H1 to each page", "description": "The H1 tells search engines and readers what the page is about.", "estimated_time": "1-2 hours", "expected_improvement": "Clearer topic relevance"},
+        "No Internal Links": {"title": "Add internal links between related pages", "description": "Internal links distribute authority and improve crawlability.", "estimated_time": "2-4 hours", "expected_improvement": "Better crawl & rankings"},
+    }
+    for signal, count in sorted(signals.items(), key=lambda kv: -kv[1]):
+        if count <= 0:
+            continue
+        for key in ("Missing Meta Description", "Missing Title", "Missing Alt Text", "Missing Canonical", "Missing H1", "No Internal Links"):
+            if key.lower() in signal.lower():
+                w = dict(quick_map[key])
+                w["title"] = f"{w['title']} ({count} pages)"
+                qw.append(w)
+                break
+    thin_count = s.get("thin_content_count") or 0
+    if thin_count > 0 or "Thin Content" in signals:
+        qw.append({"title": f"Expand thin pages to 800+ words ({thin_count} pages)", "description": "Short pages rarely rank for competitive terms.", "estimated_time": "Half a day", "expected_improvement": "Higher rankings on target terms"})
+    if not qw:
+        qw.append({"title": "Refresh and republish your best-performing content", "description": "Updated content gets a freshness boost and often re-ranks quickly.", "estimated_time": "1 day", "expected_improvement": "Traffic recovery & freshness"})
+
+    si = []
+    if weak:
+        si.append(f"Your lowest scoring pillar is {weak[0]} ({weak[1]}/100). A focused sprint here moves the overall score more than anything else.")
+    if overall >= 80:
+        si.append("Your site is in strong health — growth now comes from new content, link building, and AI-search citations rather than fixes.")
+    elif overall >= 50:
+        si.append("You're mid-pack. Closing critical issues first, then adding content depth, is the fastest path to top-10 rankings.")
+    else:
+        si.append("The site has significant structural problems. Fix technical fundamentals before investing in new content or links.")
+    kws = s.get("top_keywords") or []
+    if kws:
+        top = ", ".join(k.get("keyword", "") for k in kws[:3])
+        si.append(f"Your most frequent crawl-level keywords are: {top}. Build pillar content and internal links around these.")
+    if s.get("competitor_url"):
+        si.append(f"You're competing against {s['competitor_url']}. A head-to-head gap analysis will show which terms they win that you can capture.")
+    si.append("AI platforms are a growing share of search traffic. Pages with clear answers, schema, and strong E-E-A-T signals get cited most.")
+
+    cr = []
+    seen = set()
+    for k in kws:
+        kw = (k.get("keyword") or "").strip()
+        if not kw or kw.lower() in seen or len(kw) > 60:
+            continue
+        seen.add(kw.lower())
+        cr.append({
+            "topic": f"Pillar guide: {kw}",
+            "priority": "HIGH" if (k.get("frequency") or 0) >= 5 else "MEDIUM",
+            "type": "Pillar Page",
+            "target_words": 1800,
+            "keywords": [kw],
+        })
+    for u in (s.get("thin_pages") or [])[:5]:
+        cr.append({"topic": f"Expand thin page: {u}", "priority": "MEDIUM", "type": "Content Refresh", "target_words": 1000, "keywords": []})
+    if not cr and kws:
+        cr.append({"topic": f"Create supporting blog content around: {kws[0].get('keyword', '')}", "priority": "MEDIUM", "type": "Article", "target_words": 1200, "keywords": [kws[0].get("keyword", "")]})
+
+    return {"summary": summary, "priority_actions": pa, "quick_wins": qw, "strategic_insights": si, "content_recommendations": cr}
+
+
 @router.post("/audit/{audit_id}/ai-suggestions")
 async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession = Depends(get_db)):
     cache_key = f"ai_suggestions:{audit_id}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
-
-    from app.engine.gemini_engine import GeminiEngine
-    from app.engine.openai_engine import openai_engine
 
     audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = audit_result.scalar_one_or_none()
@@ -3711,10 +3931,22 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
     issues = issues_result.scalars().all()
 
+    kw_result = await db.execute(
+        select(KeywordRecord).where(KeywordRecord.audit_id == audit_id).order_by(KeywordRecord.frequency.desc())
+    )
+    keywords = [{"keyword": k.keyword, "frequency": k.frequency} for k in kw_result.scalars().all()[:15]]
+
     high_issues = [i for i in issues if i.severity in ("HIGH", "CRITICAL")]
+    issue_signals = {}
+    for i in issues:
+        nm = i.signal_name or "Other"
+        issue_signals[nm] = issue_signals.get(nm, 0) + 1
+
+    thin_pages = [p.url for p in pages if (p.word_count or 0) < 300][:10]
 
     audit_data = {
         "website_url": audit.website_url,
+        "competitor_url": audit.competitor_url or "",
         "overall_score": scores.overall_score if scores else 0,
         "seo_score": scores.seo_score if scores else 0,
         "technical_score": scores.technical_score if scores else 0,
@@ -3726,6 +3958,10 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
         "total_issues": len(issues),
         "high_issues": len(high_issues),
         "top_issues": [{"signal": i.signal_name, "severity": i.severity, "description": i.description, "page": i.page_url} for i in high_issues[:10]],
+        "issue_signals": issue_signals,
+        "thin_pages": thin_pages,
+        "thin_content_count": len(thin_pages),
+        "top_keywords": keywords,
     }
 
     suggestions = None
@@ -3738,8 +3974,9 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
             f"SEO Score: {scores.seo_score if scores else 0}, Technical: {scores.technical_score if scores else 0}, AEO: {scores.aeo_score if scores else 0}",
             {}, [{"name": i.signal_name, "status": "fail" if i.severity in ("CRITICAL","HIGH") else "warn"} for i in high_issues[:20]],
         )
-        if groq_sugg and groq_sugg.get("executive_summary"):
-            suggestions = groq_sugg
+        normalized = _normalize_ai_suggestions(groq_sugg)
+        if normalized:
+            suggestions = normalized
             provider = "dual-ai"
     except Exception as e:
         logger.warning(f"DualAI suggestions failed: {e}")
@@ -3749,8 +3986,9 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
         if openai_engine and openai_engine.available:
             try:
                 openai_sugg = await openai_engine.generate_suggestions(audit_data)
-                if openai_sugg and isinstance(openai_sugg, dict) and openai_sugg.get("executive_summary"):
-                    suggestions = openai_sugg
+                normalized = _normalize_ai_suggestions(openai_sugg)
+                if normalized:
+                    suggestions = normalized
                     provider = "openai"
             except Exception as e:
                 logger.warning(f"OpenAI suggestions failed: {e}")
@@ -3759,18 +3997,24 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
         try:
             gemini = GeminiEngine()
             gemini_sugg = await gemini.generate_suggestions(audit_data)
-            if gemini_sugg and isinstance(gemini_sugg, dict) and gemini_sugg.get("executive_summary"):
-                suggestions = gemini_sugg
+            normalized = _normalize_ai_suggestions(gemini_sugg)
+            if normalized:
+                suggestions = normalized
                 provider = "gemini"
         except Exception as e:
             logger.warning(f"Gemini suggestions failed: {e}")
-    if not suggestions:
-        suggestions = {
-            "executive_summary": "AI suggestions are not available. No API key configured or all AI providers unreachable. The rule-based engine results are shown instead.",
-            "provider_unavailable": True,
-            "ai_status": "unavailable",
-        }
-        provider = "unavailable"
+
+    rule_based = _build_rule_suggestions(audit_data)
+
+    if suggestions:
+        suggestions["summary"] = suggestions.get("summary") or rule_based["summary"]
+        for key in ("priority_actions", "quick_wins", "strategic_insights", "content_recommendations"):
+            if not suggestions.get(key):
+                suggestions[key] = rule_based[key]
+    else:
+        suggestions = rule_based
+        provider = "fallback"
+
     result = {"audit_id": audit_id, "suggestions": suggestions, "provider": provider}
     _cache_set(cache_key, result)
     return result
