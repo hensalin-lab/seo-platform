@@ -2,26 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Bot, CheckCircle, XCircle, AlertTriangle, Shield, FileText, Globe, ExternalLink } from 'lucide-react';
-
-function ScoreRing({ score, size = 80, label }) {
-  const r = (size - 8) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  const color = pct >= 70 ? '#059669' : pct >= 50 ? '#d97706' : '#dc2626';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.25, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
@@ -68,9 +51,25 @@ export default function AiBotIntelligence() {
   const machineRead = data.machine_readability || {};
   const allowed = data.robots_txt_analysis?.ai_bots_allowed || [];
   const blocked = data.robots_txt_analysis?.ai_bots_blocked || [];
+  const presentCount = ['llms_txt', 'llms_full_txt', 'pricing_md', 'docs', 'api_docs', 'humans_txt', 'feed_xml', 'security_txt'].filter(k => machineRead[k]?.present).length;
 
   return (
     <div style={{ padding: '0 24px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      <ThemeHero
+        icon={Bot}
+        title="AI Bot Intelligence"
+        subtitle="How AI search engines and LLM crawlers access and read your site"
+        badges={[
+          { icon: Bot, t: 'Bot access' },
+          { icon: FileText, t: 'llms.txt' },
+          { icon: AlertTriangle, t: 'AI readiness' },
+        ]}
+      />
+
+      <div>
+        <AiSuggestionStrip auditId={id} tool="ai-accessibility" title="AI bot & access fixes" />
+      </div>
+
       <div style={{ marginBottom: 16 }}>
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
           style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
@@ -78,48 +77,10 @@ export default function AiBotIntelligence() {
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
-        <Card title="AI Accessibility Score" icon={Bot} color="#3b82f6">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <ScoreRing score={data.overall_ai_accessibility_score} size={90} />
-            <div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                {allowed.length} AI bots allowed, {blocked.length} blocked
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                robots.txt: {data.robots_txt_analysis?.exists ? '✅ Found' : '❌ Missing'}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Machine Readability" icon={FileText} color="#8b5cf6">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <ScoreRing score={machineRead.overall_readability_score || 0} size={90} />
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {['llms_txt', 'llms_full_txt', 'pricing_md', 'docs', 'api_docs', 'humans_txt', 'feed_xml', 'security_txt'].map(k => (
-                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                  {machineRead[k]?.present ? <CheckCircle size={11} color="#059669" /> : <XCircle size={11} color="#dc2626" />}
-                  <span>{k.replace(/_/g, '.').replace('llms_txt', 'llms.txt')}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Content for AI" icon={Globe} color="#059669">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <ScoreRing score={data.content_optimization_for_ai?.extraction_score || 0} size={90} />
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {data.content_optimization_for_ai?.has_definitions && <div>✅ Has definitions</div>}
-              {data.content_optimization_for_ai?.has_faq && <div>✅ Has FAQ</div>}
-              {data.content_optimization_for_ai?.has_structured_data && <div>✅ Has structured data</div>}
-              {data.content_optimization_for_ai?.has_clear_headings && <div>✅ Clear headings</div>}
-              {!data.content_optimization_for_ai?.has_definitions && <div>❌ Missing definitions</div>}
-              {!data.content_optimization_for_ai?.has_faq && <div>❌ Missing FAQ</div>}
-            </div>
-          </div>
-        </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <ThemeStatCard icon={Bot} label="AI Accessibility" value={data.overall_ai_accessibility_score ?? 0} color="#3b82f6" sub={`${allowed.length} AI bots allowed, ${blocked.length} blocked`} />
+        <ThemeStatCard icon={FileText} label="Machine Readability" value={machineRead.overall_readability_score || 0} color="#8b5cf6" sub={`${presentCount} of 8 AI files detected`} />
+        <ThemeStatCard icon={Globe} label="Content for AI" value={data.content_optimization_for_ai?.extraction_score || 0} color="#059669" sub="FAQ, definitions & structured data" />
       </div>
 
       <Card title="AI Bot Accessibility" icon={Bot} color="#3b82f6">

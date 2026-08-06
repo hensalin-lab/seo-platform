@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     OPENROUTER_MODEL: str = "openai/gpt-4o"
     OPENROUTER_MODEL_REWRITE: str = "qwen/qwen3-235b-a22b"
     OPENROUTER_MODEL_COMPETITOR: str = "deepseek/deepseek-chat-v3-0324"
-    OPENROUTER_MODEL_FREE: str = "poolside/laguna-s-2.1:free"
+    OPENROUTER_MODEL_FREE: str = "openrouter/free"
     OPENROUTER_TIMEOUT: int = 80
 
     GROQ_API_KEY: str = ""
@@ -51,6 +51,26 @@ class Settings(BaseSettings):
     CLOUDFLARE_API_TOKEN: str = ""
     CLOUDFLARE_AI_MODEL: str = "@cf/qwen/qwen3-8b-instruct-250527"
     CLOUDFLARE_AI_TIMEOUT: int = 30
+
+    MISTRAL_API_KEY: str = ""
+    MISTRAL_MODEL: str = "mistral-small-latest"
+    MISTRAL_TIMEOUT: int = 30
+
+    NVIDIA_API_KEY: str = ""
+    NVIDIA_MODEL: str = "meta/llama-3.3-70b-instruct"
+    NVIDIA_TIMEOUT: int = 30
+
+    HUGGINGFACE_API_KEY: str = ""
+    HUGGINGFACE_MODEL: str = "Qwen/Qwen2.5-72B-Instruct"
+    HUGGINGFACE_TIMEOUT: int = 30
+
+    GITHUB_TOKEN: str = ""
+    GITHUB_MODEL: str = "gpt-4o-mini"
+    GITHUB_TIMEOUT: int = 30
+
+    SAMBANOVA_API_KEY: str = ""
+    SAMBANOVA_MODEL: str = "Meta-Llama-3.3-70B-Instruct"
+    SAMBANOVA_TIMEOUT: int = 30
 
     CRAWLER_TIMEOUT: int = 15
     CRAWLER_MAX_PAGES: int = 100

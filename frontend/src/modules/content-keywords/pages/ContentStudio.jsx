@@ -6,9 +6,12 @@ import ProtectedAction from '../../../components/ProtectedAction';
 import {
   FileText, Edit3, PenTool, RefreshCw,
   Star, BarChart3, BookOpen, Sparkles, Eye, EyeOff, MessageSquare,
-  Search, ChevronLeft, ChevronRight,
+  Search, ChevronLeft, ChevronRight, CalendarDays, Link2, Target, AlertTriangle,
 } from 'lucide-react';
 import PromptTestingLab from '../components/PromptTestingLab';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 
 const TABS = [
   { key: 'overview', label: 'Content Overview', icon: BarChart3 },
@@ -60,25 +63,6 @@ function SectionCard({ title, icon: Icon, iconColor, badge, children, unavailabl
       </div>
       {children}
     </div>
-  );
-}
-
-function TabButton({ tab, active, onClick }) {
-  const Icon = tab.icon;
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
-        border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-        background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
-        color: active ? '#3b82f6' : 'var(--text-muted)',
-        transition: 'all 0.15s ease',
-      }}
-    >
-      <Icon size={16} />
-      {tab.label}
-    </button>
   );
 }
 
@@ -141,10 +125,10 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
   const oppList = Array.isArray(opps) ? opps : [];
 
   const quickStats = [
-    { label: 'Total Pages', value: pageList.length, color: '#3b82f6' },
-    { label: 'Issues Found', value: totalIssues, color: '#ef4444' },
-    { label: 'Issue Types', value: typeSummary.length, color: '#f59e0b' },
-    { label: 'Avg Quality', value: qualityScore ?? '—', color: '#22c55e' },
+    { label: 'Total Pages', value: pageList.length, color: '#3b82f6', icon: FileText },
+    { label: 'Issues Found', value: totalIssues, color: '#ef4444', icon: AlertTriangle },
+    { label: 'Issue Types', value: typeSummary.length, color: '#f59e0b', icon: Sparkles },
+    { label: 'Avg Quality', value: qualityScore ?? '—', color: '#22c55e', icon: Star },
   ];
 
   const severityColor = (s) => s === 'CRITICAL' ? '#ef4444' : s === 'HIGH' ? '#f59e0b' : s === 'MEDIUM' ? '#3b82f6' : '#6b7280';
@@ -285,12 +269,9 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 20px' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Quick Stats</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
               {quickStats.map((stat, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{stat.label}</span>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: stat.color }}>{stat.value}</span>
-                </div>
+                <ThemeStatCard key={i} icon={stat.icon} label={stat.label} value={stat.value} color={stat.color} />
               ))}
             </div>
           </div>
@@ -464,10 +445,10 @@ function BlogAiTab() {
 
   const summary = data?.summary || {};
   const summaryCards = [
-    { label: 'Blog Ideas', value: summary.total_blog_ideas ?? allIdeas.length, color: '#f59e0b' },
-    { label: 'Calendar Items', value: summary.content_calendar_items ?? data?.content_calendar?.length ?? 0, color: '#0891b2' },
-    { label: 'Internal Linking', value: summary.internal_linking_opportunities ?? data?.internal_linking?.length ?? 0, color: '#22c55e' },
-    { label: 'Featured Snippets', value: summary.featured_snippet_targets ?? data?.featured_snippets?.length ?? 0, color: '#8b5cf6' },
+    { label: 'Blog Ideas', value: summary.total_blog_ideas ?? allIdeas.length, color: '#f59e0b', icon: PenTool },
+    { label: 'Calendar Items', value: summary.content_calendar_items ?? data?.content_calendar?.length ?? 0, color: '#0891b2', icon: CalendarDays },
+    { label: 'Internal Linking', value: summary.internal_linking_opportunities ?? data?.internal_linking?.length ?? 0, color: '#22c55e', icon: Link2 },
+    { label: 'Featured Snippets', value: summary.featured_snippet_targets ?? data?.featured_snippets?.length ?? 0, color: '#8b5cf6', icon: Target },
   ];
 
   return (
@@ -503,12 +484,9 @@ function BlogAiTab() {
           <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Generating blog post...</div>
         ) : data ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
               {summaryCards.map((s) => (
-                <div key={s.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{s.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-                </div>
+                <ThemeStatCard key={s.label} icon={s.icon} label={s.label} value={s.value} color={s.color} />
               ))}
             </div>
 
@@ -685,19 +663,18 @@ export default function ContentStudio() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, background: 'var(--bg-white)', minHeight: '100%', padding: 24, color: 'var(--text)' }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-          <FileText size={28} color="#3b82f6" />
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Content Studio</h1>
-        </div>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Content Analysis, Rewriting, Blog AI & Revival</p>
-      </div>
+      <ThemeHero
+        icon={FileText}
+        title="Content Studio"
+        subtitle="Content Analysis, Rewriting, Blog AI & Revival"
+        badges={[
+          { icon: BarChart3, t: 'Quality scores' },
+          { icon: Edit3, t: 'AI rewriting' },
+          { icon: PenTool, t: 'Blog generation' },
+        ]}
+      />
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-        {TABS.map((tab) => (
-          <TabButton key={tab.key} tab={tab} active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)} />
-        ))}
-      </div>
+      <ThemePillTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'overview' && (
         <OverviewTab contentData={contentData} qualityData={qualityData} opportunitiesData={opportunitiesData} />

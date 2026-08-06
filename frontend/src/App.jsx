@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuditProvider } from './context/AuditContext';
 import { AuthProvider } from './context/AuthContext';
@@ -26,22 +26,24 @@ export default function App() {
           <ToastProvider>
             <ErrorBoundary>
               <Layout>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/" element={<ProtectedRoute><History /></ProtectedRoute>} />
-                  {mainNav.map(route => (
-                    <Route key={route.path} path={route.path} element={<ProtectedRoute><route.component /></ProtectedRoute>} />
-                  ))}
-                  <Route path="/audit/:id/progress" element={<ProtectedRoute><AuditProgress /></ProtectedRoute>} />
-                  {flattenAuditItems().filter(route => route.component).map(route => (
-                    <Route key={route.suffix} path={`/audit/:id${route.suffix}`} element={<ProtectedRoute><route.component /></ProtectedRoute>} />
-                  ))}
-                  {auditRedirects.map(route => (
-                    <Route key={route.suffix} path={`/audit/:id${route.suffix}`} element={<ProtectedRoute><RedirectToAudit to={route.to} /></ProtectedRoute>} />
-                  ))}
-                  <Route path="/audit/:id" element={<ProtectedRoute><RedirectToAudit to="/dashboard" /></ProtectedRoute>} />
-                </Routes>
+                <Suspense fallback={<div className="route-loading">Loading tool...</div>}>
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/" element={<ProtectedRoute><History /></ProtectedRoute>} />
+                    {mainNav.map(route => (
+                      <Route key={route.path} path={route.path} element={<ProtectedRoute><route.component /></ProtectedRoute>} />
+                    ))}
+                    <Route path="/audit/:id/progress" element={<ProtectedRoute><AuditProgress /></ProtectedRoute>} />
+                    {flattenAuditItems().filter(route => route.component).map(route => (
+                      <Route key={route.suffix} path={`/audit/:id${route.suffix}`} element={<ProtectedRoute><route.component /></ProtectedRoute>} />
+                    ))}
+                    {auditRedirects.map(route => (
+                      <Route key={route.suffix} path={`/audit/:id${route.suffix}`} element={<ProtectedRoute><RedirectToAudit to={route.to} /></ProtectedRoute>} />
+                    ))}
+                    <Route path="/audit/:id" element={<ProtectedRoute><RedirectToAudit to="/dashboard" /></ProtectedRoute>} />
+                  </Routes>
+                </Suspense>
               </Layout>
             </ErrorBoundary>
           </ToastProvider>

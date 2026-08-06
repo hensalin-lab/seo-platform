@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import {
-  Edit3, AlertTriangle, CheckCircle, ChevronDown, Target, BarChart3, Brain,
+  Wand2, AlertTriangle, CheckCircle, ChevronDown, Target, BarChart3, Brain,
   RefreshCw, Copy, Sparkles, Globe, Eye, Smartphone, Heading, Link2,
   ExternalLink, Columns, Key, FileJson, Shield, Code, Gauge, Database,
   Users, MessageSquare, HelpCircle, Activity, Lightbulb, Zap, TrendingUp,
   Search, Layout, Clock, Image, Tag, ArrowRight, XCircle,
   ListOrdered, Hash, AlignLeft, Quote, Video, Plus, FileText,
 } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 
 const GOOGLE_TABS = [
   { key: 'googlebot', label: 'Googlebot', icon: Globe },
@@ -778,12 +781,16 @@ export default function ContentRewriter() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '24px 16px' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-        <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 24px', marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Edit3 size={22} color="#6366f1" /> Content Rewriter & Optimizer
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.5 }}>Analyze, rewrite, and optimize your content for SEO, AI visibility, and readability</p>
-        </div>
+        <ThemeHero
+          icon={Wand2}
+          title="Content Rewriter & Optimizer"
+          subtitle="Analyze, rewrite, and optimize your content for SEO, AI visibility, and readability"
+          badges={[
+            { icon: Sparkles, t: 'AI rewrite suggestions' },
+            { icon: Globe, t: '16 SEO sub-views' },
+            { icon: Brain, t: 'Predicted score improvements' },
+          ]}
+        />
 
         <div style={{ marginBottom: 12 }}>
           <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
@@ -801,10 +808,10 @@ export default function ContentRewriter() {
                 {mega.word_count || page.word_count || 0} words | {mega.signals_checked} signals checked
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 16, fontWeight: 800, color: '#059669' }}>{mega.signals_passing}</div><div style={{ fontSize: 9, color: '#059669' }}>PASS</div></div>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 16, fontWeight: 800, color: '#d97706' }}>{mega.signals_warning}</div><div style={{ fontSize: 9, color: '#d97706' }}>WARN</div></div>
-              <div style={{ textAlign: 'center' }}><div style={{ fontSize: 16, fontWeight: 800, color: '#dc2626' }}>{mega.signals_failing}</div><div style={{ fontSize: 9, color: '#dc2626' }}>FAIL</div></div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <ThemeStatCard icon={CheckCircle} label="PASS" value={mega.signals_passing} color="#059669" />
+              <ThemeStatCard icon={AlertTriangle} label="WARN" value={mega.signals_warning} color="#d97706" />
+              <ThemeStatCard icon={XCircle} label="FAIL" value={mega.signals_failing} color="#dc2626" />
             </div>
             <PlatformScoresBar platformScores={platformScores} />
           </div>
@@ -819,28 +826,19 @@ export default function ContentRewriter() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 12, alignItems: 'start' }}>
             <div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: 3 }}>
-                {[
+              <ThemePillTabs
+                tabs={[
                   { key: 'pageview', label: 'Page View', icon: Eye },
                   { key: 'google', label: 'Google Sees', icon: Globe },
                   { key: 'missing', label: `What is Missing (${failing.length + warnings.length})`, icon: XCircle },
                   { key: 'add', label: 'What to Add', icon: Plus },
                   { key: 'keywords', label: 'Keyword Improvements', icon: Key },
                   { key: 'signals', label: `All ${signals.length} Signals`, icon: Sparkles },
-                ].map(t => {
-                  const Icon = t.icon;
-                  return (
-                    <button key={t.key} onClick={() => setLeftTab(t.key)} style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '7px 8px',
-                      border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                      background: leftTab === t.key ? '#1e293b' : 'transparent',
-                      color: leftTab === t.key ? '#fff' : '#64748b',
-                    }}>
-                      <Icon size={12} /> {t.label}
-                    </button>
-                  );
-                })}
-              </div>
+                ]}
+                active={leftTab}
+                onChange={setLeftTab}
+                style={{ marginBottom: 10 }}
+              />
 
               {leftTab === 'pageview' && (
                 <PageVisualView
@@ -856,19 +854,7 @@ export default function ContentRewriter() {
 
               {leftTab === 'google' && (
                 <div>
-                  <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-                    {GOOGLE_TABS.map(tab => {
-                      const Icon = tab.icon;
-                      return (
-                        <button key={tab.key} onClick={() => setGoogleSubTab(tab.key)}
-                          style={{ padding: '5px 10px', border: '1px solid', borderRadius: 5, fontSize: 10, cursor: 'pointer', fontWeight: 600,
-                            background: googleSubTab === tab.key ? '#3b82f6' : '#fff', color: googleSubTab === tab.key ? '#fff' : '#475569', borderColor: googleSubTab === tab.key ? '#3b82f6' : '#e2e8f0',
-                            display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <Icon size={10} /> {tab.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <ThemePillTabs tabs={GOOGLE_TABS} active={googleSubTab} onChange={setGoogleSubTab} style={{ marginBottom: 10 }} />
                   {googleSubTab === 'googlebot' && <GoogleCrawlView sv={sv} />}
                   {googleSubTab === 'browser' && <GenericSubView title="Browser View" icon={Eye} data={sv.browser_view} />}
                   {googleSubTab === 'mobile' && <GenericSubView title="Mobile View" icon={Smartphone} data={sv.mobile_view} />}
@@ -890,19 +876,7 @@ export default function ContentRewriter() {
 
               {leftTab === 'missing' && (
                 <div>
-                  <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-                    {MISSING_TABS.map(tab => {
-                      const Icon = tab.icon;
-                      return (
-                        <button key={tab.key} onClick={() => setMissingSubTab(tab.key)}
-                          style={{ padding: '5px 10px', border: '1px solid', borderRadius: 5, fontSize: 10, cursor: 'pointer', fontWeight: 600,
-                            background: missingSubTab === tab.key ? '#3b82f6' : '#fff', color: missingSubTab === tab.key ? '#fff' : '#475569', borderColor: missingSubTab === tab.key ? '#3b82f6' : '#e2e8f0',
-                            display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <Icon size={10} /> {tab.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <ThemePillTabs tabs={MISSING_TABS} active={missingSubTab} onChange={setMissingSubTab} style={{ marginBottom: 10 }} />
                   {missingSubTab === 'failing' && <MissingSignalsView signals={signals} />}
                   {missingSubTab === 'warnings' && <MissingSignalsView signals={signals.filter(s => s.status === 'warn')} />}
                   {missingSubTab === 'category_gaps' && <CategoryGapsView catScores={catScores} />}
@@ -949,19 +923,7 @@ export default function ContentRewriter() {
 
               {leftTab === 'keywords' && (
                 <div>
-                  <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-                    {KEYWORD_TABS.map(tab => {
-                      const Icon = tab.icon;
-                      return (
-                        <button key={tab.key} onClick={() => setKwSubTab(tab.key)}
-                          style={{ padding: '5px 10px', border: '1px solid', borderRadius: 5, fontSize: 10, cursor: 'pointer', fontWeight: 600,
-                            background: kwSubTab === tab.key ? '#3b82f6' : '#fff', color: kwSubTab === tab.key ? '#fff' : '#475569', borderColor: kwSubTab === tab.key ? '#3b82f6' : '#e2e8f0',
-                            display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <Icon size={10} /> {tab.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <ThemePillTabs tabs={KEYWORD_TABS} active={kwSubTab} onChange={setKwSubTab} style={{ marginBottom: 10 }} />
                   <KeywordImprovementsView mega={mega} rewrite={rewrite} signals={signals} />
                 </div>
               )}
@@ -995,8 +957,8 @@ export default function ContentRewriter() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: 3, flexWrap: 'wrap' }}>
-                {[
+              <ThemePillTabs
+                tabs={[
                   { key: 'issues', label: `Issues (${issues.length})`, icon: AlertTriangle },
                   { key: 'rewrite', label: 'AI Rewrite', icon: Sparkles },
                   { key: 'eeat', label: 'E-E-A-T', icon: Users },
@@ -1006,20 +968,11 @@ export default function ContentRewriter() {
                   { key: 'serp', label: 'SERP Preview', icon: Target },
                   { key: 'readability', label: 'Readability', icon: Brain },
                   { key: 'export', label: 'Export All', icon: Copy },
-                ].map(t => {
-                  const Icon = t.icon;
-                  return (
-                    <button key={t.key} onClick={() => setRightTab(t.key)} style={{
-                      flex: 1, minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '6px 6px',
-                      border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 600,
-                      background: rightTab === t.key ? '#3b82f6' : 'transparent',
-                      color: rightTab === t.key ? '#fff' : '#64748b',
-                    }}>
-                      <Icon size={10} /> {t.label}
-                    </button>
-                  );
-                })}
-              </div>
+                ]}
+                active={rightTab}
+                onChange={setRightTab}
+                style={{ marginBottom: 10 }}
+              />
 
               {rightTab === 'issues' && (
                 <div>

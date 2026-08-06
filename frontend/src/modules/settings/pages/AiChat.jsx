@@ -266,20 +266,20 @@ export default function AiChat() {
             <div style={styles.sideSection}>
               <div style={styles.sideHeading}>Breakdown</div>
               <SidebarStat label="SEO" value={Math.round(seo)} color={seo >= 80 ? '#12b886' : seo >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/seo`)} />
-              <SidebarStat label="Technical" value={Math.round(tech)} color={tech >= 80 ? '#12b886' : tech >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/enterprise`)} />
-              <SidebarStat label="AEO" value={Math.round(aeo)} color={aeo >= 80 ? '#12b886' : aeo >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/ai-visibility`)} />
-              <SidebarStat label="GEO" value={Math.round(geo)} color={geo >= 80 ? '#12b886' : geo >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/ai-visibility`)} />
-              <SidebarStat label="Content" value={Math.round(content)} color={content >= 80 ? '#12b886' : content >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/content`)} />
-              <SidebarStat label="AI Visibility" value={Math.round(aiVis)} color={aiVis >= 80 ? '#12b886' : aiVis >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/ai-visibility`)} />
+              <SidebarStat label="Technical" value={Math.round(tech)} color={tech >= 80 ? '#12b886' : tech >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/seo?tab=enterprise`)} />
+              <SidebarStat label="AEO" value={Math.round(aeo)} color={aeo >= 80 ? '#12b886' : aeo >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/geo-aeo?tab=aeo-analysis`)} />
+              <SidebarStat label="GEO" value={Math.round(geo)} color={geo >= 80 ? '#12b886' : geo >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/geo-aeo?tab=geo-analysis`)} />
+              <SidebarStat label="Content" value={Math.round(content)} color={content >= 80 ? '#12b886' : content >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/content-intel?tab=content`)} />
+              <SidebarStat label="AI Visibility" value={Math.round(aiVis)} color={aiVis >= 80 ? '#12b886' : aiVis >= 50 ? '#f59f00' : '#fa5252'} onClick={() => navigate(`/audit/${id}/geo-aeo?tab=ai-visibility`)} />
             </div>
 
             <div style={styles.sideSection}>
               <div style={styles.sideHeading}>Pages: {auditInfo?.total_pages || '-'}</div>
               <SidebarStat label="SEO Analysis" value="" onClick={() => navigate(`/audit/${id}/seo`)} />
-              <SidebarStat label="Recommendations" value="" onClick={() => navigate(`/audit/${id}/action-center`)} />
-              <SidebarStat label="Content Audit" value="" onClick={() => navigate(`/audit/${id}/content`)} />
-              <SidebarStat label="Full Strategy" value="" onClick={() => navigate(`/audit/${id}/action-center`)} />
-              <SidebarStat label="AI Visibility" value="" onClick={() => navigate(`/audit/${id}/ai-visibility`)} />
+              <SidebarStat label="Recommendations" value="" onClick={() => navigate(`/audit/${id}/action-hub?tab=recommendations-list`)} />
+              <SidebarStat label="Content Audit" value="" onClick={() => navigate(`/audit/${id}/content-intel?tab=content`)} />
+              <SidebarStat label="Full Strategy" value="" onClick={() => navigate(`/audit/${id}/action-hub?tab=recommendations-list`)} />
+              <SidebarStat label="AI Visibility" value="" onClick={() => navigate(`/audit/${id}/geo-aeo?tab=ai-visibility`)} />
             </div>
 
             <div style={styles.sideSection}>

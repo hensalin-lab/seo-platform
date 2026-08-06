@@ -29,6 +29,136 @@ TRADITIONAL_BOTS = [
     "YandexBot", "Sogou", "Exabot", "facebot", "archive.org_bot",
 ]
 
+_REC_GUIDES = {
+    "Create a robots.txt with explicit AI bot rules": {
+        "what": "Add a robots.txt file that explicitly tells each AI crawler which areas it may crawl and which it must avoid.",
+        "how": [
+            "Create a file named robots.txt and place it in the web server document root so it is served at the domain root.",
+            "Add one User-agent group per AI crawler you control (GPTBot, ChatGPT-User, ClaudeBot, PerplexityBot, Google-Extended).",
+            "Set 'Allow: /' for public content and 'Disallow:' for sensitive paths like /search, /admin, /user-account, /cart.",
+            "Append a 'Sitemap:' line pointing to your sitemap so AI crawlers discover all indexable pages.",
+            "Verify the file loads at /robots.txt and test every rule with a robots.txt tester before shipping.",
+        ],
+        "where": "Web server document root",
+        "which_page": "/robots.txt (domain root)",
+        "ai_suggestion": "Give every AI crawler an explicit group: 'User-agent: GPTBot' then 'Allow: /', 'Disallow: /search /admin /user-account'. Keep the homepage, /about, blog and /llms.txt Allow-all so Gemini, ChatGPT, Claude and Perplexity can ingest them. AI crawlers respect Disallow, so never block the pages you want to be cited.",
+    },
+    "Create /llms.txt with site summary and key pages": {
+        "what": "Publish an llms.txt file that gives AI crawlers a short, machine-readable summary of your site plus links to the most important pages.",
+        "how": [
+            "Create a plain-text file named llms.txt and serve it at the domain root (no framework routing needed — static file).",
+            "Line 1: the site title. Line 2: a 2-3 sentence summary of what the site is and who it serves.",
+            "Then list key pages in 'Markdown URL' format, one per line, starting with homepage, about, product/service pages, top 5 blog posts.",
+            "Prefer stable, descriptive URLs and short titles so the file stays under ~20 lines for top discoverability.",
+            "Re-deploy or push the file, then fetch /llms.txt to confirm it renders as plain text.",
+        ],
+        "where": "Domain root (static file)",
+        "which_page": "/llms.txt",
+        "ai_suggestion": "Your llms.txt should read like an elevator pitch an AI can quote: '# [Site name]', a summary sentence, then '## Key pages' with 5-10 links using the exact page titles. This is the first file many AI crawlers read, so put your strongest, most citable pages at the top.",
+    },
+    "Create /llms-full.txt with full content dump for AI consumption": {
+        "what": "Publish llms-full.txt containing the full text of your key pages so AI crawlers can ingest complete content in one fetch.",
+        "how": [
+            "Generate a concatenated plain-text dump of your top pages: title, meta description, H1, and body text per page.",
+            "Separate each page with a clear '## [Page Title]' header and include the canonical URL.",
+            "Start with the highest-value pages (homepage, services, cornerstone blog posts) before lower-value ones.",
+            "Keep the file under 5-10MB by including full text only for pages worth citing.",
+            "Auto-regenerate it on every deploy so it never goes stale.",
+        ],
+        "where": "Domain root (static file)",
+        "which_page": "/llms-full.txt",
+        "ai_suggestion": "Think of llms-full.txt as the AI version of your sitemap: every page header plus its full text. AIs cite what they can read in one request, so your best-performing content should appear verbatim near the top of the file.",
+    },
+    "Add /humans.txt with team and project info": {
+        "what": "Publish humans.txt crediting the people and teams behind the site to reinforce E-E-A-T signals for AI systems.",
+        "how": [
+            "Create a plain-text humans.txt at the domain root listing the team, roles, and contact.",
+            "Add a short 'Team' section with names and roles, and an 'Acknowledgements' section if you have contributors.",
+            "Cross-link it from robots.txt with a 'Human: /humans.txt' line.",
+            "Keep it honest and current — outdated team info hurts trust.",
+        ],
+        "where": "Domain root (static file)",
+        "which_page": "/humans.txt",
+        "ai_suggestion": "AI systems weigh named humans as an authority signal. Include real team names, titles and a contact email — it tells Gemini and ChatGPT that a person with expertise is behind the content, which improves your E-E-A-T for citation.",
+    },
+    "Add an RSS/Atom feed at /feed.xml for content discovery": {
+        "what": "Publish an RSS/Atom feed so AI crawlers and readers can detect new content the moment it is published.",
+        "how": [
+            "Generate /feed.xml from your CMS or build step, listing the latest posts with title, link, description, and publish date.",
+            "Include <lastBuildDate> and <updated> timestamps so crawlers know when the feed changes.",
+            "Add the feed link to your <head> with <link rel=\"alternate\" type=\"application/rss+xml\">.",
+            "Expose it in robots.txt and/or sitemap so AI crawlers discover it.",
+        ],
+        "where": "Domain root (generated file)",
+        "which_page": "/feed.xml",
+        "ai_suggestion": "A fresh feed is a freshness signal. Publishing to the feed every time you post new content makes it easier for AI systems to re-crawl and re-cite your newest material instead of stale pages.",
+    },
+    "Add JSON-LD structured data (Organization, Article, FAQ, etc.)": {
+        "what": "Add JSON-LD structured data so AI systems can reliably extract who you are and what each page means.",
+        "how": [
+            "Add Organization schema to the homepage with name, url, logo, sameAs (LinkedIn, X, GitHub) and contactPoint.",
+            "Add Article/BlogPosting schema to blog posts with headline, author, datePublished, dateModified, and image.",
+            "Add FAQPage schema wherever you already answer common questions.",
+            "Add BreadcrumbList on category pages and Product/Service schema on the pages that sell them.",
+            "Validate every schema with the Rich Results Test before deploying.",
+        ],
+        "where": "Inside each page's <head> or as JSON-LD script tags",
+        "which_page": "Homepage + every article/service/product page",
+        "ai_suggestion": "The homepage Organization schema is your identity card — it ties your brand, logo and social profiles together with sameAs links so AI systems resolve you as one entity. Article schema with a named author and dates tells AI your content is attributable and fresh.",
+    },
+    "Add FAQ sections with FAQPage schema where appropriate": {
+        "what": "Add FAQ sections with FAQPage schema so AI assistants can extract ready-made Q&A answers.",
+        "how": [
+            "Collect the 4-8 most common questions your customers ask about this topic.",
+            "Answer each question in 1-2 plain, factual sentences directly under the question.",
+            "Wrap the section in FAQPage JSON-LD matching the visible on-page questions exactly.",
+            "Only mark up content that is actually visible on the page — hidden FAQ markup is a penalty risk.",
+        ],
+        "where": "Bottom or middle of relevant content pages",
+        "which_page": "This page and all service/product/blog pages with common questions",
+        "ai_suggestion": "FAQPage is the single best structured-data shortcut to AI citations — ChatGPT, Perplexity and Google's AI Overview all pull directly from it. Match the schema questions to the visible headings so the answer is extractable verbatim.",
+    },
+    "Include clear definitions for key terms (using <dl> or structured patterns)": {
+        "what": "Add definition blocks for key industry terms so AI models can extract clean definitions.",
+        "how": [
+            "Identify 3-6 key terms a reader must understand before the rest of the page makes sense.",
+            "For each term add a definition sentence in a <dt>/<dd> pair, or a heading + one-sentence definition below it.",
+            "Place definitions near the top of the page or where the term is first used.",
+            "Keep definitions 1-2 sentences and start with the term itself ('[Term] is a ...') so they read like dictionary entries.",
+        ],
+        "where": "Top of page content, in <dl> lists or H3 + paragraph pairs",
+        "which_page": "This page, especially for technical or industry-specific terms",
+        "ai_suggestion": "AI models extract definitions from 'X is a ...' patterns. Write each definition as a standalone dictionary-style sentence under its own heading — that structure is what RAG pipelines pick out when building answers.",
+    },
+    "Reduce crawl-delay restrictions or disallow rules for key AI bots": {
+        "what": "Loosen crawl-delay and disallow rules that keep AI crawlers from indexing your content.",
+        "how": [
+            "List which AI bots score below 30 and why (crawl-delay, disallow, block in robots.txt).",
+            "For each, decide if the restricted path actually needs protection; if not, add 'Allow: /' and remove the delay.",
+            "Keep protection only for genuinely private areas (/admin, /cart, /user-account).",
+            "Re-test the robots.txt and confirm the bots' estimated accessible pages rises.",
+        ],
+        "where": "robots.txt rules",
+        "which_page": "/robots.txt (rules affecting the low-scoring bots)",
+        "ai_suggestion": "If GPTBot or ClaudeBot can only see a fraction of your site, you are invisible to ChatGPT and Claude citations. Allow your public content to every AI crawler and reserve disallows exclusively for private, non-indexable paths.",
+    },
+}
+
+
+def _enrich_rec(rec: dict, url: str) -> dict:
+    """Attach concrete how/what/where guidance + an AI suggestion to a recommendation."""
+    guide = _REC_GUIDES.get(rec.get("recommendation", ""), {})
+    page_path = urlparse(url).path or "/"
+    rec["what"] = guide.get("what", rec.get("recommendation", "").rstrip(".") + ".")
+    rec["how"] = guide.get("how", [f"Set up {rec.get('recommendation','').lower().rstrip('.')} on {page_path}."])
+    rec["where"] = guide.get("where", "On-page")
+    rec["which_page"] = guide.get("which_page", page_path)
+    rec["ai_suggestion"] = guide.get(
+        "ai_suggestion",
+        "Apply this fix on the most important pages first (homepage, services, top blog posts) and re-run the audit to confirm the improvement.",
+    )
+    return rec
+
 
 class AiBotIntelligenceEngine:
     """Engine 10: AI Bot Intelligence — evaluates how accessible a website

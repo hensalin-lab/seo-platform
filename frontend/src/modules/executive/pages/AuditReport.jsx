@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { BarChart3, AlertTriangle, Sparkles, Globe, Gauge, Search, Settings, Bot, Eye, FileText } from 'lucide-react'
 import { api } from '../../../api'
 import AIChatWidget from '../../../components/AIChatWidget'
-
-function scoreClass(s) {
-  if (s >= 80) return 'excellent'
-  if (s >= 60) return 'good'
-  if (s >= 40) return 'fair'
-  return 'poor'
-}
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
+import ThemeHero from '../../../components/ai/ThemeHero'
+import ThemeStatCard from '../../../components/ai/ThemeStatCard'
 
 function severityBadge(s) {
   if (s === 'CRITICAL') return 'badge-red'
@@ -121,37 +118,38 @@ export default function AuditReport() {
   ]
 
   return (
-    <div>
-      <div className="page-header-row">
-        <div>
-          <h1>SEO Intelligence Report</h1>
-          <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <span style={{ fontSize: 13 }}>{detail.website_url}</span>
-            {detail.competitor_url && <span className="badge badge-purple">vs {detail.competitor_url.replace('https://', '').replace('http://', '')}</span>}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowChat(!showChat)}>AI Assistant</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/new')}>New Audit</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/history')}>History</button>
-        </div>
-      </div>
-
-      <div className="score-grid">
-        {[
-          { label: 'Overall', score: scores.overall_score },
-          { label: 'SEO', score: scores.seo_score },
-          { label: 'Technical', score: scores.technical_score },
-          { label: 'AEO', score: scores.aeo_score },
-          { label: 'GEO', score: scores.geo_score },
-          { label: 'Content', score: scores.content_score },
-          { label: 'AI Visibility', score: scores.ai_visibility_score },
-        ].map(item => (
-          <div key={item.label} className={`score-card ${scoreClass(item.score || 0)}`}>
-            <div className="label">{item.label}</div>
-            <div className="score">{item.score ?? '-'}</div>
-            <div className="out-of">/ 100</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <ThemeHero
+        icon={BarChart3}
+        title="SEO Intelligence Report"
+        subtitle={detail.competitor_url ? `${detail.website_url} vs ${detail.competitor_url.replace('https://', '').replace('http://', '')}` : detail.website_url}
+        badges={[
+          { icon: AlertTriangle, t: `${issues.length} issues` },
+          { icon: Sparkles, t: `${recommendations.length} AI recs` },
+          { icon: Globe, t: `${pages.length} pages` },
+        ]}
+        actions={
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowChat(!showChat)}>AI Assistant</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('/new')}>New Audit</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('/history')}>History</button>
           </div>
+        }
+      />
+
+      <AiSuggestionStrip auditId={id} tool="report" title="AI fixes" />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        {[
+          { label: 'Overall', value: scores.overall_score, icon: Gauge, color: '#7c3aed' },
+          { label: 'SEO', value: scores.seo_score, icon: Search, color: '#3b82f6' },
+          { label: 'Technical', value: scores.technical_score, icon: Settings, color: '#06b6d4' },
+          { label: 'AEO', value: scores.aeo_score, icon: Bot, color: '#f59e0b' },
+          { label: 'GEO', value: scores.geo_score, icon: Globe, color: '#10b981' },
+          { label: 'Content', value: scores.content_score, icon: FileText, color: '#ec4899' },
+          { label: 'AI Visibility', value: scores.ai_visibility_score, icon: Eye, color: '#f43f5e' },
+        ].map(s => (
+          <ThemeStatCard key={s.label} icon={s.icon} label={s.label} value={s.value ?? '-'} color={s.color} sub="/ 100" />
         ))}
       </div>
 

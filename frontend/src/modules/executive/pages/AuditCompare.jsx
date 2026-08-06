@@ -5,6 +5,8 @@ import {
   TrendingDown, Minus, BarChart3, FileText, Layers, Target, Info
 } from 'lucide-react';
 import { api } from '../../../api';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ThemeHero from '../../../components/ai/ThemeHero';
 
 function ScoreDiff({ label, a, b }) {
   const diff = Math.round((a - b) * 10) / 10;
@@ -60,10 +62,18 @@ export default function AuditCompare() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Compare Audits</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>Compare two audits side by side to track improvements or benchmark.</p>
-      </div>
+      <ThemeHero
+        icon={GitCompare}
+        title="Compare Audits"
+        subtitle="Compare two audits side by side to track improvements or benchmark"
+        badges={[
+          { icon: BarChart3, t: 'Side-by-side' },
+          { icon: TrendingUp, t: 'Score deltas' },
+          { icon: Target, t: 'Benchmark' },
+        ]}
+      />
+
+      <AiSuggestionStrip auditId={id} tool="compare" title="AI fixes" />
 
       {/* Selector */}
       <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '16px 20px' }}>

@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import DataSourceBadge from '../../../components/DataSourceBadge'
-import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown, Sparkles, Brain, ArrowRight, Clock, RefreshCw } from 'lucide-react'
+import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown, Sparkles, Brain, ArrowRight, Clock, RefreshCw, Wand2 } from 'lucide-react'
+import ThemeHero from '../../../components/ai/ThemeHero'
+import ThemeStatCard from '../../../components/ai/ThemeStatCard'
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 
 function KeywordTable({ keywords, search }) {
   const [sortBy, setSortBy] = useState('frequency')
@@ -258,36 +261,27 @@ export default function KeywordStrategy() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Key size={24} color="#3b82f6" /> Keyword Strategy
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-            Keyword analysis from crawled content — frequency, intent, and topic clusters
-            <DataSourceBadge source="crawler" size="xs" />
-          </p>
+        <ThemeHero
+          icon={Wand2}
+          title="Keyword Strategy"
+          subtitle="Keyword analysis from crawled content — frequency, intent, and topic clusters"
+          badges={[
+            { icon: Target, t: 'High opportunity' },
+            { icon: GitMerge, t: 'Topic clusters' },
+            { icon: Sparkles, t: 'AI suggestions' },
+          ]}
+          actions={<DataSourceBadge source="crawler" size="xs" />}
+        />
+
+        <div>
+          <AiSuggestionStrip auditId={id} tool="keywords" title="AI keyword fixes" />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-          {[
-            { label: 'Total Keywords', value: summary.total_keywords || allKeywords.length, icon: Key, color: '#3b82f6' },
-            { label: 'Total Frequency', value: totalVolume.toLocaleString(), icon: BarChart3, color: '#8b5cf6' },
-            { label: 'High Opportunity', value: highOpp, icon: Target, color: '#059669' },
-            { label: 'Cannibalization', value: summary.cannibalization_issues || research?.cannibalization?.length || 0, icon: AlertTriangle, color: '#dc2626' },
-          ].map((s, i) => {
-            const Icon = s.icon
-            return (
-              <div key={i} style={{ padding: 16, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: s.color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon size={18} color={s.color} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.label}</div>
-                </div>
-              </div>
-            )
-          })}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+          <ThemeStatCard icon={Key} label="Total Keywords" value={summary.total_keywords || allKeywords.length} color="#3b82f6" />
+          <ThemeStatCard icon={BarChart3} label="Total Frequency" value={totalVolume.toLocaleString()} color="#8b5cf6" />
+          <ThemeStatCard icon={Target} label="High Opportunity" value={highOpp} color="#059669" />
+          <ThemeStatCard icon={AlertTriangle} label="Cannibalization" value={summary.cannibalization_issues || research?.cannibalization?.length || 0} color="#dc2626" />
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>

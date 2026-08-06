@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import AnimatedNumber from '../../../components/AnimatedNumber';
-import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, Gauge } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 
 const SCORE_FIELDS = [
   { key: 'overall_score', label: 'Overall', color: 'var(--accent)', icon: '📊' },
@@ -91,13 +93,16 @@ export default function Trends() {
   if (audits.length < 2) {
     return (
       <div className="page-content">
-        <div className="page-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <BarChart3 size={24} style={{ color: 'var(--accent)' }} />
-            <h1>Historical Trends</h1>
-          </div>
-          <p>Track your SEO scores over time across multiple audits</p>
-        </div>
+        <ThemeHero
+          icon={BarChart3}
+          title="Historical Trends"
+          subtitle="Track your SEO scores over time across multiple audits"
+          badges={[
+            { icon: Calendar, t: `${audits.length} audits` },
+            { icon: TrendingUp, t: 'Latest vs previous' },
+            { icon: Sparkles, t: 'Score tracking' },
+          ]}
+        />
         <div className="empty-state animate-in" style={{ padding: '60px' }}>
           <Calendar size={48} style={{ color: 'var(--text-muted)' }} />
           <h3 style={{ color: 'var(--text)' }}>Need at least 2 audits</h3>
@@ -108,14 +113,28 @@ export default function Trends() {
     );
   }
 
+  const latestAudit = audits[audits.length - 1];
+  const prevAudit = audits[audits.length - 2];
+  const overallDelta = Math.round(((latestAudit.overall_score || 0) - (prevAudit.overall_score || 0)) * 10) / 10;
+
   return (
     <div className="page-content">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <BarChart3 size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Historical Trends</h1>
-        </div>
-        <p>Tracking {audits.length} audits — latest score changes from previous audit</p>
+      <ThemeHero
+        icon={BarChart3}
+        title="Historical Trends"
+        subtitle={`Tracking ${audits.length} audits — latest score changes from previous audit`}
+        badges={[
+          { icon: Calendar, t: `${audits.length} audits` },
+          { icon: TrendingUp, t: 'Latest vs previous' },
+          { icon: Sparkles, t: 'AI visibility tracking' },
+        ]}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
+        <ThemeStatCard icon={Gauge} label="Latest Overall" value={latestAudit.overall_score ?? '-'} color="#7c3aed" sub="/ 100" />
+        <ThemeStatCard icon={BarChart3} label="Audits Tracked" value={audits.length} color="#3b82f6" />
+        <ThemeStatCard icon={TrendingUp} label="Overall Delta" value={overallDelta > 0 ? `+${overallDelta}` : overallDelta} color="#12b886" sub="vs previous audit" />
+        <ThemeStatCard icon={Calendar} label="Date Range" value={audits[0].created_at ? new Date(audits[0].created_at).toLocaleDateString() : '-'} color="#06b6d4" sub={`→ ${latestAudit.created_at ? new Date(latestAudit.created_at).toLocaleDateString() : '-'}`} />
       </div>
 
       {stats && (

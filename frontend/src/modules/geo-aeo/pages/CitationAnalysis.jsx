@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom';
 import { Quote, Bot, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Sparkles, FileText, Link2, Info, Shield, Zap, BarChart3 } from 'lucide-react';
 import { api } from '../../../api';
 import DataSourceBadge from '../../../components/DataSourceBadge';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -237,9 +240,19 @@ export default function CitationAnalysis() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <ThemeHero
+        icon={Quote}
+        title="Citation Analysis"
+        subtitle="Why each page fails citation checks and the exact fix to make it citable by AI."
+        badges={[
+          { icon: Quote, t: 'AI citations' },
+          { icon: Shield, t: 'Checklist' },
+          { icon: Bot, t: 'Platform readiness' },
+        ]}
+      />
+
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Citation Analysis</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>Why each page fails citation checks and the exact fix to make it citable by AI.</p>
+        <AiSuggestionStrip auditId={id} tool="citations" title="AI citation fixes" />
       </div>
 
       <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '32px 40px', display: 'flex', alignItems: 'center', gap: 48, flexWrap: 'wrap' }}>
@@ -249,18 +262,11 @@ export default function CitationAnalysis() {
           <DataSourceBadge source="estimated" size="xs" />
         </div>
         <div style={{ flex: 1, minWidth: 300 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-            {[
-              { label: 'Checks Passed', value: passedChecks, color: 'var(--green, #22c55e)' },
-              { label: 'Checks Failed', value: failedChecks, color: 'var(--red, #ef4444)' },
-              { label: 'Total Issues', value: issues.length, color: issues.length > 0 ? 'var(--yellow, #f59e0b)' : 'var(--green, #22c55e)' },
-              { label: 'Signals Analyzed', value: Object.keys(signals).length, color: 'var(--cyan, #0891b2)' },
-            ].map((s, i) => (
-              <div key={i} style={{ padding: '14px 14px', background: 'var(--bg, #f9fafb)', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid var(--border-light, #f3f4f6)' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted, #6b7280)', fontWeight: 500, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
-              </div>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <ThemeStatCard icon={CheckCircle} label="Checks Passed" value={passedChecks} color="#22c55e" />
+            <ThemeStatCard icon={AlertTriangle} label="Checks Failed" value={failedChecks} color="#ef4444" />
+            <ThemeStatCard icon={Zap} label="Total Issues" value={issues.length} color="#f59e0b" />
+            <ThemeStatCard icon={Bot} label="Signals Analyzed" value={Object.keys(signals).length} color="#0891b2" />
           </div>
         </div>
       </div>

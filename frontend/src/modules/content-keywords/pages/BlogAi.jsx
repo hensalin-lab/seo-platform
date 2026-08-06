@@ -6,6 +6,9 @@ import {
   BarChart3, FileText, Clock, Target, Zap, HelpCircle, Layers
 } from 'lucide-react';
 import { api } from '../../../api';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 
 const TYPE_COLORS = {
   GUIDE: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
@@ -21,44 +24,6 @@ const PRIORITY_COLORS = {
   MEDIUM: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' },
   LOW: { bg: 'rgba(107,114,128,0.08)', color: '#9ca3af' },
 };
-
-function StatCard({ icon: Icon, label, value, color = 'var(--accent, #3b82f6)' }) {
-  return (
-    <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm, 6px)', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={16} color={color} />
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)', fontWeight: 500 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color, lineHeight: 1.1 }}>{value}</div>
-    </div>
-  );
-}
-
-function TabBar({ tabs, active, onChange }) {
-  return (
-    <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border, #e5e7eb)', overflowX: 'auto' }}>
-      {tabs.map(t => (
-        <button key={t.key} onClick={() => onChange(t.key)} style={{
-          padding: '10px 18px', fontSize: 13, fontWeight: active === t.key ? 600 : 500,
-          color: active === t.key ? 'var(--accent, #3b82f6)' : 'var(--text-muted, #6b7280)',
-          background: 'none', border: 'none', borderBottom: active === t.key ? '2px solid var(--accent, #3b82f6)' : '2px solid transparent',
-          marginBottom: -2, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s',
-        }}>
-          {t.label}
-          {t.count != null && (
-            <span style={{
-              marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10,
-              background: active === t.key ? 'rgba(59,130,246,0.15)' : 'var(--border, #e5e7eb)',
-              color: active === t.key ? 'var(--accent, #3b82f6)' : 'var(--text-muted, #6b7280)',
-            }}>{t.count}</span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function BlogIdeas({ ideas }) {
   const [expanded, setExpanded] = useState(null);
@@ -282,32 +247,38 @@ export default function BlogAi() {
 
   const s = data.summary || {};
   const tabs = [
-    { key: 'ideas', label: 'Blog Ideas', count: s.total_blog_ideas || 0 },
-    { key: 'calendar', label: 'Content Calendar', count: s.content_calendar_items || 0 },
-    { key: 'links', label: 'Internal Links', count: s.internal_linking_opportunities || 0 },
-    { key: 'snippets', label: 'Featured Snippets', count: s.featured_snippet_targets || 0 },
-    { key: 'repurpose', label: 'Repurposing', count: s.repurposing_suggestions || 0 },
+    { key: 'ideas', label: 'Blog Ideas', icon: Lightbulb, count: s.total_blog_ideas || 0 },
+    { key: 'calendar', label: 'Content Calendar', icon: Calendar, count: s.content_calendar_items || 0 },
+    { key: 'links', label: 'Internal Links', icon: Link2, count: s.internal_linking_opportunities || 0 },
+    { key: 'snippets', label: 'Featured Snippets', icon: Target, count: s.featured_snippet_targets || 0 },
+    { key: 'repurpose', label: 'Repurposing', icon: RefreshCw, count: s.repurposing_suggestions || 0 },
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Blog AI Engine</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>AI-powered blog strategy: ideas, calendar, linking, snippets, and repurposing.</p>
-      </div>
+      <ThemeHero
+        icon={FileText}
+        title="Blog AI Engine"
+        subtitle="AI-powered blog strategy: ideas, calendar, linking, snippets, and repurposing."
+        badges={[
+          { icon: Lightbulb, t: 'Blog ideas' },
+          { icon: Calendar, t: 'Content calendar' },
+          { icon: TrendingUp, t: 'Trend signals' },
+        ]}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-        <StatCard icon={Lightbulb} label="Blog Ideas" value={s.total_blog_ideas || 0} color="#a855f7" />
-        <StatCard icon={Zap} label="High Priority" value={s.high_priority_ideas || 0} color="#22c55e" />
-        <StatCard icon={Calendar} label="Calendar Items" value={s.content_calendar_items || 0} color="#3b82f6" />
-        <StatCard icon={Link2} label="Link Opportunities" value={s.internal_linking_opportunities || 0} color="#f59e0b" />
-        <StatCard icon={Target} label="Snippet Targets" value={s.featured_snippet_targets || 0} color="#ef4444" />
-        <StatCard icon={TrendingUp} label="Trend Signals" value={s.trend_signals || 0} color="#14b8a6" />
+        <ThemeStatCard icon={Lightbulb} label="Blog Ideas" value={s.total_blog_ideas || 0} color="#a855f7" />
+        <ThemeStatCard icon={Zap} label="High Priority" value={s.high_priority_ideas || 0} color="#22c55e" />
+        <ThemeStatCard icon={Calendar} label="Calendar Items" value={s.content_calendar_items || 0} color="#3b82f6" />
+        <ThemeStatCard icon={Link2} label="Link Opportunities" value={s.internal_linking_opportunities || 0} color="#f59e0b" />
+        <ThemeStatCard icon={Target} label="Snippet Targets" value={s.featured_snippet_targets || 0} color="#ef4444" />
+        <ThemeStatCard icon={TrendingUp} label="Trend Signals" value={s.trend_signals || 0} color="#14b8a6" />
       </div>
 
       <TrendSignals signals={data.trend_signals} />
 
-      <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
+      <ThemePillTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'ideas' && <BlogIdeas ideas={data.blog_ideas} />}
       {activeTab === 'calendar' && <ContentCalendar calendar={data.content_calendar} />}

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { MapPin, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 
 export default function LocalSeo() {
   const { id } = useParams();
@@ -51,42 +54,27 @@ export default function LocalSeo() {
   const nap = data?.nap_signals || {};
   const recs = data?.recommendations || [];
 
-  const getScoreColor = (s) => {
-    if (s >= 80) return 'score-excellent';
-    if (s >= 60) return 'score-good';
-    if (s >= 40) return 'score-fair';
-    return 'score-poor';
-  };
-
   return (
     <div className="page-content">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <MapPin size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Local SEO</h1>
-        </div>
-        <p>NAP consistency, local signals, and Google Business Profile optimization</p>
+      <ThemeHero
+        icon={MapPin}
+        title="Local SEO"
+        subtitle="NAP consistency, local signals, and Google Business Profile optimization"
+        badges={[
+          { icon: MapPin, t: 'NAP checks' },
+          { icon: CheckCircle, t: 'Local signals' },
+          { icon: AlertTriangle, t: 'GBP optimization' },
+        ]}
+      />
+
+      <div>
+        <AiSuggestionStrip auditId={id} tool="local" title="AI local SEO fixes" />
       </div>
 
-      <div className="score-grid">
-        <div className="score-card">
-          <div className="label">Local SEO Score</div>
-          <div className={`score ${getScoreColor(score)}`}>{score}</div>
-          <div className="out-of">out of 100</div>
-          <div className="bar">
-            <div className="bar-fill" style={{ width: `${score}%`, background: 'var(--gradient)' }} />
-          </div>
-        </div>
-        <div className="score-card">
-          <div className="label">Pages with Local Signals</div>
-          <div className="score" style={{ color: 'var(--accent)' }}>{data?.pages_with_local_signals ?? 0}</div>
-          <div className="out-of">of {data?.total_pages ?? 0} pages</div>
-        </div>
-        <div className="score-card">
-          <div className="label">NAP Signals Found</div>
-          <div className="score" style={{ color: 'var(--green)' }}>{Object.values(nap).filter(Boolean).length}</div>
-          <div className="out-of">of {Object.keys(nap).length} checks</div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <ThemeStatCard icon={MapPin} label="Local SEO Score" value={score} color="#7c3aed" sub="out of 100" />
+        <ThemeStatCard icon={CheckCircle} label="Pages w/ Local Signals" value={data?.pages_with_local_signals ?? 0} color="#3b82f6" sub={`of ${data?.total_pages ?? 0} pages`} />
+        <ThemeStatCard icon={MapPin} label="NAP Signals Found" value={Object.values(nap).filter(Boolean).length} color="#12b886" sub={`of ${Object.keys(nap).length} checks`} />
       </div>
 
       <div className="card">

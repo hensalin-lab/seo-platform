@@ -6,6 +6,9 @@ import {
   FileText, Braces, MessageSquareQuote, ListTree, ArrowRight, ExternalLink, AlertCircle,
   Trophy, TrendingUp, Clock,
 } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 function CopyBtn({ text, label = 'Copy' }) {
   const [copied, setCopied] = useState(false);
@@ -118,9 +121,9 @@ export default function RankBoost() {
   const page = data?.pages?.[selectedIdx];
 
   const steps = [
-    { label: '1. Fix', desc: 'What/where/how fixes', to: `/audit/${id}/action-studio`, icon: Zap },
+    { label: '1. Fix', desc: 'What/where/how fixes', to: `/audit/${id}/action-hub?tab=action-studio`, icon: Zap },
     { label: '2. Generate', desc: 'AI AEO/GEO content kit', to: `/audit/${id}/rank-boost`, icon: Wand2 },
-    { label: '3. Verify', desc: 'Re-run audit, watch score', to: `/audit/${id}/executive-dashboard`, icon: RefreshCw },
+    { label: '3. Verify', desc: 'Re-run audit, watch score', to: `/audit/${id}/dashboard?tab=executive-dashboard`, icon: RefreshCw },
   ];
 
   if (loading) {
@@ -135,23 +138,35 @@ export default function RankBoost() {
 
   return (
     <div className="page-container" style={{ paddingTop: 80, maxWidth: 1100 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Sparkles size={19} style={{ color: 'var(--accent)' }} />
+      <ThemeHero
+        icon={Sparkles}
+        title="Rank Boost"
+        subtitle={`${data.domain} · current score ${data.current_score} · ${data.aeo_geo_issues} AEO/GEO issues to fix`}
+        badges={[
+          { icon: Zap, t: 'AEO/GEO fixes' },
+          { icon: Wand2, t: 'Content kit' },
+          { icon: RefreshCw, t: 'Re-rank & verify' },
+        ]}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: data.ai_available ? '#22c55e' : '#adb5bd' }} />
+              {data.ai_available ? 'AI Live' : 'AI warming up'}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.16)' }}>Gemini + Groq</span>
           </div>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Rank Boost</div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{data.domain} · current score {data.current_score} · {data.aeo_geo_issues} AEO/GEO issues to fix</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: data.ai_available ? 'var(--green)' : '#adb5bd' }} />
-            {data.ai_available ? 'AI Live' : 'AI warming up'}
-          </span>
-          <span className="badge badge-gray">Gemini + Groq</span>
-        </div>
+        }
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <ThemeStatCard icon={Target} label="Current Score" value={data.current_score} color="#3b82f6" />
+        <ThemeStatCard icon={AlertCircle} label="AEO/GEO Issues" value={data.aeo_geo_issues} color="#f59f00" />
+        <ThemeStatCard icon={FileText} label="Opportunity Pages" value={data.pages?.length ?? 0} color="#12b886" />
+        <ThemeStatCard icon={TrendingUp} label="Projected Score" value={win?.projected_score ?? '-'} color="#7c3aed" />
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <AiSuggestionStrip auditId={id} tool="rank-boost" title="AI rank boost fixes" />
       </div>
 
       {/* Win Proof panel */}
@@ -217,7 +232,7 @@ export default function RankBoost() {
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.04em' }}>TOP MOVES BY POINTS</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {win.top_moves.map((m, i) => (
-                  <a key={i} href={`/audit/${id}/action-studio`} style={{ textDecoration: 'none' }}>
+                  <a key={i} href={`/audit/${id}/action-hub?tab=action-studio`} style={{ textDecoration: 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--text)' }}>
                       <span className="badge" style={{ background: 'var(--red-bg)', color: '#e03131', fontSize: 9.5 }}>{m.priority}</span>
                       <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.what}</span>
@@ -427,7 +442,7 @@ export default function RankBoost() {
                   )}
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 6 }}>
-                    <a href={`/audit/${id}/executive-dashboard`} className="btn btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <a href={`/audit/${id}/dashboard?tab=executive-dashboard`} className="btn btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       Done — Re-run the audit <ArrowRight size={14} />
                     </a>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>then watch your score climb</span>

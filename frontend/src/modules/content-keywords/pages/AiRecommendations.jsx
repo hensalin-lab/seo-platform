@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Brain, Target, BarChart3, ChevronDown, CheckCircle, AlertTriangle, Lightbulb, TrendingUp, Shield, Globe, Search, Zap } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 
 function ScoreRing({ score, size = 80, stroke = 6, label }) {
   const r = (size - stroke) / 2;
@@ -87,40 +90,37 @@ export default function AiRecommendations() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Brain size={24} color="#8b5cf6" /> AI SEO Recommendations
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Data-driven recommendations from {globalData?.total_signals || 0} signals across {globalData?.total_pages || 0} pages</p>
+          <ThemeHero
+            icon={Brain}
+            title="AI SEO Recommendations"
+            subtitle={`Data-driven recommendations from ${globalData?.total_signals || 0} signals across ${globalData?.total_pages || 0} pages`}
+            badges={[
+              { icon: Zap, t: 'Impact scored' },
+              { icon: CheckCircle, t: 'Priority ranked' },
+              { icon: Globe, t: 'Site-wide + per page' },
+            ]}
+          />
         </div>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
-          {[
-            { key: 'site-wide', label: `Site-Wide (${topFixes.length} fixes)` },
-            { key: 'page', label: 'Page Analysis' },
-            { key: 'priority', label: 'Priority Matrix' },
-          ].map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-              flex: 1, padding: '10px 16px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-              background: activeTab === t.key ? '#8b5cf6' : 'transparent',
-              color: activeTab === t.key ? '#fff' : '#64748b',
-            }}>{t.label}</button>
-          ))}
+        <div style={{ marginBottom: 20 }}>
+          <ThemePillTabs
+            tabs={[
+              { key: 'site-wide', label: 'Site-Wide', count: topFixes.length },
+              { key: 'page', label: 'Page Analysis' },
+              { key: 'priority', label: 'Priority Matrix' },
+            ]}
+            active={activeTab}
+            onChange={setActiveTab}
+          />
         </div>
 
         {activeTab === 'site-wide' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-              {[
-                { label: 'Critical', value: globalData?.critical_count || 0, color: '#dc2626', bg: '#fef2f2' },
-                { label: 'High', value: globalData?.high_count || 0, color: '#ea580c', bg: '#fff7ed' },
-                { label: 'Total Issues', value: globalData?.total_issues || 0, color: '#d97706', bg: '#fffbeb' },
-                { label: 'Signals Checked', value: globalData?.total_signals || 0, color: '#3b82f6', bg: '#eff6ff' },
-              ].map((s, i) => (
-                <div key={i} style={{ padding: 14, background: s.bg, borderRadius: 10, border: '1px solid var(--border)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.label}</div>
-                </div>
-              ))}
+              <ThemeStatCard icon={AlertTriangle} label="Critical" value={globalData?.critical_count || 0} color="#dc2626" />
+              <ThemeStatCard icon={TrendingUp} label="High" value={globalData?.high_count || 0} color="#ea580c" />
+              <ThemeStatCard icon={BarChart3} label="Total Issues" value={globalData?.total_issues || 0} color="#d97706" />
+              <ThemeStatCard icon={Lightbulb} label="Signals Checked" value={globalData?.total_signals || 0} color="#7c3aed" />
             </div>
 
             <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16, marginBottom: 20 }}>

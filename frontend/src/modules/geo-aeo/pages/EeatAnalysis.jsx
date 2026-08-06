@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import DataSourceBadge from '../../../components/DataSourceBadge';
 import { Shield, CheckCircle, XCircle, Award, BookOpen, Users, Star, AlertTriangle, Target, Search } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 
 export default function EeatAnalysis() {
   const { id } = useParams();
@@ -96,26 +99,26 @@ export default function EeatAnalysis() {
 
   return (
     <div className="page-content">
-      <div className="card page-header">
-        <div className="card-header">
-          <Shield size={20} />
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h2 className="card-title">E-E-A-T Analysis</h2>
-              <DataSourceBadge source="heuristic" size="xs" />
-            </div>
-            <p className="card-subtitle">Expertise, Experience, Authoritativeness & Trustworthiness — analyzed from page content heuristics</p>
-          </div>
-        </div>
+      <ThemeHero
+        icon={Shield}
+        title="E-E-A-T Analysis"
+        subtitle="Expertise, Experience, Authoritativeness & Trustworthiness — analyzed from page content heuristics"
+        badges={[
+          { icon: Award, t: 'Expertise' },
+          { icon: Users, t: 'Experience' },
+          { icon: Star, t: 'Trust' },
+        ]}
+        actions={<DataSourceBadge source="heuristic" size="xs" />}
+      />
+
+      <div>
+        <AiSuggestionStrip auditId={id} tool="eeat" title="AI E-E-A-T fixes" />
       </div>
 
-      <div className="score-grid" style={{ marginTop: '1rem' }}>
-        <div className="score-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-          <div className="score-ring">
-            <div className="score-value">{eeatScore}</div>
-            <div className="score-label">E-E-A-T Score</div>
-          </div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <ThemeStatCard icon={Shield} label="E-E-A-T Score" value={eeatScore} color="#7c3aed" sub="out of 100" />
+        <ThemeStatCard icon={Target} label="Signals Detected" value={signals.total_pages ?? signalEntries.length} color="#3b82f6" sub="across crawled pages" />
+        <ThemeStatCard icon={AlertTriangle} label="Issues Found" value={issues.length} color="#f59f00" sub="by severity" />
       </div>
 
       {signalEntries.length > 0 && (

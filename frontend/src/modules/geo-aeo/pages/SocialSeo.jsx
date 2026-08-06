@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import { Share2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Share2, AlertTriangle, CheckCircle, XCircle, Globe, Hash } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 
 export default function SocialSeo() {
   const { id } = useParams();
@@ -54,52 +56,27 @@ export default function SocialSeo() {
   const issues = data?.issues || [];
   const recs = data?.recommendations || [];
 
-  const getScoreColor = (s) => {
-    if (s >= 80) return 'score-excellent';
-    if (s >= 60) return 'score-good';
-    if (s >= 40) return 'score-fair';
-    return 'score-poor';
-  };
-
   return (
     <div className="page-content">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <Share2 size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Social Meta Tags</h1>
-        </div>
-        <p>Open Graph, Twitter Cards, and social sharing optimization</p>
-      </div>
+      <ThemeHero
+        icon={Share2}
+        title="Social Meta Tags"
+        subtitle="Open Graph, Twitter Cards, and social sharing optimization"
+        badges={[
+          { icon: Globe, t: 'Open Graph' },
+          { icon: Hash, t: 'Twitter Cards' },
+          { icon: Share2, t: 'Social sharing' },
+        ]}
+      />
 
       <div style={{ marginBottom: 20 }}>
         <AiSuggestionStrip auditId={id} tool="social" title="AI social meta fixes" />
       </div>
 
-      <div className="score-grid">
-        <div className="score-card">
-          <div className="label">Social SEO Score</div>
-          <div className={`score ${getScoreColor(score)}`}>{score}</div>
-          <div className="out-of">out of 100</div>
-          <div className="bar">
-            <div className="bar-fill" style={{ width: `${score}%`, background: 'var(--gradient)' }} />
-          </div>
-        </div>
-        <div className="score-card">
-          <div className="label">Open Graph Coverage</div>
-          <div className="score" style={{ color: ogPct >= 80 ? 'var(--green)' : ogPct >= 50 ? 'var(--yellow)' : 'var(--red)' }}>{ogPct}%</div>
-          <div className="out-of">{data?.pages_with_og ?? 0} of {data?.total_pages ?? 0} pages</div>
-          <div className="bar">
-            <div className="bar-fill" style={{ width: `${ogPct}%`, background: ogPct >= 80 ? 'var(--green)' : ogPct >= 50 ? 'var(--yellow)' : 'var(--red)' }} />
-          </div>
-        </div>
-        <div className="score-card">
-          <div className="label">Twitter Card Coverage</div>
-          <div className="score" style={{ color: twitterPct >= 80 ? 'var(--green)' : twitterPct >= 50 ? 'var(--yellow)' : 'var(--red)' }}>{twitterPct}%</div>
-          <div className="out-of">{data?.pages_with_twitter ?? 0} of {data?.total_pages ?? 0} pages</div>
-          <div className="bar">
-            <div className="bar-fill" style={{ width: `${twitterPct}%`, background: twitterPct >= 80 ? 'var(--green)' : twitterPct >= 50 ? 'var(--yellow)' : 'var(--red)' }} />
-          </div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <ThemeStatCard icon={Share2} label="Social SEO Score" value={score} color="#7c3aed" />
+        <ThemeStatCard icon={Globe} label="Open Graph Coverage" value={`${ogPct}%`} color="#3b82f6" sub={`${data?.pages_with_og ?? 0} of ${data?.total_pages ?? 0} pages`} />
+        <ThemeStatCard icon={Hash} label="Twitter Card Coverage" value={`${twitterPct}%`} color="#12b886" sub={`${data?.pages_with_twitter ?? 0} of ${data?.total_pages ?? 0} pages`} />
       </div>
 
       <div className="card">

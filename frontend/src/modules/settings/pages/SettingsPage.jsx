@@ -252,8 +252,12 @@ function AiProvidersTab({ addToast }) {
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.9 }}>
               <li><strong>Gemini</strong> (recommended): aistudio.google.com/apikey — free tier</li>
               <li><strong>Groq</strong>: console.groq.com/keys — free tier, resets daily</li>
-              <li><strong>Cerebras</strong>: cloud.cerebras.ai — free tier</li>
-              <li><strong>OpenRouter</strong>: openrouter.ai/settings/keys — needs paid credits; free model variants are currently unavailable</li>
+              <li><strong>Mistral</strong>: console.mistral.ai — free ~1B tokens/mo, no card</li>
+              <li><strong>NVIDIA NIM</strong>: build.nvidia.com — free eval credits, no card</li>
+              <li><strong>HuggingFace</strong>: huggingface.co/settings/tokens — free tier, no card</li>
+              <li><strong>GitHub Models</strong>: reuse any GitHub token — free GPT-4o/Llama</li>
+              <li><strong>SambaNova</strong>: cloud.sambanova.ai — trial credits, no card</li>
+              <li><strong>OpenRouter</strong>: openrouter.ai/settings/keys — free model variants</li>
             </ul>
           </div>
         </>

@@ -142,6 +142,98 @@ _RICH_RESULT_CTR_BOOSTS: dict[str, str] = {
 }
 
 
+_SCHEMA_GUIDES: dict[str, dict[str, Any]] = {
+    "Organization": {
+        "how": ["Add a JSON-LD script in the homepage <head> with @type Organization.", "Set name exactly as your brand appears in search, plus url and logo.", "Add sameAs with your LinkedIn, X/Twitter and GitHub profile URLs.", "Add contactPoint with a public email or phone.", "Validate with Google's Rich Results Test."],
+        "where": "Homepage <head> (also About and Contact pages)",
+        "ai_suggestion": "Your Organization schema is the identity card AI systems and Google use to build a knowledge panel. Use the exact brand name, a real logo URL, and sameAs social profiles so the entity resolves consistently everywhere.",
+    },
+    "Product": {
+        "how": ["Add Product JSON-LD on the product page with name and image.", "Nest an Offer with price, priceCurrency and availability.", "Set brand to the brand name.", "If you have reviews, add aggregateRating only when real user ratings exist.", "Validate with the Rich Results Test."],
+        "where": "Product detail pages",
+        "ai_suggestion": "Never invent aggregateRating — fabricating ratings triggers manual actions. Real offers with price and availability are what make Product rich results appear.",
+    },
+    "Service": {
+        "how": ["Add Service JSON-LD with name and a 1-2 sentence description.", "Set provider to your Organization with your site URL.", "Add areaServed and serviceType.", "Link from the homepage's Organization schema to your service pages."],
+        "where": "Service and landing pages",
+        "ai_suggestion": "Pair Service schema with the Organization homepage schema so AI systems understand this page belongs to your brand — that linkage is what powers service knowledge panels.",
+    },
+    "SoftwareApplication": {
+        "how": ["Add SoftwareApplication JSON-LD with name and applicationCategory.", "Set operatingSystem to 'Web' (or the real platform).", "Add offers with price and priceCurrency.", "Use applicationCategory values from the schema.org list."],
+        "where": "Product / app landing pages",
+        "ai_suggestion": "applicationCategory must come from schema.org's SoftwareApplication category list — a random value makes the markup useless to Google.",
+    },
+    "FAQPage": {
+        "how": ["List the 4-8 real questions customers ask on this page.", "Answer each in 1-2 plain sentences under an H2/H3 heading.", "Add FAQPage JSON-LD with mainEntity Question/Answer pairs matching the visible text exactly.", "Never mark up questions that are not visible on the page."],
+        "where": "Bottom or middle of the content section",
+        "ai_suggestion": "FAQPage is the strongest AI-citation shortcut: ChatGPT, Perplexity and AI Overviews quote it directly. Keep schema answers identical to the visible answers — hidden FAQ markup is a manual-action risk.",
+    },
+    "HowTo": {
+        "how": ["Add HowTo JSON-LD with name and an ordered step list.", "Give each HowToStep a name and 1-2 sentence text.", "Optionally add totalEstimatedTime.", "Mark up steps that are actually visible on the page."],
+        "where": "Tutorial / guide / documentation pages",
+        "ai_suggestion": "Match each HowToStep name to the visible step headings — AI assistants replay the exact steps, and mismatched markup is treated as spam.",
+    },
+    "BreadcrumbList": {
+        "how": ["Add BreadcrumbList JSON-LD with itemListElement.", "Each ListItem needs position (1,2,3...), name, and item as a full URL.", "Start with Home and end at the current page.", "Mirror the visible breadcrumb trail on the page."],
+        "where": "Every page (in <head>)",
+        "ai_suggestion": "Breadcrumb markup is the cheapest high-value schema. A clean Home > Category > Page trail both earns the breadcrumb rich result and gives AI crawlers your site's navigation context in one read.",
+    },
+    "Article": {
+        "how": ["Add Article JSON-LD with headline, author (Person with name), and datePublished.", "Add dateModified whenever you update the post.", "Add image and mainEntityOfPage.", "Use ISO 8601 dates (YYYY-MM-DD)."],
+        "where": "Blog posts and news pages",
+        "ai_suggestion": "A named author Person with a real byline is an E-E-A-T signal. Use the exact byline from the page so Google can attribute authorship.",
+    },
+    "BlogPosting": {
+        "how": ["Add BlogPosting JSON-LD with headline, author, datePublished.", "Add dateModified and image.", "Keep author name identical to the visible byline."],
+        "where": "Blog post pages",
+        "ai_suggestion": "dateModified after meaningful updates signals freshness — AI Overviews favor recently-updated posts for recency-sensitive queries.",
+    },
+    "Review": {
+        "how": ["Add Review JSON-LD only for real reviews.", "Set itemReviewed to the product/service name.", "Add reviewRating with ratingValue and bestRating.", "Add author and datePublished."],
+        "where": "Review sections on product/service pages",
+        "ai_suggestion": "Self-serving reviews with fake ratings violate Google guidelines. Mark up genuine customer reviews with a named author and date.",
+    },
+    "AggregateRating": {
+        "how": ["Add AggregateRating only when you have real, aggregated user ratings.", "Set ratingValue, reviewCount, bestRating, worstRating.", "Never add it without genuine review data."],
+        "where": "Product / service / local business pages",
+        "ai_suggestion": "Fabricated aggregateRating is the most common manual-action trigger. Use your real platform rating and reviewCount.",
+    },
+    "VideoObject": {
+        "how": ["Add VideoObject JSON-LD with name, description, thumbnailUrl, uploadDate.", "Add contentUrl or embedUrl.", "Add duration in ISO 8601 (PT1H2M3S)."],
+        "where": "Pages embedding a video",
+        "ai_suggestion": "Use a real thumbnailUrl and actual uploadDate. Video rich results require a visible video player on the page.",
+    },
+    "LocalBusiness": {
+        "how": ["Add LocalBusiness JSON-LD with name, address, telephone.", "Set address with streetAddress, addressLocality, addressRegion, postalCode.", "Add geo, openingHours and priceRange if available."],
+        "where": "Contact / location pages",
+        "ai_suggestion": "Keep the address and phone identical to what is on the page and in your Google Business Profile — NAP consistency is what Google cross-checks.",
+    },
+    "Person": {
+        "how": ["Add Person JSON-LD with the real name.", "Add jobTitle, worksFor (your Organization), and image.", "Add sameAs links to LinkedIn, X and personal site."],
+        "where": "About page and author bylines",
+        "ai_suggestion": "This is the author entity behind Article markup. Linking the same Person with sameAs everywhere builds the authorship network AI systems trust.",
+    },
+    "WebSite": {
+        "how": ["Add WebSite JSON-LD on the homepage with name and url.", "Add potentialAction with a SearchAction target containing {search_term_string}.", "Add query-input 'required name=search_term_string'."],
+        "where": "Homepage only",
+        "ai_suggestion": "The SearchAction makes you eligible for the sitelinks searchbox — a real CTR lift on branded queries.",
+    },
+    "Speakable": {
+        "how": ["Add SpeakableSpecification to the WebPage markup.", "Point cssSelector at your headline and main content container (e.g., h1, .main-content)."],
+        "where": "Articles, FAQs, homepage",
+        "ai_suggestion": "Speakable targets voice assistants (Google Assistant). Use it alongside FAQ content so questions can be read aloud.",
+    },
+}
+
+
+def _schema_guide(schema_type: str) -> dict:
+    return _SCHEMA_GUIDES.get(schema_type, {
+        "how": [f"Add {schema_type} JSON-LD in the <head> of the page.", "Fill required and recommended properties with real values.", "Validate with Google's Rich Results Test."],
+        "where": "Page <head>",
+        "ai_suggestion": f"Add {schema_type} markup with real page values so search engines and AI systems can parse the page reliably.",
+    })
+
+
 class SchemaIntelligenceEngine:
 
     def analyze(self, page: dict, all_pages: list | None = None) -> dict[str, Any]:

@@ -308,8 +308,8 @@ async def get_keyword_volumes(
 
     keyword_data = (await db.execute(select(KeywordData).where(KeywordData.audit_id == audit_id))).scalar_one_or_none()
     entries = []
+    seen = set()
     if keyword_data:
-        seen = set()
         for field in ("top_keywords", "keyword_opportunities", "keyword_clusters", "content_gaps", "missing_keywords"):
             for item in getattr(keyword_data, field) or []:
                 if isinstance(item, dict):
@@ -320,6 +320,32 @@ async def get_keyword_volumes(
                 if nk and nk not in seen:
                     seen.add(nk)
                     entries.append(k.strip())
+
+    if not entries:
+        # No stored keyword data — derive keywords from the audit's own pages
+        # so the volume table is never empty for a crawled audit.
+        from app.engine.keyword_research import KeywordResearchEngine
+        from app.engine.crawler import PageData
+        pages = await _get_pages(db, audit_id)
+        page_objects = []
+        for p in pages:
+            pd = PageData()
+            pd.url = p.url
+            pd.status_code = p.status_code or 200
+            pd.title = p.title or ""
+            pd.h1 = p.h1 or ""
+            pd.meta_description = p.meta_description or ""
+            pd.content_text = p.content_text or ""
+            pd.word_count = p.word_count or 0
+            pd.page_type = getattr(p, "page_type", "") or ""
+            page_objects.append(pd)
+        kr = KeywordResearchEngine().analyze(pages=page_objects)
+        for k in kr.get("keywords", []) or []:
+            kk = (k.get("keyword") or "").strip() if isinstance(k, dict) else str(k).strip()
+            nk = re.sub(r"\s+", " ", kk).lower()
+            if nk and nk not in seen:
+                seen.add(nk)
+                entries.append(kk)
 
     user_config = await get_user_provider_config(db, user.id)
     resolved = resolve_for_capability("keyword_volume", user_config)

@@ -1,12 +1,12 @@
 {
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://cabinet-captured-bring-ciao.trycloudflare.com/api/:path*"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
-  ]
+    "rewrites":  [
+                     {
+                         "source":  "/api/:path*",
+                         "destination":  "https://handheld-exploration-laser-eddie.trycloudflare.com/api/:path*"
+                     },
+                     {
+                         "source":  "/((?!api/).*)",
+                         "destination":  "/index.html"
+                     }
+                 ]
 }

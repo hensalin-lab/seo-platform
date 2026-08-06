@@ -4,9 +4,12 @@ import {
   Key, Search, AlertTriangle, CheckCircle, ExternalLink, ArrowRight,
   BarChart3, FileText, Target, Info, TrendingUp, Eye, Zap, Filter,
   ChevronDown, ChevronRight, Layers, List, LayoutGrid, HelpCircle,
-  GitMerge, Link2, Image, Map, BookOpen, MessageCircle, Hash
+  GitMerge, Link2, Image, Map, BookOpen, MessageCircle, Hash, Wand2
 } from 'lucide-react';
 import { api } from '../../../api';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 const INTENT_COLORS = {
   Informational: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
@@ -63,26 +66,6 @@ function ScoreRing({ score, size = 120, stroke = 8, label }) {
         <span style={{ fontSize: size * 0.25, fontWeight: 700, color: color, lineHeight: 1 }}>{pct}</span>
         <span style={{ fontSize: 10, color: 'var(--text-muted, #6b7280)', fontWeight: 500 }}>{label || 'Score'}</span>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, sub, color = 'var(--accent, #3b82f6)', highlight }) {
-  return (
-    <div style={{
-      background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)',
-      borderRadius: 'var(--radius, 12px)', padding: '16px 18px', position: 'relative', overflow: 'hidden',
-      borderLeft: highlight ? `3px solid ${color}` : undefined,
-    }}>
-      {highlight && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: color }} />}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm, 6px)', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={16} color={color} />
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)', fontWeight: 500 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: color, lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-muted, #9ca3af)', marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -814,24 +797,32 @@ export default function KeywordOpportunities() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
+      <ThemeHero
+        icon={Wand2}
+        title="Keyword Strategy"
+        subtitle="Complete keyword research: clusters, questions, LSI, cannibalization, and actionable suggestions."
+        badges={[
+          { icon: Target, t: 'High opportunity' },
+          { icon: GitMerge, t: 'Topic clusters' },
+          { icon: HelpCircle, t: 'Questions & FAQs' },
+        ]}
+      />
+
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Keyword Strategy</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>
-          Complete keyword research: clusters, questions, LSI, cannibalization, and actionable suggestions.
-        </p>
+        <AiSuggestionStrip auditId={id} tool="keyword-opportunities" title="AI keyword fixes" />
       </div>
 
       {/* Research Summary Stats */}
       {research?.summary && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-          <StatCard icon={Key} label="Total Keywords" value={summary.total_keywords || total_combined} sub={`${summary.high_opportunity || 0} high opportunity`} color="var(--accent, #3b82f6)" highlight />
-          <StatCard icon={Target} label="High Opportunity" value={summary.high_opportunity || 0} sub="Ready to target" color="#22c55e" />
-          <StatCard icon={Hash} label="Low Difficulty" value={summary.low_difficulty || 0} sub="Easy wins" color="#a855f7" />
-          <StatCard icon={GitMerge} label="Topic Clusters" value={summary.topic_clusters || 0} sub="Content groups" color="#f59e0b" />
-          <StatCard icon={HelpCircle} label="Questions" value={summary.question_keywords || 0} sub="Featured snippet targets" color="#3b82f6" />
-          <StatCard icon={AlertTriangle} label="Cannibalization" value={summary.cannibalization_issues || 0} sub="Conflicts to resolve" color="#ef4444" />
-          <StatCard icon={BookOpen} label="Blog Ideas" value={summary.suggested_blog_topics || 0} sub="Content calendar ready" color="#a855f7" />
-          <StatCard icon={HelpCircle} label="FAQs" value={summary.suggested_faqs || 0} sub="Schema candidates" color="#22c55e" />
+          <ThemeStatCard icon={Key} label="Total Keywords" value={summary.total_keywords || total_combined} sub={`${summary.high_opportunity || 0} high opportunity`} color="#3b82f6" />
+          <ThemeStatCard icon={Target} label="High Opportunity" value={summary.high_opportunity || 0} sub="Ready to target" color="#22c55e" />
+          <ThemeStatCard icon={Hash} label="Low Difficulty" value={summary.low_difficulty || 0} sub="Easy wins" color="#a855f7" />
+          <ThemeStatCard icon={GitMerge} label="Topic Clusters" value={summary.topic_clusters || 0} sub="Content groups" color="#f59e0b" />
+          <ThemeStatCard icon={HelpCircle} label="Questions" value={summary.question_keywords || 0} sub="Featured snippet targets" color="#3b82f6" />
+          <ThemeStatCard icon={AlertTriangle} label="Cannibalization" value={summary.cannibalization_issues || 0} sub="Conflicts to resolve" color="#ef4444" />
+          <ThemeStatCard icon={BookOpen} label="Blog Ideas" value={summary.suggested_blog_topics || 0} sub="Content calendar ready" color="#a855f7" />
+          <ThemeStatCard icon={HelpCircle} label="FAQs" value={summary.suggested_faqs || 0} sub="Schema candidates" color="#22c55e" />
         </div>
       )}
 

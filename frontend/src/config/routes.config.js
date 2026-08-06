@@ -1,3 +1,4 @@
+﻿import { lazy } from 'react';
 import {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2, Gauge, BookOpen,
   Key, Globe, MessageSquare, Users, ExternalLink, Shield, Activity, Lightbulb,
@@ -9,84 +10,98 @@ import {
   LayoutGrid, Copy, Code2, KeyRound, Webhook, Languages, Play, Pause, ArrowRight, Plug,
 } from 'lucide-react';
 
-import SeoAnalysis from '../modules/technical-audit/pages/SeoAnalysis';
-import SpeedAnalysis from '../modules/technical-audit/pages/SpeedAnalysis';
-import SchemaAnalysis from '../modules/technical-audit/pages/SchemaAnalysis';
-import InternalLinks from '../modules/technical-audit/pages/InternalLinks';
-import GscData from '../modules/technical-audit/pages/GscData';
-import KeywordStrategy from '../modules/content-keywords/pages/KeywordStrategy';
-import ContentAnalysis from '../modules/content-keywords/pages/ContentAnalysis';
-import AiVisibility from '../modules/geo-aeo/pages/AiVisibility';
-import EeatAnalysis from '../modules/geo-aeo/pages/EeatAnalysis';
-import CompetitorAnalysis from '../modules/competitive/pages/CompetitorAnalysis';
-import SeoRoadmap from '../modules/content-keywords/pages/SeoRoadmap';
-import RemediationFeed from '../modules/action-center/pages/RemediationFeed';
-import ContentRewriter from '../modules/content-keywords/pages/ContentRewriter';
-import SerpPreview from '../modules/geo-aeo/pages/SerpPreview';
-import AiChat from '../modules/settings/pages/AiChat';
-import PageDetail from '../modules/technical-audit/pages/PageDetail';
-import ContentIntelligence from '../modules/content-keywords/pages/ContentIntelligence';
-import AiRecommendations from '../modules/content-keywords/pages/AiRecommendations';
-import EnterprisePage from '../modules/enterprise/pages/EnterprisePage';
-import AiBotIntelligence from '../modules/geo-aeo/pages/AiBotIntelligence';
-import OffsiteAuthority from '../modules/competitive/pages/OffsiteAuthority';
-import SchemaIntelligence from '../modules/geo-aeo/pages/SchemaIntelligence';
-import PageIntelligenceV2 from '../modules/technical-audit/pages/PageIntelligenceV2';
-import AuditCompare from '../modules/executive/pages/AuditCompare';
-import AuditReport from '../modules/executive/pages/AuditReport';
-import BacklinkProfile from '../modules/competitive/pages/BacklinkProfile';
-import BlogAi from '../modules/content-keywords/pages/BlogAi';
-import CitationAnalysis from '../modules/geo-aeo/pages/CitationAnalysis';
-import ContentOpportunities from '../modules/content-keywords/pages/ContentOpportunities';
-import ContentQuality from '../modules/content-keywords/pages/ContentQuality';
-import ContentRevival from '../modules/content-keywords/pages/ContentRevival';
-import ImageSeo from '../modules/technical-audit/pages/ImageSeo';
-import KeywordOpportunities from '../modules/content-keywords/pages/KeywordOpportunities';
-import LocalSeo from '../modules/geo-aeo/pages/LocalSeo';
-import MobileSeo from '../modules/technical-audit/pages/MobileSeo';
-import PageExperience from '../modules/technical-audit/pages/PageExperience';
-import PageImprovements from '../modules/technical-audit/pages/PageImprovements';
-import PageIntelligenceDetail from '../modules/technical-audit/pages/PageIntelligenceDetail';
-import PageSpeed from '../modules/technical-audit/pages/PageSpeed';
-import PortfolioDashboard from '../modules/enterprise/pages/PortfolioDashboard';
-import ExecutiveDashboard from '../modules/executive/pages/ExecutiveDashboard';
-import Recommendations from '../modules/action-center/pages/Recommendations';
-import SecurityHeaders from '../modules/technical-audit/pages/SecurityHeaders';
-import SeoHealth from '../modules/executive/pages/SeoHealth';
-import SitemapRobots from '../modules/technical-audit/pages/SitemapRobots';
-import SocialSeo from '../modules/geo-aeo/pages/SocialSeo';
-import AiRoadmap from '../modules/content-keywords/pages/AiRoadmap';
-import AiSuggestions from '../modules/content-keywords/pages/AiSuggestions';
-import IssuesExplorer from '../modules/action-center/pages/IssuesExplorer';
-import Trends from '../modules/executive/pages/Trends';
-import GeoAeoHub from '../modules/geo-aeo/pages/GeoAeoHub';
-import AeoAnalysis from '../modules/geo-aeo/pages/AeoAnalysis';
-import GeoAnalysis from '../modules/geo-aeo/pages/GeoAnalysis';
-import ActionCenter from '../modules/action-center/pages/ActionCenter';
-import ActionStudio from '../modules/action-center/pages/ActionStudio';
-import ContentStudio from '../modules/content-keywords/pages/ContentStudio';
-import RankBoost from '../modules/geo-aeo/pages/RankBoost';
-import Rankings from '../modules/technical-audit/pages/Rankings';
-import NewAudit from '../pages/NewAudit';
-import History from '../pages/History';
-import Dashboard from '../pages/Dashboard';
-import SettingsPage from '../modules/settings/pages/SettingsPage';
-import ProgrammaticSeo from '../modules/content-keywords/pages/ProgrammaticSeo';
-import DriftDetection from '../modules/advanced/pages/DriftDetection';
-import HreflangAnalysis from '../modules/advanced/pages/HreflangAnalysis';
-import RedirectAudit from '../modules/advanced/pages/RedirectAudit';
-import DuplicateContent from '../modules/advanced/pages/DuplicateContent';
-import DomainAuthority from '../modules/advanced/pages/DomainAuthority';
-import JsDependency from '../modules/advanced/pages/JsDependency';
-import ContentBriefs from '../modules/advanced/pages/ContentBriefs';
-import UptimeMonitor from '../modules/advanced/pages/UptimeMonitor';
-import Workspaces from '../modules/advanced/pages/Workspaces';
-import UsageMetering from '../modules/advanced/pages/UsageMetering';
-import ApiReference from '../modules/advanced/pages/ApiReference';
-import Providers from '../modules/advanced/pages/Providers';
-import KeywordVolumes from '../modules/advanced/pages/KeywordVolumes';
-import BrandMonitor from '../modules/advanced/pages/BrandMonitor';
-import FreeTools from '../modules/advanced/pages/FreeTools';
+const SeoAnalysis = lazy(() => import('../modules/technical-audit/pages/SeoAnalysis'));
+const SpeedAnalysis = lazy(() => import('../modules/technical-audit/pages/SpeedAnalysis'));
+const SchemaAnalysis = lazy(() => import('../modules/technical-audit/pages/SchemaAnalysis'));
+const InternalLinks = lazy(() => import('../modules/technical-audit/pages/InternalLinks'));
+const GscData = lazy(() => import('../modules/technical-audit/pages/GscData'));
+const KeywordStrategy = lazy(() => import('../modules/content-keywords/pages/KeywordStrategy'));
+const ContentAnalysis = lazy(() => import('../modules/content-keywords/pages/ContentAnalysis'));
+const AiVisibility = lazy(() => import('../modules/geo-aeo/pages/AiVisibility'));
+const AiOverviews = lazy(() => import('../modules/geo-aeo/pages/AiOverviews'));
+const EeatAnalysis = lazy(() => import('../modules/geo-aeo/pages/EeatAnalysis'));
+const CompetitorAnalysis = lazy(() => import('../modules/competitive/pages/CompetitorAnalysis'));
+const SeoRoadmap = lazy(() => import('../modules/content-keywords/pages/SeoRoadmap'));
+const RemediationFeed = lazy(() => import('../modules/action-center/pages/RemediationFeed'));
+const ContentRewriter = lazy(() => import('../modules/content-keywords/pages/ContentRewriter'));
+const SerpPreview = lazy(() => import('../modules/geo-aeo/pages/SerpPreview'));
+const AiChat = lazy(() => import('../modules/settings/pages/AiChat'));
+const PageDetail = lazy(() => import('../modules/technical-audit/pages/PageDetail'));
+const ContentIntelligence = lazy(() => import('../modules/content-keywords/pages/ContentIntelligence'));
+const AiRecommendations = lazy(() => import('../modules/content-keywords/pages/AiRecommendations'));
+const EnterprisePage = lazy(() => import('../modules/enterprise/pages/EnterprisePage'));
+const AiBotIntelligence = lazy(() => import('../modules/geo-aeo/pages/AiBotIntelligence'));
+const OffsiteAuthority = lazy(() => import('../modules/competitive/pages/OffsiteAuthority'));
+const SchemaIntelligence = lazy(() => import('../modules/geo-aeo/pages/SchemaIntelligence'));
+const PageIntelligenceV2 = lazy(() => import('../modules/technical-audit/pages/PageIntelligenceV2'));
+const AuditCompare = lazy(() => import('../modules/executive/pages/AuditCompare'));
+const AuditReport = lazy(() => import('../modules/executive/pages/AuditReport'));
+const BacklinkProfile = lazy(() => import('../modules/competitive/pages/BacklinkProfile'));
+const BlogAi = lazy(() => import('../modules/content-keywords/pages/BlogAi'));
+const CitationAnalysis = lazy(() => import('../modules/geo-aeo/pages/CitationAnalysis'));
+const ContentOpportunities = lazy(() => import('../modules/content-keywords/pages/ContentOpportunities'));
+const ContentQuality = lazy(() => import('../modules/content-keywords/pages/ContentQuality'));
+const ContentRevival = lazy(() => import('../modules/content-keywords/pages/ContentRevival'));
+const ImageSeo = lazy(() => import('../modules/technical-audit/pages/ImageSeo'));
+const KeywordOpportunities = lazy(() => import('../modules/content-keywords/pages/KeywordOpportunities'));
+const LocalSeo = lazy(() => import('../modules/geo-aeo/pages/LocalSeo'));
+const MobileSeo = lazy(() => import('../modules/technical-audit/pages/MobileSeo'));
+const PageExperience = lazy(() => import('../modules/technical-audit/pages/PageExperience'));
+const PageImprovements = lazy(() => import('../modules/technical-audit/pages/PageImprovements'));
+const PageIntelligenceDetail = lazy(() => import('../modules/technical-audit/pages/PageIntelligenceDetail'));
+const PageSpeed = lazy(() => import('../modules/technical-audit/pages/PageSpeed'));
+const PortfolioDashboard = lazy(() => import('../modules/enterprise/pages/PortfolioDashboard'));
+const ExecutiveDashboard = lazy(() => import('../modules/executive/pages/ExecutiveDashboard'));
+const Recommendations = lazy(() => import('../modules/action-center/pages/Recommendations'));
+const SecurityHeaders = lazy(() => import('../modules/technical-audit/pages/SecurityHeaders'));
+const SeoHealth = lazy(() => import('../modules/executive/pages/SeoHealth'));
+const SitemapRobots = lazy(() => import('../modules/technical-audit/pages/SitemapRobots'));
+const SocialSeo = lazy(() => import('../modules/geo-aeo/pages/SocialSeo'));
+const AiRoadmap = lazy(() => import('../modules/content-keywords/pages/AiRoadmap'));
+const AiSuggestions = lazy(() => import('../modules/content-keywords/pages/AiSuggestions'));
+const IssuesExplorer = lazy(() => import('../modules/action-center/pages/IssuesExplorer'));
+const Trends = lazy(() => import('../modules/executive/pages/Trends'));
+const GeoAeoHub = lazy(() => import('../modules/geo-aeo/pages/GeoAeoHub'));
+const AeoAnalysis = lazy(() => import('../modules/geo-aeo/pages/AeoAnalysis'));
+const GeoAnalysis = lazy(() => import('../modules/geo-aeo/pages/GeoAnalysis'));
+const ActionCenter = lazy(() => import('../modules/action-center/pages/ActionCenter'));
+const ActionStudio = lazy(() => import('../modules/action-center/pages/ActionStudio'));
+const ContentStudio = lazy(() => import('../modules/content-keywords/pages/ContentStudio'));
+const RankBoost = lazy(() => import('../modules/geo-aeo/pages/RankBoost'));
+const Rankings = lazy(() => import('../modules/technical-audit/pages/Rankings'));
+const NewAudit = lazy(() => import('../pages/NewAudit'));
+const History = lazy(() => import('../pages/History'));
+const Dashboard = lazy(() => import('../pages/Dashboard'));
+const SettingsPage = lazy(() => import('../modules/settings/pages/SettingsPage'));
+const ProgrammaticSeo = lazy(() => import('../modules/content-keywords/pages/ProgrammaticSeo'));
+const DriftDetection = lazy(() => import('../modules/advanced/pages/DriftDetection'));
+const HreflangAnalysis = lazy(() => import('../modules/advanced/pages/HreflangAnalysis'));
+const RedirectAudit = lazy(() => import('../modules/advanced/pages/RedirectAudit'));
+const DuplicateContent = lazy(() => import('../modules/advanced/pages/DuplicateContent'));
+const DomainAuthority = lazy(() => import('../modules/advanced/pages/DomainAuthority'));
+const JsDependency = lazy(() => import('../modules/advanced/pages/JsDependency'));
+const ContentBriefs = lazy(() => import('../modules/advanced/pages/ContentBriefs'));
+const UptimeMonitor = lazy(() => import('../modules/advanced/pages/UptimeMonitor'));
+const Workspaces = lazy(() => import('../modules/advanced/pages/Workspaces'));
+const UsageMetering = lazy(() => import('../modules/advanced/pages/UsageMetering'));
+const ApiReference = lazy(() => import('../modules/advanced/pages/ApiReference'));
+const Providers = lazy(() => import('../modules/advanced/pages/Providers'));
+const KeywordVolumes = lazy(() => import('../modules/advanced/pages/KeywordVolumes'));
+const BrandMonitor = lazy(() => import('../modules/advanced/pages/BrandMonitor'));
+const FreeTools = lazy(() => import('../modules/advanced/pages/FreeTools'));
+
+const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
+const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
+const SeoHub = lazy(() => import('../pages/hubs/TechnicalHubs').then(m => ({ default: m.SeoHub })));
+const PageDetailHub = lazy(() => import('../pages/hubs/TechnicalHubs').then(m => ({ default: m.PageDetailHub })));
+const SchemaHub = lazy(() => import('../pages/hubs/TechnicalHubs').then(m => ({ default: m.SchemaHub })));
+const SpeedHub = lazy(() => import('../pages/hubs/TechnicalHubs').then(m => ({ default: m.SpeedHub })));
+const RoadmapHub = lazy(() => import('../pages/hubs/TechnicalHubs').then(m => ({ default: m.RoadmapHub })));
+const GeoAeoHubTabs = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.GeoAeoHubTabs })));
+const ContentIntelHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.ContentIntelHub })));
+const KeywordHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.KeywordHub })));
+const OffsiteHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.OffsiteHub })));
+const ContentStudioHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.ContentStudioHub })));
 
 export const ICON_MAP = {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2, Gauge, BookOpen,
@@ -120,124 +135,136 @@ export const mainNav = [
 
 export const auditSections = [
   {
-    label: '1. EXECUTIVE DASHBOARD',
+    label: '1. OVERVIEW',
     items: [
-      { suffix: '/dashboard', icon: 'LayoutDashboard', label: 'Dashboard', title: 'Dashboard', component: Dashboard },
-      { suffix: '/executive-dashboard', icon: 'BarChart3', label: 'Executive Dashboard', title: 'Executive Dashboard', component: ExecutiveDashboard },
-      { suffix: '/compare', icon: 'GitCompare', label: 'Audit Compare', title: 'Audit Compare', component: AuditCompare },
+      { suffix: '/dashboard', icon: 'LayoutDashboard', label: 'Dashboard', title: 'Overview', component: DashboardHub },
       { suffix: '/report', icon: 'FileSearch', label: 'Audit Report', title: 'Audit Report', component: AuditReport },
-      { suffix: '/seo-health', icon: 'ShieldCheck', label: 'SEO Health', title: 'SEO Health', component: SeoHealth },
-      { suffix: '/enterprise', icon: 'Shield', label: 'Enterprise & Technical', title: 'Enterprise & Technical SEO', component: EnterprisePage },
+      { suffix: '/compare', icon: 'GitCompare', label: 'Audit Compare', title: 'Audit Compare', component: AuditCompare },
     ],
   },
   {
-    label: '2. GEO & AEO AI CENTER',
+    label: '2. DIAGNOSE · TECHNICAL',
     items: [
-      { suffix: '/geo-aeo', icon: 'Brain', label: 'GEO & AEO Hub', title: 'GEO & AEO Hub', component: GeoAeoHub },
-      { suffix: '/aeo-analysis', icon: 'Brain', label: 'AEO Analysis', title: 'AEO Analysis', component: AeoAnalysis },
-      { suffix: '/geo-analysis', icon: 'Globe', label: 'GEO Analysis', title: 'GEO Analysis', component: GeoAnalysis },
-      { suffix: '/ai-visibility', icon: 'Sparkles', label: 'AI Search & Visibility', title: 'AI Search & Visibility', component: AiVisibility },
-      { suffix: '/brand-monitor', icon: 'Sparkles', label: 'Brand Monitor', title: 'Brand & AI-Citation Monitor', component: BrandMonitor },
-      { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access', title: 'AI Bot Intelligence', component: AiBotIntelligence },
-      { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview', title: 'SERP & AI Preview', component: SerpPreview },
-      { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis', title: 'E-E-A-T Analysis', component: EeatAnalysis },
-      { suffix: '/schema-intel', icon: 'Network', label: 'Schema Intelligence', title: 'Schema Intelligence', component: SchemaIntelligence },
-      { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO', title: 'Social SEO', component: SocialSeo },
-      { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO', title: 'Local SEO', component: LocalSeo },
-    ],
-  },
-  {
-    label: '3. AI CONTENT & KEYWORDS',
-    items: [
-      { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio', title: 'Content Studio', component: ContentStudio },
-      { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy', title: 'Keywords', component: KeywordStrategy },
-      { suffix: '/keyword-opportunities', icon: 'TrendingUp', label: 'Keyword Opportunities', title: 'Keyword Opportunities', component: KeywordOpportunities },
-      { suffix: '/keyword-volumes', icon: 'BarChart3', label: 'Keyword Volumes', title: 'Keyword Volumes', component: KeywordVolumes },
-      { suffix: '/content', icon: 'FileText', label: 'Content Analysis', title: 'Content Analysis', component: ContentAnalysis },
-      { suffix: '/content-intel', icon: 'Cpu', label: 'Content Intelligence', title: 'Content Intelligence', component: ContentIntelligence },
-      { suffix: '/content-quality', icon: 'ShieldCheck', label: 'Content Quality', title: 'Content Quality', component: ContentQuality },
-      { suffix: '/content-opportunities', icon: 'Zap', label: 'Content Opportunities', title: 'Content Opportunities', component: ContentOpportunities },
-      { suffix: '/content-rewrite', icon: 'Edit3', label: 'Content Rewriter', title: 'Content Rewriter', component: ContentRewriter },
-      { suffix: '/content-revival', icon: 'RefreshCw', label: 'Content Revival', title: 'Content Revival', component: ContentRevival },
-      { suffix: '/blog-ai', icon: 'PenTool', label: 'Blog AI', title: 'Blog AI', component: BlogAi },
-      { suffix: '/ai-recommendations', icon: 'Sparkles', label: 'AI Recommendations', title: 'AI Recommendations', component: AiRecommendations },
-      { suffix: '/ai-roadmap', icon: 'Flag', label: 'AI Roadmap', title: 'AI Roadmap', component: AiRoadmap },
-      { suffix: '/chat', icon: 'MessageSquare', label: 'AI Chat', title: 'AI Chat', component: AiChat },
-    ],
-  },
-  {
-    label: '4. TECHNICAL AUDIT & REMEDIATION',
-    items: [
-      { suffix: '/seo', icon: 'Search', label: 'SEO Analysis', title: 'SEO Analysis', component: SeoAnalysis },
-      { suffix: '/ai-suggestions', icon: 'Lightbulb', label: 'AI Suggestions', title: 'AI Suggestions', component: AiSuggestions },
-      { suffix: '/issues', icon: 'AlertTriangle', label: 'Issue Remediation', title: 'Issue Remediation', component: IssuesExplorer },
-      { suffix: '/remediation', icon: 'RefreshCw', label: 'Remediation Feed', title: 'Remediation Feed', component: RemediationFeed },
-      { suffix: '/action-studio', icon: 'Zap', label: 'AI Action Studio', title: 'AI Action Studio', component: ActionStudio },
-      { suffix: '/rank-boost', icon: 'Star', label: 'Rank Boost', title: 'Rank Boost', component: RankBoost },
-      { suffix: '/action-center', icon: 'ClipboardList', label: 'Action Center', title: 'Action Center', component: ActionCenter },
-      { suffix: '/recommendations-list', icon: 'ClipboardList', label: 'Recommendations List', title: 'Recommendations', component: Recommendations },
-      { suffix: '/pages', icon: 'FileCode', label: 'Pages', title: 'Page Analysis', component: PageIntelligenceV2 },
-      { suffix: '/page-detail', icon: 'Layers', label: 'Page Analysis', title: 'Page Analysis', component: PageDetail },
-      { suffix: '/page-improvements', icon: 'Edit3', label: 'Page Improvements', title: 'Page Improvements', component: PageImprovements },
-      { suffix: '/page-speed', icon: 'Gauge', label: 'Page Speed', title: 'Page Speed', component: PageSpeed },
-      { suffix: '/page-intel-detail', icon: 'Cpu', label: 'Page Intel Detail', title: 'Page Intel Detail', component: PageIntelligenceDetail },
-      { suffix: '/schema', icon: 'Network', label: 'Schema', title: 'Schema', component: SchemaAnalysis },
-      { suffix: '/gsc', icon: 'Search', label: 'Google Search Console', title: 'Google Search Console', component: GscData },
-      { suffix: '/speed', icon: 'Gauge', label: 'Speed & CWV', title: 'Speed & CWV', component: SpeedAnalysis },
+      { suffix: '/seo', icon: 'Search', label: 'SEO Analysis', title: 'SEO Analysis', component: SeoHub },
+      { suffix: '/pages', icon: 'FileCode', label: 'Pages', title: 'Pages', component: PageIntelligenceV2 },
+      { suffix: '/page-detail', icon: 'Layers', label: 'Page Detail', title: 'Page Detail', component: PageDetailHub },
+      { suffix: '/schema', icon: 'Network', label: 'Schema', title: 'Schema', component: SchemaHub },
+      { suffix: '/speed', icon: 'Gauge', label: 'Speed & CWV', title: 'Speed & CWV', component: SpeedHub },
       { suffix: '/internal-links', icon: 'Link2', label: 'Internal Links', title: 'Internal Links', component: InternalLinks },
       {
         label: 'Crawlability & Indexation',
         icon: 'Globe',
         group: true,
         children: [
-          { suffix: '/page-experience', icon: 'HeartPulse', label: 'Page Experience', title: 'Page Experience', component: PageExperience },
           { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO', title: 'Mobile SEO', component: MobileSeo },
           { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots', title: 'Sitemap & Robots', component: SitemapRobots },
           { suffix: '/security-headers', icon: 'ShieldAlert', label: 'Security Headers', title: 'Security Headers', component: SecurityHeaders },
           { suffix: '/image-seo', icon: 'Camera', label: 'Image SEO', title: 'Image SEO', component: ImageSeo },
+          { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang', title: 'Hreflang & i18n', component: HreflangAnalysis },
+          { suffix: '/redirects', icon: 'ArrowRight', label: 'Redirects', title: 'Redirect Analysis', component: RedirectAudit },
+          { suffix: '/duplicates', icon: 'Copy', label: 'Duplicates', title: 'Duplicate Content', component: DuplicateContent },
+          { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency', title: 'JavaScript Dependency', component: JsDependency },
         ],
       },
-      { suffix: '/roadmap', icon: 'Flag', label: 'SEO Roadmap', title: 'SEO Roadmap', component: SeoRoadmap },
+      { suffix: '/roadmap', icon: 'Flag', label: 'Roadmap', title: 'Roadmap', component: RoadmapHub },
     ],
   },
   {
-    label: '5. COMPETITIVE & OFFSITE',
+    label: '3. DIAGNOSE · GEO & AEO',
+    items: [
+      { suffix: '/geo-aeo', icon: 'Brain', label: 'GEO & AEO Hub', title: 'GEO & AEO Hub', component: GeoAeoHubTabs },
+      { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access', title: 'AI Bot Access', component: AiBotIntelligence },
+      { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview', title: 'SERP & AI Preview', component: SerpPreview },
+      { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis', title: 'E-E-A-T Analysis', component: EeatAnalysis },
+      { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO', title: 'Social SEO', component: SocialSeo },
+      { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO', title: 'Local SEO', component: LocalSeo },
+    ],
+  },
+  {
+    label: '4. DIAGNOSE · CONTENT & KEYWORDS',
+    items: [
+      { suffix: '/content-intel', icon: 'Cpu', label: 'Content Intelligence', title: 'Content Intelligence', component: ContentIntelHub },
+      { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy', title: 'Keyword Strategy', component: KeywordHub },
+    ],
+  },
+  {
+    label: '5. DIAGNOSE · COMPETITIVE & OFFSITE',
     items: [
       { suffix: '/competitor', icon: 'Users', label: 'Competitor Analysis', title: 'Competitor Analysis', component: CompetitorAnalysis },
       { suffix: '/backlinks', icon: 'Link2', label: 'Backlinks', title: 'Backlink Profile', component: BacklinkProfile },
-      { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: Rankings },
-      { suffix: '/offsite-authority', icon: 'Award', label: 'Off-Site Authority', title: 'Off-Site Authority', component: OffsiteAuthority },
+      { suffix: '/offsite-authority', icon: 'Award', label: 'Off-Site Authority', title: 'Off-Site Authority', component: OffsiteHub },
       { suffix: '/citations', icon: 'MessageCircle', label: 'Citations', title: 'Citation Analysis', component: CitationAnalysis },
     ],
   },
   {
-    label: '6. SETTINGS & ADMIN',
+    label: '6. FIX',
     items: [
-      { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings' },
+      { suffix: '/action-hub', icon: 'ClipboardList', label: 'Action Hub', title: 'Action Hub', component: ActionHub },
+      { suffix: '/rank-boost', icon: 'Star', label: 'Rank Boost', title: 'Rank Boost', component: RankBoost },
+      { suffix: '/content-rewrite', icon: 'Edit3', label: 'Content Rewriter', title: 'Content Rewriter', component: ContentRewriter },
     ],
   },
   {
-    label: '7. ADVANCED & MONITORING',
+    label: '7. CREATE',
     items: [
+      { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio', title: 'Content Studio', component: ContentStudioHub },
+      { suffix: '/blog-ai', icon: 'PenTool', label: 'Blog AI', title: 'Blog AI', component: BlogAi },
+      { suffix: '/content-revival', icon: 'RefreshCw', label: 'Content Revival', title: 'Content Revival', component: ContentRevival },
+      { suffix: '/chat', icon: 'MessageSquare', label: 'AI Chat', title: 'AI Chat', component: AiChat },
+    ],
+  },
+  {
+    label: '8. TRACK',
+    items: [
+      { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: Rankings },
+      { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor', title: 'AI Overviews Monitor', component: AiOverviews },
       { suffix: '/drift', icon: 'GitCompare', label: 'Drift & Changes', title: 'Drift & Change Detection', component: DriftDetection },
-      { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang', title: 'Hreflang & i18n', component: HreflangAnalysis },
-      { suffix: '/redirects', icon: 'ArrowRight', label: 'Redirects', title: 'Redirect Analysis', component: RedirectAudit },
-      { suffix: '/duplicates', icon: 'Copy', label: 'Duplicates', title: 'Duplicate Content', component: DuplicateContent },
-      { suffix: '/domain-authority', icon: 'Award', label: 'Domain Authority', title: 'Domain Authority', component: DomainAuthority },
-      { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency', title: 'JavaScript Dependency', component: JsDependency },
-      { suffix: '/content-briefs', icon: 'FileText', label: 'Content Briefs', title: 'Content Briefs', component: ContentBriefs },
+      { suffix: '/gsc', icon: 'Search', label: 'Google Search Console', title: 'Google Search Console', component: GscData },
+    ],
+  },
+  {
+    label: '9. SETTINGS',
+    items: [
+      { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings' },
     ],
   },
 ];
 
 export const auditRedirects = [
-  { suffix: '/recommendations', to: '/action-center' },
-  { suffix: '/recommendations-deep', to: '/action-center' },
-  { suffix: '/ai-deep', to: '/ai-visibility' },
+  { suffix: '/recommendations', to: '/action-hub' },
+  { suffix: '/recommendations-deep', to: '/action-hub' },
+  { suffix: '/ai-deep', to: '/geo-aeo?tab=ai-visibility' },
   { suffix: '/competitor-deep', to: '/competitor' },
   { suffix: '/competitor-gap', to: '/competitor' },
   { suffix: '/speed-intel', to: '/speed' },
   { suffix: '/page-deep', to: '/pages' },
+  { suffix: '/executive-dashboard', to: '/dashboard?tab=executive-dashboard' },
+  { suffix: '/seo-health', to: '/dashboard?tab=seo-health' },
+  { suffix: '/enterprise', to: '/seo?tab=enterprise' },
+  { suffix: '/page-intel-detail', to: '/page-detail?tab=page-intel-detail' },
+  { suffix: '/page-improvements', to: '/page-detail?tab=page-improvements' },
+  { suffix: '/page-speed', to: '/page-detail?tab=page-speed' },
+  { suffix: '/schema-intel', to: '/schema?tab=schema-intel' },
+  { suffix: '/page-experience', to: '/speed?tab=page-experience' },
+  { suffix: '/ai-roadmap', to: '/roadmap?tab=ai-roadmap' },
+  { suffix: '/aeo-analysis', to: '/geo-aeo?tab=aeo-analysis' },
+  { suffix: '/geo-analysis', to: '/geo-aeo?tab=geo-analysis' },
+  { suffix: '/ai-visibility', to: '/geo-aeo?tab=ai-visibility' },
+  { suffix: '/content', to: '/content-intel?tab=content' },
+  { suffix: '/content-quality', to: '/content-intel?tab=content-quality' },
+  { suffix: '/content-opportunities', to: '/content-intel?tab=content-opportunities' },
+  { suffix: '/keyword-opportunities', to: '/keywords?tab=keyword-opportunities' },
+  { suffix: '/keyword-volumes', to: '/keywords?tab=keyword-volumes' },
+  { suffix: '/domain-authority', to: '/offsite-authority?tab=domain-authority' },
+  { suffix: '/brand-monitor', to: '/offsite-authority?tab=brand-monitor' },
+  { suffix: '/content-briefs', to: '/content-studio?tab=content-briefs' },
+  { suffix: '/ai-suggestions', to: '/action-hub?tab=ai-suggestions' },
+  { suffix: '/ai-recommendations', to: '/action-hub?tab=ai-recommendations' },
+  { suffix: '/issues', to: '/action-hub?tab=issues' },
+  { suffix: '/remediation', to: '/action-hub?tab=remediation' },
+  { suffix: '/action-studio', to: '/action-hub?tab=action-studio' },
+  { suffix: '/action-center', to: '/action-hub?tab=action-center' },
+  { suffix: '/recommendations-list', to: '/action-hub?tab=recommendations-list' },
 ];
 
 export function flattenAuditItems() {

@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { BarChart3, Search, TrendingUp, RefreshCw, DollarSign, Tag } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import {
-  Card, CardHeader, LoadingSpinner, EmptyState, StatCard, Badge,
+  Card, CardHeader, LoadingSpinner, EmptyState, Badge,
   inputStyle, btnGhost,
 } from './ui';
 
@@ -46,27 +49,32 @@ export default function KeywordVolumes() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Card>
-        <CardHeader
-          icon={BarChart3}
-          title="Keyword Volumes"
-          badge={data.provider}
-          subtitle={data.configured ? 'Measured via a configured volume provider' : 'Keyless heuristic estimates — connect DataForSEO or SE Ranking for measured volumes'}
-          actions={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <select value={limit} onChange={e => setLimit(Number(e.target.value))} style={{ ...inputStyle, width: 'auto' }}>
-                {[25, 50, 100, 200].map(n => <option key={n} value={n}>{n} keywords</option>)}
-              </select>
-              <button style={btnGhost} onClick={() => load(limit)}><RefreshCw size={13} /> Refresh</button>
-            </div>
-          }
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-          <StatCard icon={Tag} label="Keywords" value={data.total} color="#8b5cf6" />
-          <StatCard icon={TrendingUp} label="Total volume" value={data.sum_volume.toLocaleString()} color="#3b82f6" />
-          <StatCard icon={Search} label="Avg volume" value={avg.toLocaleString()} color="#22c55e" />
-        </div>
-      </Card>
+      <ThemeHero
+        icon={BarChart3}
+        title="Keyword Volumes"
+        subtitle={data.configured ? 'Measured via a configured volume provider' : 'Keyless heuristic estimates — connect DataForSEO or SE Ranking for measured volumes'}
+        badges={[
+          { icon: Tag, t: data.provider || 'Heuristic estimates' },
+          { icon: TrendingUp, t: `${data.total || 0} keywords` },
+          { icon: Search, t: 'Volumes + CPC + competition' },
+        ]}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <select value={limit} onChange={e => setLimit(Number(e.target.value))} style={{ ...inputStyle, width: 'auto', background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.4)', color: '#fff' }}>
+              {[25, 50, 100, 200].map(n => <option key={n} value={n} style={{ color: '#1e293b' }}>{n} keywords</option>)}
+            </select>
+            <button style={{ ...btnGhost, color: '#fff', borderColor: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.12)' }} onClick={() => load(limit)}><RefreshCw size={13} /> Refresh</button>
+          </div>
+        }
+      />
+      <div>
+        <AiSuggestionStrip auditId={id} tool="keywords" title="AI keyword fixes" />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        <ThemeStatCard icon={Tag} label="Keywords" value={data.total} color="#8b5cf6" />
+        <ThemeStatCard icon={TrendingUp} label="Total volume" value={data.sum_volume.toLocaleString()} color="#3b82f6" />
+        <ThemeStatCard icon={Search} label="Avg volume" value={avg.toLocaleString()} color="#22c55e" />
+      </div>
 
       <Card>
         <CardHeader

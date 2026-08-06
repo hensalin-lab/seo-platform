@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import { Globe, Search, MessageSquare, Eye, AlertCircle } from 'lucide-react';
+import { Globe, Search, MessageSquare, Eye, AlertCircle, FileText, BarChart3 } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 function GoogleSerpPreview({ url, title, description }) {
   const displayUrl = url?.replace(/^https?:\/\//, '').slice(0, 50) || 'example.com';
@@ -138,12 +141,30 @@ export default function SerpPreview() {
   if (!pages[selectedIdx]) return <div className="empty-state">Page not found</div>;
 
   const page = pages[selectedIdx];
+  const scoreValues = enterprise?.platform_scores ? Object.values(enterprise.platform_scores) : [];
+  const avgReadiness = scoreValues.length ? Math.round(scoreValues.reduce((a, b) => a + (Number(b) || 0), 0) / scoreValues.length) : null;
 
   return (
     <div>
+      <ThemeHero
+        icon={Search}
+        title="SERP & AI Overview Preview"
+        subtitle="How your page appears in Google Search and AI platforms"
+        badges={[
+          { icon: Globe, t: 'Google SERP' },
+          { icon: MessageSquare, t: 'ChatGPT' },
+          { icon: Eye, t: 'AI Overviews' },
+        ]}
+      />
+
       <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>SERP & AI Overview Preview</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>How your page appears in Google Search and AI platforms</p>
+        <AiSuggestionStrip auditId={id} tool="serp" title="AI SERP fixes" />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <ThemeStatCard icon={FileText} label="Pages in Audit" value={pages.length} color="#3b82f6" />
+        <ThemeStatCard icon={BarChart3} label="Avg AI Readiness" value={avgReadiness != null ? avgReadiness : '-'} color="#7c3aed" />
+        <ThemeStatCard icon={Eye} label="Viewing Page" value={selectedIdx + 1} color="#12b886" sub={page.title || page.url} />
       </div>
 
       <div style={{ marginBottom: 16 }}>

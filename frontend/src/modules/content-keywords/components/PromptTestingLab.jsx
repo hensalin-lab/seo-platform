@@ -129,7 +129,7 @@ export default function PromptTestingLab() {
           <span style={{ fontSize: 12, color: promptCharCount > 500 ? '#ef4444' : '#6b7280' }}>
             {promptCharCount} characters
           </span>
-          <ProtectedAction requiredRole="ADMIN">
+          <ProtectedAction requiredRole="VIEWER">
             <button
               onClick={runAll}
               disabled={!prompt.trim() || selectedModels.length === 0 || executing}

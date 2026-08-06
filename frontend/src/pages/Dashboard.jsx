@@ -298,7 +298,7 @@ export default function Dashboard() {
                 ))}
               </div>
               {impact.still_present > 0 && (
-                <button className="btn btn-primary btn-sm" onClick={() => navigate(`/audit/${activeId}/action-studio`)}>
+                <button className="btn btn-primary btn-sm" onClick={() => navigate(`/audit/${activeId}/action-hub?tab=action-studio`)}>
                   Fix the remaining {impact.still_present} <ArrowRight size={13} className="arrow-bounce" />
                 </button>
               )}
@@ -317,11 +317,11 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="stagger">
               {[
                 { label: 'SEO', value: displayAudit.seo_score, color: '#12b886', route: 'seo' },
-                { label: 'Technical', value: displayAudit.technical_score, color: '#4c6ef5', route: 'enterprise' },
-                { label: 'AEO', value: displayAudit.aeo_score, color: '#f59f00', route: 'ai-visibility' },
-                { label: 'GEO', value: displayAudit.geo_score, color: '#20c997', route: 'ai-visibility' },
-                { label: 'Content', value: displayAudit.content_score, color: '#7950f2', route: 'content' },
-                { label: 'AI Visibility', value: displayAudit.ai_visibility_score, color: '#e64980', route: 'ai-visibility' },
+                { label: 'Technical', value: displayAudit.technical_score, color: '#4c6ef5', route: 'seo?tab=enterprise' },
+                { label: 'AEO', value: displayAudit.aeo_score, color: '#f59f00', route: 'geo-aeo?tab=aeo-analysis' },
+                { label: 'GEO', value: displayAudit.geo_score, color: '#20c997', route: 'geo-aeo?tab=geo-analysis' },
+                { label: 'Content', value: displayAudit.content_score, color: '#7950f2', route: 'content-intel?tab=content' },
+                { label: 'AI Visibility', value: displayAudit.ai_visibility_score, color: '#e64980', route: 'geo-aeo?tab=ai-visibility' },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '4px 0' }}
                   onClick={() => navigate(`/audit/${displayAudit.audit_id}/${s.route}`)}>
@@ -335,7 +335,7 @@ export default function Dashboard() {
           {/* AI ACTION STUDIO + RANK BOOST CTAs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, marginBottom: 20 }}>
           <div className="card card-3d animate-in" style={{ animationDelay: '80ms', marginBottom: 0, cursor: 'pointer' }}
-            onClick={() => navigate(`/audit/${displayAudit.audit_id}/action-studio`)}>
+            onClick={() => navigate(`/audit/${displayAudit.audit_id}/action-hub?tab=action-studio`)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -377,12 +377,12 @@ export default function Dashboard() {
           {/* STATS ROW */}
           <div className="stats-row stagger">
             {[
-              { icon: BarChart3, label: 'Pages Crawled', value: displayAudit.total_pages, color: 'var(--accent)', route: 'enterprise', bg: 'var(--accent-light)' },
-              { icon: Zap, label: 'Total Issues', value: displayAudit.total_issues, color: '#f59f00', route: 'seo', bg: 'var(--yellow-bg)' },
-              { icon: AlertTriangle, label: 'Critical', value: displayAudit.critical_issues || 0, color: '#fa5252', route: 'seo', bg: 'var(--red-bg)' },
-              { icon: Brain, label: 'AI Score', value: displayAudit.ai_visibility_score || displayAudit.aeo_score || 0, color: '#e64980', route: 'ai-visibility', bg: 'var(--pink-bg)' },
-              { icon: TrendingUp, label: 'Signals Checked (est.)', value: displayAudit.total_signals || (displayAudit.total_pages ? displayAudit.total_pages * 93 : 0), color: '#12b886', route: 'enterprise', bg: 'var(--green-bg)' },
-              { icon: Globe, label: 'Content Score', value: displayAudit.content_score || 0, color: '#7950f2', route: 'content', bg: 'var(--purple-bg)' },
+              { icon: BarChart3, label: 'Pages Crawled', value: displayAudit.total_pages, color: 'var(--accent)', route: 'seo?tab=enterprise', bg: 'var(--accent-light)' },
+              { icon: Zap, label: 'Total Issues', value: displayAudit.total_issues, color: '#f59f00', route: 'action-hub?tab=issues', bg: 'var(--yellow-bg)' },
+              { icon: AlertTriangle, label: 'Critical', value: displayAudit.critical_issues || 0, color: '#fa5252', route: 'action-hub?tab=issues', bg: 'var(--red-bg)' },
+              { icon: Brain, label: 'AI Score', value: displayAudit.ai_visibility_score || displayAudit.aeo_score || 0, color: '#e64980', route: 'geo-aeo?tab=ai-visibility', bg: 'var(--pink-bg)' },
+              { icon: TrendingUp, label: 'Signals Checked (est.)', value: displayAudit.total_signals || (displayAudit.total_pages ? displayAudit.total_pages * 93 : 0), color: '#12b886', route: 'seo?tab=enterprise', bg: 'var(--green-bg)' },
+              { icon: Globe, label: 'Content Score', value: displayAudit.content_score || 0, color: '#7950f2', route: 'content-intel?tab=content', bg: 'var(--purple-bg)' },
             ].map((s, i) => (
               <div key={i} className="stat-card hover-lift" onClick={() => navigate(`/audit/${displayAudit.audit_id}/${s.route}`)}
                 style={{ cursor: 'pointer' }}>
@@ -568,9 +568,9 @@ export default function Dashboard() {
           {/* CATEGORY CARDS */}
           <div className="stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
             <CategoryCard label="SEO Analysis" score={displayAudit.seo_score} color="#12b886" icon={Search} onClick={() => navigate(`/audit/${displayAudit.audit_id}/seo`)} delay={0} />
-            <CategoryCard label="Technical SEO" score={displayAudit.technical_score} color="#4c6ef5" icon={Shield} onClick={() => navigate(`/audit/${displayAudit.audit_id}/enterprise`)} delay={60} />
-            <CategoryCard label="AI Search Optimization" score={displayAudit.aeo_score} color="#f59f00" icon={Brain} onClick={() => navigate(`/audit/${displayAudit.audit_id}/ai-visibility`)} delay={120} />
-            <CategoryCard label="Content Quality" score={displayAudit.content_score} color="#7950f2" icon={FileText} onClick={() => navigate(`/audit/${displayAudit.audit_id}/content`)} delay={180} />
+            <CategoryCard label="Technical SEO" score={displayAudit.technical_score} color="#4c6ef5" icon={Shield} onClick={() => navigate(`/audit/${displayAudit.audit_id}/seo?tab=enterprise`)} delay={60} />
+            <CategoryCard label="AI Search Optimization" score={displayAudit.aeo_score} color="#f59f00" icon={Brain} onClick={() => navigate(`/audit/${displayAudit.audit_id}/geo-aeo?tab=ai-visibility`)} delay={120} />
+            <CategoryCard label="Content Quality" score={displayAudit.content_score} color="#7950f2" icon={FileText} onClick={() => navigate(`/audit/${displayAudit.audit_id}/content-intel?tab=content`)} delay={180} />
             <CategoryCard label="Internal Links" score={deepData?.internal_links_score || Math.round(70 + (displayAudit.total_pages || 0) * 0.15)} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${displayAudit.audit_id}/internal-links`)} delay={240} />
             <CategoryCard label="Keyword Strategy" score={deepData?.keyword_score || Math.round(55 + (displayAudit.total_pages || 0) * 0.1)} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${displayAudit.audit_id}/keywords`)} delay={300} />
           </div>
@@ -609,7 +609,7 @@ export default function Dashboard() {
                   <CheckCircle size={16} style={{ color: '#12b886' }} />
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Quick Wins</span>
                 </div>
-                {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/action-center`)}>View All</button>}
+                {activeId && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/audit/${activeId}/action-hub?tab=action-center`)}>View All</button>}
               </div>
               {deepLoading && !deepData && (
                 <div>{[1,2,3].map(i => <div key={i} className="shimmer shimmer-bar" style={{ marginBottom: 12 }} />)}</div>

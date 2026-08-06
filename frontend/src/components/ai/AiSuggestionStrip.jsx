@@ -63,7 +63,7 @@ export default function AiSuggestionStrip({ auditId, tool = 'all', category = ''
         </div>
         {showViewAll && auditId && (
           <button
-            onClick={() => navigate(`/audit/${auditId}/ai-suggestions?tool=${tool}`)}
+            onClick={() => navigate(`/audit/${auditId}/action-hub?tab=ai-suggestions&tool=${tool}`)}
             style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#7c3aed' }}
           >
             View all <ArrowRight size={11} />

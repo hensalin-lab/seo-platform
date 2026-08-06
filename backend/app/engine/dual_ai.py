@@ -21,6 +21,11 @@ PROVIDERS = {
     "openrouter-free": {"key": "OPENROUTER_API_KEY", "model": "OPENROUTER_MODEL_FREE"},
     "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL"},
     "cf-workers": {"key": "CLOUDFLARE_API_TOKEN", "model": "CLOUDFLARE_AI_MODEL"},
+    "mistral": {"key": "MISTRAL_API_KEY", "model": "MISTRAL_MODEL"},
+    "nvidia": {"key": "NVIDIA_API_KEY", "model": "NVIDIA_MODEL"},
+    "huggingface": {"key": "HUGGINGFACE_API_KEY", "model": "HUGGINGFACE_MODEL"},
+    "github-models": {"key": "GITHUB_TOKEN", "model": "GITHUB_MODEL"},
+    "sambanova": {"key": "SAMBANOVA_API_KEY", "model": "SAMBANOVA_MODEL"},
 }
 
 # Lightweight provider health registry (status_code / last known state / guidance)
@@ -45,6 +50,23 @@ def _provider_healthy(name: str, cooldown_s: int = _COOLDOWN_S) -> bool:
         if time.time() - at < cooldown_s:
             return False
     return True
+
+
+def has_healthy_provider() -> bool:
+    """True when live LLM work is worth attempting.
+
+    Returns True if any provider is confirmed healthy, OR if providers haven't
+    been tested yet. Returns False only when every tested provider is currently
+    inside an error cooldown (all down / rate-limited) — callers should then use
+    stored/rule data instead of wasting time racing dead providers.
+    """
+    if any(h.get("status") == "ok" for h in PROVIDER_HEALTH.values()):
+        return True
+    if not PROVIDER_HEALTH:
+        return True
+    in_cooldown = [h for h in PROVIDER_HEALTH.values()
+                   if h.get("status") == "error" and time.time() - (h.get("at") or 0) < _COOLDOWN_S]
+    return len(in_cooldown) < len(PROVIDER_HEALTH)
 
 
 def _http_error_detail(name: str, status_code: int, body: str = ""):
@@ -98,10 +120,14 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
 
 
 FREE_MODELS = [
+    "openrouter/free",
     "inclusionai/ling-3.0-flash:free",
-    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "deepseek/deepseek-r1:free",
+    "qwen/qwen3-coder-480b-a35b:free",
+    "openai/gpt-oss-20b:free",
 ]
 
 
@@ -110,9 +136,9 @@ async def _openrouter_free_chat(system_prompt: str, user_prompt: str, max_tokens
     if not settings.OPENROUTER_API_KEY:
         _record_health("openrouter-free", False, "OPENROUTER_API_KEY not configured")
         return None
-    models = [m.strip() for m in (settings.OPENROUTER_MODEL_FREE or "") if m.strip()] or FREE_MODELS
+    models = [m.strip() for m in (settings.OPENROUTER_MODEL_FREE or "").split(",") if m.strip()] or FREE_MODELS
     if settings.OPENROUTER_MODEL_FREE:
-        models = [settings.OPENROUTER_MODEL_FREE] + FREE_MODELS
+        models = list(dict.fromkeys(models[:1] + FREE_MODELS))
     last_detail = ""
     for model in models[:2]:
         try:
@@ -134,14 +160,19 @@ async def _openrouter_free_chat(system_prompt: str, user_prompt: str, max_tokens
                 if resp.status_code != 200:
                     last_detail = f"{model} HTTP {resp.status_code}"
                     continue
-                _record_health("openrouter-free", True)
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
                 cleaned = content.strip()
                 if cleaned.startswith("```json"): cleaned = cleaned[7:]
                 if cleaned.startswith("```"): cleaned = cleaned[3:]
                 if cleaned.endswith("```"): cleaned = cleaned[:-3]
-                return json.loads(cleaned.strip())
+                try:
+                    parsed = json.loads(cleaned.strip())
+                except Exception:
+                    last_detail = f"{model} returned non-JSON"
+                    continue
+                _record_health("openrouter-free", True)
+                return parsed
         except Exception as e:
             logger.warning("OpenRouter free %s: %s", model, e)
             last_detail = str(e)[:150]
@@ -224,13 +255,15 @@ async def _ollama_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2
         _record_health("ollama", False, "OLLAMA_BASE_URL not configured")
         return None
     try:
-        async with httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=min(settings.OLLAMA_TIMEOUT, 60)) as client:
             resp = await client.post(
                 f"{settings.OLLAMA_BASE_URL}/api/chat",
                 json={
                     "model": settings.OLLAMA_MODEL,
                     "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                     "stream": False,
+                    "think": False,
+                    "keep_alive": "30m",
                     "options": {"temperature": 0.3, "num_predict": max_tokens},
                     "format": "json",
                 },
@@ -314,6 +347,102 @@ async def _cf_workers_chat(system_prompt: str, user_prompt: str, max_tokens: int
         return None
 
 
+async def _openai_compat_chat(
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int,
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    health_name: str,
+    timeout: float,
+    extra_json: dict | None = None,
+) -> Optional[dict]:
+    """Generic OpenAI-compatible /chat/completions call shared by every provider."""
+    if not api_key:
+        _record_health(health_name, False, f"{health_name} API key not configured")
+        return None
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+        "temperature": 0.3,
+        "max_tokens": max_tokens,
+    }
+    if extra_json:
+        payload.update(extra_json)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json=payload)
+            if resp.status_code != 200:
+                _http_error_detail(health_name, resp.status_code, resp.text)
+                return None
+            _record_health(health_name, True)
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            cleaned = content.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            try:
+                return json.loads(cleaned.strip())
+            except Exception:
+                start, end = cleaned.find("{"), cleaned.rfind("}")
+                if start != -1 and end > start:
+                    return json.loads(cleaned[start:end + 1])
+                raise
+    except Exception as e:
+        logger.warning("%s: %s", health_name, e)
+        _record_health(health_name, False, str(e)[:200])
+        return None
+
+
+async def _mistral_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2500) -> Optional[dict]:
+    """Mistral La Plateforme - free Experiment tier ~1B tokens/mo."""
+    return await _openai_compat_chat(
+        system_prompt, user_prompt, max_tokens,
+        base_url="https://api.mistral.ai/v1", api_key=settings.MISTRAL_API_KEY,
+        model=settings.MISTRAL_MODEL, health_name="mistral", timeout=settings.MISTRAL_TIMEOUT,
+    )
+
+
+async def _nvidia_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2500) -> Optional[dict]:
+    """NVIDIA NIM build.nvidia.com - free eval credits, fast open models."""
+    return await _openai_compat_chat(
+        system_prompt, user_prompt, max_tokens,
+        base_url="https://integrate.api.nvidia.com/v1", api_key=settings.NVIDIA_API_KEY,
+        model=settings.NVIDIA_MODEL, health_name="nvidia", timeout=settings.NVIDIA_TIMEOUT,
+    )
+
+
+async def _huggingface_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2500) -> Optional[dict]:
+    """HuggingFace Inference router - free community tier ~300 req/hr."""
+    return await _openai_compat_chat(
+        system_prompt, user_prompt, max_tokens,
+        base_url="https://router.huggingface.co/v1", api_key=settings.HUGGINGFACE_API_KEY,
+        model=settings.HUGGINGFACE_MODEL, health_name="huggingface", timeout=settings.HUGGINGFACE_TIMEOUT,
+    )
+
+
+async def _github_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2500) -> Optional[dict]:
+    """GitHub Models - free via any GitHub PAT, GPT-4o/Llama/Phi."""
+    return await _openai_compat_chat(
+        system_prompt, user_prompt, max_tokens,
+        base_url="https://models.inference.ai.azure.com/v1", api_key=settings.GITHUB_TOKEN,
+        model=settings.GITHUB_MODEL, health_name="github-models", timeout=settings.GITHUB_TIMEOUT,
+    )
+
+
+async def _sambanova_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2500) -> Optional[dict]:
+    """SambaNova - trial credits, Llama 3.3 70B."""
+    return await _openai_compat_chat(
+        system_prompt, user_prompt, max_tokens,
+        base_url="https://api.sambanova.ai/v1", api_key=settings.SAMBANOVA_API_KEY,
+        model=settings.SAMBANOVA_MODEL, health_name="sambanova", timeout=settings.SAMBANOVA_TIMEOUT,
+    )
+
+
 async def _lmstudio_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
     """Call LM Studio local server (OpenAI-compatible, e.g. Qwen 3 32B)."""
     if not settings.LMSTUDIO_BASE_URL:
@@ -321,7 +450,7 @@ async def _lmstudio_chat(system_prompt: str, user_prompt: str, max_tokens: int =
         return None
     try:
         url = f"{settings.LMSTUDIO_BASE_URL.rstrip('/')}/chat/completions"
-        async with httpx.AsyncClient(timeout=settings.LMSTUDIO_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=min(settings.LMSTUDIO_TIMEOUT, 45)) as client:
             resp = await client.post(
                 url,
                 json={
@@ -417,60 +546,71 @@ def _merge_lists(lists: list[list]) -> list:
     return merged
 
 
-async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 180.0) -> dict:
+async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 12.0) -> dict:
     """Run AI providers in parallel, merged. Task routes to the best model per job:
-    - default    -> all 5 providers (GPT-4o via OpenRouter, Groq, Cerebras, Ollama, Gemini)
+    - default    -> all providers (OpenRouter, Groq, Cerebras, Ollama, LM Studio, Gemini)
     - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
     - competitor -> DeepSeek V3 (OpenRouter) + Gemini + Groq  (strong reasoning)
+
+    Returns as soon as the first provider answers; slow stragglers (e.g. local
+    models on a laptop CPU) are cancelled so they never block the response.
     """
+    def _build():
+        base = [
+            ("gpt-4o", _openrouter_chat, (system_prompt, user_prompt, min(max_tokens, 2900))),
+            ("groq-llama-3.3-70b", _groq_chat, (system_prompt, user_prompt, min(max_tokens, 3500))),
+            ("cerebras-gemma-4-31b", _cerebras_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
+            ("lmstudio-local", _lmstudio_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
+            ("ollama-local", _ollama_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
+            ("openrouter-free", _openrouter_free_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
+            ("gemini", _gemini_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
+            ("cf-workers", _cf_workers_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
+            ("mistral", _mistral_chat, (system_prompt, user_prompt, min(max_tokens, 2500))),
+            ("nvidia", _nvidia_chat, (system_prompt, user_prompt, min(max_tokens, 2500))),
+            ("huggingface", _huggingface_chat, (system_prompt, user_prompt, min(max_tokens, 2500))),
+            ("github-models", _github_chat, (system_prompt, user_prompt, min(max_tokens, 2500))),
+            ("sambanova", _sambanova_chat, (system_prompt, user_prompt, min(max_tokens, 2500))),
+        ]
+        if task == "rewrite":
+            return [(n, f, a) for n, f, a in base if n != "gpt-4o"] + [
+                ("gpt-4o", _openrouter_chat, (system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)),
+            ]
+        if task == "competitor":
+            return [(n, f, a) for n, f, a in base if n != "gpt-4o"] + [
+                ("gpt-4o", _openrouter_chat, (system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)),
+            ]
+        return base
+
     task_map = {}
-    if task == "rewrite":
-        task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
-        task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
-        task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["lmstudio-local"] = _lmstudio_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["ollama-local"] = _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000))
-        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000))
-        task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["cf-workers"] = _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-    elif task == "competitor":
-        task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)
-        task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
-        task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["lmstudio-local"] = _lmstudio_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["ollama-local"] = _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000))
-        task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000))
-        task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-        task_map["cf-workers"] = _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000))
-    else:
-        task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900))
-        task_map.update({
-            "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
-            "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
-            "lmstudio-local": _lmstudio_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
-            "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
-            "openrouter-free": _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
-            "gemini": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
-            "cf-workers": _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
-        })
-    task_map = {
-        name: coro for name, coro in task_map.items()
-        if _provider_healthy(name)
-    }
+    for name, fn, args in _build():
+        if _provider_healthy(name):
+            task_map[name] = fn(*args)
     if not task_map:
         return {"providers_used": []}
+
     tasks = {name: asyncio.create_task(coro, name=name) for name, coro in task_map.items()}
-    done, _ = await asyncio.wait(tasks.values(), timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+    deadline = time.monotonic() + timeout
     results = {}
-    for task in done:
-        if task.cancelled():
-            continue
-        try:
-            result = task.result()
-        except Exception:
-            continue
-        if result and isinstance(result, dict):
-            results[task.get_name()] = result
+    remaining = set(tasks.values())
+    while remaining and time.monotonic() < deadline:
+        done, remaining = await asyncio.wait(
+            remaining, timeout=max(0.0, deadline - time.monotonic()), return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in done:
+            if t.cancelled():
+                continue
+            try:
+                result = t.result()
+            except Exception:
+                continue
+            if result and isinstance(result, dict):
+                results[t.get_name()] = result
+        if results and deadline - time.monotonic() > 2.0:
+            deadline = time.monotonic() + 2.0
+    for t in remaining:
+        t.cancel()
+    if remaining:
+        await asyncio.gather(*remaining, return_exceptions=True)
 
     merged = _merge_results(list(results.values())) if results else {}
     merged["providers_used"] = list(results.keys())
@@ -605,6 +745,24 @@ async def quad_ai_link_suggestions(url, content, pages):
     user = f"Page: {url}\nContent: {content[:1500]}\nAvailable:\n{pages_list}"
     result = await _run_all(sys, user, 2500)
     return result.get("links", result.get("suggestions", [])) if isinstance(result, dict) else []
+
+
+async def dual_ai_ai_overview(keyword, domain, site_snippet):
+    sys = """You are a Google AI Overview generator. For the given keyword, write the concise, fact-based answer Google's AI Overview would show a user, and judge whether the given site would be cited in that answer. Use the site content as the primary basis, then general knowledge to complete the answer. Return ONLY valid JSON:
+{"ai_overview_text":"the answer a user would see (40-80 words, conversational)","mentioned":true,"cited_domains":["example.com"],"confidence":80}
+Keep the answer neutral and informative. Never fabricate statistics."""
+    user = f"Keyword: {keyword}\nSite domain: {domain}\n\nSite content excerpt:\n{site_snippet}"
+    return await _run_all(sys, user, 1200, task="ai_overview")
+
+
+async def dual_ai_geo_fixes(domain, failing_signals):
+    sys = """GEO (Generative Engine Optimization) expert. For each failing signal, give a concrete fix: WHAT to add or change, HOW (specific instructions with an example), and WHERE on the site it should go. Return ONLY valid JSON:
+{"fixes":{"<signal name>":{"fix":"one-sentence summary","steps":["concrete step 1","step 2","step 3"],"where":"which page/placement"}}}
+Keep every fix specific and actionable for the given domain. Never fabricate data about the site."""
+    user = f"Domain: {domain}\nFailing signals:\n" + "\n".join(f"- {n}" for n in (failing_signals or []))
+    result = await _run_all(sys, user, 2000)
+    fixes = result.get("fixes", result) if isinstance(result, dict) else {}
+    return fixes if isinstance(fixes, dict) else {}
 
 
 async def quad_ai_keyword_insights(url, title, content, existing_keywords):

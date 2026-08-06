@@ -2,35 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import DataSourceBadge from '../../../components/DataSourceBadge'
-import { BookOpen, FileText, AlertTriangle, CheckCircle, ArrowRight, Image, Link2 } from 'lucide-react'
+import { BookOpen, FileText, AlertTriangle, CheckCircle, ArrowRight, Image, Link2, FileSearch } from 'lucide-react'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
-
-function TabBar({ tabs, active, onChange }) {
-  return (
-    <div className="tab-bar">
-      {tabs.map(t => (
-        <button key={t.key} className={`tab ${active === t.key ? 'active' : ''}`} onClick={() => onChange(t.key)}>
-          {t.label}
-          {t.count != null && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, background: active === t.key ? 'rgba(76,110,245,0.12)' : 'var(--bg-secondary)', color: active === t.key ? 'var(--accent)' : 'var(--text-muted)' }}>{t.count}</span>}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, color = 'var(--accent)' }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={17} color={color} />
-      </div>
-      <div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{value}</div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</div>
-      </div>
-    </div>
-  )
-}
+import ThemeHero from '../../../components/ai/ThemeHero'
+import ThemeStatCard from '../../../components/ai/ThemeStatCard'
+import ThemePillTabs from '../../../components/ai/ThemePillTabs'
 
 function imageStatus(p) {
   const mi = p.missing_images || []
@@ -142,14 +118,18 @@ export default function ContentAnalysis() {
 
   if (loading) return <div className="loading-overlay"><div className="spinner" /><p>Analyzing content...</p></div>
   if (error && !data?.pages?.length) return (
-    <div>
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h1>Content Analysis</h1>
-          <DataSourceBadge source="crawler" size="xs" />
-        </div>
-        <p>Content quality, word counts, and optimization opportunities from crawled data</p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <ThemeHero
+        icon={FileSearch}
+        title="Content Analysis"
+        subtitle="Content quality, word counts, and optimization opportunities from crawled data"
+        badges={[
+          { icon: FileText, t: 'Word counts' },
+          { icon: BookOpen, t: 'Optimization' },
+          { icon: AlertTriangle, t: 'Crawl-based' },
+        ]}
+        actions={<DataSourceBadge source="crawler" size="xs" />}
+      />
       <div className="empty-state"><h3>Content data unavailable</h3><p>{error}</p></div>
     </div>
   )
@@ -158,32 +138,36 @@ export default function ContentAnalysis() {
   const summary = audit.summary || {}
   const pages = data?.pages || []
   const tabs = [
-    { key: 'pages', label: 'Pages', count: pages.length },
-    { key: 'issues', label: 'Issues', count: data?.contentIssues?.length || 0 },
+    { key: 'pages', label: 'Pages', icon: FileText, count: pages.length },
+    { key: 'issues', label: 'Issues', icon: AlertTriangle, count: data?.contentIssues?.length || 0 },
   ]
 
   return (
-    <div>
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h1>Content Analysis</h1>
-          <DataSourceBadge source="crawler" size="xs" />
-        </div>
-        <p>Content quality, word counts, and optimization opportunities from crawled data</p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <ThemeHero
+        icon={FileSearch}
+        title="Content Analysis"
+        subtitle="Content quality, word counts, and optimization opportunities from crawled data"
+        badges={[
+          { icon: FileText, t: 'Word counts' },
+          { icon: BookOpen, t: 'Optimization' },
+          { icon: AlertTriangle, t: 'Crawl-based' },
+        ]}
+        actions={<DataSourceBadge source="crawler" size="xs" />}
+      />
 
-      <div style={{ marginBottom: 18 }}>
+      <div>
         <AiSuggestionStrip auditId={id} tool="content" title="AI content fixes" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 18 }}>
-        <StatCard icon={FileText} label="Total Pages" value={audit.total_pages ?? pages.length} color="#3b82f6" />
-        <StatCard icon={BookOpen} label="Avg Content Score" value={audit.overall_score ?? '-'} color="#7950f2" />
-        <StatCard icon={CheckCircle} label="Pages Good" value={summary.pages_good ?? '-'} color="#12b886" />
-        <StatCard icon={AlertTriangle} label="Need Work" value={summary.pages_needing_work ?? '-'} color="#f59f00" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        <ThemeStatCard icon={FileText} label="Total Pages" value={audit.total_pages ?? pages.length} color="#3b82f6" />
+        <ThemeStatCard icon={BookOpen} label="Avg Content Score" value={audit.overall_score ?? '-'} color="#7950f2" />
+        <ThemeStatCard icon={CheckCircle} label="Pages Good" value={summary.pages_good ?? '-'} color="#12b886" />
+        <ThemeStatCard icon={AlertTriangle} label="Need Work" value={summary.pages_needing_work ?? '-'} color="#f59f00" />
       </div>
 
-      <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
+      <ThemePillTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'pages' && <PageContentTable pages={pages} />}
       {activeTab === 'issues' && <ContentIssues issues={data?.contentIssues} />}

@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import { Clock, AlertTriangle, CheckCircle, TrendingUp, FileText, ExternalLink, Zap, Brain, Link2, RefreshCw, ChevronDown, ChevronUp, Lightbulb, ArrowRight } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, TrendingUp, FileText, ExternalLink, Zap, Brain, Link2, RefreshCw, ChevronDown, ChevronUp, Lightbulb, ArrowRight, Wand2 } from 'lucide-react';
+import ThemeHero from '../../../components/ai/ThemeHero';
+import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -38,22 +41,6 @@ function SeverityBadge({ severity }) {
   const style = SEVERITY_STYLES[s] || SEVERITY_STYLES.MEDIUM;
   return (
     <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', padding: '3px 10px', borderRadius: 'var(--radius-sm, 6px)', background: style.bg, color: style.color }}>{s}</span>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, color, subtitle }) {
-  return (
-    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--radius, 12px)', padding: '18px 16px', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: color || 'var(--accent)', borderRadius: 'var(--radius, 12px) var(--radius, 12px) 0 0' }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm, 6px)', background: `${color || 'var(--accent)'}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={17} color={color || 'var(--accent)'} />
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1.1 }}>{value}</div>
-      {subtitle && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{subtitle}</div>}
-    </div>
   );
 }
 
@@ -301,9 +288,19 @@ export default function ContentRevival() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <ThemeHero
+        icon={Wand2}
+        title="Content Revival"
+        subtitle="Every thin, outdated, and orphan page — with specific actions to fix each one."
+        badges={[
+          { icon: FileText, t: 'Thin content' },
+          { icon: Clock, t: 'Outdated' },
+          { icon: Link2, t: 'Orphan pages' },
+        ]}
+      />
+
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>Content Revival</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Every thin, outdated, and orphan page — with specific actions to fix each one.</p>
+        <AiSuggestionStrip auditId={id} tool="content-revival" title="AI revival fixes" />
       </div>
 
       <div style={{
@@ -317,11 +314,11 @@ export default function ContentRevival() {
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Freshness Score</span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-        <StatCard icon={FileText} label="Total Pages" value={summary.total_pages ?? 0} color="#6366f1" />
-        <StatCard icon={AlertTriangle} label="Thin Content" value={thinContent.length} color="#ef4444" subtitle="need expansion" />
-        <StatCard icon={Clock} label="Outdated Content" value={outdatedContent.length} color="#f59e0b" subtitle="need updating" />
-        <StatCard icon={Link2} label="Orphan Pages" value={orphanPages.length} color="#f97316" subtitle="no internal links" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <ThemeStatCard icon={FileText} label="Total Pages" value={summary.total_pages ?? 0} color="#6366f1" />
+        <ThemeStatCard icon={AlertTriangle} label="Thin Content" value={thinContent.length} color="#ef4444" sub="need expansion" />
+        <ThemeStatCard icon={Clock} label="Outdated Content" value={outdatedContent.length} color="#f59e0b" sub="need updating" />
+        <ThemeStatCard icon={Link2} label="Orphan Pages" value={orphanPages.length} color="#f97316" sub="no internal links" />
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

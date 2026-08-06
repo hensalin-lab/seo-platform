@@ -1144,13 +1144,116 @@ class KeylessCitationProvider(AiCitationProvider):
                 signals["schema_present"] = True
             if (p.word_count or 0) >= 500:
                 signals["content_above_fold"] += 1
+        depth_ratio = min(15, (signals["content_above_fold"] / max(len(pages[:200]), 1)) * 15)
         crawlable_score = sum([
             35 if signals["llms_txt"] else 0,
             30 if signals["robots_ai_rules"] else 0,
             20 if signals["schema_present"] else 0,
-            min(15, (signals["content_above_fold"] / max(len(pages[:200]), 1)) * 15),
+            depth_ratio,
         ])
         citation_estimate = min(100, int(crawlable_score * (1 + mentions * 0.1))) if mentions else int(crawlable_score * 0.7)
+
+        origin = ""
+        try:
+            origin = f"https://{urlparse(audit.website_url if audit else '').netloc}"
+        except Exception:
+            pass
+
+        signals_detail = [
+            {
+                "key": "ai_crawlable",
+                "name": "AI crawlable",
+                "ok": crawlable_score >= 60,
+                "detail": "Page content reachable by AI crawlers without heavy JS",
+                "impact": "This is the gate for everything else — if AI crawlers can't read your HTML, you can never be cited, no matter how good the content is.",
+                "how": ["Serve clean server-rendered HTML; move critical text out of client-side JavaScript bundles.", "Remove or relax 'Disallow' rules that keep AI crawlers out of your content paths.", "Test each page with 'view-source' and confirm the visible text is in the raw HTML."],
+                "where": "Server rendering + robots.txt",
+                "which_page": origin.rstrip("/") + "/ and every page you want cited",
+                "ai_suggestion": f"Make the homepage and top 5 pages fully crawlable by AI bots first. If '{brand}' text only appears after JavaScript runs, GPTBot and Gemini see an empty page and can't cite you.",
+            },
+            {
+                "key": "llms_txt",
+                "name": "llms.txt",
+                "ok": bool(signals["llms_txt"]),
+                "detail": "Machine-readable content map for LLMs",
+                "impact": f"Publishing /llms.txt is the single biggest fix here — worth +35 points on the crawl score, more than any other signal.",
+                "how": ["Create a plain-text /llms.txt at the domain root.", "Line 1: site title. Line 2: 2-3 sentence summary. Then list your top 5-10 pages as 'MarkdownTitle URL'.", "Fetch /llms.txt to confirm it renders as plain text."],
+                "where": "Domain root (static file)",
+                "which_page": origin.rstrip("/") + "/llms.txt",
+                "ai_suggestion": f"Start the file with a one-line description that names '{brand}' and what it does — that exact sentence is what AI systems paraphrase when deciding whether to cite you.",
+            },
+            {
+                "key": "robots_ai_rules",
+                "name": "AI bot rules",
+                "ok": bool(signals["robots_ai_rules"]),
+                "detail": "gptbot, ChatGPT-User, PerplexityBot, Claude & Gemini handled in robots.txt",
+                "impact": "Explicit AI bot rules are worth +30 points — without them, crawlers may be blocked by default rules and never index your content.",
+                "how": ["Add one User-agent group per AI crawler (GPTBot, ChatGPT-User, PerplexityBot, ClaudeBot, anthropic-ai, Google-Extended).", "Set 'Allow: /' for public content and 'Disallow:' only for private paths.", "Reference your sitemap with a 'Sitemap:' line."],
+                "where": "robots.txt at the domain root",
+                "which_page": origin.rstrip("/") + "/robots.txt",
+                "ai_suggestion": "A single 'User-agent: * / Allow: /' group plus per-bot groups for GPTBot and Google-Extended signals that you welcome AI crawlers — most publishers still block them by accident.",
+            },
+            {
+                "key": "schema_present",
+                "name": "Structured data",
+                "ok": bool(signals["schema_present"]),
+                "detail": "Schema.org markup present for entity extraction",
+                "impact": "Schema is worth +20 points and is how AI systems resolve your brand as a real entity instead of a random page.",
+                "how": ["Add Organization schema to the homepage with name, logo, url, sameAs and contactPoint.", "Add Article schema with author + dates to every blog post.", "Validate with Google's Rich Results Test."],
+                "where": "JSON-LD in each page's <head>",
+                "which_page": "Homepage (Organization) + every article/service page",
+                "ai_suggestion": f"Your homepage Organization schema is your identity card: name it exactly '{brand}' and add sameAs links to LinkedIn, X and GitHub so AI systems resolve one entity across the web.",
+            },
+            {
+                "key": "content_depth",
+                "name": "Content depth (500+ words)",
+                "ok": (signals["content_above_fold"] / max(len(pages[:200]), 1)) >= 0.5,
+                "detail": f"{signals['content_above_fold']} of up to {min(len(pages[:200]), 200)} pages have 500+ words",
+                "impact": "Worth up to +15 points — thin pages give AI little to extract and are rarely cited.",
+                "how": ["Expand pages under 500 words to at least 800-1500 words with headings, lists and data.", "Add an intro summary paragraph plus a conclusion that restates the answer.", "Refresh the 5 highest-traffic pages first."],
+                "where": "Page content",
+                "which_page": "The shortest crawled pages — expand the top 10 by traffic first",
+                "ai_suggestion": f"AI cites pages that answer the full question in one place. For each of your top pages, add a 3-4 sentence summary at the top — that summary block is the most likely text to be quoted with '{brand}' attached.",
+            },
+            {
+                "key": "brand_mentions",
+                "name": "Brand mentions",
+                "ok": mentions >= 3,
+                "detail": f"{mentions} page{'' if mentions == 1 else 's'} mention '{brand}'",
+                "impact": "Each page that names your brand multiplies the citation estimate (+10% per page). Zero mentions means no citation even when everything else is perfect.",
+                "how": ["Mention the brand name naturally in the first paragraph of every service and blog page.", "Add a byline or footer line: 'Content by [Brand]' on articles.", "Reference your own products/features by name where relevant."],
+                "where": "Page content + bylines",
+                "which_page": "Homepage, every service page, and the top 5 blog posts",
+                "ai_suggestion": f"AI answers attribute facts to the source that names itself. Add '{brand}' to the opening of each page and to author bylines — it's the difference between being paraphrased and being cited.",
+            },
+        ]
+
+        score_breakdown = {
+            "max": 100,
+            "llms_txt": {"points": 35 if signals["llms_txt"] else 0, "max": 35, "label": "llms.txt"},
+            "robots_ai_rules": {"points": 30 if signals["robots_ai_rules"] else 0, "max": 30, "label": "AI bot rules"},
+            "schema_present": {"points": 20 if signals["schema_present"] else 0, "max": 20, "label": "Structured data"},
+            "content_depth": {"points": round(depth_ratio, 1), "max": 15, "label": "Content depth"},
+            "brand_multiplier": {"points": round(min(1, mentions * 0.1) * 100, 1) if mentions else 0, "max": 100, "label": "Brand mention multiplier"},
+            "crawl_score": crawlable_score,
+        }
+
+        improvement_suggestions = []
+        if not signals["llms_txt"]:
+            improvement_suggestions.append("Publish /llms.txt at the domain root with a site summary and your top 10 pages — +35 points, the fastest single win.")
+        if not signals["robots_ai_rules"]:
+            improvement_suggestions.append("Add explicit User-agent groups for GPTBot, Google-Extended and PerplexityBot to robots.txt — +30 points.")
+        if not signals["schema_present"]:
+            improvement_suggestions.append("Add Organization JSON-LD to the homepage — +20 points and makes your brand resolvable as an entity.")
+        if (signals["content_above_fold"] / max(len(pages[:200]), 1)) < 0.5:
+            improvement_suggestions.append("Expand short pages to 500+ words — up to +15 points and more extractable content.")
+        if mentions == 0:
+            improvement_suggestions.append(f"Mention '{brand}' in at least 3 pages — zero mentions means you can never be cited, even with a perfect crawl score.")
+        elif mentions < 5:
+            improvement_suggestions.append(f"Push '{brand}' mentions from {mentions} pages to 5+ — each additional page adds +10% to the citation estimate.")
+        if not improvement_suggestions:
+            improvement_suggestions.append("Baseline is strong. Add measured data (Profound or SE Ranking) to confirm real LLM citations and find exact answer-verbatim matches to fix.")
+
         return {
             "brand": brand,
             "mention_count": mentions,
@@ -1161,7 +1264,10 @@ class KeylessCitationProvider(AiCitationProvider):
             "schema_present": signals["schema_present"],
             "citation_estimate": min(100, citation_estimate),
             "provider": "keyless_citations",
-            "note": "Keyless proxy — connect Profound or SE Ranking for measured LLM citation data.",
+            "signals_detail": signals_detail,
+            "score_breakdown": score_breakdown,
+            "improvement_suggestions": improvement_suggestions,
+            "note": "Estimated from crawled signals — connect Profound or SE Ranking for measured LLM citation data.",
         }
 
     async def test(self) -> dict:
