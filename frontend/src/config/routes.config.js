@@ -86,6 +86,7 @@ import ApiReference from '../modules/advanced/pages/ApiReference';
 import Providers from '../modules/advanced/pages/Providers';
 import KeywordVolumes from '../modules/advanced/pages/KeywordVolumes';
 import BrandMonitor from '../modules/advanced/pages/BrandMonitor';
+import FreeTools from '../modules/advanced/pages/FreeTools';
 
 export const ICON_MAP = {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2, Gauge, BookOpen,
@@ -112,6 +113,7 @@ export const mainNav = [
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },
   { path: '/api-reference', icon: 'Code2', label: 'API Reference', title: 'API Reference', component: ApiReference },
+  { path: '/free-tools', icon: 'Zap', label: 'Free Tools', title: 'Free Data Tools', component: FreeTools },
   { path: '/integrations', icon: 'Plug', label: 'Integrations', title: 'Data Provider Integrations', component: Providers },
   { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings', component: SettingsPage },
 ];

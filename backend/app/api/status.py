@@ -967,9 +967,11 @@ async def get_ai_providers_status():
         "gpt-4o": ("OPENROUTER_API_KEY", "OpenRouter GPT-4o", "Paste a fresh key from openrouter.ai/settings/keys or add credits"),
         "groq": ("GROQ_API_KEY", "Groq Llama 3.3 70B", "Paste a fresh key from console.groq.com/keys"),
         "cerebras": ("CEREBRAS_API_KEY", "Cerebras Gemma 4 31B", "Paste a fresh key from cloud.cerebras.ai"),
-        "ollama": ("OLLAMA_BASE_URL", "Ollama (local)", "Runs locally on the machine where audits execute"),
+        "ollama": ("OLLAMA_BASE_URL", "Ollama (laptop server)", "Runs on the laptop behind the tunnel — unlimited local inference for every tool"),
+        "lmstudio": ("LMSTUDIO_BASE_URL", "LM Studio (Qwen 3 32B)", "Runs on the laptop via LM Studio — unlimited local inference for every tool"),
         "openrouter-free": ("OPENROUTER_API_KEY", "OpenRouter Free (Qwen/Llama)", "Free $0 models via OpenRouter — works for all users. No extra key needed."),
         "gemini": ("GEMINI_API_KEY", "Gemini 3.5 Flash", "Paste a fresh key from aistudio.google.com/apikey"),
+        "cf-workers": ("CLOUDFLARE_API_TOKEN", "Cloudflare Workers AI (free)", "Free always-on tier (~10k neurons/day). Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN."),
     }
     result = []
     for name, (env, label, guidance) in env_map.items():

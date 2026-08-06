@@ -17,8 +17,10 @@ PROVIDERS = {
     "groq": {"key": "GROQ_API_KEY", "model": "GROQ_MODEL"},
     "cerebras": {"key": "CEREBRAS_API_KEY", "model": "CEREBRAS_MODEL"},
     "ollama": {"key": "OLLAMA_BASE_URL", "model": "OLLAMA_MODEL"},
+    "lmstudio": {"key": "LMSTUDIO_BASE_URL", "model": "LMSTUDIO_MODEL"},
     "openrouter-free": {"key": "OPENROUTER_API_KEY", "model": "OPENROUTER_MODEL_FREE"},
     "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL"},
+    "cf-workers": {"key": "CLOUDFLARE_API_TOKEN", "model": "CLOUDFLARE_AI_MODEL"},
 }
 
 # Lightweight provider health registry (status_code / last known state / guidance)
@@ -277,6 +279,76 @@ async def _gemini_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3
         return None
 
 
+async def _cf_workers_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
+    """Call Cloudflare Workers AI (free always-on tier, ~10k neurons/day)."""
+    if not settings.CLOUDFLARE_ACCOUNT_ID or not settings.CLOUDFLARE_API_TOKEN:
+        _record_health("cf-workers", False, "CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN not configured")
+        return None
+    try:
+        url = f"https://api.cloudflare.com/client/v4/accounts/{settings.CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions"
+        async with httpx.AsyncClient(timeout=settings.CLOUDFLARE_AI_TIMEOUT) as client:
+            resp = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {settings.CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
+                json={
+                    "model": settings.CLOUDFLARE_AI_MODEL,
+                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    "temperature": 0.3, "max_tokens": max_tokens,
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning("Cloudflare Workers AI %s: %s", resp.status_code, resp.text[:200])
+                _http_error_detail("cf-workers", resp.status_code, resp.text)
+                return None
+            _record_health("cf-workers", True)
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            cleaned = content.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            return json.loads(cleaned.strip())
+    except Exception as e:
+        logger.warning("Cloudflare Workers AI: %s", e)
+        _record_health("cf-workers", False, str(e)[:200])
+        return None
+
+
+async def _lmstudio_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
+    """Call LM Studio local server (OpenAI-compatible, e.g. Qwen 3 32B)."""
+    if not settings.LMSTUDIO_BASE_URL:
+        _record_health("lmstudio", False, "LMSTUDIO_BASE_URL not configured")
+        return None
+    try:
+        url = f"{settings.LMSTUDIO_BASE_URL.rstrip('/')}/chat/completions"
+        async with httpx.AsyncClient(timeout=settings.LMSTUDIO_TIMEOUT) as client:
+            resp = await client.post(
+                url,
+                json={
+                    "model": settings.LMSTUDIO_MODEL,
+                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    "temperature": 0.3, "max_tokens": max_tokens,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning("LM Studio %s: %s", resp.status_code, resp.text[:200])
+                _http_error_detail("lmstudio", resp.status_code, resp.text)
+                return None
+            _record_health("lmstudio", True)
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            cleaned = content.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            return json.loads(cleaned.strip())
+    except Exception as e:
+        logger.warning("LM Studio: %s", e)
+        _record_health("lmstudio", False, str(e)[:200])
+        return None
+
+
 def _merge_results(results: list[dict]) -> dict:
     """Merge results from all providers - take best from each, combine unique insights."""
     valid = [r for r in results if isinstance(r, dict)]
@@ -340,7 +412,7 @@ def _merge_lists(lists: list[list]) -> list:
     return merged
 
 
-async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 30.0) -> dict:
+async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 180.0) -> dict:
     """Run AI providers in parallel, merged. Task routes to the best model per job:
     - default    -> all 5 providers (GPT-4o via OpenRouter, Groq, Cerebras, Ollama, Gemini)
     - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
@@ -351,21 +423,29 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
         task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["lmstudio-local"] = _lmstudio_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["ollama-local"] = _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000))
         task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000))
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["cf-workers"] = _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     elif task == "competitor":
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_COMPETITOR)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
         task_map["cerebras-gemma-4-31b"] = _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["lmstudio-local"] = _lmstudio_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["ollama-local"] = _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000))
         task_map["openrouter-free"] = _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000))
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
+        task_map["cf-workers"] = _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     else:
         task_map.update({
             "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
             "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
+            "lmstudio-local": _lmstudio_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
             "ollama-local": _ollama_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
             "openrouter-free": _openrouter_free_chat(system_prompt, user_prompt, min(max_tokens, 2000)),
             "gemini": _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
+            "cf-workers": _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
         })
     task_map = {
         name: coro for name, coro in task_map.items()

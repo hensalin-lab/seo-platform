@@ -41,7 +41,16 @@ class Settings(BaseSettings):
 
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5-coder:7b"
-    OLLAMA_TIMEOUT: int = 12
+    OLLAMA_TIMEOUT: int = 180
+
+    LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
+    LMSTUDIO_MODEL: str = "qwen3-32b-instruct"
+    LMSTUDIO_TIMEOUT: int = 300
+
+    CLOUDFLARE_ACCOUNT_ID: str = ""
+    CLOUDFLARE_API_TOKEN: str = ""
+    CLOUDFLARE_AI_MODEL: str = "@cf/qwen/qwen3-8b-instruct-250527"
+    CLOUDFLARE_AI_TIMEOUT: int = 30
 
     CRAWLER_TIMEOUT: int = 15
     CRAWLER_MAX_PAGES: int = 100

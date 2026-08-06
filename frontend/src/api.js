@@ -1,5 +1,5 @@
 const API_BASE = '/api';
-const REQUEST_TIMEOUT = 90000;
+const REQUEST_TIMEOUT = 200000;
 const MAX_RETRIES = 1;
 
 let _authToken = localStorage.getItem('token');
@@ -294,6 +294,13 @@ export const api = {
   getKeywordVolumes: (id, limit = 50) => request(`/audit/${id}/keyword-volumes?limit=${limit}`),
   getBrandMonitor: (id, brand = '') => request(`/audit/${id}/brand-monitor${brand ? `?brand=${encodeURIComponent(brand)}` : ''}`),
   getBrandMonitorHistory: (id) => request(`/audit/${id}/brand-monitor/history`),
+
+  // Free keyless data (server-side, works for all users)
+  freeAutocomplete: (q) => request(`/free/autocomplete?q=${encodeURIComponent(q)}`),
+  freeSiteChecks: (url) => request(`/free/site-checks?url=${encodeURIComponent(url)}`),
+  freeWhois: (url) => request(`/free/whois?url=${encodeURIComponent(url)}`),
+  freeDns: (url) => request(`/free/dns?url=${encodeURIComponent(url)}`),
+  freeSsl: (url) => request(`/free/ssl?url=${encodeURIComponent(url)}`),
 
   request,
   setToken,
