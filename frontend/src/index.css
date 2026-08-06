@@ -1526,3 +1526,181 @@ td { color: var(--text-secondary); }
   .topbar { padding: 0 16px; }
   .grid-4 { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   SAAS PREMIUM DESIGN LAYER
+   Refines every shared surface: shell, cards, tables, forms,
+   badges and headers. Pure CSS — applies app-wide.
+   ============================================================ */
+
+:root {
+  --sas-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+  --sas-gradient-soft: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #fdf2f8 100%);
+  --ring: 0 0 0 3px rgba(99, 102, 241, 0.14);
+  --radius-xl: 18px;
+}
+
+html { scroll-behavior: smooth; }
+
+::selection { background: rgba(99, 102, 241, 0.18); color: var(--text); }
+
+body {
+  background:
+    radial-gradient(1100px 480px at 15% -10%, rgba(99, 102, 241, 0.06), transparent 60%),
+    radial-gradient(900px 420px at 100% 0%, rgba(139, 92, 246, 0.05), transparent 55%),
+    var(--bg-page);
+  background-attachment: fixed;
+}
+
+/* --- Shell ------------------------------------------------ */
+.sidebar { border-right: none; box-shadow: 4px 0 24px rgba(2, 6, 23, 0.18); }
+
+.sidebar-logo { padding: 22px 20px 18px; }
+.sidebar-logo-icon {
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  background: var(--sas-gradient);
+  box-shadow: 0 8px 22px -6px rgba(124, 58, 237, 0.6);
+}
+
+.sidebar-section-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.34);
+  letter-spacing: 1.6px;
+  padding: 18px 14px 7px;
+}
+
+.sidebar-link, .sidebar-link-group {
+  border-radius: 9px;
+  margin: 1.5px 0;
+  padding: 8px 12px;
+}
+.sidebar-link.active, .sidebar-link-group.active {
+  background: linear-gradient(90deg, rgba(99,102,241,0.28), rgba(139,92,246,0.16));
+  box-shadow: inset 3px 0 0 #818cf8, 0 6px 16px -8px rgba(99,102,241,0.7);
+}
+.sidebar-link:hover { transform: translateX(2px); }
+
+.sidebar-footer {
+  padding: 12px 16px 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.topbar {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 1px 12px rgba(15, 23, 42, 0.04);
+}
+
+.main-content { background: transparent; }
+
+/* --- Page header ------------------------------------------ */
+.page-header h1 {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  background: linear-gradient(135deg, var(--text) 0%, var(--accent) 120%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.page-header p { font-size: 13.5px; }
+
+/* --- Cards -------------------------------------------------- */
+.card, .analysis-section, .roadmap-phase {
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -18px rgba(15, 23, 42, 0.12);
+}
+.card:hover, .analysis-section:hover, .roadmap-phase:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05), 0 18px 40px -20px rgba(79, 70, 229, 0.25);
+  border-color: rgba(139, 92, 246, 0.18);
+}
+
+.score-card, .stat-card {
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+}
+.score-card:hover, .stat-card:hover {
+  border-color: rgba(139, 92, 246, 0.22);
+}
+
+.stat-icon { border-radius: 12px; }
+
+/* --- Buttons ------------------------------------------------ */
+.btn { border-radius: 9px; font-weight: 650; }
+.btn-primary {
+  background: var(--sas-gradient);
+  box-shadow: 0 6px 16px -6px rgba(124, 58, 237, 0.55);
+}
+.btn-primary:hover { box-shadow: 0 10px 26px -8px rgba(124, 58, 237, 0.65); }
+.btn-secondary { border-radius: 9px; }
+
+/* --- Inputs -------------------------------------------------- */
+.form-group input, .form-group textarea, .form-group select {
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+/* --- Tables --------------------------------------------------- */
+.table-container {
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+th {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  padding: 11px 16px;
+}
+td { padding: 12px 16px; }
+tr:hover td { background: rgba(99, 102, 241, 0.04); }
+
+/* --- Badges & tags -------------------------------------------- */
+.badge, .tag { border-radius: 999px; padding: 3px 11px; }
+
+/* --- Empty & error states -------------------------------------- */
+.empty-state { border: 1px dashed var(--border); border-radius: 14px; background: var(--bg-white); }
+.error-box, .error-state { border-radius: 10px; }
+
+/* --- Progress & meters ----------------------------------------- */
+.progress-bar { height: 7px; border-radius: 5px; }
+.progress-bar-fill { border-radius: 5px; }
+
+/* --- Tabs ------------------------------------------------------ */
+.tab { font-weight: 650; }
+.tab.active { color: var(--accent); }
+
+/* --- Grid polish ------------------------------------------------ */
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+
+/* --- Premium misc ----------------------------------------------- */
+.signal-bar-track { height: 7px; border-radius: 4px; }
+
+.issue-item { border-radius: 10px; }
+.issue-item:hover { box-shadow: var(--shadow-md); }
+
+.rec-card { border-radius: 12px; }
+
+.page-content {
+  padding-bottom: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

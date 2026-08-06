@@ -54,6 +54,10 @@ export default function History() {
 
   if (loading) return <div className="loading-overlay"><div className="spinner" /><p>Loading...</p></div>
 
+  const avgScore = audits.length ? Math.round(audits.reduce((s, a) => s + (a.overall_score || 0), 0) / audits.length) : 0
+  const done = audits.filter(a => a.status === 'COMPLETED').length
+  const totalIssues = audits.reduce((s, a) => s + (a.total_issues || 0), 0)
+
   return (
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -70,6 +74,22 @@ export default function History() {
           </button>
         </div>
       </div>
+
+      {audits.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+          {[
+            { label: 'Audits Run', value: audits.length, color: '#6366f1', bg: '#eef2ff' },
+            { label: 'Completed', value: done, color: '#10b981', bg: '#ecfdf5' },
+            { label: 'Avg Score', value: avgScore, color: '#8b5cf6', bg: '#f5f3ff' },
+            { label: 'Issues Found', value: totalIssues, color: '#f59e0b', bg: '#fffbeb' },
+          ].map(s => (
+            <div key={s.label} style={{ background: 'var(--bg-white)', border: '1px solid var(--border-light)', borderRadius: 13, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 12, fontWeight: 650, color: 'var(--text-secondary)' }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {audits.length === 0 ? (
         <div className="empty-state">

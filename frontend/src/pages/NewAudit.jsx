@@ -48,12 +48,23 @@ export default function NewAudit() {
   }
 
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', paddingTop: 40 }}>
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 6, letterSpacing: '-0.5px' }}>New Audit</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 400, margin: '0 auto' }}>
-          Analyze any website for SEO, technical, and AI search readiness.
-        </p>
+    <div style={{ maxWidth: 620, margin: '0 auto', paddingTop: 32 }}>
+      <div style={{
+        borderRadius: 20, padding: '34px 34px 30px', color: '#fff', marginBottom: 24, position: 'relative', overflow: 'hidden',
+        background: 'radial-gradient(130% 170% at 0% 0%, rgba(99,102,241,0.92), rgba(139,92,246,0.85) 45%, rgba(217,70,239,0.78))',
+        boxShadow: '0 24px 48px -20px rgba(124,58,237,0.55)',
+      }}>
+        <div style={{ position: 'absolute', right: -50, top: -60, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.10)' }} />
+        <div style={{ position: 'absolute', right: 70, bottom: -80, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.16)', marginBottom: 14 }}>
+            <Sparkles size={11} /> AI-Powered SEO Intelligence
+          </div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8, lineHeight: 1.15 }}>Run a full AI SEO audit</h1>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', maxWidth: 460, lineHeight: 1.6 }}>
+            Analyze any website for technical SEO, on-page signals, Core Web Vitals, schema, and AI-search readiness — with ready-to-apply AI fixes.
+          </p>
+        </div>
       </div>
 
       <div className="card">
@@ -61,12 +72,12 @@ export default function NewAudit() {
           <div className="form-group">
             <label><Globe size={13} /> Website URL</label>
             <input type="text" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)}
-              placeholder="example.com" autoFocus style={{ fontSize: 14, padding: '10px 14px' }} />
+              placeholder="example.com" autoFocus style={{ fontSize: 14, padding: '12px 14px' }} />
           </div>
           <div className="form-group">
             <label><Globe size={13} /> Competitor URL (optional)</label>
             <input type="text" value={competitorUrl} onChange={e => setCompetitorUrl(e.target.value)}
-              placeholder="competitor.com" style={{ fontSize: 14, padding: '10px 14px' }} />
+              placeholder="competitor.com" style={{ fontSize: 14, padding: '12px 14px' }} />
           </div>
           {error && <div className="error-box"><p>{error}</p></div>}
           <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width: '100%' }}>
@@ -88,17 +99,17 @@ export default function NewAudit() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 24 }}>
         {[
-          { icon: BarChart3, label: '200+ Signals', desc: 'Technical & on-page' },
-          { icon: Zap, label: 'AEO Analysis', desc: 'AI search readiness' },
-          { icon: Brain, label: 'AI Visibility', desc: 'ChatGPT, Gemini, Perplexity' },
-          { icon: Target, label: 'Competitor Intel', desc: 'Gap analysis' },
+          { icon: BarChart3, label: '200+ Signals', desc: 'Technical & on-page', color: '#6366f1', bg: '#eef2ff' },
+          { icon: Zap, label: 'AEO Analysis', desc: 'AI search readiness', color: '#8b5cf6', bg: '#f5f3ff' },
+          { icon: Brain, label: 'AI Visibility', desc: 'ChatGPT, Gemini, Perplexity', color: '#ec4899', bg: '#fdf2f8' },
+          { icon: Target, label: 'Competitor Intel', desc: 'Gap analysis', color: '#06b6d4', bg: '#ecfeff' },
         ].map(item => (
-          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <item.icon size={15} style={{ color: 'var(--text-muted)' }} />
+          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', background: 'var(--bg-white)', border: '1px solid var(--border-light)', borderRadius: 12, transition: 'all 0.2s ease', cursor: 'default' }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <item.icon size={16} style={{ color: item.color }} />
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{item.label}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{item.label}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</div>
             </div>
           </div>

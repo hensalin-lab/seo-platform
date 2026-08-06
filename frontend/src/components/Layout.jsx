@@ -156,8 +156,8 @@ export default function Layout({ children }) {
             <button onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))} style={{ background: 'none', border: 'none', color: 'var(--sidebar-text)', cursor: 'pointer', padding: 4, opacity: 0.6 }} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <div style={{ fontSize: 10, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.35, marginLeft: 'auto', letterSpacing: '0.5px' }}>
-              SEO Intel v2.5
+            <div style={{ fontSize: 9.5, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.35, marginLeft: 'auto', letterSpacing: '1px' }}>
+              SEO INTEL v2.6
             </div>
           </div>
         </div>
@@ -169,8 +169,12 @@ export default function Layout({ children }) {
             <div>
               <div className="topbar-title">{title}</div>
               {isReport && (
-                <div className="topbar-subtitle">
-                  {location.pathname.split('/').slice(0, 4).join('/')}
+                <div className="topbar-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, letterSpacing: '0.2px' }}>
+                  <span style={{ color: 'var(--text-dim)' }}>audit</span>
+                  <span style={{ color: 'var(--text-muted)' }}>/</span>
+                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{auditId.slice(0, 8)}</span>
+                  <span style={{ color: 'var(--text-dim)' }}>/</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{segment || 'dashboard'}</span>
                 </div>
               )}
             </div>
