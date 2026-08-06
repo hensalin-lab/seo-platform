@@ -328,7 +328,6 @@ async def _lmstudio_chat(system_prompt: str, user_prompt: str, max_tokens: int =
                     "model": settings.LMSTUDIO_MODEL,
                     "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                     "temperature": 0.3, "max_tokens": max_tokens,
-                    "response_format": {"type": "json_object"},
                 },
             )
             if resp.status_code != 200:
@@ -342,7 +341,13 @@ async def _lmstudio_chat(system_prompt: str, user_prompt: str, max_tokens: int =
             if cleaned.startswith("```json"): cleaned = cleaned[7:]
             if cleaned.startswith("```"): cleaned = cleaned[3:]
             if cleaned.endswith("```"): cleaned = cleaned[:-3]
-            return json.loads(cleaned.strip())
+            try:
+                return json.loads(cleaned.strip())
+            except Exception:
+                start, end = cleaned.find("{"), cleaned.rfind("}")
+                if start != -1 and end > start:
+                    return json.loads(cleaned[start:end + 1])
+                raise
     except Exception as e:
         logger.warning("LM Studio: %s", e)
         _record_health("lmstudio", False, str(e)[:200])

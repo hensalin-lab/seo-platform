@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     OLLAMA_TIMEOUT: int = 180
 
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
-    LMSTUDIO_MODEL: str = "qwen3-32b-instruct"
+    LMSTUDIO_MODEL: str = "qwen3-8b"
     LMSTUDIO_TIMEOUT: int = 300
 
     CLOUDFLARE_ACCOUNT_ID: str = ""
