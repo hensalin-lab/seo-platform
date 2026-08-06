@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Share2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 export default function SocialSeo() {
   const { id } = useParams();
@@ -68,6 +69,10 @@ export default function SocialSeo() {
           <h1>Social Meta Tags</h1>
         </div>
         <p>Open Graph, Twitter Cards, and social sharing optimization</p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <AiSuggestionStrip auditId={id} tool="social" title="AI social meta fixes" />
       </div>
 
       <div className="score-grid">

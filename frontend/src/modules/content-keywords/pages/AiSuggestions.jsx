@@ -1,328 +1,222 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
-  Brain, Sparkles, Zap, Target, Lightbulb, RefreshCw, CheckCircle,
-  AlertTriangle, ArrowRight, Clock, BarChart3, TrendingUp
+  Sparkles, Zap, FileText, Braces, Link2, Accessibility, Smartphone, Shield,
+  Share2, Image as ImageIcon, LayoutGrid, RefreshCw, AlertTriangle, Brain,
+  Wand2, CheckCircle2, Wifi,
 } from 'lucide-react';
 import { api } from '../../../api';
+import AiSuggestionCard from '../../../components/ai/AiSuggestionCard';
+import AiInsightBars from '../../../components/ai/AiInsightBars';
+import { AI_GRADIENT, providerLabel } from '../../../components/ai/theme';
 
-const IMPACT_COLORS = {
-  HIGH: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
-  MEDIUM: { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
-  LOW: { bg: 'rgba(34,197,94,0.1)', color: '#22c55e' },
-};
-
-const EFFORT_COLORS = {
-  LOW: { bg: 'rgba(34,197,94,0.1)', color: '#22c55e' },
-  MEDIUM: { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
-  HIGH: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
-};
-
-function ProviderBadge({ provider }) {
-  const map = {
-    openai: { bg: 'rgba(16,163,127,0.1)', color: '#10a37f', label: 'OpenAI' },
-    gemini: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Gemini' },
-    fallback: { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Rule-Based' },
-  };
-  const s = map[provider] || map.fallback;
-  return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color }}>
-      {s.label}
-    </span>
-  );
-}
-
-function SectionCard({ icon: Icon, title, count, children }) {
-  return (
-    <div style={{
-      background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)',
-      borderRadius: 'var(--radius, 12px)', overflow: 'hidden',
-    }}>
-      <div style={{
-        padding: '16px 20px', borderBottom: '1px solid var(--border, #e5e7eb)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Icon size={18} color="var(--accent, #3b82f6)" />
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text, #111827)' }}>{title}</span>
-        </div>
-        {count != null && (
-          <span style={{
-            fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-            background: 'var(--bg-secondary, #f3f4f6)', color: 'var(--text-muted, #6b7280)',
-          }}>{count}</span>
-        )}
-      </div>
-      <div style={{ padding: '16px 20px' }}>
-        {children}
-      </div>
-    </div>
-  );
-}
+const TOOLS = [
+  { key: 'all', label: 'All', icon: LayoutGrid },
+  { key: 'seo', label: 'SEO', icon: Sparkles },
+  { key: 'speed', label: 'Speed', icon: Zap },
+  { key: 'content', label: 'Content', icon: FileText },
+  { key: 'schema', label: 'Schema', icon: Braces },
+  { key: 'internal-links', label: 'Internal Links', icon: Link2 },
+  { key: 'accessibility', label: 'Accessibility', icon: Accessibility },
+  { key: 'mobile', label: 'Mobile', icon: Smartphone },
+  { key: 'security', label: 'Security', icon: Shield },
+  { key: 'social', label: 'Social', icon: Share2 },
+  { key: 'image', label: 'Images', icon: ImageIcon },
+];
 
 export default function AiSuggestions() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tool, setTool] = useState(searchParams.get('tool') || 'all');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const load = async (isRefresh = false) => {
+  const load = useCallback(async (isGenerate = false) => {
     try {
-      if (isRefresh) setRefreshing(true);
+      if (isGenerate) setGenerating(true);
       else setLoading(true);
       setError(null);
-      const result = await api.getAiSuggestions(id);
+      const result = await api.getToolSuggestions(id, { tool, limit: 10 });
       setData(result);
     } catch (err) {
       setError(err.message || 'Failed to generate suggestions');
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      setGenerating(false);
     }
+  }, [id, tool]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const pickTool = (key) => {
+    setTool(key);
+    setSearchParams(key === 'all' ? {} : { tool: key }, { replace: true });
   };
 
-  useEffect(() => { load(); }, [id]);
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 16 }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(168,85,247,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse 1.5s ease-in-out infinite' }}>
-          <Brain size={28} color="var(--accent, #3b82f6)" />
-        </div>
-        <div style={{ fontSize: 15, color: 'var(--text-muted, #6b7280)', fontWeight: 500 }}>AI is analyzing your site...</div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted, #9ca3af)' }}>Generating personalized recommendations</div>
-        <style>{`@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }`}</style>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
-        <AlertTriangle size={40} color="#ef4444" />
-        <div style={{ fontSize: 16, fontWeight: 600 }}>Failed to Generate Suggestions</div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)' }}>{error}</div>
-        <button onClick={() => load()} style={{ marginTop: 8, padding: '8px 20px', borderRadius: 'var(--radius-sm, 6px)', background: 'var(--accent, #3b82f6)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Retry</button>
-      </div>
-    );
-  }
-
-  const suggestions = data?.suggestions || {};
-  const provider = data?.provider || 'fallback';
-  const {
-    priority_actions = [],
-    quick_wins = [],
-    strategic_insights = [],
-    content_recommendations = [],
-    summary = '',
-  } = suggestions;
+  const items = data?.items || [];
+  const providers = data?.providers_used || [];
+  const avgImpact = items.length
+    ? Math.round(items.reduce((s, i) => s + (Number(i.ai_impact_pct) || 0), 0) / items.length)
+    : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Sparkles size={22} color="var(--accent, #3b82f6)" /> AI SEO Suggestions
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>
-            Personalized, AI-powered recommendations for your website
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ProviderBadge provider={provider} />
-          <button
-            onClick={() => load(true)}
-            disabled={refreshing}
-            style={{
-              padding: '8px 16px', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid var(--border, #e5e7eb)',
-              background: 'var(--bg-white, #fff)', cursor: refreshing ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500,
-              color: 'var(--text, #111827)', opacity: refreshing ? 0.6 : 1,
-            }}
-          >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? 'Regenerating...' : 'Regenerate'}
-          </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <style>{`
+        @keyframes aiPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+      `}</style>
+
+      {/* Hero */}
+      <div style={{
+        borderRadius: 18, padding: '24px 26px', color: '#fff',
+        background: 'radial-gradient(120% 160% at 0% 0%, rgba(99,102,241,0.9), rgba(139,92,246,0.82) 45%, rgba(217,70,239,0.75))',
+        boxShadow: '0 18px 40px -18px rgba(124,58,237,0.55)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', right: -40, top: -50, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.10)' }} />
+        <div style={{ position: 'absolute', right: 60, bottom: -70, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 13, background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)' }}>
+                <Wand2 size={21} />
+              </div>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.1 }}>AI SEO Suggestion Tool</div>
+                <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3 }}>Ready-to-apply AI fixes for every detected issue</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[{ icon: CheckCircle2, t: 'Fix + why + effort' }, { icon: Sparkles, t: 'Impact & confidence scored' }, { icon: Wifi, t: 'Local AI · private' }].map((b, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.16)' }}>
+                  <b.icon size={11} /> {b.t}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+            <button
+              onClick={() => load(true)}
+              disabled={generating || loading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10,
+                background: '#fff', color: '#7c3aed', border: 'none', cursor: generating ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: 13, boxShadow: '0 6px 16px -6px rgba(0,0,0,0.3)', opacity: generating ? 0.7 : 1,
+              }}
+            >
+              {generating ? <RefreshCw size={14} style={{ animation: 'aiPulse 1s linear infinite' }} /> : <Sparkles size={14} />}
+              {generating ? 'Generating...' : 'Generate AI fixes'}
+            </button>
+            {providers.length > 0 && (
+              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
+                Generated by {providers.map(providerLabel).join(' · ')}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Summary */}
-      {summary && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(59,130,246,0.05), rgba(168,85,247,0.05))',
-          border: '1px solid rgba(59,130,246,0.15)', borderRadius: 'var(--radius, 12px)', padding: '18px 22px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <Brain size={20} color="var(--accent, #3b82f6)" style={{ marginTop: 2, flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent, #3b82f6)', marginBottom: 4 }}>AI Executive Summary</div>
-              <div style={{ fontSize: 14, color: 'var(--text, #111827)', lineHeight: 1.6 }}>{summary}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        {[
-          { icon: Target, label: 'Priority Actions', value: priority_actions.length, color: '#ef4444' },
-          { icon: Zap, label: 'Quick Wins', value: quick_wins.length, color: '#22c55e' },
-          { icon: Lightbulb, label: 'Insights', value: strategic_insights.length, color: '#f59e0b' },
-          { icon: BarChart3, label: 'Content Ideas', value: content_recommendations.length, color: '#3b82f6' },
-        ].map((stat, i) => (
-          <div key={i} style={{
-            background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)',
-            borderRadius: 'var(--radius, 12px)', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm, 6px)', background: `${stat.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <stat.icon size={18} color={stat.color} />
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted, #6b7280)', fontWeight: 500 }}>{stat.label}</div>
-            </div>
-          </div>
-        ))}
+      {/* Tool picker */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {TOOLS.map((t) => {
+          const active = tool === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => pickTool(t.key)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 9,
+                border: active ? '1px solid rgba(139,92,246,0.4)' : '1px solid var(--border-light)',
+                background: active ? 'rgba(139,92,246,0.08)' : 'var(--bg-white)',
+                cursor: 'pointer', fontSize: 12, fontWeight: active ? 750 : 600, color: active ? '#7c3aed' : 'var(--text-secondary)',
+                boxShadow: active ? '0 4px 12px -6px rgba(139,92,246,0.4)' : 'none',
+              }}
+            >
+              <t.icon size={13} color={active ? '#7c3aed' : 'var(--text-muted)'} /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Priority Actions */}
-      {priority_actions.length > 0 && (
-        <SectionCard icon={Target} title="Priority Actions" count={priority_actions.length}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {priority_actions.map((action, i) => {
-              const imp = IMPACT_COLORS[action.impact] || IMPACT_COLORS.MEDIUM;
-              const eff = EFFORT_COLORS[action.effort] || EFFORT_COLORS.MEDIUM;
-              return (
-                <div key={i} style={{
-                  border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius-sm, 8px)',
-                  padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10,
-                  borderLeft: `3px solid ${imp.color}`,
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text, #111827)' }}>{action.title}</div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: imp.bg, color: imp.color }}>
-                        {action.impact} impact
-                      </span>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: eff.bg, color: eff.color }}>
-                        {action.effort} effort
-                      </span>
-                      {action.category && (
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
-                          {action.category}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.5 }}>{action.description}</div>
-                  {action.specific_steps && action.specific_steps.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                      {action.specific_steps.map((step, j) => (
-                        <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--text-secondary, #4b5563)' }}>
-                          <ArrowRight size={12} color="var(--accent, #3b82f6)" style={{ marginTop: 3, flexShrink: 0 }} />
-                          {step}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* Quick Wins */}
-      {quick_wins.length > 0 && (
-        <SectionCard icon={Zap} title="Quick Wins" count={quick_wins.length}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-            {quick_wins.map((win, i) => (
-              <div key={i} style={{
-                border: '1px solid rgba(34,197,94,0.2)', borderRadius: 'var(--radius-sm, 8px)',
-                padding: '14px 16px', background: 'rgba(34,197,94,0.03)',
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #111827)', marginBottom: 6 }}>{win.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.5, marginBottom: 8 }}>{win.description}</div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  {win.estimated_time && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted, #6b7280)' }}>
-                      <Clock size={12} /> {win.estimated_time}
-                    </div>
-                  )}
-                  {win.expected_improvement && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#22c55e', fontWeight: 600 }}>
-                      <TrendingUp size={12} /> {win.expected_improvement}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* Strategic Insights */}
-      {strategic_insights.length > 0 && (
-        <SectionCard icon={Lightbulb} title="Strategic Insights" count={strategic_insights.length}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {strategic_insights.map((insight, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
-                borderRadius: 'var(--radius-sm, 8px)', background: 'rgba(245,158,11,0.04)',
-                border: '1px solid rgba(245,158,11,0.12)',
-              }}>
-                <CheckCircle size={16} color="#f59e0b" style={{ marginTop: 2, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: 'var(--text, #111827)', lineHeight: 1.6 }}>{insight}</span>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* Content Recommendations */}
-      {content_recommendations.length > 0 && (
-        <SectionCard icon={BarChart3} title="Content Recommendations" count={content_recommendations.length}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {content_recommendations.map((rec, i) => {
-              const pri = IMPACT_COLORS[rec.priority] || IMPACT_COLORS.MEDIUM;
-              return (
-                <div key={i} style={{
-                  display: 'flex', gap: 14, padding: '14px 16px', borderRadius: 'var(--radius-sm, 8px)',
-                  border: '1px solid var(--border, #e5e7eb)',
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #111827)' }}>{rec.topic}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: pri.bg, color: pri.color }}>{rec.priority}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(168,85,247,0.1)', color: '#a855f7' }}>{rec.type}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)' }}>
-                      {rec.target_words && `~${rec.target_words} words`}
-                      {rec.keywords && rec.keywords.length > 0 && ` · ${rec.keywords.slice(0, 3).join(', ')}`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* Empty State */}
-      {!summary && priority_actions.length === 0 && quick_wins.length === 0 && (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '60px 20px', background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)',
-          borderRadius: 'var(--radius, 12px)', textAlign: 'center',
-        }}>
-          <Brain size={48} color="var(--text-muted, #9ca3af)" />
-          <h3 style={{ margin: '16px 0 8px', color: 'var(--text, #111827)' }}>No Suggestions Yet</h3>
-          <p style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)', maxWidth: 400 }}>
-            AI is still analyzing your website. Click "Regenerate" to try again.
-          </p>
+      {/* Error */}
+      {error && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12, background: 'var(--bg-white)', border: '1px solid var(--border-light)', borderRadius: 14 }}>
+          <AlertTriangle size={34} color="#ef4444" />
+          <div style={{ fontSize: 15, fontWeight: 650 }}>Could not load AI suggestions</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{error}</div>
+          <button onClick={() => load(true)} style={{ marginTop: 4, padding: '8px 18px', borderRadius: 9, background: AI_GRADIENT, color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12.5 }}>Retry</button>
         </div>
+      )}
+
+      {/* Loading */}
+      {loading && !error && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 360, gap: 16 }}>
+          <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(217,70,239,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'aiPulse 1.6s ease-in-out infinite' }}>
+            <Brain size={28} color="#7c3aed" />
+          </div>
+          <div style={{ fontSize: 15, color: 'var(--text-secondary)', fontWeight: 600 }}>AI is analyzing your site...</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Running local + cloud AI to score every issue</div>
+          <div style={{ width: 220, height: 7, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '45%', borderRadius: 4, background: 'linear-gradient(90deg,#6366f1,#d946ef,#6366f1)', backgroundSize: '200% 100%', animation: 'shimmer 1.3s linear infinite' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {!loading && !error && (
+        <>
+          {items.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 260, gap: 10, background: 'var(--bg-white)', border: '1px solid var(--border-light)', borderRadius: 14, textAlign: 'center', padding: '30px 20px' }}>
+              <Sparkles size={42} color="var(--text-muted)" opacity={0.5} />
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>No issues found for this tool</h3>
+              <p style={{ fontSize: 12.5, color: 'var(--text-muted)', maxWidth: 380 }}>
+                No detected issues match this filter. Run an audit first, then try another tool.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+                {[
+                  { label: 'AI fixes ready', value: items.length, color: '#7c3aed', icon: CheckCircle2 },
+                  { label: 'Generated now', value: data?.generated ?? 0, color: '#22c55e', icon: Wand2 },
+                  { label: 'Avg impact', value: `${avgImpact}%`, color: '#f59e0b', icon: Zap },
+                  { label: 'Providers used', value: providers.length || 1, color: '#3b82f6', icon: Brain },
+                ].map((s, i) => (
+                  <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border-light)', borderRadius: 13, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: s.color + '14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <s.icon size={16} color={s.color} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1.1 }}>{s.value}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>{s.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Cards + ranking */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 16, alignItems: 'start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {items.map((item, i) => <AiSuggestionCard key={item.id || i} item={item} index={i} />)}
+                </div>
+                <div style={{ position: 'sticky', top: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <AiInsightBars items={items} maxBars={6} />
+                  <div style={{ background: AI_GRADIENT, borderRadius: 13, padding: '14px 16px', color: '#fff' }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Wand2 size={13} /> Pro tip
+                    </div>
+                    <div style={{ fontSize: 11.5, lineHeight: 1.55, color: 'rgba(255,255,255,0.92)' }}>
+                      Start with P0/P1 items — every fix card includes a why, the exact fix, effort, and one-click apply code.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );

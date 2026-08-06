@@ -459,6 +459,8 @@ async def get_audit_issues(audit_id: str, category: str = None, severity: str = 
             "description": i.description, "impact": i.impact, "fix": i.fix,
             "root_cause": i.root_cause, "effort": i.effort, "fix_code": i.fix_code,
             "ai_generated": i.ai_generated or 0,
+            "ai_why": i.ai_why or "", "ai_impact_pct": i.ai_impact_pct or 0,
+            "ai_confidence": i.ai_confidence or 0, "priority": _priority_for(i),
             **_issue_fix_guidance(pages.get(i.page_url), i.signal_id, i.signal_name or "", i.category or ""),
         } for i in rows],
         "total": total, "offset": offset, "limit": limit,
@@ -2212,6 +2214,9 @@ async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = 
         if it.effort not in ("LOW", "MEDIUM", "HIGH"):
             it.effort = "MEDIUM"
         it.fix_code = str(f.get("fix_code", it.fix_code or f"FIX-{it.signal_id or 0:04d}")).strip()
+        it.ai_why = str(f.get("why", "") or "").strip()
+        it.ai_impact_pct = _clamp_pct(f.get("impact_pct"))
+        it.ai_confidence = _clamp_pct(f.get("confidence"))
         it.ai_generated = 1
         generated += 1
     await db.commit()
@@ -2223,9 +2228,118 @@ async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = 
             "description": it.description, "impact": it.impact, "fix": it.fix,
             "root_cause": it.root_cause, "effort": it.effort, "fix_code": it.fix_code,
             "ai_generated": it.ai_generated or 0,
+            "ai_why": it.ai_why or "", "ai_impact_pct": it.ai_impact_pct or 0,
+            "ai_confidence": it.ai_confidence or 0,
+            "priority": _priority_for(it),
         } for it in issues],
         "generated": generated, "total": len(issues),
         "providers_used": sorted(providers_used),
+    }
+
+
+def _clamp_pct(v) -> int:
+    try:
+        return min(100, max(0, int(float(v))))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _priority_for(issue) -> str:
+    sev = (issue.severity or "").upper()
+    if sev == "CRITICAL":
+        return "P0"
+    if sev == "HIGH":
+        return "P1"
+    if sev == "MEDIUM":
+        return "P2"
+    return "P3"
+
+
+_TOOL_CATEGORIES = {
+    "seo": ["SEO"],
+    "speed": ["PERFORMANCE", "SPEED"],
+    "pagespeed": ["PERFORMANCE", "SPEED"],
+    "content": ["CONTENT"],
+    "schema": ["SCHEMA", "STRUCTURED DATA", "SEO"],
+    "internal-links": ["INTERNAL LINKS", "SEO", "LINKING"],
+    "accessibility": ["ACCESSIBILITY"],
+    "mobile": ["MOBILE"],
+    "security": ["SECURITY"],
+    "social": ["SOCIAL"],
+    "image": ["IMAGES", "IMAGE"],
+    "all": [],
+}
+
+
+@router.post("/audit/{audit_id}/ai/tool-suggestions")
+async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
+    """AI suggestions scoped to a single tool page (SEO, Speed, Content, ...).
+    Returns up to `limit` items with impact/confidence bars for the AI card UI."""
+    from app.engine.dual_ai import quad_ai_batch_fixes
+
+    tool = str(body.get("tool", "all")).lower()
+    category = (str(body.get("category", "") or "")).upper().strip()
+    limit = min(max(int(body.get("limit", 5)), 1), 10)
+
+    cats = _TOOL_CATEGORIES.get(tool) or ([category] if category else [])
+    severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+
+    stmt = select(Issue).where(Issue.audit_id == audit_id)
+    if cats:
+        stmt = stmt.where(Issue.category.in_(cats))
+    result = await db.execute(stmt)
+    issues = list(result.scalars().all())
+    issues.sort(key=lambda i: (severity_rank.get(i.severity, 9), -(i.ai_impact_pct or 0), -(i.pages_affected or 1)))
+    issues = issues[:limit]
+    if not issues:
+        return {"items": [], "generated": 0, "providers_used": [], "tool": tool}
+
+    to_fix = [it for it in issues if not it.ai_generated]
+    fixes_by_id = {}
+    providers_used = set()
+    if to_fix:
+        for i in range(0, len(to_fix), 5):
+            chunk = to_fix[i:i + 5]
+            payload = [{
+                "id": it.id, "signal_name": it.signal_name, "category": it.category,
+                "severity": it.severity, "description": it.description, "impact": it.impact,
+                "page_url": it.page_url,
+            } for it in chunk]
+            ai_result = await quad_ai_batch_fixes(payload)
+            if not isinstance(ai_result, dict):
+                continue
+            providers_used.update(ai_result.get("providers_used", []) or [])
+            for f in ai_result.get("fixes", []) or []:
+                if isinstance(f, dict) and f.get("id") and f.get("fix"):
+                    fixes_by_id[f["id"]] = f
+        for it in to_fix:
+            f = fixes_by_id.get(it.id)
+            if not f:
+                continue
+            it.fix = str(f.get("fix", it.fix or "")).strip()
+            it.root_cause = str(f.get("root_cause", it.root_cause or "")).strip()
+            it.effort = str(f.get("effort", it.effort or "MEDIUM")).upper()
+            if it.effort not in ("LOW", "MEDIUM", "HIGH"):
+                it.effort = "MEDIUM"
+            it.fix_code = str(f.get("fix_code", it.fix_code or f"FIX-{it.signal_id or 0:04d}")).strip()
+            it.ai_why = str(f.get("why", "") or "").strip()
+            it.ai_impact_pct = _clamp_pct(f.get("impact_pct"))
+            it.ai_confidence = _clamp_pct(f.get("confidence"))
+            it.ai_generated = 1
+        await db.commit()
+
+    return {
+        "items": [{
+            "id": it.id, "page_url": it.page_url, "category": it.category, "severity": it.severity,
+            "signal_id": it.signal_id, "signal_name": it.signal_name,
+            "description": it.description, "impact": it.impact, "fix": it.fix,
+            "root_cause": it.root_cause, "effort": it.effort, "fix_code": it.fix_code,
+            "ai_generated": it.ai_generated or 0,
+            "ai_why": it.ai_why or "", "ai_impact_pct": it.ai_impact_pct or 0,
+            "ai_confidence": it.ai_confidence or 0, "priority": _priority_for(it),
+        } for it in issues],
+        "generated": len(fixes_by_id), "total": len(issues),
+        "providers_used": sorted(providers_used), "tool": tool,
     }
 
 

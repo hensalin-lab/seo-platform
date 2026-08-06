@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Smartphone, AlertTriangle, CheckCircle, XCircle, Gauge } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 export default function MobileSeo() {
   const { id } = useParams();
@@ -68,6 +69,10 @@ export default function MobileSeo() {
           <h1>Mobile SEO</h1>
         </div>
         <p>Mobile-specific issues, mobile-first indexing readiness, and responsive design</p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <AiSuggestionStrip auditId={id} tool="mobile" title="AI mobile SEO fixes" />
       </div>
 
       <div className="score-grid">

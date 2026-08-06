@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import DataSourceBadge from '../../../components/DataSourceBadge'
 import { BookOpen, FileText, AlertTriangle, CheckCircle, ArrowRight, Image, Link2 } from 'lucide-react'
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 
 function TabBar({ tabs, active, onChange }) {
   return (
@@ -169,6 +170,10 @@ export default function ContentAnalysis() {
           <DataSourceBadge source="crawler" size="xs" />
         </div>
         <p>Content quality, word counts, and optimization opportunities from crawled data</p>
+      </div>
+
+      <div style={{ marginBottom: 18 }}>
+        <AiSuggestionStrip auditId={id} tool="content" title="AI content fixes" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 18 }}>

@@ -624,15 +624,16 @@ async def quad_ai_readability_analysis(content):
 async def quad_ai_batch_fixes(issues: list[dict]) -> dict:
     """Generate ready-to-paste fixes for a batch of issues.
     Runs through the full provider set (LM Studio/Ollama local + cloud) so every
-    fix gets an AI suggestion. Returns {"fixes":[{id,fix,fix_code,root_cause,effort,before_code,after_code}], "providers_used":[...]}.
+    fix gets an AI suggestion. Returns {"fixes":[{id,fix,fix_code,root_cause,effort,before_code,after_code,why,impact_pct,confidence,priority}], "providers_used":[...]}.
     """
     sys = """You are a senior SEO engineer. For EVERY issue in the provided JSON array, write a precise fix. Return ONLY valid JSON:
-{"fixes":[{"id":"<exact issue id>","fix":"step-by-step fix, under 150 words, concrete and ready to paste","fix_code":"FIX-####","root_cause":"one-sentence cause","effort":"LOW|MEDIUM|HIGH","before_code":"...","after_code":"..."}]}
+{"fixes":[{"id":"<exact issue id>","fix":"step-by-step fix, under 150 words, concrete and ready to paste","fix_code":"FIX-####","root_cause":"one-sentence cause","effort":"LOW|MEDIUM|HIGH","before_code":"...","after_code":"...","why":"one plain-language sentence a non-technical person understands about why this hurts rankings","impact_pct":"integer 0-100 estimating how much ranking lift fixing this gives","confidence":"integer 0-100 estimating how certain you are this fix is correct for this site","priority":"P0|P1|P2|P3"}]}
 CRITICAL RULES:
 - Include exactly one entry per input issue, preserving the exact id.
 - Never invent data beyond what is provided in the issue description.
 - If code is not applicable, set before_code and after_code to empty strings.
-- Keep the fix practical: tell the user exactly what to change and where."""
+- Keep the fix practical: tell the user exactly what to change and where.
+- impact_pct and confidence must be integers, never strings or decimals."""
     user = "Issues:\n" + json.dumps(issues, default=str)
     return await _run_all(sys, user, 4000, task="rewrite")
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Image, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 export default function ImageSeo() {
   const { id } = useParams();
@@ -70,6 +71,10 @@ export default function ImageSeo() {
           <h1>Image SEO</h1>
         </div>
         <p>Alt text coverage, image optimization, and file format analysis</p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <AiSuggestionStrip auditId={id} tool="image" title="AI image SEO fixes" />
       </div>
 
       <div className="score-grid">

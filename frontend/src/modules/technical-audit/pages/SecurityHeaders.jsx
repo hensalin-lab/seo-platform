@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Lock, Globe } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 export default function SecurityHeaders() {
   const { id } = useParams();
@@ -73,6 +74,10 @@ export default function SecurityHeaders() {
           <h1>Security Headers</h1>
         </div>
         <p>HTTPS status, HSTS, CSP, and security audit</p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <AiSuggestionStrip auditId={id} tool="security" title="AI security fixes" />
       </div>
 
       <div className="score-grid">

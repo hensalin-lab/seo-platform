@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Code, CheckCircle, XCircle, Layers, AlertTriangle } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 export default function SchemaAnalysis() {
   const { id } = useParams();
@@ -70,6 +71,10 @@ export default function SchemaAnalysis() {
             <p className="card-subtitle">Structured data markup coverage and signals</p>
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: '1rem' }}>
+        <AiSuggestionStrip auditId={id} tool="schema" title="AI schema fixes" />
       </div>
 
       <div className="grid-3" style={{ marginTop: '1rem' }}>

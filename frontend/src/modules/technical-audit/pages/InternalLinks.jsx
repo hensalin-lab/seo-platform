@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Link2, AlertTriangle, CheckCircle, XCircle, BarChart3, ExternalLink, Unlink, ChevronDown, ChevronRight, Lightbulb, Target, Globe, Search, ArrowRight, Layers, Anchor, Network, TrendingUp, Hash } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 function LinkSuggestionCard({ suggestion }) {
   const priColors = { HIGH: '#059669', MEDIUM: '#d97706', LOW: '#64748b' };
@@ -202,6 +203,10 @@ export default function InternalLinks() {
             <Link2 size={24} color="#3b82f6" /> Internal Link Intelligence
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Deep analysis of link architecture, anchor text quality, PageRank flow, and topic clusters</p>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <AiSuggestionStrip auditId={id} tool="internal-links" title="AI internal linking fixes" />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20 }}>

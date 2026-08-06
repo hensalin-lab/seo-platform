@@ -154,12 +154,24 @@ async def run_startup_maintenance() -> dict:
             try:
                 cols = (await conn.execute(text("PRAGMA table_info(issues)"))).fetchall()
                 col_names = {c[1] for c in cols}
-                if "ai_generated" not in col_names:
-                    await conn.execute(text("ALTER TABLE issues ADD COLUMN ai_generated INTEGER DEFAULT 0"))
-                    await conn.commit()
-                    logger.info("Startup maintenance: added issues.ai_generated column")
+                _ISSUE_COLUMNS = [
+                    ("ai_generated", "ALTER TABLE issues ADD COLUMN ai_generated INTEGER DEFAULT 0"),
+                    ("ai_why", "ALTER TABLE issues ADD COLUMN ai_why TEXT DEFAULT ''"),
+                    ("ai_impact_pct", "ALTER TABLE issues ADD COLUMN ai_impact_pct INTEGER DEFAULT 0"),
+                    ("ai_confidence", "ALTER TABLE issues ADD COLUMN ai_confidence INTEGER DEFAULT 0"),
+                    ("effort", "ALTER TABLE issues ADD COLUMN effort TEXT DEFAULT 'MEDIUM'"),
+                    ("root_cause", "ALTER TABLE issues ADD COLUMN root_cause TEXT DEFAULT ''"),
+                    ("fix_code", "ALTER TABLE issues ADD COLUMN fix_code TEXT DEFAULT ''"),
+                    ("snapshot_hash", "ALTER TABLE issues ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
+                    ("pages_affected", "ALTER TABLE issues ADD COLUMN pages_affected INTEGER DEFAULT 1"),
+                ]
+                for _col, _ddl in _ISSUE_COLUMNS:
+                    if _col not in col_names:
+                        await conn.execute(text(_ddl))
+                        await conn.commit()
+                        logger.info(f"Startup maintenance: added issues.{_col} column")
             except Exception as e:
-                logger.warning(f"Startup maintenance: issues.ai_generated migration failed: {e}")
+                logger.warning(f"Startup maintenance: issues schema migration failed: {e}")
     except Exception as e:
         logger.error(f"Startup maintenance failed: {e}")
         result["error"] = str(e)

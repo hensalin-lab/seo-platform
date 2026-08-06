@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import DataSourceBadge from '../../../components/DataSourceBadge';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import { Search, ChevronDown, AlertTriangle, CheckCircle, Code, Target, BarChart3, Globe, Brain, RefreshCw, Filter } from 'lucide-react';
 
 function ScoreRing({ score, size = 100, stroke = 8, label }) {
@@ -161,6 +162,10 @@ export default function SeoAnalysis() {
             <DataSourceBadge source="crawler" size="xs" />
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked across 25 categories. All data from on-page HTML crawl.</p>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <AiSuggestionStrip auditId={id} tool="seo" title="AI SEO fixes" />
         </div>
 
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}

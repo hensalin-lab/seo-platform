@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info } from 'lucide-react'
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 
 function MetricCard({ label, value, status, target, explanation, recommendation }) {
   const color = status === 'good' ? '#12b886' : status === 'needs-improvement' ? '#f59f00' : status === 'unknown' ? 'var(--text-muted)' : '#fa5252'
@@ -179,6 +180,10 @@ export default function SpeedAnalysis() {
       <div className="page-header">
         <h1>Speed & Core Web Vitals</h1>
         <p>{data.hasCwvData ? 'Performance metrics and optimization opportunities' : 'Performance metrics — Core Web Vitals not measured. Run Lighthouse for real data.'}</p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <AiSuggestionStrip auditId={id} tool="speed" title="AI speed & CWV fixes" />
       </div>
 
       {!data.hasCwvData && (
