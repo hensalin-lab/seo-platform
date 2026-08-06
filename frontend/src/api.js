@@ -134,6 +134,7 @@ export const api = {
   getPortfolio: () => request('/portfolio'),
   getRecommendations: (id) => request(`/audit/${id}/recommendations?limit=200`),
   getAiSuggestions: (id) => request(`/audit/${id}/ai-suggestions`, { method: 'POST', body: JSON.stringify({}) }),
+  generateAiFixes: (id, limit = 30) => request(`/audit/${id}/ai/fixes`, { method: 'POST', body: JSON.stringify({ limit }) }),
   cancelAudit: (id) => request(`/audit/${id}/cancel`, { method: 'POST' }),
   rerunAudit: (id) => request(`/audit/${id}/rerun`, { method: 'POST' }),
   exportCsv: async (id, type = 'issues') => {

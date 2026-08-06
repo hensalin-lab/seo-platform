@@ -457,6 +457,8 @@ async def get_audit_issues(audit_id: str, category: str = None, severity: str = 
             "id": i.id, "page_url": i.page_url, "category": i.category, "severity": i.severity,
             "signal_id": i.signal_id, "signal_name": i.signal_name,
             "description": i.description, "impact": i.impact, "fix": i.fix,
+            "root_cause": i.root_cause, "effort": i.effort, "fix_code": i.fix_code,
+            "ai_generated": i.ai_generated or 0,
             **_issue_fix_guidance(pages.get(i.page_url), i.signal_id, i.signal_name or "", i.category or ""),
         } for i in rows],
         "total": total, "offset": offset, "limit": limit,
@@ -2164,6 +2166,67 @@ Return JSON:
 
     fix_data["notes"] = "Fallback fix. Set GEMINI_API_KEY for AI-generated custom fixes."
     return fix_data
+
+
+@router.post("/audit/{audit_id}/ai/fixes")
+async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
+    """Generate an AI fix for every issue (batched). Persists to the Issue rows so
+    IssuesExplorer / ActionCenter / ActionStudio all show the AI suggestions."""
+    from app.engine.dual_ai import quad_ai_batch_fixes
+
+    limit = min(max(int(body.get("limit", 30)), 1), 100)
+    severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+
+    result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
+    issues = list(result.scalars().all())
+    issues.sort(key=lambda i: (severity_rank.get(i.severity, 9), -(i.pages_affected or 1)))
+    issues = issues[:limit]
+    if not issues:
+        return {"items": [], "generated": 0, "total": 0, "providers_used": []}
+
+    fixes_by_id = {}
+    providers_used = set()
+    for i in range(0, len(issues), 5):
+        chunk = issues[i:i + 5]
+        payload = [{
+            "id": it.id, "signal_name": it.signal_name, "category": it.category,
+            "severity": it.severity, "description": it.description, "impact": it.impact,
+            "page_url": it.page_url,
+        } for it in chunk]
+        ai_result = await quad_ai_batch_fixes(payload)
+        if not isinstance(ai_result, dict):
+            continue
+        providers_used.update(ai_result.get("providers_used", []) or [])
+        for f in ai_result.get("fixes", []) or []:
+            if isinstance(f, dict) and f.get("id") and f.get("fix"):
+                fixes_by_id[f["id"]] = f
+
+    generated = 0
+    for it in issues:
+        f = fixes_by_id.get(it.id)
+        if not f:
+            continue
+        it.fix = str(f.get("fix", it.fix or "")).strip()
+        it.root_cause = str(f.get("root_cause", it.root_cause or "")).strip()
+        it.effort = str(f.get("effort", it.effort or "MEDIUM")).upper()
+        if it.effort not in ("LOW", "MEDIUM", "HIGH"):
+            it.effort = "MEDIUM"
+        it.fix_code = str(f.get("fix_code", it.fix_code or f"FIX-{it.signal_id or 0:04d}")).strip()
+        it.ai_generated = 1
+        generated += 1
+    await db.commit()
+
+    return {
+        "items": [{
+            "id": it.id, "page_url": it.page_url, "category": it.category, "severity": it.severity,
+            "signal_id": it.signal_id, "signal_name": it.signal_name,
+            "description": it.description, "impact": it.impact, "fix": it.fix,
+            "root_cause": it.root_cause, "effort": it.effort, "fix_code": it.fix_code,
+            "ai_generated": it.ai_generated or 0,
+        } for it in issues],
+        "generated": generated, "total": len(issues),
+        "providers_used": sorted(providers_used),
+    }
 
 
 @router.post("/audit/{audit_id}/ai/schema")

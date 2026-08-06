@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import { AlertTriangle, Search, X, ExternalLink, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, Search, X, ExternalLink, ArrowLeft, Sparkles, RefreshCw } from 'lucide-react';
 
 const SEVERITY_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 const SEVERITY_COLORS = { CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#eab308', LOW: '#22c55e', INFO: '#64748b' };
@@ -19,31 +19,49 @@ export default function IssuesExplorer() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState(null);
+  const [enhancing, setEnhancing] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState(null);
   const PAGE_SIZE = 100;
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        let all = [];
-        let offset = 0;
-        while (true) {
-          const result = await api.getAuditIssues(id, { limit: 100, offset });
-          const items = result.items || [];
-          all = [...all, ...items];
-          if (all.length >= result.total || items.length === 0) break;
-          offset += 100;
-        }
-        setAllIssues(all);
-        setTotalCount(all.length);
-      } catch (err) {
-        setAllIssues([]); setError(err.message || 'Failed to load issues');
-      } finally {
-        setLoading(false);
+  const loadIssues = useCallback(async () => {
+    setLoading(true);
+    try {
+      let all = [];
+      let offset = 0;
+      while (true) {
+        const result = await api.getAuditIssues(id, { limit: 100, offset });
+        const items = result.items || [];
+        all = [...all, ...items];
+        if (all.length >= result.total || items.length === 0) break;
+        offset += 100;
       }
+      setAllIssues(all);
+      setTotalCount(all.length);
+      setError(null);
+    } catch (err) {
+      setAllIssues([]); setError(err.message || 'Failed to load issues');
+    } finally {
+      setLoading(false);
     }
-    load();
   }, [id]);
+
+  useEffect(() => { loadIssues(); }, [loadIssues]);
+
+  const enhanceAll = async () => {
+    setEnhancing(true);
+    setAiResult(null);
+    setAiError(null);
+    try {
+      const res = await api.generateAiFixes(id, 30);
+      setAiResult(res);
+      await loadIssues();
+    } catch (err) {
+      setAiError(err.message || 'AI enhancement failed. Is the backend / local AI running?');
+    } finally {
+      setEnhancing(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     let r = allIssues;
@@ -87,8 +105,23 @@ export default function IssuesExplorer() {
           <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}><ArrowLeft size={16} /></button>
           <AlertTriangle size={22} style={{ color: '#eab308' }} />
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Issue Remediation</h1>
+          <button onClick={enhanceAll} disabled={enhancing || allIssues.length === 0}
+            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', cursor: enhancing ? 'default' : 'pointer', background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 600 }}>
+            {enhancing ? <RefreshCw size={14} className="spin" /> : <Sparkles size={14} />}
+            {enhancing ? 'AI is writing fixes…' : 'Enhance all fixes with AI'}
+          </button>
         </div>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>{totalCount} issues across {stats.uniquePages} pages — every problem, page, impact, and fix in one place</p>
+        {aiResult && (
+          <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 8, background: '#f5f3ff', border: '1px solid #ddd6fe', fontSize: 12.5, color: '#5b21b6' }}>
+            AI generated <strong>{aiResult.generated}</strong> of {aiResult.total} fixes ({aiResult.providers_used?.length ? aiResult.providers_used.join(' + ') : 'no provider responded'}). Fixes are saved and shown with a <Sparkles size={11} style={{ verticalAlign: 'middle', color: '#8b5cf6' }} /> badge.
+          </div>
+        )}
+        {aiError && (
+          <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fecaca', fontSize: 12.5, color: '#b91c1c' }}>
+            {aiError}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -136,6 +169,13 @@ export default function IssuesExplorer() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{issue.signal_name}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: (CATEGORY_COLORS[issue.category] || '#64748b') + '20', color: CATEGORY_COLORS[issue.category] || '#64748b' }}>{issue.category}</span>
+                  {issue.ai_generated ? (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <Sparkles size={10} /> AI fix {issue.fix_code ? `· ${issue.fix_code}` : ''} {issue.effort ? `· ${issue.effort} effort` : ''}
+                    </span>
+                  ) : issue.fix_code ? (
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: '#f1f5f9', color: '#64748b' }}>{issue.fix_code}</span>
+                  ) : null}
                 </div>
                 <div style={{ fontSize: 12, color: '#2563eb', marginBottom: 4, wordBreak: 'break-all' }}>
                   <strong>Page:</strong> {issue.page_url}
@@ -154,8 +194,13 @@ export default function IssuesExplorer() {
                     <strong>Current:</strong> {issue.current_value}
                   </div>
                 )}
-                <div style={{ padding: '6px 10px', background: '#f0f9ff', borderRadius: 6, fontSize: 12, color: '#0369a1', lineHeight: 1.5, marginBottom: 4 }}>
-                  <strong>How to Fix:</strong> {issue.fix}
+                {issue.ai_generated && issue.root_cause && (
+                  <div style={{ padding: '6px 10px', background: '#faf5ff', borderRadius: 6, fontSize: 12, color: '#6d28d9', lineHeight: 1.5, marginBottom: 4, display: 'flex', gap: 5 }}>
+                    <Sparkles size={12} style={{ flexShrink: 0, marginTop: 1 }} /><span><strong>AI root cause:</strong> {issue.root_cause}</span>
+                  </div>
+                )}
+                <div style={{ padding: '6px 10px', background: issue.ai_generated ? '#f5f3ff' : '#f0f9ff', borderRadius: 6, fontSize: 12, color: issue.ai_generated ? '#4c1d95' : '#0369a1', lineHeight: 1.5, marginBottom: 4, borderLeft: issue.ai_generated ? '3px solid #8b5cf6' : '3px solid #38bdf8' }}>
+                  {issue.ai_generated ? <strong>AI fix:</strong> : <strong>How to Fix:</strong>} {issue.fix}
                 </div>
                 {issue.replace_with && (
                   <div style={{ padding: '6px 10px', background: '#f0fdf4', borderRadius: 6, fontSize: 12, color: '#15803d', lineHeight: 1.5, marginBottom: 6, wordBreak: 'break-word' }}>

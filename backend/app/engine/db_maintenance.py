@@ -149,6 +149,17 @@ async def run_startup_maintenance() -> dict:
                 await conn.execute(text("PRAGMA journal_mode=DELETE"))
             except Exception:
                 pass
+
+            # --- schema migrations (idempotent) -------------------------------
+            try:
+                cols = (await conn.execute(text("PRAGMA table_info(issues)"))).fetchall()
+                col_names = {c[1] for c in cols}
+                if "ai_generated" not in col_names:
+                    await conn.execute(text("ALTER TABLE issues ADD COLUMN ai_generated INTEGER DEFAULT 0"))
+                    await conn.commit()
+                    logger.info("Startup maintenance: added issues.ai_generated column")
+            except Exception as e:
+                logger.warning(f"Startup maintenance: issues.ai_generated migration failed: {e}")
     except Exception as e:
         logger.error(f"Startup maintenance failed: {e}")
         result["error"] = str(e)

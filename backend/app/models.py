@@ -140,6 +140,7 @@ class Issue(Base):
     effort = Column(String, default="MEDIUM")
     root_cause = Column(Text, default="")
     fix_code = Column(String, default="")
+    ai_generated = Column(Integer, default=0)
     snapshot_hash = Column(String, default="")
     pages_affected = Column(Integer, default=1)
     detected_at = Column(DateTime, default=_dt.datetime.utcnow)

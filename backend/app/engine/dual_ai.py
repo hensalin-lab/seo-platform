@@ -418,7 +418,7 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
     - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
     - competitor -> DeepSeek V3 (OpenRouter) + Gemini + Groq  (strong reasoning)
     """
-    task_map = {"gpt-4o": _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900))}
+    task_map = {}
     if task == "rewrite":
         task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900), settings.OPENROUTER_MODEL_REWRITE)
         task_map["groq-llama-3.3-70b"] = _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500))
@@ -438,6 +438,7 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
         task_map["gemini"] = _gemini_chat(system_prompt, user_prompt, min(max_tokens, 3000))
         task_map["cf-workers"] = _cf_workers_chat(system_prompt, user_prompt, min(max_tokens, 3000))
     else:
+        task_map["gpt-4o"] = _openrouter_chat(system_prompt, user_prompt, min(max_tokens, 2900))
         task_map.update({
             "groq-llama-3.3-70b": _groq_chat(system_prompt, user_prompt, min(max_tokens, 3500)),
             "cerebras-gemma-4-31b": _cerebras_chat(system_prompt, user_prompt, min(max_tokens, 3000)),
@@ -615,6 +616,22 @@ async def quad_ai_readability_analysis(content):
     return await _run_all(sys, user, 3000)
 
 
+async def quad_ai_batch_fixes(issues: list[dict]) -> dict:
+    """Generate ready-to-paste fixes for a batch of issues.
+    Runs through the full provider set (LM Studio/Ollama local + cloud) so every
+    fix gets an AI suggestion. Returns {"fixes":[{id,fix,fix_code,root_cause,effort,before_code,after_code}], "providers_used":[...]}.
+    """
+    sys = """You are a senior SEO engineer. For EVERY issue in the provided JSON array, write a precise fix. Return ONLY valid JSON:
+{"fixes":[{"id":"<exact issue id>","fix":"step-by-step fix, under 150 words, concrete and ready to paste","fix_code":"FIX-####","root_cause":"one-sentence cause","effort":"LOW|MEDIUM|HIGH","before_code":"...","after_code":"..."}]}
+CRITICAL RULES:
+- Include exactly one entry per input issue, preserving the exact id.
+- Never invent data beyond what is provided in the issue description.
+- If code is not applicable, set before_code and after_code to empty strings.
+- Keep the fix practical: tell the user exactly what to change and where."""
+    user = "Issues:\n" + json.dumps(issues, default=str)
+    return await _run_all(sys, user, 4000, task="rewrite")
+
+
 async def quad_ai_schema_generation(url, title, content, page_type):
     sys = f"""Schema.org JSON-LD expert for {page_type}. Return JSON:
 {{"schemas":[{{"type":"...","json_ld":{{...}},"rich_results_eligible":true,"implementation_code":"<script type='application/ld+json'>...</script>"}}],"missing_schemas":["..."],"validation_notes":["..."]}}"""
@@ -634,3 +651,4 @@ dual_ai_link_suggestions = quad_ai_link_suggestions
 dual_ai_keyword_insights = quad_ai_keyword_insights
 dual_ai_readability_analysis = quad_ai_readability_analysis
 dual_ai_schema_generation = quad_ai_schema_generation
+dual_ai_batch_fixes = quad_ai_batch_fixes
