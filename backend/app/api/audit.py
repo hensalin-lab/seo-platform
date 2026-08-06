@@ -647,12 +647,14 @@ async def run_audit_task(audit_id: str):
             ai_geo_engine = AIGeoEngine()
             content_v2_engine = ContentIntelligenceV2()
 
+            canonical_geo_by_url = {}
             enterprise_issues = []
             for sp in pages_saved:
                 try:
                     snap_for_page = CrawlSnapshot(sp)
                     classic_result = classic_engine.analyze(snap_for_page)
                     ai_geo_result = ai_geo_engine.analyze(snap_for_page)
+                    canonical_geo_by_url[sp.url] = ai_geo_result
                     content_v2_result = content_v2_engine.analyze(snap_for_page)
                     for issue in classic_result.get("issues", []):
                         issue["page_url"] = sp.url
@@ -711,9 +713,15 @@ async def run_audit_task(audit_id: str):
             await update_status(AuditStatus.AEO_ANALYSIS.value, 55, "AEO analysis complete")
 
             for page_url, pa in analysis.page_analyses.items():
+                canon = canonical_geo_by_url.get(page_url)
+                page_scores = dict(pa.scores or {})
+                if canon:
+                    page_scores["geo"] = round(canon.get("geo_score") or page_scores.get("geo", 0), 1)
+                    page_scores["aeo"] = round(canon.get("aeo_score") or page_scores.get("aeo", 0), 1)
+                    page_scores["geo_source"] = "AIGeoEngine"
                 db.add(PageAnalysisRecord(
                     audit_id=audit_id, page_url=page_url,
-                    scores=pa.scores, issue_count=len(pa.issues),
+                    scores=page_scores, issue_count=len(pa.issues),
                     signal_count=len(pa.signals),
                     issues=pa.issues[:20],
                     recommendations=pa.recommendations[:10],
@@ -937,10 +945,15 @@ async def run_audit_task(audit_id: str):
             except Exception as e:
                 logger.error(f"Linter failed: {e}")
 
+            canon_geos = [v.get("geo_score") for v in canonical_geo_by_url.values() if v and v.get("geo_score") is not None]
+            canon_aeos = [v.get("aeo_score") for v in canonical_geo_by_url.values() if v and v.get("aeo_score") is not None]
+            geo_score_site = round(sum(canon_geos) / max(len(canon_geos), 1), 1) if canon_geos else round(scores.get("geo", 0), 1)
+            aeo_score_site = round(sum(canon_aeos) / max(len(canon_aeos), 1), 1) if canon_aeos else round(scores.get("aeo", 0), 1)
+
             db.add(AuditScore(
                 audit_id=audit_id, overall_score=round(scores.get("overall", 0), 1),
                 seo_score=round(scores.get("seo", 0), 1), technical_score=round(scores.get("technical", 0), 1),
-                aeo_score=round(scores.get("aeo", 0), 1), geo_score=round(scores.get("geo", 0), 1),
+                aeo_score=aeo_score_site, geo_score=geo_score_site,
                 content_score=round(scores.get("content", 0), 1), ai_visibility_score=round(ai_vis_score, 1),
                 signals={sig.name: sig.to_dict() for sig in analysis.signals[:200]},
             ))

@@ -151,10 +151,22 @@ async def run_startup_maintenance() -> dict:
                 pass
 
             # --- schema migrations (idempotent) -------------------------------
+            async def _ensure_columns(conn, table, columns):
+                """Add any missing columns to a table so the ORM model always lines up
+                with the live DB (old databases predate newer model columns)."""
+                try:
+                    cols = (await conn.execute(text(f"PRAGMA table_info({table})"))).fetchall()
+                    col_names = {c[1] for c in cols}
+                    for _col, _ddl in columns:
+                        if _col not in col_names:
+                            await conn.execute(text(_ddl))
+                            await conn.commit()
+                            logger.info(f"Startup maintenance: added {table}.{_col} column")
+                except Exception as e:
+                    logger.warning(f"Startup maintenance: {table} schema migration failed: {e}")
+
             try:
-                cols = (await conn.execute(text("PRAGMA table_info(issues)"))).fetchall()
-                col_names = {c[1] for c in cols}
-                _ISSUE_COLUMNS = [
+                await _ensure_columns(conn, "issues", [
                     ("ai_generated", "ALTER TABLE issues ADD COLUMN ai_generated INTEGER DEFAULT 0"),
                     ("ai_why", "ALTER TABLE issues ADD COLUMN ai_why TEXT DEFAULT ''"),
                     ("ai_impact_pct", "ALTER TABLE issues ADD COLUMN ai_impact_pct INTEGER DEFAULT 0"),
@@ -164,14 +176,15 @@ async def run_startup_maintenance() -> dict:
                     ("fix_code", "ALTER TABLE issues ADD COLUMN fix_code TEXT DEFAULT ''"),
                     ("snapshot_hash", "ALTER TABLE issues ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
                     ("pages_affected", "ALTER TABLE issues ADD COLUMN pages_affected INTEGER DEFAULT 1"),
-                ]
-                for _col, _ddl in _ISSUE_COLUMNS:
-                    if _col not in col_names:
-                        await conn.execute(text(_ddl))
-                        await conn.commit()
-                        logger.info(f"Startup maintenance: added issues.{_col} column")
+                ])
+                await _ensure_columns(conn, "pages", [
+                    ("snapshot_hash", "ALTER TABLE pages ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
+                ])
+                await _ensure_columns(conn, "audit_history", [
+                    ("linter_warnings", "ALTER TABLE audit_history ADD COLUMN linter_warnings INTEGER DEFAULT 0"),
+                ])
             except Exception as e:
-                logger.warning(f"Startup maintenance: issues schema migration failed: {e}")
+                logger.warning(f"Startup maintenance: schema migration failed: {e}")
     except Exception as e:
         logger.error(f"Startup maintenance failed: {e}")
         result["error"] = str(e)

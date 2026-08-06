@@ -5260,6 +5260,9 @@ async def get_page_intelligence_deep(audit_id: str, page_idx: int, db: AsyncSess
     except Exception as e:
         logger.warning(f"DualAI page-intelligence-deep failed: {e}")
 
+    from app.engine.canonical_scorer import attach_canonical
+    base = attach_canonical(base, PageAdapter(pages[page_idx]))
+
     _cache_set(cache_key, base)
     return base
 
@@ -5288,6 +5291,8 @@ async def get_page_intelligence_deep_by_url(audit_id: str, url: str, db: AsyncSe
 
     engine = PageIntelligenceEngine()
     resp = engine.analyze(PageAdapter(page))
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, PageAdapter(page))
     _cache_set(cache_key, resp)
     return resp
 
@@ -5315,6 +5320,8 @@ async def get_content_deep(audit_id: str, page_idx: int, db: AsyncSession = Depe
     engine = ContentIntelligenceDeep()
     all_pages_data = [PageAdapter(p) for p in pages]
     resp = engine.analyze(PageAdapter(pages[page_idx]), all_pages=all_pages_data)
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, PageAdapter(pages[page_idx]))
     _cache_set(cache_key, resp)
     return resp
 
@@ -5344,6 +5351,8 @@ async def get_content_deep_by_url(audit_id: str, url: str, db: AsyncSession = De
     engine = ContentIntelligenceDeep()
     all_pages_data = [PageAdapter(p) for p in pages]
     resp = engine.analyze(PageAdapter(page), all_pages=all_pages_data)
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, PageAdapter(page))
     _cache_set(cache_key, resp)
     return resp
 
@@ -5439,6 +5448,9 @@ async def get_ai_search_deep(audit_id: str, page_idx: int, db: AsyncSession = De
     except Exception:
         pass
 
+    from app.engine.canonical_scorer import attach_canonical
+    base = attach_canonical(base, PageAdapter(pages[page_idx]))
+
     _cache_set(cache_key, base)
     return base
 
@@ -5467,6 +5479,8 @@ async def get_ai_search_deep_by_url(audit_id: str, url: str, db: AsyncSession = 
 
     engine = AISearchDeepEngine()
     resp = engine.analyze(PageAdapter(page))
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, PageAdapter(page))
     _cache_set(cache_key, resp)
     return resp
 
@@ -5494,6 +5508,8 @@ async def get_ai_search_intelligence(audit_id: str, page_idx: int, db: AsyncSess
     engine = AiSearchIntelligenceEngine()
     all_pages_data = [PageAdapter(p) for p in pages]
     resp = engine.analyze(PageAdapter(pages[page_idx]), all_pages=all_pages_data)
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, PageAdapter(pages[page_idx]))
     _cache_set(cache_key, resp)
     return resp
 
@@ -5523,6 +5539,8 @@ async def get_ai_search_intelligence_by_url(audit_id: str, url: str, db: AsyncSe
     engine = AiSearchIntelligenceEngine()
     all_pages_data = [PageAdapter(p) for p in pages]
     resp = engine.analyze(PageAdapter(page), all_pages=all_pages_data)
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, PageAdapter(page))
     _cache_set(cache_key, resp)
     return resp
 
@@ -6165,6 +6183,8 @@ async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = D
     result["page_url"] = page.url
     result["page_title"] = page.title
     result["word_count"] = page.word_count or 0
+    from app.engine.canonical_scorer import attach_canonical
+    result = attach_canonical(result, page)
     _cache_set(cache_key, result)
     return result
 
@@ -6213,6 +6233,9 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
         result["ai_search"] = results[1] if isinstance(results[1], dict) else {}
     except Exception:
         pass
+
+    from app.engine.canonical_scorer import attach_canonical
+    result = attach_canonical(result, page)
 
     _cache_set(cache_key, result)
     return result
@@ -6577,6 +6600,8 @@ async def get_content_deep_v2(audit_id: str, page_idx: int, db: AsyncSession = D
         "domain": "",
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, page_obj)
     _cache_set(cache_key, resp)
     return resp
 
@@ -6777,6 +6802,8 @@ async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSessio
             "canonical": ap.canonical,
         })
     resp = engine.analyze(page_dict, all_pages=all_pages_dicts)
+    from app.engine.canonical_scorer import attach_canonical
+    resp = attach_canonical(resp, page_obj)
     _cache_set(cache_key, resp)
     return resp
 

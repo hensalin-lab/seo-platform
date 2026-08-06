@@ -28,7 +28,17 @@ def _set_cached(key, value):
     _cache[key] = (time.time(), value)
 
 
-async def _top_pages(db, audit_id, limit=8):
+async def _top_pages(db, audit_id, limit=None, gsc_property=None):
+    """Rank every crawlable page (>=30 words) by issue weight and traffic potential.
+
+    The old implementation hard-capped the pool to the top 8 pages, so pages ranked
+    lower by issue-count never got a Rank Boost / GEO kit generated. This version:
+
+    * returns ALL pages unless an explicit ``limit`` is given,
+    * ranks by real GSC traffic potential (clicks/impressions) first when GSC is
+      wired up, then by issue weight and word count,
+    * tags each page with its GSC traffic so the UI can show why it was prioritized.
+    """
     issues_result = await db.execute(
         select(Issue.page_url, Issue.severity, func.count(Issue.id).label("n"))
         .where(Issue.audit_id == audit_id)
@@ -46,12 +56,29 @@ async def _top_pages(db, audit_id, limit=8):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages = pages_result.scalars().all()
 
+    traffic = {}
+    if gsc_property:
+        try:
+            from app.engine.gsc_engine import GSCEngine
+            gsc_eng = GSCEngine()
+            if gsc_eng.available:
+                for row in gsc_eng.get_page_performance(gsc_property, days=28):
+                    traffic[(row.get("page") or "").rstrip("/")] = {
+                        "clicks": row.get("clicks", 0) or 0,
+                        "impressions": row.get("impressions", 0) or 0,
+                        "ctr": row.get("ctr", 0) or 0,
+                        "position": row.get("position", 0) or 0,
+                    }
+        except Exception:
+            traffic = {}
+
     ranked = []
     for p in pages:
         key = by_url.get(p.url or "", {})
         content_len = len((p.content_text or "").split())
         if content_len < 30:
             continue
+        t = traffic.get((p.url or "").rstrip("/")) or {}
         ranked.append({
             "idx": len(ranked),
             "url": p.url,
@@ -60,9 +87,15 @@ async def _top_pages(db, audit_id, limit=8):
             "word_count": p.word_count or content_len,
             "issue_count": key.get("issues", 0),
             "issue_weight": key.get("weight", 0),
+            "traffic": t,
+            "gsc_available": bool(traffic),
         })
-    ranked.sort(key=lambda p: (-p["issue_weight"], -p["word_count"]))
-    return ranked[:limit]
+    ranked.sort(key=lambda p: (
+        -p["traffic"].get("clicks", 0),
+        -p["issue_weight"],
+        -p["word_count"],
+    ))
+    return ranked if limit is None else ranked[:limit]
 
 
 def _pick_page(pages, page_idx):
@@ -127,7 +160,7 @@ def _fallback_artifacts(page):
 
 
 @router.get("/audit/{audit_id}/rank-boost")
-async def get_rank_boost(audit_id: str, db: AsyncSession = Depends(get_db)):
+async def get_rank_boost(audit_id: str, limit: int | None = None, db: AsyncSession = Depends(get_db)):
     cache_key = _cache_key("pages", audit_id, 0)
     cached = _get_cached(cache_key)
     if cached:
@@ -138,7 +171,7 @@ async def get_rank_boost(audit_id: str, db: AsyncSession = Depends(get_db)):
     if not audit:
         raise HTTPException(404, "Audit not found")
 
-    pages = await _top_pages(db, audit_id)
+    pages = await _top_pages(db, audit_id, limit=limit, gsc_property=audit.gsc_property or audit.website_url)
 
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
@@ -168,6 +201,7 @@ async def get_rank_boost(audit_id: str, db: AsyncSession = Depends(get_db)):
         "aeo_geo_issues": aeo_geo_count,
         "category_counts": cat_counts,
         "ai_available": ai_available,
+        "total_pages": len(pages),
         "pages": pages,
     }
     _set_cached(cache_key, resp)
@@ -182,6 +216,8 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
         body = {}
     page_idx = body.get("page_idx")
     page_idx = page_idx if page_idx is None else int(page_idx)
+    limit = body.get("limit")
+    limit = None if limit is None else int(limit)
 
     cache_key = _cache_key("artifacts", audit_id, page_idx if page_idx is not None else -1)
     cached = _get_cached(cache_key, ttl=7200)
@@ -193,7 +229,7 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
     if not audit:
         raise HTTPException(404, "Audit not found")
 
-    pages = await _top_pages(db, audit_id)
+    pages = await _top_pages(db, audit_id, limit=limit, gsc_property=audit.gsc_property or audit.website_url)
     page = _pick_page(pages, page_idx)
 
     page_result = await db.execute(
