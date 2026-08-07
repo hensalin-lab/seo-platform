@@ -161,6 +161,7 @@ export default function SpeedAnalysis() {
         avgResponseTime,
         slowPages,
         totalPages: allPages.length,
+        siteUrl: res.audit_url || '',
       })
     }).catch(e => setError(e.message)).finally(() => setLoading(false))
   }, [id])
@@ -192,11 +193,29 @@ export default function SpeedAnalysis() {
             <AlertTriangle size={16} color="#f59f00" />
             <span style={{ fontSize: 14, fontWeight: 600, color: '#e67700' }}>Core Web Vitals Data Not Available</span>
           </div>
-          <div style={{ fontSize: 13, color: '#8c6200', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, color: '#8c6200', lineHeight: 1.7 }}>
             The crawler does not execute JavaScript, so real-user CWV metrics (LCP, CLS, INP) could not be measured.
-            For accurate field data, connect to Chrome User Experience Report (CrUX) or run Lighthouse in Chrome DevTools.
-            <br /><br />
-            <strong>Recommended:</strong> Open this URL in Chrome → DevTools → Lighthouse → Performance → Run audit.
+            Run Lighthouse on <strong>{data.siteUrl ? <a href={data.siteUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#e67700', textDecoration: 'underline' }}>{data.siteUrl}</a> : 'your site'}</strong> to get real data.
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+              <a
+                href={`https://pagespeed.web.dev/?url=${encodeURIComponent(data.siteUrl || '')}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#e67700', color: '#fff', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
+              >
+                <Zap size={14} /> Run Lighthouse now (opens PageSpeed Insights)
+              </a>
+              <a
+                href={data.siteUrl}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid #e6770088', color: '#e67700', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
+              >
+                Open {data.siteUrl ? new URL(data.siteUrl).hostname : 'site'} in Chrome
+              </a>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12 }}>
+              <strong>Manual steps (no PageSpeed Insights needed):</strong> open the site in Chrome &rarr; <strong>F12</strong> (DevTools) &rarr; <strong>Lighthouse</strong> tab &rarr; check <strong>Performance</strong> &rarr; <strong>Analyze page load</strong>.
+              Once you have the numbers, enter them in the <strong>Enter Results</strong> form on the <strong>Page Speed</strong> tab to get AI what/where/when/how fix suggestions.
+            </div>
           </div>
         </div>
       )}
