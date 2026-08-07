@@ -18,6 +18,8 @@ PROVIDERS = {
     "cerebras": {"key": "CEREBRAS_API_KEY", "model": "CEREBRAS_MODEL"},
     "ollama": {"key": "OLLAMA_BASE_URL", "model": "OLLAMA_MODEL"},
     "lmstudio": {"key": "LMSTUDIO_BASE_URL", "model": "LMSTUDIO_MODEL"},
+    "vllm": {"key": "VLLM_BASE_URL", "model": "VLLM_MODEL"},
+    "llamacpp": {"key": "LLAMACPP_BASE_URL", "model": "LLAMACPP_MODEL"},
     "openrouter-free": {"key": "OPENROUTER_API_KEY", "model": "OPENROUTER_MODEL_FREE"},
     "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL"},
     "cf-workers": {"key": "CLOUDFLARE_API_TOKEN", "model": "CLOUDFLARE_AI_MODEL"},
@@ -30,6 +32,17 @@ PROVIDERS = {
 
 # Lightweight provider health registry (status_code / last known state / guidance)
 PROVIDER_HEALTH = {}
+
+# Map _run_all task names to the provider names used in the health registry,
+# so error cooldowns actually apply instead of dead providers being retried.
+_HEALTH_NAME = {
+    "groq-llama-3.3-70b": "groq",
+    "cerebras-gemma-4-31b": "cerebras",
+    "lmstudio-local": "lmstudio",
+    "ollama-local": "ollama",
+    "vllm-local": "vllm",
+    "llamacpp-local": "llamacpp",
+}
 
 _COOLDOWN_S = 900
 
@@ -120,29 +133,31 @@ async def _openrouter_chat(system_prompt: str, user_prompt: str, max_tokens: int
 
 
 FREE_MODELS = [
-    "openrouter/free",
-    "inclusionai/ling-3.0-flash:free",
+    "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "deepseek/deepseek-r1:free",
-    "qwen/qwen3-coder-480b-a35b:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
     "openai/gpt-oss-20b:free",
+    "poolside/laguna-s-2.1:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "cohere/north-mini-code:free",
 ]
+
+_DEPRECATED_FREE_ALIASES = {"openrouter/free", "inclusionai/ling-3.0-flash:free"}
 
 
 async def _openrouter_free_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> Optional[dict]:
-    """Call OpenRouter free models (Qwen/Llama, $0). Works for all users."""
+    """Call OpenRouter free models (Gemma/Nemotron/GPT-OSS, $0). Works for all users."""
     if not settings.OPENROUTER_API_KEY:
         _record_health("openrouter-free", False, "OPENROUTER_API_KEY not configured")
         return None
-    models = [m.strip() for m in (settings.OPENROUTER_MODEL_FREE or "").split(",") if m.strip()] or FREE_MODELS
-    if settings.OPENROUTER_MODEL_FREE:
-        models = list(dict.fromkeys(models[:1] + FREE_MODELS))
+    env_models = [m.strip() for m in (settings.OPENROUTER_MODEL_FREE or "").split(",") if m.strip()]
+    env_models = [m for m in env_models if m not in _DEPRECATED_FREE_ALIASES]
+    models = list(dict.fromkeys(env_models + FREE_MODELS))
     last_detail = ""
-    for model in models[:2]:
+    for model in models[:5]:
         try:
-            async with httpx.AsyncClient(timeout=settings.OPENROUTER_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=min(settings.OPENROUTER_TIMEOUT, 40)) as client:
                 resp = await client.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
@@ -159,6 +174,8 @@ async def _openrouter_free_chat(system_prompt: str, user_prompt: str, max_tokens
                 )
                 if resp.status_code != 200:
                     last_detail = f"{model} HTTP {resp.status_code}"
+                    if resp.status_code in (429, 402, 401):
+                        last_detail = f"{model} {resp.text[:120]}"
                     continue
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
@@ -317,34 +334,47 @@ async def _cf_workers_chat(system_prompt: str, user_prompt: str, max_tokens: int
     if not settings.CLOUDFLARE_ACCOUNT_ID or not settings.CLOUDFLARE_API_TOKEN:
         _record_health("cf-workers", False, "CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN not configured")
         return None
-    try:
-        url = f"https://api.cloudflare.com/client/v4/accounts/{settings.CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions"
-        async with httpx.AsyncClient(timeout=settings.CLOUDFLARE_AI_TIMEOUT) as client:
-            resp = await client.post(
-                url,
-                headers={"Authorization": f"Bearer {settings.CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
-                json={
-                    "model": settings.CLOUDFLARE_AI_MODEL,
-                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                    "temperature": 0.3, "max_tokens": max_tokens,
-                },
-            )
-            if resp.status_code != 200:
-                logger.warning("Cloudflare Workers AI %s: %s", resp.status_code, resp.text[:200])
-                _http_error_detail("cf-workers", resp.status_code, resp.text)
-                return None
-            _record_health("cf-workers", True)
-            data = resp.json()
-            content = data["choices"][0]["message"]["content"]
-            cleaned = content.strip()
-            if cleaned.startswith("```json"): cleaned = cleaned[7:]
-            if cleaned.startswith("```"): cleaned = cleaned[3:]
-            if cleaned.endswith("```"): cleaned = cleaned[:-3]
-            return json.loads(cleaned.strip())
-    except Exception as e:
-        logger.warning("Cloudflare Workers AI: %s", e)
-        _record_health("cf-workers", False, str(e)[:200])
-        return None
+    cf_fallbacks = [
+        "@cf/openai/gpt-oss-120b",
+        "@cf/openai/gpt-oss-20b",
+        "@cf/qwen/qwen2.5-coder-32b-instruct",
+        "@cf/google/gemma-4-26b-a4b-it",
+    ]
+    cf_models = [settings.CLOUDFLARE_AI_MODEL] + [m for m in cf_fallbacks if m != settings.CLOUDFLARE_AI_MODEL]
+    last_detail = ""
+    for model in cf_models:
+        try:
+            url = f"https://api.cloudflare.com/client/v4/accounts/{settings.CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions"
+            async with httpx.AsyncClient(timeout=settings.CLOUDFLARE_AI_TIMEOUT) as client:
+                resp = await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {settings.CLOUDFLARE_API_TOKEN}", "Content-Type": "application/json"},
+                    json={
+                        "model": model,
+                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        "temperature": 0.3, "max_tokens": max_tokens,
+                    },
+                )
+                if resp.status_code != 200:
+                    logger.warning("Cloudflare Workers AI %s %s: %s", resp.status_code, model, resp.text[:160])
+                    _http_error_detail("cf-workers", resp.status_code, resp.text)
+                    last_detail = f"{resp.status_code} {resp.text[:160]}"
+                    continue
+                _record_health("cf-workers", True)
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                cleaned = content.strip()
+                if cleaned.startswith("```json"): cleaned = cleaned[7:]
+                if cleaned.startswith("```"): cleaned = cleaned[3:]
+                if cleaned.endswith("```"): cleaned = cleaned[:-3]
+                return json.loads(cleaned.strip())
+        except Exception as e:
+            logger.warning("Cloudflare Workers AI: %s", e)
+            _record_health("cf-workers", False, str(e)[:200])
+            last_detail = str(e)[:200]
+    if last_detail:
+        _record_health("cf-workers", False, last_detail[:200])
+    return None
 
 
 async def _openai_compat_chat(
@@ -483,6 +513,86 @@ async def _lmstudio_chat(system_prompt: str, user_prompt: str, max_tokens: int =
         return None
 
 
+async def _vllm_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
+    """Call vLLM OpenAI-compatible server (e.g. `vllm serve <model> --port 8000`)."""
+    if not settings.VLLM_BASE_URL or not settings.VLLM_MODEL:
+        _record_health("vllm", False, "VLLM_BASE_URL / VLLM_MODEL not configured")
+        return None
+    try:
+        url = f"{settings.VLLM_BASE_URL.rstrip('/')}/chat/completions"
+        async with httpx.AsyncClient(timeout=min(settings.VLLM_TIMEOUT, 120)) as client:
+            resp = await client.post(
+                url,
+                json={
+                    "model": settings.VLLM_MODEL,
+                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    "temperature": 0.3, "max_tokens": max_tokens,
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning("vLLM %s: %s", resp.status_code, resp.text[:200])
+                _http_error_detail("vllm", resp.status_code, resp.text)
+                return None
+            _record_health("vllm", True)
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            cleaned = content.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            try:
+                return json.loads(cleaned.strip())
+            except Exception:
+                start, end = cleaned.find("{"), cleaned.rfind("}")
+                if start != -1 and end > start:
+                    return json.loads(cleaned[start:end + 1])
+                raise
+    except Exception as e:
+        logger.warning("vLLM: %s", e)
+        _record_health("vllm", False, str(e)[:200])
+        return None
+
+
+async def _llamacpp_chat(system_prompt: str, user_prompt: str, max_tokens: int = 3000) -> Optional[dict]:
+    """Call llama.cpp server (OpenAI-compatible, e.g. `llama-server -m model.gguf --port 8080`)."""
+    if not settings.LLAMACPP_BASE_URL:
+        _record_health("llamacpp", False, "LLAMACPP_BASE_URL not configured")
+        return None
+    try:
+        url = f"{settings.LLAMACPP_BASE_URL.rstrip('/')}/chat/completions"
+        async with httpx.AsyncClient(timeout=min(settings.LLAMACPP_TIMEOUT, 120)) as client:
+            resp = await client.post(
+                url,
+                json={
+                    "model": settings.LLAMACPP_MODEL,
+                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    "temperature": 0.3, "max_tokens": max_tokens,
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning("llama.cpp %s: %s", resp.status_code, resp.text[:200])
+                _http_error_detail("llamacpp", resp.status_code, resp.text)
+                return None
+            _record_health("llamacpp", True)
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            cleaned = content.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            try:
+                return json.loads(cleaned.strip())
+            except Exception:
+                start, end = cleaned.find("{"), cleaned.rfind("}")
+                if start != -1 and end > start:
+                    return json.loads(cleaned[start:end + 1])
+                raise
+    except Exception as e:
+        logger.warning("llama.cpp: %s", e)
+        _record_health("llamacpp", False, str(e)[:200])
+        return None
+
+
 def _merge_results(results: list[dict]) -> dict:
     """Merge results from all providers - take best from each, combine unique insights."""
     valid = [r for r in results if isinstance(r, dict)]
@@ -546,14 +656,16 @@ def _merge_lists(lists: list[list]) -> list:
     return merged
 
 
-async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 12.0) -> dict:
+async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 12.0, wait_for_local: bool = False) -> dict:
     """Run AI providers in parallel, merged. Task routes to the best model per job:
-    - default    -> all providers (OpenRouter, Groq, Cerebras, Ollama, LM Studio, Gemini)
+    - default    -> all providers (local Ollama/LM Studio/vLLM/llama.cpp + OpenRouter/Groq/Cerebras/Gemini/CF/Mistral/NVIDIA/HF/GitHub)
     - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
     - competitor -> DeepSeek V3 (OpenRouter) + Gemini + Groq  (strong reasoning)
 
     Returns as soon as the first provider answers; slow stragglers (e.g. local
     models on a laptop CPU) are cancelled so they never block the response.
+    With wait_for_local=True the full `timeout` window is kept so the unlimited
+    local providers (Ollama/LM Studio/vLLM/llama.cpp) can finish and contribute.
     """
     def _build():
         base = [
@@ -562,6 +674,8 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
             ("cerebras-gemma-4-31b", _cerebras_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("lmstudio-local", _lmstudio_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("ollama-local", _ollama_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
+            ("vllm-local", _vllm_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
+            ("llamacpp-local", _llamacpp_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
             ("openrouter-free", _openrouter_free_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
             ("gemini", _gemini_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("cf-workers", _cf_workers_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
@@ -583,7 +697,7 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
 
     task_map = {}
     for name, fn, args in _build():
-        if _provider_healthy(name):
+        if _provider_healthy(_HEALTH_NAME.get(name, name)):
             task_map[name] = fn(*args)
     if not task_map:
         return {"providers_used": []}
@@ -605,8 +719,12 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
                 continue
             if result and isinstance(result, dict):
                 results[t.get_name()] = result
-        if results and deadline - time.monotonic() > 2.0:
-            deadline = time.monotonic() + 2.0
+        if results and not wait_for_local and deadline - time.monotonic() > 6.0:
+            deadline = time.monotonic() + 6.0
+        elif wait_for_local and results:
+            local_names = {"lmstudio-local", "ollama-local", "vllm-local", "llamacpp-local"}
+            if any(n not in local_names for n in results):
+                deadline = min(deadline, time.monotonic() + 6.0)
     for t in remaining:
         t.cancel()
     if remaining:
@@ -794,7 +912,7 @@ CRITICAL RULES:
 - For every framework where a code change applies, give a copy-paste-ready before/after snippet pair. Leave frameworks that do not apply as empty strings.
 - impact_pct and confidence must be integers, never strings or decimals."""
     user = "Issues:\n" + json.dumps(issues, default=str)
-    return await _run_all(sys, user, 5000, task="rewrite")
+    return await _run_all(sys, user, 5000, task="rewrite", timeout=70, wait_for_local=True)
 
 
 async def quad_ai_schema_generation(url, title, content, page_type):

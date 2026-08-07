@@ -47,9 +47,17 @@ class Settings(BaseSettings):
     LMSTUDIO_MODEL: str = "qwen3-8b"
     LMSTUDIO_TIMEOUT: int = 300
 
+    VLLM_BASE_URL: str = "http://localhost:8000/v1"
+    VLLM_MODEL: str = ""
+    VLLM_TIMEOUT: int = 180
+
+    LLAMACPP_BASE_URL: str = "http://localhost:8080/v1"
+    LLAMACPP_MODEL: str = "local"
+    LLAMACPP_TIMEOUT: int = 180
+
     CLOUDFLARE_ACCOUNT_ID: str = ""
     CLOUDFLARE_API_TOKEN: str = ""
-    CLOUDFLARE_AI_MODEL: str = "@cf/qwen/qwen3-8b-instruct-250527"
+    CLOUDFLARE_AI_MODEL: str = "@cf/openai/gpt-oss-120b"
     CLOUDFLARE_AI_TIMEOUT: int = 30
 
     MISTRAL_API_KEY: str = ""

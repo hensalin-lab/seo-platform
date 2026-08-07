@@ -1004,6 +1004,8 @@ async def get_ai_providers_status():
         "cerebras": ("CEREBRAS_API_KEY", "Cerebras Gemma 4 31B", "Paste a fresh key from cloud.cerebras.ai"),
         "ollama": ("OLLAMA_BASE_URL", "Ollama (laptop server)", "Runs on the laptop behind the tunnel — unlimited local inference for every tool"),
         "lmstudio": ("LMSTUDIO_BASE_URL", "LM Studio (Qwen 3 8B)", "Runs on the laptop via LM Studio — unlimited local inference for every tool"),
+        "vllm": ("VLLM_BASE_URL", "vLLM (GPU server)", "Start `vllm serve <model> --port 8000` — unlimited local inference for every tool"),
+        "llamacpp": ("LLAMACPP_BASE_URL", "llama.cpp server", "Start `llama-server -m model.gguf --port 8080` — unlimited local inference for every tool"),
         "openrouter-free": ("OPENROUTER_API_KEY", "OpenRouter Free (Qwen/Llama)", "Free $0 models via OpenRouter — works for all users. No extra key needed."),
         "gemini": ("GEMINI_API_KEY", "Gemini 3.5 Flash", "Paste a fresh key from aistudio.google.com/apikey"),
         "cf-workers": ("CLOUDFLARE_API_TOKEN", "Cloudflare Workers AI (free)", "Free always-on tier (~10k neurons/day). Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN."),
@@ -2377,7 +2379,8 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
 
     stmt = select(Issue).where(Issue.audit_id == audit_id)
     if cats:
-        stmt = stmt.where(Issue.category.in_(cats))
+        from sqlalchemy import func
+        stmt = stmt.where(func.lower(Issue.category).in_([c.lower() for c in cats]))
     result = await db.execute(stmt)
     issues = list(result.scalars().all())
     issues.sort(key=lambda i: (severity_rank.get(i.severity, 9), -(i.ai_impact_pct or 0), -(i.pages_affected or 1)))
