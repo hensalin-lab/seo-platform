@@ -51,6 +51,10 @@ async def _gsc_for_user(db: AsyncSession, user, default_property: str = ""):
                 provider.persist_cb = _persist
                 return provider, cfg.get("property_url") or default_property
 
+            sa_json = cfg.get("service_account_json")
+            if sa_json:
+                return GSCEngine(service_account_json=sa_json), cfg.get("property_url") or default_property
+
         result = await db.execute(select(GSCSettings).where(GSCSettings.user_id == user.id))
         gs = result.scalar_one_or_none()
         if gs and gs.service_account_json:
@@ -2383,6 +2387,7 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
 
     to_fix = [it for it in issues if not it.ai_generated]
     fixes_by_id = {}
+    fix_source = {}
     providers_used = set()
     if to_fix:
         for i in range(0, len(to_fix), 5):
@@ -2395,10 +2400,12 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             ai_result = await quad_ai_batch_fixes(payload)
             if not isinstance(ai_result, dict):
                 continue
-            providers_used.update(ai_result.get("providers_used", []) or [])
+            chunk_providers = ai_result.get("providers_used", []) or []
+            providers_used.update(chunk_providers)
             for f in ai_result.get("fixes", []) or []:
                 if isinstance(f, dict) and f.get("id") and f.get("fix"):
                     fixes_by_id[f["id"]] = f
+                    fix_source[f["id"]] = chunk_providers
         for it in to_fix:
             f = fixes_by_id.get(it.id)
             if not f:
@@ -2412,6 +2419,21 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             it.ai_why = str(f.get("why", "") or "").strip()
             it.ai_impact_pct = _clamp_pct(f.get("impact_pct"))
             it.ai_confidence = _clamp_pct(f.get("confidence"))
+            it.why_it_matters = str(f.get("why_it_matters", "") or "").strip()
+            it.business_impact = str(f.get("business_impact", "") or "").strip()
+            it.expected_improvement = str(f.get("expected_improvement", "") or "").strip()
+            it.confidence_basis = str(f.get("confidence_basis", "") or "").strip()
+            try:
+                it.estimated_time_minutes = max(0, int(float(f.get("estimated_time_minutes") or 0)))
+            except (TypeError, ValueError):
+                it.estimated_time_minutes = 0
+            deps = f.get("dependencies") or []
+            it.dependencies = [str(d) for d in deps] if isinstance(deps, list) else []
+            sn = f.get("snippets") or {}
+            it.framework_snippets = {k: v for k, v in sn.items() if isinstance(v, dict)} if isinstance(sn, dict) else {}
+            it.source_model = (fix_source.get(it.id) or [None])[0] or ""
+            it.status = "open"
+            it.last_checked = _dt.datetime.utcnow()
             it.ai_generated = 1
         await db.commit()
 
@@ -2424,10 +2446,43 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             "ai_generated": it.ai_generated or 0,
             "ai_why": it.ai_why or "", "ai_impact_pct": _fallback_impact(it, fixes_by_id.get(it.id)),
             "ai_confidence": it.ai_confidence or 0, "priority": _priority_for(it),
+            "why_it_matters": it.why_it_matters or "",
+            "business_impact": it.business_impact or "",
+            "expected_improvement": it.expected_improvement or "",
+            "confidence_basis": it.confidence_basis or "",
+            "dependencies": list(it.dependencies or []),
+            "estimated_time_minutes": it.estimated_time_minutes or 0,
+            "framework_snippets": it.framework_snippets or {},
+            "source_model": it.source_model or "",
+            "status": it.status or "open",
+            "last_checked": (it.last_checked.isoformat() + "Z") if it.last_checked else None,
         } for it in issues],
         "generated": len(fixes_by_id), "total": len(issues),
         "providers_used": sorted(providers_used), "tool": tool,
     }
+
+
+@router.get("/audit/{audit_id}/diagnostics")
+async def get_audit_diagnostics(
+    audit_id: str,
+    category: str = "",
+    severity: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Unified diagnostic schema (§2): every issue rendered as one consistent
+    object with why_it_matters, business_impact, recommended_fix (with per-framework
+    before/after snippets), expected_improvement, confidence_basis, dependencies."""
+    from app.engine.diagnostic_schema import render_diagnostics
+
+    stmt = select(Issue).where(Issue.audit_id == audit_id)
+    if category:
+        stmt = stmt.where(Issue.category == category.upper())
+    if severity:
+        stmt = stmt.where(Issue.severity == severity.upper())
+    stmt = stmt.order_by(Issue.detected_at.desc())
+    result = await db.execute(stmt)
+    issues = list(result.scalars().all())
+    return render_diagnostics(issues)
 
 
 @router.post("/audit/{audit_id}/ai/schema")
@@ -5149,7 +5204,7 @@ async def get_enterprise_audit(audit_id: str, db: AsyncSession = Depends(get_db)
         pages = pages_result.scalars().all()
 
         orchestrator = EnterpriseOrchestrator()
-        payload = orchestrator.generate_enterprise_payload(pages, audit.website_url)
+        payload = await asyncio.to_thread(orchestrator.generate_enterprise_payload, pages, audit.website_url)
         _cache_set(orch_cache_key, {"pages": pages, "payload": payload, "url": audit.website_url})
     else:
         payload = orchestrator_data["payload"]
@@ -5174,7 +5229,7 @@ async def get_enterprise_page(audit_id: str, page_idx: int, db: AsyncSession = D
         raise HTTPException(status_code=400, detail="Invalid page index")
 
     orchestrator = EnterpriseOrchestrator()
-    page_analysis = orchestrator.analyze_page(pages[page_idx])
+    page_analysis = await asyncio.to_thread(orchestrator.analyze_page, pages[page_idx])
     return page_analysis
 
 
@@ -5217,10 +5272,21 @@ async def get_remediation_feed(audit_id: str, severity: str = None, category: st
             orchestrator = EnterpriseOrchestrator()
             all_fixes = []
             seen = set()
+            sem = asyncio.Semaphore(4)
 
-            for page in pages:
+            async def _analyze_one(page):
+                async with sem:
+                    try:
+                        return page, await asyncio.to_thread(orchestrator.analyze_page, page)
+                    except Exception:
+                        return page, None
+
+            analyses = await asyncio.gather(*[_analyze_one(p) for p in pages])
+
+            for page, analysis in analyses:
+                if not analysis:
+                    continue
                 try:
-                    analysis = orchestrator.analyze_page(page)
                     for fix in analysis["diagnostics"]["actionable_fixes"]:
                         key = (page.url, fix.get("element", ""), fix.get("issue", ""))
                         if key not in seen:
@@ -5448,7 +5514,7 @@ async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db:
     page = PageAdapter(pages[idx])
     from app.engine.enterprise_orchestrator import EnterpriseOrchestrator
     orchestrator = EnterpriseOrchestrator()
-    analysis = orchestrator.analyze_page(page)
+    analysis = await asyncio.to_thread(orchestrator.analyze_page, page)
 
     current_content = page.content_text or ""
     issues = analysis["diagnostics"]["actionable_fixes"]
@@ -6578,14 +6644,14 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
 
     page = pages[page_idx]
     engine = MegaSEOEngine()
-    result = engine.analyze(page, all_pages=pages)
+    result = await asyncio.to_thread(engine.analyze, page, all_pages=pages)
 
     result["page_url"] = page.url
     result["page_title"] = page.title
     result["word_count"] = page.word_count or 0
 
     from app.engine.report_linter import lint_report
-    linter_errors = lint_report(result)
+    linter_errors = await asyncio.to_thread(lint_report, result)
     result["linter_errors"] = [{"check": e.check_name, "detail": e.detail} for e in linter_errors]
 
     try:
@@ -6677,7 +6743,7 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
     cat_scores_agg = {}
 
     for i, page in enumerate(pages):
-        result = engine.analyze(page, all_pages=pages)
+        result = await asyncio.to_thread(engine.analyze, page, all_pages=pages)
         all_results.append({
             "page_url": page.url,
             "page_title": page.title,
@@ -6714,7 +6780,7 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
     prioritized_fixes = sorted(unique_fixes.values(), key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x["severity"], 4))
 
     from app.engine.report_linter import lint_report
-    linter_errors = lint_report({"all_signals": [], "issues": all_issues, "pages_analyzed": [{"url": r["page_url"]} for r in all_results]})
+    linter_errors = await asyncio.to_thread(lint_report, {"all_signals": [], "issues": all_issues, "pages_analyzed": [{"url": r["page_url"]} for r in all_results]})
 
     resp = {
         "total_pages": len(pages),

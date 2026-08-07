@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import datetime as _dt
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -246,7 +247,7 @@ async def _warm_cache(audit_id: str, website_url: str):
             try:
                 from app.engine.enterprise_orchestrator import EnterpriseOrchestrator
                 orch = EnterpriseOrchestrator()
-                payload = orch.generate_enterprise_payload(pages, website_url)
+                payload = await asyncio.to_thread(orch.generate_enterprise_payload, pages, website_url)
                 _cache_set(f"enterprise:{audit_id}", payload)
                 _cache_set(f"orchestrator:{audit_id}", {"pages": None, "payload": payload, "url": website_url})
 
@@ -545,12 +546,37 @@ async def run_audit_task(audit_id: str):
             await update_status(AuditStatus.CRAWLING.value, 5, "Starting crawler...")
 
             crawler = CrawlerEngine()
+            progress_q = asyncio.Queue()
+            last_progress_pct = {"v": -1}
+
+            def _on_progress(msg, pct):
+                if pct > last_progress_pct["v"]:
+                    last_progress_pct["v"] = pct
+                    progress_q.put_nowait((pct, msg))
+
+            async def _drain_progress():
+                try:
+                    while True:
+                        try:
+                            pct, msg = await asyncio.wait_for(progress_q.get(), timeout=45)
+                        except asyncio.TimeoutError:
+                            return
+                        pct = min(pct, 30)  # keep crawl progress below the 35% post-crawl step
+                        try:
+                            await update_status(AuditStatus.CRAWLING.value, pct, msg)
+                        except Exception as e:
+                            logger.warning(f"Progress update failed: {e}")
+                except asyncio.CancelledError:
+                    raise
+
+            drain_task = asyncio.create_task(_drain_progress())
             try:
-                pages = await crawler.crawl(website_url, max_pages=300)
+                pages = await crawler.crawl(website_url, max_pages=300, on_progress=_on_progress)
             except Exception as e:
                 logger.error(f"Crawler failed: {e}")
                 pages = []
             finally:
+                drain_task.cancel()
                 await crawler.close()
 
             if not pages:
@@ -564,7 +590,7 @@ async def run_audit_task(audit_id: str):
 
             analyzer = AnalyzerEngine()
             try:
-                analysis = analyzer.analyze_pages(pages)
+                analysis = await asyncio.to_thread(analyzer.analyze_pages, pages)
             except Exception as e:
                 logger.error(f"Analyzer failed: {e}")
                 from app.engine.analyzer import AnalysisResult
@@ -574,48 +600,53 @@ async def run_audit_task(audit_id: str):
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 50, "Saving page data...")
 
             for page in pages:
-                schema_types = []
-                if page.schema_markup:
-                    for s in page.schema_markup:
-                        if isinstance(s, dict) and "@type" in s:
-                            schema_types.append(s["@type"])
-                classification = classifier.classify(
-                    url=page.url, title=page.title,
-                    content_text=page.content_text, h1=page.h1,
-                    word_count=page.word_count or 0,
-                    schema_types=schema_types,
-                    images=page.images if isinstance(page.images, list) else [],
-                )
-                page_type = classification["page_type"]
-
-                ctx_issues, ctx_recs = run_context_aware_analysis(page, analysis, page_type)
-
-                for ci in ctx_issues:
-                    analysis.add_issue(
-                        page.url, ci.get("category", "CONTEXT"),
-                        ci.get("severity", "MEDIUM"), 0,
-                        ci.get("signal_name", ""), ci.get("description", ""),
-                        ci.get("impact", ""), ci.get("fix", ""),
+                try:
+                    schema_types = []
+                    if page.schema_markup:
+                        for s in page.schema_markup:
+                            if isinstance(s, dict) and "@type" in s:
+                                schema_types.append(s["@type"])
+                    classification = await asyncio.to_thread(
+                        classifier.classify,
+                        url=page.url, title=page.title,
+                        content_text=page.content_text, h1=page.h1,
+                        word_count=page.word_count or 0,
+                        schema_types=schema_types,
+                        images=page.images if isinstance(page.images, list) else [],
                     )
+                    page_type = classification["page_type"]
 
-                from app.engine.crawl_snapshot import CrawlSnapshot
-                page_snap = CrawlSnapshot(page)
-                db.add(Page(
-                    audit_id=audit_id, url=page.url, status_code=page.status_code,
-                    title=page.title, meta_description=page.meta_description,
-                    canonical=page.canonical, h1=page.h1,
-                    content_text=page.content_text[:50000], word_count=page.word_count,
-                    html_raw=page.html_raw[:40000] if page.html_raw else "",
-                    headers=page.headings, images=page.images,
-                    links_internal=page.links_internal[:100],
-                    links_external=page.links_external[:100],
-                    schema_markup=page.schema_markup, open_graph=page.open_graph,
-                    twitter_card=page.twitter_card, crawl_depth=page.crawl_depth,
-                    response_time_ms=page.response_time_ms, content_hash=page.content_hash,
-                    page_type=page_type, context_issues=ctx_issues,
-                    signals=getattr(page, "signals", {}) or {},
-                    snapshot_hash=page_snap.snapshot_hash,
-                ))
+                    ctx_issues, ctx_recs = await asyncio.to_thread(run_context_aware_analysis, page, analysis, page_type)
+
+                    for ci in ctx_issues:
+                        analysis.add_issue(
+                            page.url, ci.get("category", "CONTEXT"),
+                            ci.get("severity", "MEDIUM"), 0,
+                            ci.get("signal_name", ""), ci.get("description", ""),
+                            ci.get("impact", ""), ci.get("fix", ""),
+                        )
+
+                    from app.engine.crawl_snapshot import CrawlSnapshot
+                    page_snap = CrawlSnapshot(page)
+                    db.add(Page(
+                        audit_id=audit_id, url=page.url, status_code=page.status_code,
+                        title=page.title, meta_description=page.meta_description,
+                        canonical=page.canonical, h1=page.h1,
+                        content_text=page.content_text[:50000], word_count=page.word_count,
+                        html_raw=page.html_raw[:40000] if page.html_raw else "",
+                        headers=page.headings, images=page.images,
+                        links_internal=page.links_internal[:100],
+                        links_external=page.links_external[:100],
+                        schema_markup=page.schema_markup, open_graph=page.open_graph,
+                        twitter_card=page.twitter_card, crawl_depth=page.crawl_depth,
+                        response_time_ms=page.response_time_ms, content_hash=page.content_hash,
+                        page_type=page_type, context_issues=ctx_issues,
+                        signals=getattr(page, "signals", {}) or {},
+                        snapshot_hash=page_snap.snapshot_hash,
+                    ))
+                except Exception as e:
+                    logger.error(f"Page save failed for {page.url}: {e}")
+                    continue
             await db.commit()
 
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 52, "Running enterprise engine analysis...")
@@ -652,10 +683,10 @@ async def run_audit_task(audit_id: str):
             for sp in pages_saved:
                 try:
                     snap_for_page = CrawlSnapshot(sp)
-                    classic_result = classic_engine.analyze(snap_for_page)
-                    ai_geo_result = ai_geo_engine.analyze(snap_for_page)
+                    classic_result = await asyncio.to_thread(classic_engine.analyze, snap_for_page)
+                    ai_geo_result = await asyncio.to_thread(ai_geo_engine.analyze, snap_for_page)
                     canonical_geo_by_url[sp.url] = ai_geo_result
-                    content_v2_result = content_v2_engine.analyze(snap_for_page)
+                    content_v2_result = await asyncio.to_thread(content_v2_engine.analyze, snap_for_page)
                     for issue in classic_result.get("issues", []):
                         issue["page_url"] = sp.url
                         issue["snapshot_hash"] = snap_for_page.snapshot_hash
@@ -866,14 +897,18 @@ async def run_audit_task(audit_id: str):
             ai_provider_available = ai_engine.available
             if ai_provider_available:
                 try:
-                    ai_recommendations = await ai_engine.generate_recommendations(analysis_summary)
+                    ai_recommendations = await asyncio.wait_for(ai_engine.generate_recommendations(analysis_summary), timeout=90)
+                except asyncio.TimeoutError:
+                    logger.warning(f"AI recommendations timed out for {audit_id}")
                 except Exception as e:
                     logger.error(f"AI recs failed: {e}")
 
             if ai_provider_available:
                 try:
                     parsed_url = website_url.replace("https://", "").replace("http://", "").split("/")[0]
-                    ai_visibility = await ai_engine.analyze_ai_visibility(website_url, parsed_url)
+                    ai_visibility = await asyncio.wait_for(ai_engine.analyze_ai_visibility(website_url, parsed_url), timeout=90)
+                except asyncio.TimeoutError:
+                    logger.warning(f"AI visibility timed out for {audit_id}")
                 except Exception as e:
                     logger.error(f"AI visibility failed: {e}")
             else:
@@ -938,7 +973,7 @@ async def run_audit_task(audit_id: str):
                     "competitor_data": competitor_data or {},
                     "snapshot_hashes": [getattr(p, 'snapshot_hash', '') for p in pages_saved if hasattr(p, 'snapshot_hash')],
                 }
-                linter_errors = lint_report(report_for_lint)
+                linter_errors = await asyncio.to_thread(lint_report, report_for_lint)
                 if linter_errors:
                     for err in linter_errors:
                         logger.warning(f"Linter: {err}")
@@ -987,7 +1022,6 @@ async def run_audit_task(audit_id: str):
             except Exception as e:
                 logger.warning(f"Audit {audit_id}: could not clear raw HTML (non-fatal): {e}")
 
-            import asyncio
             asyncio.create_task(_warm_cache(audit_id, website_url))
             asyncio.create_task(_notify_audit_completed(audit_id))
 
@@ -1003,5 +1037,4 @@ async def run_audit_task(audit_id: str):
                     await db.commit()
             except Exception:
                 pass
-            import asyncio
             asyncio.create_task(_notify_audit_failed(audit_id, str(e)))

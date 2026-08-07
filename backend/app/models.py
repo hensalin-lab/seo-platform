@@ -147,6 +147,16 @@ class Issue(Base):
     snapshot_hash = Column(String, default="")
     pages_affected = Column(Integer, default=1)
     detected_at = Column(DateTime, default=_dt.datetime.utcnow)
+    why_it_matters = Column(Text, default="")
+    business_impact = Column(Text, default="")
+    expected_improvement = Column(String, default="")
+    confidence_basis = Column(String, default="")
+    dependencies = Column(JSON, default=list)
+    estimated_time_minutes = Column(Integer, default=0)
+    framework_snippets = Column(JSON, default=dict)
+    source_model = Column(String, default="")
+    status = Column(String, default="open")
+    last_checked = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
     audit = relationship("Audit", back_populates="issues")
 
     def to_business_schema(self):

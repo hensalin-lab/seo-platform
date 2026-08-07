@@ -35,3 +35,44 @@ async def init_db():
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await migrate_sqlite_columns()
+
+
+_SQLITE_ADD_COLUMNS = {
+    "issues": {
+        "why_it_matters": "TEXT",
+        "business_impact": "TEXT",
+        "expected_improvement": "TEXT",
+        "confidence_basis": "TEXT",
+        "dependencies": "JSON",
+        "estimated_time_minutes": "INTEGER",
+        "framework_snippets": "JSON",
+        "source_model": "TEXT",
+        "status": "TEXT",
+        "last_checked": "TIMESTAMP",
+    }
+}
+
+
+async def migrate_sqlite_columns():
+    """SQLite cannot ALTER via create_all on existing tables, so add new
+    columns lazily with a PRAGMA-driven idempotent migration."""
+    if "sqlite" not in settings.DATABASE_URL:
+        return
+    from sqlalchemy import text
+
+    async with engine.begin() as conn:
+        for table, columns in _SQLITE_ADD_COLUMNS.items():
+            exists = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name=:t"), {"t": table}
+            )
+            if not exists.scalar_one_or_none():
+                continue
+            existing = {
+                row[1] for row in (await conn.execute(text(f"PRAGMA table_info({table})"))).fetchall()
+            }
+            for col, col_type in columns.items():
+                if col in existing:
+                    continue
+                await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+

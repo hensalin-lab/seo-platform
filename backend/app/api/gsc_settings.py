@@ -70,6 +70,18 @@ async def get_gsc_settings(user: User = Depends(get_current_active_user), db: As
     result = await db.execute(select(GSCSettings).where(GSCSettings.user_id == user.id))
     gs = result.scalar_one_or_none()
     if not gs or not gs.service_account_json:
+        from app.models import ProviderSetting
+        prow = (await db.execute(select(ProviderSetting).where(
+            ProviderSetting.user_id == user.id, ProviderSetting.provider == "gsc"
+        ))).scalar_one_or_none()
+        if prow and prow.is_active and prow.config:
+            sa_json = prow.config.get("service_account_json")
+            if sa_json:
+                return {
+                    "configured": True,
+                    "property_url": prow.config.get("property_url") or "",
+                    "client_email": _client_email(sa_json),
+                }
         return {"configured": False, "property_url": "", "client_email": ""}
     return {
         "configured": True,
@@ -97,6 +109,21 @@ async def save_gsc_settings(body: GSCSettingsRequest, user: User = Depends(get_c
         db.add(gs)
     gs.service_account_json = body.service_account_json.strip()
     gs.property_url = body.property_url.strip()
+
+    from app.models import ProviderSetting
+    prow = (await db.execute(select(ProviderSetting).where(
+        ProviderSetting.user_id == user.id, ProviderSetting.provider == "gsc"
+    ))).scalar_one_or_none()
+    if not prow:
+        prow = ProviderSetting(user_id=user.id, provider="gsc", is_active=True)
+        db.add(prow)
+    prow.is_active = True
+    prow.config = {
+        **((prow.config or {}) if prow.config else {}),
+        "service_account_json": body.service_account_json.strip(),
+        "property_url": body.property_url.strip(),
+    }
+
     await db.commit()
 
     return {
