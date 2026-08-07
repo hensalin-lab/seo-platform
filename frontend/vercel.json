@@ -5,7 +5,7 @@
                          "destination":  "https://handheld-exploration-laser-eddie.trycloudflare.com/api/:path*"
                      },
                      {
-                         "source":  "/((?!api/).*)",
+                         "source":  "/((?!api/|assets/).*)",
                          "destination":  "/index.html"
                      }
                  ]
