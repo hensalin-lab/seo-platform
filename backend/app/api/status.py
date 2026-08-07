@@ -7210,21 +7210,26 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
     stored_row = stored.scalars().first()
     if stored_row:
         fd = stored_row.field_data or {}
-        return {
-            "url": target_url,
-            "strategy": stored_row.strategy,
-            "lcp_ms": stored_row.lcp_ms,
-            "cls": stored_row.cls,
-            "inp_ms": stored_row.inp_ms,
-            "fcp_ms": stored_row.fcp_ms,
-            "ttfb_ms": stored_row.ttfb_ms,
-            "performance_score": stored_row.performance_score,
-            "assessment": fd.get("assessment") or {},
-            "field_data": fd,
-            "lab_data": stored_row.lab_data or {},
-            "ai_suggestions": fd.get("ai_suggestions") or [],
-            "source": "stored",
-        }
+        has_vals = any(v is not None for v in [stored_row.lcp_ms, stored_row.cls, stored_row.inp_ms, stored_row.fcp_ms, stored_row.ttfb_ms])
+        if not has_vals and not fd.get("_available"):
+            await db.delete(stored_row)
+            await db.commit()
+        else:
+            return {
+                "url": target_url,
+                "strategy": stored_row.strategy,
+                "lcp_ms": stored_row.lcp_ms,
+                "cls": stored_row.cls,
+                "inp_ms": stored_row.inp_ms,
+                "fcp_ms": stored_row.fcp_ms,
+                "ttfb_ms": stored_row.ttfb_ms,
+                "performance_score": stored_row.performance_score,
+                "assessment": fd.get("assessment") or {},
+                "field_data": fd,
+                "lab_data": stored_row.lab_data or {},
+                "ai_suggestions": fd.get("ai_suggestions") or [],
+                "source": "stored",
+            }
 
     engine = PageSpeedEngine()
     data = await engine.analyze(target_url, "mobile")
@@ -7232,15 +7237,40 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
     field = data.get("field_data", {})
     lab = data.get("core_web_vitals", {})
 
+    lcp_ms = (field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value")
+    cls = (field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value")
+    inp_ms = (field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value")
+    fcp_ms = (field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value")
+    ttfb_ms = (field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value")
+
+    response = {
+        "url": target_url,
+        "strategy": "mobile",
+        "lcp_ms": lcp_ms,
+        "cls": cls,
+        "inp_ms": inp_ms,
+        "fcp_ms": fcp_ms,
+        "ttfb_ms": ttfb_ms,
+        "performance_score": data.get("performance_score", 0),
+        "assessment": assessment,
+        "field_data": field,
+        "lab_data": data,
+        "note": data.get("note", ""),
+        "source": "live",
+    }
+
+    if not any([lcp_ms, cls, inp_ms, fcp_ms, ttfb_ms]):
+        return response
+
     row = CoreWebVitals(
         audit_id=audit_id,
         url=target_url,
         strategy="mobile",
-        lcp_ms=(field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value"),
-        cls=(field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value"),
-        inp_ms=(field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value"),
-        fcp_ms=(field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value"),
-        ttfb_ms=(field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value"),
+        lcp_ms=lcp_ms,
+        cls=cls,
+        inp_ms=inp_ms,
+        fcp_ms=fcp_ms,
+        ttfb_ms=ttfb_ms,
         performance_score=data.get("performance_score", 0),
         field_data=field,
         lab_data=data,
@@ -7252,20 +7282,7 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
         logger.warning(f"Failed to store CWV: {e}")
         await db.rollback()
 
-    return {
-        "url": target_url,
-        "strategy": "mobile",
-        "lcp_ms": row.lcp_ms,
-        "cls": row.cls,
-        "inp_ms": row.inp_ms,
-        "fcp_ms": row.fcp_ms,
-        "ttfb_ms": row.ttfb_ms,
-        "performance_score": data.get("performance_score", 0),
-        "assessment": assessment,
-        "field_data": field,
-        "lab_data": data,
-        "source": "live",
-    }
+    return response
 
 
 _CWV_THRESHOLDS = {

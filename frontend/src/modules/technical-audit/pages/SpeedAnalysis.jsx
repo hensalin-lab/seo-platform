@@ -137,6 +137,12 @@ export default function SpeedAnalysis() {
         ? (cwvRes?.field_data?._available ? cwvRes.field_data.source : 'stored')
         : null)
       setCwvPerf(cwvRes?.performance_score > 0 ? cwvRes.performance_score : null)
+      if (Object.keys(cd).length === 0) {
+        const reason = cwvRes?.note || cwvRes?.lab_data?.note || cwvRes?.field_data?._note || ''
+        setCwvError(reason
+          ? `Auto-fetch returned no metrics. ${reason}`
+          : 'Auto-fetch returned no Core Web Vitals data for this site.')
+      }
     } catch (err) {
       setCwvError(err.message || 'Failed to load Core Web Vitals')
     } finally {
