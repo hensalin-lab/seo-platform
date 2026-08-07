@@ -897,6 +897,48 @@ async def quad_ai_readability_analysis(content):
     return await _run_all(sys, user, 3000)
 
 
+async def _ollama_simple_fixes(issues: list[dict]) -> Optional[dict]:
+    """Local-only fallback: asks Ollama for a smaller JSON so a fix is always produced,
+    even when every cloud/free provider is down or rate-limited."""
+    if not settings.OLLAMA_BASE_URL:
+        return None
+    sys = """You are a senior SEO engineer. For EVERY issue in the JSON array, return ONLY valid JSON, no markdown fences:
+{"fixes":[{"id":"<exact issue id>","fix":"step-by-step fix under 120 words, concrete and ready to paste","fix_code":"FIX-####","root_cause":"one-sentence cause","effort":"LOW|MEDIUM|HIGH","impact_pct":40,"confidence":70,"why_it_matters":"one sentence on how this hurts rankings or traffic","estimated_time_minutes":30}]}
+Rules: exactly one entry per issue preserving the exact id; impact_pct and confidence are integers."""
+    user = "Issues:\n" + json.dumps(issues, default=str)
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                f"{settings.OLLAMA_BASE_URL}/api/chat",
+                json={
+                    "model": settings.OLLAMA_MODEL,
+                    "stream": False,
+                    "messages": [{"role": "system", "content": sys}, {"role": "user", "content": user}],
+                    "options": {"temperature": 0.3, "num_predict": 1500},
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning("Ollama simple fallback %s: %s", resp.status_code, resp.text[:160])
+                _http_error_detail("ollama", resp.status_code, resp.text)
+                return None
+            _record_health("ollama", True)
+            content = resp.json().get("message", {}).get("content", "")
+            cleaned = content.strip()
+            if cleaned.startswith("```json"): cleaned = cleaned[7:]
+            if cleaned.startswith("```"): cleaned = cleaned[3:]
+            if cleaned.endswith("```"): cleaned = cleaned[:-3]
+            data = json.loads(cleaned.strip())
+            if isinstance(data, dict) and isinstance(data.get("fixes"), list):
+                return data
+            if isinstance(data, list):
+                return {"fixes": data}
+            return None
+    except Exception as e:
+        logger.warning("Ollama simple fallback: %s", e)
+        _record_health("ollama", False, str(e)[:200])
+        return None
+
+
 async def quad_ai_batch_fixes(issues: list[dict]) -> dict:
     """Generate ready-to-paste fixes for a batch of issues.
     Runs through the full provider set (LM Studio/Ollama local + cloud) so every
@@ -912,7 +954,13 @@ CRITICAL RULES:
 - For every framework where a code change applies, give a copy-paste-ready before/after snippet pair. Leave frameworks that do not apply as empty strings.
 - impact_pct and confidence must be integers, never strings or decimals."""
     user = "Issues:\n" + json.dumps(issues, default=str)
-    return await _run_all(sys, user, 5000, task="rewrite", timeout=70, wait_for_local=True)
+    result = await _run_all(sys, user, 5000, task="rewrite", timeout=70, wait_for_local=True)
+    if isinstance(result, dict) and result.get("fixes"):
+        return result
+    simple = await _ollama_simple_fixes(issues)
+    if simple and simple.get("fixes"):
+        return {"fixes": simple["fixes"], "providers_used": ["ollama-local"]}
+    return result
 
 
 async def quad_ai_schema_generation(url, title, content, page_type):
