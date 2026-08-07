@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles } from 'lucide-react';
+import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles, CloudDownload } from 'lucide-react';
 
 function cwvStatus(value, thresholds) {
   if (value === null || value === undefined) return { label: 'Unknown', cls: 'badge-gray' };
@@ -16,6 +16,7 @@ function CoreWebVitalsPanel({ auditId }) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [fetchingLive, setFetchingLive] = useState(false);
   const [form, setForm] = useState({ url: '', lcp_ms: '', inp_ms: '', cls: '', fcp_ms: '', ttfb_ms: '', source: 'lighthouse' });
 
   const loadCwv = async () => {
@@ -35,6 +36,43 @@ function CoreWebVitalsPanel({ auditId }) {
   useEffect(() => { loadCwv(); }, [auditId]);
 
   const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
+
+  const fetchLive = async () => {
+    if (fetchingLive) return;
+    try {
+      setFetchingLive(true);
+      setError(null);
+      const url = form.url.trim();
+      const res = await api.getPageSpeedLive(auditId, url, 'mobile');
+      const lab = res.core_web_vitals || {};
+      const field = res.field_data || {};
+      const hasField = field._available;
+      const get = (fkey, lkey) => {
+        const v = hasField ? field[fkey]?.p75 : undefined;
+        return v !== undefined && v !== null ? v : (lab[lkey]?.numeric_value ?? null);
+      };
+      const payload = {
+        url,
+        source: hasField ? 'crux' : 'lighthouse',
+        lcp_ms: get('largest_contentful_paint', 'largest-contentful-paint'),
+        inp_ms: get('interaction_to_next_paint', 'interaction-to-next-paint'),
+        cls: get('cumulative_layout_shift', 'cumulative-layout-shift'),
+        fcp_ms: get('first_contentful_paint', 'first-contentful-paint'),
+        ttfb_ms: get('time_to_first_byte', 'time-to-first-byte'),
+      };
+      if (!payload.lcp_ms && !payload.inp_ms && !payload.cls && !payload.fcp_ms && !payload.ttfb_ms) {
+        setError('PageSpeed Insights returned no metrics. The site may be unreachable, or the Google API quota is exhausted (works without a key at a low rate limit).');
+        return;
+      }
+      const saved = await api.saveCoreWebVitals(auditId, payload);
+      setCwv(saved);
+      setShowForm(false);
+    } catch (err) {
+      setError(err.message || 'Auto-fetch from PageSpeed Insights failed');
+    } finally {
+      setFetchingLive(false);
+    }
+  };
 
   const saveCwv = async () => {
     if (saving) return;
@@ -87,6 +125,10 @@ function CoreWebVitalsPanel({ auditId }) {
               : 'Lab data — enter your Lighthouse/CrUX results below for real-user field data'}
           </p>
         </div>
+        <button className="btn btn-primary btn-sm" onClick={fetchLive} disabled={fetchingLive} style={{ marginLeft: 'auto' }}>
+          <CloudDownload size={14} style={{ marginRight: 4 }} />
+          {fetchingLive ? 'Running Lighthouse in cloud (~30s)...' : 'Auto-fetch from PageSpeed Insights'}
+        </button>
         <button className="btn btn-secondary btn-sm" onClick={() => setShowForm(s => !s)}>
           {showForm ? 'Cancel' : 'Enter Results'}
         </button>
