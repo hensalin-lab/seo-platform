@@ -7209,6 +7209,7 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
     stored = await db.execute(select(CoreWebVitals).where(CoreWebVitals.audit_id == audit_id, CoreWebVitals.url == target_url).order_by(CoreWebVitals.created_at.desc()))
     stored_row = stored.scalars().first()
     if stored_row:
+        fd = stored_row.field_data or {}
         return {
             "url": target_url,
             "strategy": stored_row.strategy,
@@ -7218,8 +7219,10 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
             "fcp_ms": stored_row.fcp_ms,
             "ttfb_ms": stored_row.ttfb_ms,
             "performance_score": stored_row.performance_score,
-            "field_data": stored_row.field_data or {},
+            "assessment": fd.get("assessment") or {},
+            "field_data": fd,
             "lab_data": stored_row.lab_data or {},
+            "ai_suggestions": fd.get("ai_suggestions") or [],
             "source": "stored",
         }
 
@@ -7262,6 +7265,176 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
         "field_data": field,
         "lab_data": data,
         "source": "live",
+    }
+
+
+_CWV_THRESHOLDS = {
+    "lcp": {"label": "LCP", "good": 2500, "poor": 4000},
+    "inp": {"label": "INP", "good": 200, "poor": 500},
+    "cls": {"label": "CLS", "good": 0.1, "poor": 0.25},
+    "fcp": {"label": "FCP", "good": 1800, "poor": 3000},
+    "ttfb": {"label": "TTFB", "good": 800, "poor": 1800},
+}
+_CWV_WEIGHTS = {"lcp": 25, "cls": 25, "inp": 25, "fcp": 10, "ttfb": 15}
+_CWV_SUB_SCORE = {"good": 100, "needs_improvement": 60, "poor": 25}
+
+
+def _cwv_status(value, good, poor):
+    if value is None:
+        return "not_measured"
+    if value <= good:
+        return "good"
+    if value < poor:
+        return "needs_improvement"
+    return "poor"
+
+
+async def _cwv_ai_suggestions(url: str, assessment: dict, performance_score: int) -> list:
+    """AI guidance per CWV metric: what / where / when / how."""
+    from app.engine.dual_ai import _run_all
+
+    lines = []
+    for k, a in assessment.items():
+        v = a.get("value")
+        if v is None:
+            continue
+        t = a.get("thresholds", {})
+        lines.append(f"- {a.get('label', k)}: {v} (status: {a['status']}, good: {t.get('good')}, poor: {t.get('poor')})")
+    if not lines:
+        return []
+
+    sys_prompt = (
+        "You are a Core Web Vitals performance engineer. For each measured metric produce concrete, ranked "
+        "improvement guidance that tells the user WHAT to fix, WHERE, WHEN (priority timeline), and HOW (specific steps).\n\n"
+        'Return ONLY valid JSON: '
+        '{"overall":"one-paragraph executive summary of what to fix first and why","metrics":[{"metric":"LCP","status":"good|needs_improvement|poor","what":"what this metric means and why the value matters","where":"specific page elements / root causes most likely causing this","when":"immediate, this sprint, or next 30 days","how":"numbered step-by-step concrete fixes"},"..."]}\n\n'
+        "Rules: be specific and technical (preload, image sizing, font-display, reserved space for CLS, INP main-thread "
+        "work, TBT reduction, TTFB server/caching). Only recommend standard, well-known techniques."
+    )
+    user = f"URL: {url}\nPerformance score: {performance_score}/100\nMetrics:\n" + "\n".join(lines)
+    try:
+        merged = await asyncio.wait_for(_run_all(sys_prompt, user, 2600, task="competitor", timeout=25.0), timeout=28.0)
+        text = str(merged.get("response") or "").strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        data = json.loads(text) if text else {}
+        metrics = data.get("metrics") or []
+        return [
+            {
+                "metric": m.get("metric"),
+                "status": m.get("status"),
+                "what": m.get("what"),
+                "where": m.get("where"),
+                "when": m.get("when"),
+                "how": m.get("how"),
+            }
+            for m in metrics
+            if isinstance(m, dict)
+        ]
+    except Exception:
+        return []
+
+
+@router.post("/audit/{audit_id}/core-web-vitals")
+async def save_core_web_vitals(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
+    """Store user-entered Lighthouse / CrUX field data and generate AI improvement suggestions."""
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    url = str(body.get("url") or audit.website_url or "").strip()
+    source = str(body.get("source") or "manual").strip() or "manual"
+
+    def _num(v):
+        if v in (None, ""):
+            return None
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    values = {
+        "lcp": _num(body.get("lcp_ms")),
+        "inp": _num(body.get("inp_ms")),
+        "cls": _num(body.get("cls")),
+        "fcp": _num(body.get("fcp_ms")),
+        "ttfb": _num(body.get("ttfb_ms")),
+    }
+    if not any(v is not None for v in values.values()):
+        raise HTTPException(status_code=400, detail="Provide at least one Core Web Vitals value")
+
+    assessment = {}
+    for k, t in _CWV_THRESHOLDS.items():
+        assessment[k] = {
+            "value": values[k],
+            "status": _cwv_status(values[k], t["good"], t["poor"]),
+            "label": t["label"],
+            "thresholds": {"good": t["good"], "poor": t["poor"]},
+            "source": source,
+        }
+
+    total_w = 0.0
+    acc = 0.0
+    for k in _CWV_THRESHOLDS:
+        if values[k] is None:
+            continue
+        total_w += _CWV_WEIGHTS[k]
+        acc += _CWV_WEIGHTS[k] * _CWV_SUB_SCORE[assessment[k]["status"]]
+    performance_score = round(acc / total_w) if total_w else 0
+
+    suggestions = await _cwv_ai_suggestions(url, assessment, performance_score)
+
+    existing = await db.execute(
+        select(CoreWebVitals).where(CoreWebVitals.audit_id == audit_id, CoreWebVitals.url == url).order_by(CoreWebVitals.created_at.desc())
+    )
+    row = existing.scalars().first()
+    field_data = {
+        "_available": True,
+        "source": source,
+        "manual": True,
+        "assessment": assessment,
+        "ai_suggestions": suggestions,
+    }
+    if row:
+        row.lcp_ms = values["lcp"]
+        row.inp_ms = values["inp"]
+        row.cls = values["cls"]
+        row.fcp_ms = values["fcp"]
+        row.ttfb_ms = values["ttfb"]
+        row.performance_score = performance_score
+        row.field_data = field_data
+        row.strategy = "mobile"
+    else:
+        row = CoreWebVitals(
+            audit_id=audit_id,
+            url=url,
+            strategy="mobile",
+            lcp_ms=values["lcp"],
+            cls=values["cls"],
+            inp_ms=values["inp"],
+            fcp_ms=values["fcp"],
+            ttfb_ms=values["ttfb"],
+            performance_score=performance_score,
+            field_data=field_data,
+        )
+        db.add(row)
+    await db.commit()
+
+    return {
+        "url": url,
+        "strategy": "mobile",
+        "lcp_ms": values["lcp"],
+        "cls": values["cls"],
+        "inp_ms": values["inp"],
+        "fcp_ms": values["fcp"],
+        "ttfb_ms": values["ttfb"],
+        "performance_score": performance_score,
+        "assessment": {k: {kk: vv for kk, vv in v.items() if kk != "thresholds"} for k, v in assessment.items()},
+        "field_data": field_data,
+        "ai_suggestions": suggestions,
+        "source": "manual",
     }
 
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw } from 'lucide-react';
+import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles } from 'lucide-react';
 
 function cwvStatus(value, thresholds) {
   if (value === null || value === undefined) return { label: 'Unknown', cls: 'badge-gray' };
@@ -14,6 +14,9 @@ function CoreWebVitalsPanel({ auditId }) {
   const [cwv, setCwv] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ url: '', lcp_ms: '', inp_ms: '', cls: '', fcp_ms: '', ttfb_ms: '', source: 'lighthouse' });
 
   const loadCwv = async () => {
     try {
@@ -21,6 +24,7 @@ function CoreWebVitalsPanel({ auditId }) {
       setError(null);
       const result = await api.getCoreWebVitals(auditId);
       setCwv(result);
+      setForm(f => ({ ...f, url: result?.url || f.url }));
     } catch (err) {
       setError(err.message || 'Failed to load Core Web Vitals');
     } finally {
@@ -30,6 +34,32 @@ function CoreWebVitalsPanel({ auditId }) {
 
   useEffect(() => { loadCwv(); }, [auditId]);
 
+  const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
+
+  const saveCwv = async () => {
+    if (saving) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const payload = {
+        url: form.url.trim(),
+        source: form.source,
+        lcp_ms: form.lcp_ms === '' ? null : Number(form.lcp_ms),
+        inp_ms: form.inp_ms === '' ? null : Number(form.inp_ms),
+        cls: form.cls === '' ? null : Number(form.cls),
+        fcp_ms: form.fcp_ms === '' ? null : Number(form.fcp_ms),
+        ttfb_ms: form.ttfb_ms === '' ? null : Number(form.ttfb_ms),
+      };
+      const result = await api.saveCoreWebVitals(auditId, payload);
+      setCwv(result);
+      setShowForm(false);
+    } catch (err) {
+      setError(err.message || 'Failed to save Core Web Vitals');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const metrics = [
     { key: 'lcp_ms', label: 'LCP', desc: 'Largest Contentful Paint', thresholds: { good: 2500, poor: 4000 }, fmt: (v) => v ? `${Math.round(v)}ms` : '—' },
     { key: 'inp_ms', label: 'INP', desc: 'Interaction to Next Paint', thresholds: { good: 200, poor: 500 }, fmt: (v) => v ? `${Math.round(v)}ms` : '—' },
@@ -38,6 +68,13 @@ function CoreWebVitalsPanel({ auditId }) {
     { key: 'ttfb_ms', label: 'TTFB', desc: 'Time to First Byte', thresholds: { good: 800, poor: 1800 }, fmt: (v) => v ? `${Math.round(v)}ms` : '—' },
   ];
 
+  const inputStyle = {
+    width: '100%', padding: '8px 10px', background: '#12141a', border: '1px solid var(--border)',
+    borderRadius: 8, color: 'var(--text)', fontSize: 13, outline: 'none',
+  };
+
+  const suggestions = cwv?.ai_suggestions || cwv?.field_data?.ai_suggestions || [];
+
   return (
     <div className="card" style={{ marginTop: '1rem' }}>
       <div className="card-header">
@@ -45,14 +82,65 @@ function CoreWebVitalsPanel({ auditId }) {
         <div style={{ flex: 1 }}>
           <h3 className="card-title">Core Web Vitals (Real Field Data)</h3>
           <p className="card-subtitle">
-            {cwv?.field_data?._available ? 'From Google CrUX field data (real users)' : 'Lab data — configure PAGESPEED_API_KEY for real-user field data'}
+            {cwv?.field_data?._available
+              ? `From ${cwv?.field_data?.source === 'manual' ? 'your entered Lighthouse/CrUX results' : 'Google CrUX field data (real users)'}`
+              : 'Lab data — enter your Lighthouse/CrUX results below for real-user field data'}
           </p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={loadCwv} disabled={loading}>
+        <button className="btn btn-secondary btn-sm" onClick={() => setShowForm(s => !s)}>
+          {showForm ? 'Cancel' : 'Enter Results'}
+        </button>
+        <button className="btn btn-secondary btn-sm" onClick={loadCwv} disabled={loading} style={{ marginLeft: 8 }}>
           <RefreshCw size={14} style={{ marginRight: 4 }} />
           {loading ? 'Analyzing...' : 'Re-analyze'}
         </button>
       </div>
+
+      {showForm && (
+        <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: 10, margin: '0 1rem 0.25rem', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+            Paste your Lighthouse or CrUX results
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>URL (blank = audit site)</label>
+              <input value={form.url} onChange={setField('url')} placeholder="https://..." style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>LCP (ms)</label>
+              <input value={form.lcp_ms} onChange={setField('lcp_ms')} placeholder="2500" type="number" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>INP (ms)</label>
+              <input value={form.inp_ms} onChange={setField('inp_ms')} placeholder="200" type="number" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>CLS</label>
+              <input value={form.cls} onChange={setField('cls')} placeholder="0.10" type="number" step="0.001" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>FCP (ms)</label>
+              <input value={form.fcp_ms} onChange={setField('fcp_ms')} placeholder="1800" type="number" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>TTFB (ms)</label>
+              <input value={form.ttfb_ms} onChange={setField('ttfb_ms')} placeholder="800" type="number" style={inputStyle} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+            <select value={form.source} onChange={setField('source')} style={{ ...inputStyle, width: 180, cursor: 'pointer' }}>
+              <option value="lighthouse">Lighthouse (lab)</option>
+              <option value="crux">CrUX (real users)</option>
+              <option value="manual">Manual</option>
+            </select>
+            <button className="btn btn-primary btn-sm" onClick={saveCwv} disabled={saving}>
+              {saving ? 'Analyzing + getting AI fixes...' : 'Save & Get AI Suggestions'}
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>AI will give what / where / when / how fixes for each metric.</span>
+          </div>
+        </div>
+      )}
+
       {cwv?.performance_score > 0 && (
         <div className="stats-row" style={{ margin: '0.75rem 0 0' }}>
           <div className="stat-card">
@@ -68,10 +156,10 @@ function CoreWebVitalsPanel({ auditId }) {
               <div className="stat-info">
                 <div className="stat-value">
                   <span className={`badge ${v.status === 'good' ? 'badge-green' : v.status === 'needs_improvement' ? 'badge-yellow' : 'badge-red'}`}>
-                    {v.label}: {v.status.replace('_', ' ')}
+                    {v.label || k.toUpperCase()}: {v.status.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="stat-label">{v.value !== undefined ? `${Math.round(v.value)}${k === 'cls' ? '' : 'ms'}` : '—'} ({v.source})</div>
+                <div className="stat-label">{v.value !== undefined ? `${Math.round(v.value)}${k === 'cls' ? '' : 'ms'}` : '—'} ({v.source || 'n/a'})</div>
               </div>
             </div>
           ))}
@@ -108,6 +196,47 @@ function CoreWebVitalsPanel({ auditId }) {
           </tbody>
         </table>
       </div>
+
+      {suggestions.length > 0 && (
+        <div style={{ padding: '0.25rem 1rem 1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0.75rem 0 0.5rem' }}>
+            <Sparkles size={16} color="#8b5cf6" />
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>AI Improvement Suggestions</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>what · where · when · how</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            {suggestions.map((s, i) => {
+              const st = s?.status || '';
+              const color = st === 'good' ? '#10b981' : st === 'needs_improvement' ? '#f59e0b' : '#ef4444';
+              return (
+                <div key={i} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, borderLeft: `3px solid ${color}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{s?.metric || 'Metric'}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 6, background: `${color}22`, color }}>{st.replace('_', ' ')}</span>
+                  </div>
+                  {s?.what && <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>{s.what}</div>}
+                  {s?.where && (
+                    <div style={{ fontSize: 12, marginBottom: 6 }}>
+                      <strong style={{ color: '#3b82f6' }}>WHERE: </strong><span style={{ color: 'var(--text-muted)' }}>{s.where}</span>
+                    </div>
+                  )}
+                  {s?.when && (
+                    <div style={{ fontSize: 12, marginBottom: 6 }}>
+                      <strong style={{ color: '#8b5cf6' }}>WHEN: </strong><span style={{ color: 'var(--text-muted)' }}>{s.when}</span>
+                    </div>
+                  )}
+                  {s?.how && (
+                    <div style={{ fontSize: 12, marginBottom: 6 }}>
+                      <strong style={{ color: '#059669' }}>HOW: </strong><span style={{ color: 'var(--text-muted)' }}>{s.how}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {error && <p style={{ color: 'var(--danger)', padding: '0.5rem 1rem' }}>{error}</p>}
     </div>
   );

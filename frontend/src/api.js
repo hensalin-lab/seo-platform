@@ -92,6 +92,10 @@ export const api = {
   getPageSpeed: (id) => request(`/audit/${id}/page-speed`),
   getPageSpeedLive: (id, url, strategy = 'mobile') => request(`/audit/${id}/page-speed-live?url=${encodeURIComponent(url)}&strategy=${strategy}`),
   getCoreWebVitals: (id, url = '') => request(`/audit/${id}/core-web-vitals?url=${encodeURIComponent(url)}`),
+  saveCoreWebVitals: (id, data) => request(`/audit/${id}/core-web-vitals`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
   getEeatAnalysis: (id) => request(`/audit/${id}/eeat-analysis`),
   getConversionAnalysis: (id) => request(`/audit/${id}/conversion-analysis`),
   getHistory: (limit = 20, offset = 0) => request(`/audit/history?limit=${limit}&offset=${offset}`),

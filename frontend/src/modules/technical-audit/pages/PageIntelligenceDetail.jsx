@@ -156,30 +156,58 @@ function MetaRow({ label, value, icon: Icon }) {
 export default function PageIntelligenceDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const url = searchParams.get('url') || '';
+  const urlParam = searchParams.get('url') || '';
+  const [url, setUrl] = useState(urlParam);
+  const [pages, setPages] = useState([]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (urlParam) {
+      setUrl(urlParam);
+      return;
+    }
+    let cancelled = false;
+    api.getAuditPages(id, { limit: 100 })
+      .then(d => {
+        if (cancelled) return;
+        const items = (d.items || []).filter(p => p.url);
+        setPages(items);
+        if (items.length) setUrl(items[0].url);
+        else {
+          setError('No pages found for this audit');
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError('Failed to load pages');
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, urlParam]);
+
+  useEffect(() => {
     if (!url) {
-      setError('No page URL provided');
       setLoading(false);
       return;
     }
+    let cancelled = false;
     async function load() {
       try {
         setLoading(true);
         setError(null);
         const result = await api.getPageIntelligence(id, url);
-        setData(result);
+        if (!cancelled) setData(result);
       } catch (err) {
-        setError(err.message || 'Failed to load page intelligence');
+        if (!cancelled) setError(err.message || 'Failed to load page intelligence');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => { cancelled = true; };
   }, [id, url]);
 
   if (loading) {
@@ -202,6 +230,18 @@ export default function PageIntelligenceDetail() {
           </Link>
         </div>
         <div className="error-state">{error}</div>
+        {pages.length > 0 && (
+          <div style={{ marginTop: 16, maxWidth: 520 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Select a page:</label>
+            <select
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-white)', color: 'var(--text)', fontSize: 13 }}
+            >
+              {pages.map((p, i) => <option key={i} value={p.url}>{p.title || p.url} ({p.word_count || 0}w)</option>)}
+            </select>
+          </div>
+        )}
         <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>Retry</button>
       </div>
     );
@@ -292,6 +332,17 @@ export default function PageIntelligenceDetail() {
               <ExternalLink size={14} />
             </a>
           </p>
+          {(pages.length > 1 || searchParams.get('url')) && (
+            <select
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              style={{ marginTop: 10, width: '100%', maxWidth: 560, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-white)', color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}
+            >
+              {pages.length > 0
+                ? pages.map((p, i) => <option key={i} value={p.url}>{p.title || p.url} ({p.word_count || 0}w)</option>)
+                : <option value={url}>{url}</option>}
+            </select>
+          )}
         </div>
       </div>
 
