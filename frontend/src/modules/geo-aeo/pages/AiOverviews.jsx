@@ -51,23 +51,20 @@ export default function AiOverviews() {
           { icon: CheckCircle, t: 'Citations' },
           { icon: Zap, t: 'Real-time' },
         ]}
-        actions={data?.configured ? <DataSourceBadge source="measured" size="xs" /> : null}
+        actions={data?.configured ? <DataSourceBadge source={data?.estimated ? 'estimated' : 'measured'} size="xs" /> : null}
       />
 
       <div>
         <AiSuggestionStrip auditId={id} tool="ai-overviews" title="AI Overview fixes" />
       </div>
 
-      {!data?.configured ? (
-        <div style={{ padding: '18px 20px', borderRadius: 'var(--radius, 12px)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#b45309', marginBottom: 6 }}>
-            <AlertTriangle size={15} /> Live monitoring not configured
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--text-secondary, #6b7280)', lineHeight: 1.6 }}>
-            Set <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 5px', borderRadius: 4 }}>SERP_API_KEY</code> (SerpAPI) in the backend env to check whether your site actually appears in Google AI Overviews for your keywords — real results, not estimates.
+      {data?.message && (
+        <div style={{ padding: '12px 16px', borderRadius: 'var(--radius, 12px)', background: data?.estimated ? 'rgba(8,145,178,0.06)' : 'rgba(245,158,11,0.08)', border: `1px solid ${data?.estimated ? 'rgba(8,145,178,0.18)' : 'rgba(245,158,11,0.25)'}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: data?.estimated ? '#0e7490' : '#b45309', lineHeight: 1.6 }}>
+            {data?.estimated ? <Sparkles size={14} /> : <AlertTriangle size={14} />} {data.message}
           </div>
         </div>
-      ) : (
+      )}
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             <ThemeStatCard icon={Bot} label="Keywords Checked" value={summary.keywords_checked ?? 0} color="#3b82f6" sub="Top keywords by frequency" />
@@ -134,7 +131,6 @@ export default function AiOverviews() {
             </div>
           </div>
         </>
-      )}
     </div>
   );
 }

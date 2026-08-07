@@ -424,14 +424,27 @@ function BlogAiTab() {
   const { id } = useParams();
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [data, setData] = useState(null);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     setLoading(true);
-    const res = await api.getBlogAi(id).catch(() => null);
-    setData(res);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await Promise.race([
+        api.getBlogAi(id),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timed out after 45s. Try again in a moment.')), 45000)
+        ),
+      ]);
+      setData(res);
+    } catch (e) {
+      setError(e?.message || 'Failed to generate blog post');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const allIdeas = Array.isArray(data?.blog_ideas) ? data.blog_ideas : [];
@@ -482,6 +495,10 @@ function BlogAiTab() {
 
         {loading ? (
           <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Generating blog post...</div>
+        ) : error ? (
+          <div style={{ padding: 14, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', fontSize: 12, color: '#ef4444', lineHeight: 1.6 }}>
+            {error}
+          </div>
         ) : data ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>

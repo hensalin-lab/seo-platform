@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { FileCode, CheckCircle, XCircle, AlertTriangle, Copy, Shield, Eye } from 'lucide-react';
+import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 function ScoreRing({ score, size = 80, label }) {
   const r = (size - 8) / 2;
@@ -117,6 +118,10 @@ export default function SchemaIntelligence() {
             <div>Estimated CTR boost: {richResults.estimated_ctr_boost || 'N/A'}</div>
           </div>
         </Card>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <AiSuggestionStrip auditId={id} tool="schema" title="AI schema score fixes" />
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>

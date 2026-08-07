@@ -139,9 +139,27 @@ export default function CompetitorAnalysis() {
       {basic?.keyword_opportunities?.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Keyword Opportunities ({basic.keyword_opportunities.length})</h2>
-          {basic.keyword_opportunities.map((k, i) => (
-            <div key={i} style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', fontSize: 13, color: '#334155' }}>{k.keyword || k.description}</div>
-          ))}
+          {basic.keyword_opportunities.map((k, i) => {
+            const kw = k.keyword || k.topic || k.term || k.description
+            const intent = k.intent || ''
+            const difficulty = k.difficulty || ''
+            const opportunity = k.opportunity || k.importance || ''
+            const diffColor = difficulty === 'HIGH' ? '#dc2626' : difficulty === 'MEDIUM' ? '#d97706' : '#059669'
+            const intentColor = intent === 'COMMERCIAL' ? '#2563eb' : intent === 'TRANSACTIONAL' ? '#7c3aed' : '#0891b2'
+            return (
+              <div key={i} style={{ padding: '10px 12px', background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{kw}</span>
+                  {intent && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: intentColor + '15', color: intentColor }}>{intent}</span>}
+                  {difficulty && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: diffColor + '15', color: diffColor }}>{difficulty}</span>}
+                  {opportunity && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: '#f59e0b15', color: '#d97706' }}>{opportunity}</span>}
+                  {k.competitor_frequency != null && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: '#33415515', color: '#334155' }}>{k.competitor_frequency}× on competitor</span>}
+                </div>
+                {k.reason && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2, lineHeight: 1.5 }}>{k.reason}</div>}
+                {k.action && <div style={{ fontSize: 12, color: '#059669', lineHeight: 1.5 }}>{k.action}</div>}
+              </div>
+            )
+          })}
         </div>
       )}
 

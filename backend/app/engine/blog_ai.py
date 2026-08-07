@@ -278,8 +278,9 @@ class BlogAIEngine:
                 page_content[p.url] = {
                     "title": p.title or "",
                     "text": p.content_text,
-                    "links_internal": [l.get("url", "") if isinstance(l, dict) else l for l in (p.links_internal or [])],
+                    "links_internal": set(l.get("url", "") if isinstance(l, dict) else l for l in (p.links_internal or [])),
                     "word_count": p.word_count,
+                    "words": set(re.findall(r'\b[a-zA-Z]{5,}\b', p.content_text.lower())),
                 }
 
         url_list = list(page_content.keys())
@@ -288,9 +289,7 @@ class BlogAIEngine:
             for url_b in url_list[i+1:]:
                 info_b = page_content[url_b]
 
-                text_a_words = set(re.findall(r'\b[a-zA-Z]{5,}\b', info_a["text"].lower()))
-                text_b_words = set(re.findall(r'\b[a-zA-Z]{5,}\b', info_b["text"].lower()))
-                overlap = text_a_words & text_b_words
+                overlap = info_a["words"] & info_b["words"]
 
                 if len(overlap) >= 5 and url_b not in info_a["links_internal"]:
                     opportunities.append({

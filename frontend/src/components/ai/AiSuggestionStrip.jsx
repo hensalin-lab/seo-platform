@@ -23,11 +23,13 @@ export default function AiSuggestionStrip({ auditId, tool = 'all', category = ''
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setItems(null);
+    const timer = setTimeout(() => { if (alive) { alive = false; setItems([]); setLoading(false); } }, 10000);
     api.getToolSuggestions(auditId, { tool, category, limit })
       .then(res => { if (alive) setItems(res?.items || []); })
       .catch(() => { if (alive) setItems([]); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+      .finally(() => { if (alive) { clearTimeout(timer); setLoading(false); } });
+    return () => { alive = false; clearTimeout(timer); };
   }, [auditId, tool, category, limit]);
 
   if (loading) {

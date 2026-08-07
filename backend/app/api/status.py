@@ -1037,7 +1037,10 @@ async def ai_prompt_test(request: Request):
     if not prompt:
         raise HTTPException(400, "Prompt is required")
 
-    from app.engine.dual_ai import _gemini_chat, _groq_chat, _openrouter_chat
+    from app.engine.dual_ai import (
+        _gemini_chat, _groq_chat, _openrouter_chat, _cerebras_chat,
+        _openrouter_free_chat, _mistral_chat, _nvidia_chat, _github_chat, _sambanova_chat,
+    )
     from app.config import settings as s
 
     sys_prompt = (
@@ -1046,30 +1049,61 @@ async def ai_prompt_test(request: Request):
     )
 
     async def run(name: str):
-        provider = ""
-        r = None
+        def _extract(r):
+            text = ""
+            if isinstance(r, dict):
+                text = r.get("response") or r.get("answer") or r.get("content") or ""
+            return str(text).strip()
+
+        # Primary provider per platform, then shared fallbacks so a missing
+        # key on one provider never leaves a model without an answer.
+        candidates = []
         if name == "gemini":
-            provider, r = "gemini", await _gemini_chat(sys_prompt, prompt, 900)
+            candidates = [("gemini", lambda: _gemini_chat(sys_prompt, prompt, 900))]
         elif name == "perplexity":
-            provider, r = "groq-llama", await _groq_chat(sys_prompt, prompt, 900)
+            candidates = [("groq-llama", lambda: _groq_chat(sys_prompt, prompt, 900))]
         elif name == "deepseek":
-            provider, r = "deepseek", await _openrouter_chat(sys_prompt, prompt, 900, s.OPENROUTER_MODEL_COMPETITOR)
+            candidates = [("deepseek", lambda: _openrouter_chat(sys_prompt, prompt, 900, s.OPENROUTER_MODEL_COMPETITOR))]
         elif name == "chatgpt":
-            provider, r = "gpt-4o", await _openrouter_chat(sys_prompt, prompt, 900, s.OPENROUTER_MODEL)
+            candidates = [("gpt-4o", lambda: _openrouter_chat(sys_prompt, prompt, 900, s.OPENROUTER_MODEL))]
         elif name == "claude":
-            provider, r = "claude", await _openrouter_chat(sys_prompt, prompt, 900, "anthropic/claude-3.5-sonnet")
+            candidates = [("claude", lambda: _openrouter_chat(sys_prompt, prompt, 900, "anthropic/claude-3.5-sonnet"))]
         else:
-            provider, r = "groq-llama", await _groq_chat(sys_prompt, prompt, 900)
+            candidates = [("groq-llama", lambda: _groq_chat(sys_prompt, prompt, 900))]
+
+        # Shared fallback pool (all providers we can reach without a platform key).
+        fallbacks = [
+            ("groq-llama", lambda: _groq_chat(sys_prompt, prompt, 900)),
+            ("openrouter", lambda: _openrouter_chat(sys_prompt, prompt, 900)),
+            ("cerebras-gemma", lambda: _cerebras_chat(sys_prompt, prompt, 900)),
+            ("gemini", lambda: _gemini_chat(sys_prompt, prompt, 900)),
+            ("openrouter-free", lambda: _openrouter_free_chat(sys_prompt, prompt, 900)),
+            ("mistral", lambda: _mistral_chat(sys_prompt, prompt, 900)),
+            ("nvidia", lambda: _nvidia_chat(sys_prompt, prompt, 900)),
+            ("github-models", lambda: _github_chat(sys_prompt, prompt, 900)),
+            ("sambanova", lambda: _sambanova_chat(sys_prompt, prompt, 900)),
+        ]
+
+        provider = ""
         text = ""
-        if isinstance(r, dict):
-            text = r.get("response") or r.get("answer") or r.get("content") or ""
-        text = str(text).strip()
+        tried = []
+        for prov, call in candidates + fallbacks:
+            tried.append(prov)
+            try:
+                r = await call()
+                text = _extract(r)
+            except Exception:
+                text = ""
+            if text:
+                provider = prov
+                break
         return {
             "platform": name,
             "provider": provider,
             "response_snippet": text[:600],
             "brand_mentioned": bool(brand and brand.lower() in text.lower()),
             "available": bool(text),
+            "tried": tried[:6],
         }
 
     results = {}
@@ -2287,6 +2321,25 @@ def _priority_for(issue) -> str:
     return "P3"
 
 
+_SEVERITY_IMPACT = {"CRITICAL": 92, "HIGH": 76, "MEDIUM": 52, "LOW": 28, "INFO": 15}
+
+
+def _fallback_impact(issue, ai_fix: dict | None = None) -> int:
+    """AI impact when generated, else a deterministic estimate from severity
+    so the UI never shows 0% just because a live provider was unavailable."""
+    if ai_fix and isinstance(ai_fix, dict):
+        pct = _clamp_pct(ai_fix.get("impact_pct"))
+        if pct:
+            return pct
+    pct = _clamp_pct(getattr(issue, "ai_impact_pct", 0) or 0)
+    if pct:
+        return pct
+    sev = (issue.severity or "").upper()
+    base = _SEVERITY_IMPACT.get(sev, 40)
+    affected = getattr(issue, "pages_affected", 1) or 1
+    return min(98, base + min(14, int(affected or 1) * 2))
+
+
 _TOOL_CATEGORIES = {
     "seo": ["SEO"],
     "speed": ["PERFORMANCE", "SPEED"],
@@ -2299,6 +2352,8 @@ _TOOL_CATEGORIES = {
     "security": ["SECURITY"],
     "social": ["SOCIAL"],
     "image": ["IMAGES", "IMAGE"],
+    "serp": ["GEO", "AI_SEARCH", "SEO", "TITLES", "META", "ON-PAGE"],
+    "ai-overviews": ["GEO", "AI_SEARCH", "CONTENT", "SEO"],
     "all": [],
 }
 
@@ -2367,7 +2422,7 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             "description": it.description, "impact": it.impact, "fix": it.fix,
             "root_cause": it.root_cause, "effort": it.effort, "fix_code": it.fix_code,
             "ai_generated": it.ai_generated or 0,
-            "ai_why": it.ai_why or "", "ai_impact_pct": it.ai_impact_pct or 0,
+            "ai_why": it.ai_why or "", "ai_impact_pct": _fallback_impact(it, fixes_by_id.get(it.id)),
             "ai_confidence": it.ai_confidence or 0, "priority": _priority_for(it),
         } for it in issues],
         "generated": len(fixes_by_id), "total": len(issues),
@@ -3755,13 +3810,7 @@ async def get_ai_overviews(audit_id: str, limit: int = 6, db: AsyncSession = Dep
 
     from app.config import settings
     if not settings.SERP_API_KEY:
-        return {
-            "configured": False,
-            "domain": host,
-            "message": "Set SERP_API_KEY (SerpAPI) in backend env to enable live AI Overview monitoring.",
-            "results": [],
-            "summary": {"keywords_checked": 0, "with_ai_overview": 0, "mentioned_in_ai_overview": 0},
-        }
+        return await _ai_overviews_estimate(audit_id, host, limit, db)
 
     kw_result = await db.execute(
         select(KeywordRecord).where(KeywordRecord.audit_id == audit_id).order_by(KeywordRecord.frequency.desc()).limit(limit)
@@ -3795,6 +3844,15 @@ async def get_ai_overviews(audit_id: str, limit: int = 6, db: AsyncSession = Dep
                     keywords.append(k)
         except Exception as e:
             logger.warning(f"AI Overviews keyword fallback failed: {e}")
+
+    if not keywords:
+        return {
+            "configured": True,
+            "domain": host,
+            "checked_at": _dt.datetime.utcnow().isoformat(),
+            "results": [],
+            "summary": {"keywords_checked": 0, "with_ai_overview": 0, "mentioned_in_ai_overview": 0},
+        }
 
     results = []
     try:
@@ -3849,6 +3907,85 @@ async def get_ai_overviews(audit_id: str, limit: int = 6, db: AsyncSession = Dep
         "configured": True,
         "domain": host,
         "checked_at": _dt.datetime.utcnow().isoformat(),
+        "results": results,
+        "summary": {"keywords_checked": len(results), "with_ai_overview": with_ao, "mentioned_in_ai_overview": mentioned},
+    }
+
+
+async def _ai_overviews_estimate(audit_id: str, host: str, limit: int, db: AsyncSession) -> dict:
+    """Built-in AI fallback for AI Overviews when SERP_API_KEY isn't configured.
+    Uses the app's own LLM providers to estimate whether the site would appear in
+    Google AI Overviews for its top keywords — real AI judgement, no external key."""
+    from app.engine.dual_ai import dual_ai_ai_overview
+
+    kw_result = await db.execute(
+        select(KeywordRecord).where(KeywordRecord.audit_id == audit_id).order_by(KeywordRecord.frequency.desc()).limit(limit)
+    )
+    keywords = [k.keyword for k in kw_result.scalars().all() if k.keyword and len(k.keyword) > 2][:limit]
+
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = pages_result.scalars().all()
+
+    if not keywords:
+        try:
+            from app.engine.keyword_research import KeywordResearchEngine
+            from app.engine.crawler import PageData
+            page_objects = []
+            for p in pages:
+                pd = PageData()
+                pd.url = p.url
+                pd.title = p.title or ""
+                pd.h1 = p.h1 or ""
+                pd.meta_description = p.meta_description or ""
+                pd.content_text = p.content_text or ""
+                pd.word_count = p.word_count or 0
+                page_objects.append(pd)
+            research = KeywordResearchEngine().analyze(pages=page_objects, competitor_pages=None, gsc_data=None)
+            candidates = research.get("keywords", []) if isinstance(research, dict) else []
+            for c in candidates[:limit]:
+                if isinstance(c, dict):
+                    k = c.get("keyword") or c.get("term")
+                else:
+                    k = str(c)
+                if k and len(k) > 2:
+                    keywords.append(k)
+        except Exception as e:
+            logger.warning(f"AI Overviews estimate keyword fallback failed: {e}")
+
+    site_snippet = " ".join((p.content_text or "")[:400] for p in pages[:10])[:3000]
+
+    results = []
+    for keyword in keywords[:limit]:
+        try:
+            ai = await asyncio.wait_for(dual_ai_ai_overview(keyword, host, site_snippet), timeout=20)
+            ai = ai or {}
+            if not isinstance(ai, dict):
+                ai = {}
+            ai_text = ai.get("ai_overview_text") or ""
+            mentioned = bool(ai.get("mentioned"))
+            results.append({
+                "keyword": keyword,
+                "has_ai_overview": bool(ai_text and len(ai_text) > 20),
+                "mentioned_in_ai_overview": mentioned,
+                "ai_overview_text": (str(ai_text)[:400] + "...") if ai_text else "",
+                "top_cited_domains": (ai.get("cited_domains") or [])[:5] if isinstance(ai.get("cited_domains"), list) else [],
+                "estimated": True,
+            })
+        except asyncio.TimeoutError:
+            logger.warning(f"AI Overviews estimate timed out for '{keyword}'")
+            results.append({"keyword": keyword, "has_ai_overview": False, "mentioned_in_ai_overview": False, "ai_overview_text": "", "estimated": True, "error": "AI estimate timed out"})
+        except Exception as e:
+            logger.warning(f"AI Overviews estimate failed for '{keyword}': {e}")
+            results.append({"keyword": keyword, "has_ai_overview": False, "mentioned_in_ai_overview": False, "ai_overview_text": "", "estimated": True, "error": str(e)})
+
+    with_ao = sum(1 for x in results if x.get("has_ai_overview"))
+    mentioned = sum(1 for x in results if x.get("mentioned_in_ai_overview"))
+    return {
+        "configured": True,
+        "estimated": True,
+        "domain": host,
+        "checked_at": _dt.datetime.utcnow().isoformat(),
+        "message": "Estimated by the built-in AI engine. Set SERP_API_KEY (SerpAPI) for live Google results.",
         "results": results,
         "summary": {"keywords_checked": len(results), "with_ai_overview": with_ao, "mentioned_in_ai_overview": mentioned},
     }
@@ -4788,10 +4925,12 @@ async def get_blog_ai(audit_id: str, db: AsyncSession = Depends(get_db)):
         page_objects.append(pd)
 
     kw_engine = KeywordResearchEngine()
-    kw_research = kw_engine.analyze(pages=page_objects)
+    kw_research = await asyncio.to_thread(kw_engine.analyze, pages=page_objects)
 
     blog_engine = BlogAIEngine()
-    result = blog_engine.analyze(pages=page_objects, keyword_research=kw_research)
+    result = await asyncio.to_thread(
+        blog_engine.analyze, pages=page_objects, keyword_research=kw_research
+    )
     _cache_set(cache_key, result)
     return result
 

@@ -259,7 +259,7 @@ export default function AiVisibility() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <Zap size={18} color="var(--accent, #3b82f6)" />
           <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text, #111827)', margin: 0 }}>Live AI Overviews Check</h2>
-          {aoData?.configured && <DataSourceBadge source="measured" size="xs" />}
+          {aoData?.configured && <DataSourceBadge source={aoData?.estimated ? 'estimated' : 'measured'} size="xs" />}
         </div>
 
         {!aoData ? (
@@ -273,6 +273,9 @@ export default function AiVisibility() {
           </div>
         ) : (
           <>
+            {aoData?.message && (
+              <div style={{ fontSize: 12, color: '#0e7490', marginBottom: 12, lineHeight: 1.5 }}>{aoData.message}</div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 14 }}>
               {[
                 { label: 'Keywords Checked', value: aoData.summary?.keywords_checked ?? 0, color: 'var(--accent, #3b82f6)' },
