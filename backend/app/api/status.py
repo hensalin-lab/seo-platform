@@ -7455,6 +7455,173 @@ async def save_core_web_vitals(audit_id: str, body: dict, db: AsyncSession = Dep
     }
 
 
+@router.post("/audit/{audit_id}/run-local-lighthouse")
+async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
+    """Run Lighthouse locally via Chrome (works when Google's cloud Lighthouse cannot render the page)."""
+    import os as _os, json as _json, shlex, subprocess as _subprocess
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    url = str(body.get("url") or audit.website_url or "").strip()
+    if url and not url.startswith("http"):
+        url = "https://" + url
+    if not url:
+        raise HTTPException(status_code=400, detail="No URL provided")
+
+    def _find_chrome():
+        candidates = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            _os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser",
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        ]
+        for c in candidates:
+            if _os.path.exists(c):
+                return c
+        return None
+
+    chrome = _find_chrome()
+    out_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))), f"lh_{audit_id[:8]}_{int(time.time())}.json")
+    base = ["npx", "lighthouse", url, "--output=json", f"--output-path={out_path}", "--quiet",
+            "--only-categories=performance", "--max-wait-for-load=60000"]
+    if chrome:
+        base += ["--headless", f"--chrome-path={chrome}", "--chrome-flags=--headless=new --no-sandbox --disable-gpu"]
+
+    try:
+        if _os.name == "nt":
+            full = " ".join(shlex.quote(a) for a in base)
+            proc = await asyncio.create_subprocess_exec("cmd", "/c", full, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL, creationflags=getattr(_subprocess, "CREATE_NO_WINDOW", 0))
+        else:
+            proc = await asyncio.create_subprocess_exec(*base, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL)
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=240)
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            raise HTTPException(status_code=504, detail="Local Lighthouse timed out after 4 minutes")
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="npx / Node.js is not available on this server")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to run local Lighthouse: {e}")
+
+    if not _os.path.exists(out_path):
+        raise HTTPException(status_code=502, detail="Lighthouse produced no output. The page may be unreachable or blocked headless Chrome.")
+    try:
+        with open(out_path, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not parse Lighthouse output: {e}")
+    finally:
+        try:
+            _os.remove(out_path)
+        except Exception:
+            pass
+
+    audits = (data.get("lighthouseResult") or data).get("audits") or {}
+
+    def _num(key):
+        v = (audits.get(key) or {}).get("numericValue")
+        return v if isinstance(v, (int, float)) else None
+
+    values = {
+        "lcp": _num("largest-contentful-paint"),
+        "cls": _num("cumulative-layout-shift"),
+        "inp": _num("interaction-to-next-paint"),
+        "fcp": _num("first-contentful-paint"),
+        "ttfb": _num("time-to-first-byte"),
+    }
+    if not any(v is not None for v in values.values()):
+        raise HTTPException(status_code=502, detail="Lighthouse completed but returned no Core Web Vitals metrics.")
+
+    source = "lighthouse"
+    assessment = {}
+    for k, t in _CWV_THRESHOLDS.items():
+        assessment[k] = {
+            "value": values[k],
+            "status": _cwv_status(values[k], t["good"], t["poor"]),
+            "label": t["label"],
+            "thresholds": {"good": t["good"], "poor": t["poor"]},
+            "source": source,
+        }
+
+    total_w = 0.0
+    acc = 0.0
+    for k in _CWV_THRESHOLDS:
+        if values[k] is None:
+            continue
+        total_w += _CWV_WEIGHTS[k]
+        acc += _CWV_WEIGHTS[k] * _CWV_SUB_SCORE[assessment[k]["status"]]
+    performance_score = round(acc / total_w) if total_w else 0
+
+    perf_cat = (data.get("lighthouseResult") or data).get("categories", {}).get("performance", {})
+    lighthouse_score = perf_cat.get("score")
+    if lighthouse_score is not None:
+        performance_score = round(lighthouse_score * 100)
+
+    suggestions = await _cwv_ai_suggestions(url, assessment, performance_score)
+
+    existing = await db.execute(select(CoreWebVitals).where(CoreWebVitals.audit_id == audit_id, CoreWebVitals.url == url).order_by(CoreWebVitals.created_at.desc()))
+    row = existing.scalars().first()
+    field_data = {
+        "_available": True,
+        "source": source,
+        "manual": False,
+        "assessment": assessment,
+        "ai_suggestions": suggestions,
+        "note": "Local Lighthouse run (Chrome on this machine)",
+    }
+    if row:
+        row.lcp_ms = values["lcp"]
+        row.inp_ms = values["inp"]
+        row.cls = values["cls"]
+        row.fcp_ms = values["fcp"]
+        row.ttfb_ms = values["ttfb"]
+        row.performance_score = performance_score
+        row.field_data = field_data
+        row.strategy = "mobile"
+        row.lab_data = {"source": "local-lighthouse"}
+    else:
+        row = CoreWebVitals(
+            audit_id=audit_id,
+            url=url,
+            strategy="mobile",
+            lcp_ms=values["lcp"],
+            cls=values["cls"],
+            inp_ms=values["inp"],
+            fcp_ms=values["fcp"],
+            ttfb_ms=values["ttfb"],
+            performance_score=performance_score,
+            field_data=field_data,
+            lab_data={"source": "local-lighthouse"},
+        )
+        db.add(row)
+    await db.commit()
+
+    return {
+        "url": url,
+        "strategy": "mobile",
+        "lcp_ms": values["lcp"],
+        "cls": values["cls"],
+        "inp_ms": values["inp"],
+        "fcp_ms": values["fcp"],
+        "ttfb_ms": values["ttfb"],
+        "performance_score": performance_score,
+        "assessment": {k: {kk: vv for kk, vv in v.items() if kk != "thresholds"} for k, v in assessment.items()},
+        "field_data": field_data,
+        "ai_suggestions": suggestions,
+        "source": source,
+    }
+
+
 @router.get("/audit/{audit_id}/ga4-traffic")
 async def get_ga4_traffic(audit_id: str, property_id: str = "", days: int = 28, db: AsyncSession = Depends(get_db)):
     from app.engine.ga4_engine import GA4Engine

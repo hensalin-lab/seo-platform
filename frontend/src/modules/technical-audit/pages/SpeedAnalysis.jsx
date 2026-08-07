@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
-import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw } from 'lucide-react'
+import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw, MonitorSmartphone } from 'lucide-react'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 
 const CWV_MAP = [
@@ -111,6 +111,7 @@ export default function SpeedAnalysis() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [fetchingCwv, setFetchingCwv] = useState(false)
+  const [runningLocal, setRunningLocal] = useState(false)
   const [cwvError, setCwvError] = useState(null)
   const [cwvData, setCwvData] = useState({})
   const [cwvSource, setCwvSource] = useState(null)
@@ -151,6 +152,20 @@ export default function SpeedAnalysis() {
   }, [id])
 
   useEffect(() => { loadCwv() }, [loadCwv])
+
+  const runLocal = async () => {
+    if (runningLocal) return
+    try {
+      setRunningLocal(true)
+      setCwvError(null)
+      await api.runLocalLighthouse(id, '')
+      await loadCwv()
+    } catch (err) {
+      setCwvError(err.message || 'Local Lighthouse run failed')
+    } finally {
+      setRunningLocal(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -253,6 +268,9 @@ export default function SpeedAnalysis() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
               <button onClick={loadCwv} disabled={fetchingCwv} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#1971c2', color: '#fff', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: fetchingCwv ? 'wait' : 'pointer' }}>
                 <RefreshCw size={14} className={fetchingCwv ? 'spin' : ''} /> {fetchingCwv ? 'Fetching from Google...' : 'Auto-fetch Core Web Vitals now'}
+              </button>
+              <button onClick={runLocal} disabled={runningLocal} title="Runs Lighthouse in Chrome on this server — works even when Google's cloud Lighthouse can't render the site" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#0b7285', color: '#fff', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: runningLocal ? 'wait' : 'pointer' }}>
+                <MonitorSmartphone size={14} /> {runningLocal ? 'Running local Chrome (~2 min)...' : 'Run Local Lighthouse (no Google needed)'}
               </button>
               <a
                 href={`https://pagespeed.web.dev/?url=${encodeURIComponent(data.siteUrl || '')}`}

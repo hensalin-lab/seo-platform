@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles, CloudDownload } from 'lucide-react';
+import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles, CloudDownload, MonitorSmartphone } from 'lucide-react';
 
 function cwvStatus(value, thresholds) {
   if (value === null || value === undefined) return { label: 'Unknown', cls: 'badge-gray' };
@@ -17,6 +17,7 @@ function CoreWebVitalsPanel({ auditId }) {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [fetchingLive, setFetchingLive] = useState(false);
+  const [runningLocal, setRunningLocal] = useState(false);
   const [form, setForm] = useState({ url: '', lcp_ms: '', inp_ms: '', cls: '', fcp_ms: '', ttfb_ms: '', source: 'lighthouse' });
 
   const loadCwv = async () => {
@@ -74,6 +75,21 @@ function CoreWebVitalsPanel({ auditId }) {
     }
   };
 
+  const runLocal = async () => {
+    if (runningLocal) return;
+    try {
+      setRunningLocal(true);
+      setError(null);
+      const saved = await api.runLocalLighthouse(auditId, form.url.trim());
+      setCwv(saved);
+      setShowForm(false);
+    } catch (err) {
+      setError(err.message || 'Local Lighthouse run failed');
+    } finally {
+      setRunningLocal(false);
+    }
+  };
+
   const saveCwv = async () => {
     if (saving) return;
     try {
@@ -128,6 +144,10 @@ function CoreWebVitalsPanel({ auditId }) {
         <button className="btn btn-primary btn-sm" onClick={fetchLive} disabled={fetchingLive} style={{ marginLeft: 'auto' }}>
           <CloudDownload size={14} style={{ marginRight: 4 }} />
           {fetchingLive ? 'Running Lighthouse in cloud (~30s)...' : 'Auto-fetch from PageSpeed Insights'}
+        </button>
+        <button className="btn btn-secondary btn-sm" onClick={runLocal} disabled={runningLocal} title="Runs Lighthouse in Chrome on this server — works even when Google's cloud Lighthouse can't render the site">
+          <MonitorSmartphone size={14} style={{ marginRight: 4 }} />
+          {runningLocal ? 'Running local Chrome (~2 min)...' : 'Run Local Lighthouse'}
         </button>
         <button className="btn btn-secondary btn-sm" onClick={() => setShowForm(s => !s)}>
           {showForm ? 'Cancel' : 'Enter Results'}

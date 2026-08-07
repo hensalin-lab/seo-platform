@@ -96,6 +96,10 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  runLocalLighthouse: (id, url = '') => request(`/audit/${id}/run-local-lighthouse`, {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  }),
   getEeatAnalysis: (id) => request(`/audit/${id}/eeat-analysis`),
   getConversionAnalysis: (id) => request(`/audit/${id}/conversion-analysis`),
   getHistory: (limit = 20, offset = 0) => request(`/audit/history?limit=${limit}&offset=${offset}`),
