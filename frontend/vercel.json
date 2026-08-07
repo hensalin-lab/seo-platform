@@ -2,7 +2,7 @@
     "rewrites":  [
                      {
                          "source":  "/api/:path*",
-                         "destination":  "https://starring-pac-soul-created.trycloudflare.com/api/:path*"
+                         "destination":  "https://athens-dom-concerned-trips.trycloudflare.com/api/:path*"
                      },
                      {
                          "source":  "/((?!api/|assets/).*)",
