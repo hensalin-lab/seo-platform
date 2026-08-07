@@ -39,27 +39,44 @@ class PageSpeedEngine:
     async def analyze(self, url: str, strategy: str = "mobile") -> dict:
         if not self.available:
             return self._empty_result(strategy)
+
+        lab_result = None
+        note = ""
+        field_result = {"_source": "crux", "_available": False, "_note": "CrUX returned no data"}
+
         try:
             async with httpx.AsyncClient(timeout=90) as client:
                 params = self._params({
                     "url": url,
                     "strategy": strategy,
-                    "category": "PERFORMANCE,ACCESSIBILITY,BEST_PRACTICES,SEO",
                 })
+                params["category"] = ["PERFORMANCE", "ACCESSIBILITY", "BEST_PRACTICES", "SEO"]
                 resp = await client.get(PAGESPEED_API, params=params)
                 if resp.status_code == 200:
-                    data = resp.json()
-                    lab_result = self._parse_result(data, strategy)
-                    field_result = await self._fetch_crux(client, url)
-                    lab_result["field_data"] = field_result
-                    lab_result["core_web_vitals"]["_assessment"] = self._assess_cwv(lab_result["core_web_vitals"], field_result)
-                    lab_result["performance_score"] = self._compute_performance_score(lab_result, field_result)
-                    return lab_result
-                logger.error(f"PageSpeed API error: {resp.status_code}")
-                return self._empty_result(strategy)
+                    lab_result = self._parse_result(resp.json(), strategy)
+                else:
+                    note = self._error_message(resp)
+                    logger.error(f"PageSpeed API error {resp.status_code} for {url}: {note}")
+                field_result = await self._fetch_crux(client, url)
         except Exception as e:
-            logger.error(f"PageSpeed analysis failed: {e}")
-            return self._empty_result(strategy)
+            logger.error(f"PageSpeed analysis failed for {url}: {e}")
+            note = str(e) or note
+
+        if lab_result is None:
+            lab_result = self._empty_result(strategy)
+            lab_result["note"] = note or "Google's Lighthouse could not render this page (headless Chrome failed to load it). CrUX real-user data may still be available."
+
+        lab_result["field_data"] = field_result
+        lab_result["core_web_vitals"]["_assessment"] = self._assess_cwv(lab_result["core_web_vitals"], field_result)
+        lab_result["performance_score"] = self._compute_performance_score(lab_result, field_result)
+        return lab_result
+
+    def _error_message(self, resp) -> str:
+        try:
+            body = resp.json()
+            return (body.get("error", {}).get("message") or "")[:300]
+        except Exception:
+            return ""
 
     async def _fetch_crux(self, client: httpx.AsyncClient, url: str) -> dict:
         try:
@@ -211,7 +228,7 @@ class PageSpeedEngine:
             "diagnostics": [],
             "final_url": "",
             "fetch_time": "",
-            "field_data": {"_source": "crux", "_available": False, "_note": "CrUX requires a Google API key"},
+            "field_data": {"_source": "crux", "_available": False, "_note": "CrUX returned no data"},
             "performance_score": 0,
-            "note": "PageSpeed API key not configured",
+            "note": "Lighthouse did not complete",
         }
