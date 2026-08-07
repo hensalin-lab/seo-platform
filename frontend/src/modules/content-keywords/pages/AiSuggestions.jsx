@@ -32,14 +32,21 @@ export default function AiSuggestions() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
 
   const load = useCallback(async (isGenerate = false) => {
     try {
       if (isGenerate) setGenerating(true);
       else setLoading(true);
       setError(null);
-      const result = await api.getToolSuggestions(id, { tool, limit: 10 });
-      setData(result);
+      setElapsed(0);
+      const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+      try {
+        const result = await api.getToolSuggestions(id, { tool, limit: 10 });
+        setData(result);
+      } finally {
+        clearInterval(timer);
+      }
     } catch (err) {
       setError(err.message || 'Failed to generate suggestions');
     } finally {
@@ -157,9 +164,16 @@ export default function AiSuggestions() {
             <Brain size={28} color="#7c3aed" />
           </div>
           <div style={{ fontSize: 15, color: 'var(--text-secondary)', fontWeight: 600 }}>AI is analyzing your site...</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Running local + cloud AI to score every issue</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 420 }}>
+            Running free local + cloud AI to score and write fixes for up to 10 issues.
+            This can take up to ~2 minutes on a cold run — it saves automatically.
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: '#7c3aed', fontWeight: 700 }}>
+            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#8b5cf6', animation: 'aiPulse 1.1s ease-in-out infinite' }} />
+            Working… {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')} elapsed
+          </div>
           <div style={{ width: 220, height: 7, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: '45%', borderRadius: 4, background: 'linear-gradient(90deg,#6366f1,#d946ef,#6366f1)', backgroundSize: '200% 100%', animation: 'shimmer 1.3s linear infinite' }} />
+            <div style={{ height: '100%', width: `${Math.min(95, Math.max(8, (elapsed % 45) / 45 * 95))}%`, borderRadius: 4, background: 'linear-gradient(90deg,#6366f1,#d946ef,#6366f1)', backgroundSize: '200% 100%', animation: 'shimmer 1.3s linear infinite', transition: 'width 1s ease' }} />
           </div>
         </div>
       )}
