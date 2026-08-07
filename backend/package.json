@@ -1,0 +1,7 @@
+{
+  "name": "seo-backend-tools",
+  "private": true,
+  "dependencies": {
+    "lighthouse": "^13.4.1"
+  }
+}

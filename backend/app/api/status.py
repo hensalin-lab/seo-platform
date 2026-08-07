@@ -7458,7 +7458,7 @@ async def save_core_web_vitals(audit_id: str, body: dict, db: AsyncSession = Dep
 @router.post("/audit/{audit_id}/run-local-lighthouse")
 async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
     """Run Lighthouse locally via Chrome (works when Google's cloud Lighthouse cannot render the page)."""
-    import os as _os, json as _json, shlex, subprocess as _subprocess
+    import os as _os, json as _json, time as _time, subprocess as _subprocess, shutil
     result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = result.scalar_one_or_none()
     if not audit:
@@ -7486,18 +7486,19 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
         return None
 
     chrome = _find_chrome()
-    out_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))), f"lh_{audit_id[:8]}_{int(time.time())}.json")
-    base = ["npx", "lighthouse", url, "--output=json", f"--output-path={out_path}", "--quiet",
+    backend_dir = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    out_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))), f"lh_{audit_id[:8]}_{int(_time.time())}.json")
+    node = shutil.which("node")
+    cli = _os.path.join(backend_dir, "node_modules", "lighthouse", "cli", "index.js")
+    if not node or not _os.path.exists(cli):
+        raise HTTPException(status_code=500, detail="Node.js or Lighthouse CLI is not installed (run `npm install` in backend/)")
+    base = [node, cli, url, "--output=json", f"--output-path={out_path}", "--quiet",
             "--only-categories=performance", "--max-wait-for-load=60000"]
     if chrome:
         base += ["--headless", f"--chrome-path={chrome}", "--chrome-flags=--headless=new --no-sandbox --disable-gpu"]
 
     try:
-        if _os.name == "nt":
-            full = " ".join(shlex.quote(a) for a in base)
-            proc = await asyncio.create_subprocess_exec("cmd", "/c", full, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL, creationflags=getattr(_subprocess, "CREATE_NO_WINDOW", 0))
-        else:
-            proc = await asyncio.create_subprocess_exec(*base, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL)
+        proc = await asyncio.create_subprocess_exec(*base, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL, creationflags=getattr(_subprocess, "CREATE_NO_WINDOW", 0))
         try:
             await asyncio.wait_for(proc.wait(), timeout=240)
         except asyncio.TimeoutError:
@@ -7509,10 +7510,12 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
     except HTTPException:
         raise
     except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="npx / Node.js is not available on this server")
+        raise HTTPException(status_code=500, detail="Node.js is not available on this server")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to run local Lighthouse: {e}")
 
+    # Lighthouse may exit non-zero due to harmless temp-dir cleanup errors (EPERM on Windows);
+    # the audit output file is still produced, so key off the file, not the exit code.
     if not _os.path.exists(out_path):
         raise HTTPException(status_code=502, detail="Lighthouse produced no output. The page may be unreachable or blocked headless Chrome.")
     try:
