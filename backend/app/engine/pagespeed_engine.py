@@ -10,9 +10,18 @@ CRUX_API = "https://chromeuxreport.googleapis.com/v1/records:queryRecord"
 CWV_THRESHOLDS = {
     "largest-contentful-paint": {"good": 2500, "poor": 4000, "label": "LCP"},
     "cumulative-layout-shift": {"good": 0.1, "poor": 0.25, "label": "CLS"},
-    "interaction_to_next_paint": {"good": 200, "poor": 500, "label": "INP"},
+    "interaction-to-next-paint": {"good": 200, "poor": 500, "label": "INP"},
     "first-contentful-paint": {"good": 1800, "poor": 3000, "label": "FCP"},
-    "time_to_first_byte": {"good": 800, "poor": 1800, "label": "TTFB"},
+    "time-to-first-byte": {"good": 800, "poor": 1800, "label": "TTFB"},
+}
+
+# Maps Lighthouse metric ids (kebab-case) to the keys CrUX returns (snake_case)
+_CRUX_FIELD_KEY = {
+    "largest-contentful-paint": "largest_contentful_paint",
+    "cumulative-layout-shift": "cumulative_layout_shift",
+    "interaction-to-next-paint": "interaction_to_next_paint",
+    "first-contentful-paint": "first_contentful_paint",
+    "time-to-first-byte": "time_to_first_byte",
 }
 
 
@@ -46,17 +55,22 @@ class PageSpeedEngine:
 
         try:
             async with httpx.AsyncClient(timeout=90) as client:
-                params = self._params({
-                    "url": url,
-                    "strategy": strategy,
-                })
-                params["category"] = ["PERFORMANCE", "ACCESSIBILITY", "BEST_PRACTICES", "SEO"]
-                resp = await client.get(PAGESPEED_API, params=params)
-                if resp.status_code == 200:
-                    lab_result = self._parse_result(resp.json(), strategy)
-                else:
-                    note = self._error_message(resp)
-                    logger.error(f"PageSpeed API error {resp.status_code} for {url}: {note}")
+                try:
+                    params = self._params({
+                        "url": url,
+                        "strategy": strategy,
+                    })
+                    params["category"] = ["PERFORMANCE", "ACCESSIBILITY", "BEST_PRACTICES", "SEO"]
+                    resp = await client.get(PAGESPEED_API, params=params)
+                    if resp.status_code == 200:
+                        lab_result = self._parse_result(resp.json(), strategy)
+                    else:
+                        note = self._error_message(resp)
+                        logger.error(f"PageSpeed API error {resp.status_code} for {url}: {note}")
+                except Exception as e:
+                    logger.error(f"PageSpeed analysis failed for {url}: {e}")
+                    note = str(e) or note
+                # Always attempt CrUX real-user data, even if the lab run failed.
                 field_result = await self._fetch_crux(client, url)
         except Exception as e:
             logger.error(f"PageSpeed analysis failed for {url}: {e}")
@@ -86,7 +100,7 @@ class PageSpeedEngine:
                 "metrics": [
                     "largest_contentful_paint", "cumulative_layout_shift",
                     "interaction_to_next_paint", "first_contentful_paint",
-                    "time_to_first_byte", "experimental_time_to_first_byte",
+                    "experimental_time_to_first_byte",
                 ],
             }
             resp = await client.post(CRUX_API, json=payload, params=self._params({}), timeout=30)
@@ -97,10 +111,17 @@ class PageSpeedEngine:
             metrics = record.get("metrics", {})
             result = {"_source": "crux", "_available": True}
             for key, m in metrics.items():
+                if key == "experimental_time_to_first_byte":
+                    key = "time_to_first_byte"
                 percentiles = m.get("percentiles", {})
                 histogram = m.get("histogram", [])
+                raw_p75 = percentiles.get("p75")
+                try:
+                    p75 = float(raw_p75)
+                except (TypeError, ValueError):
+                    p75 = raw_p75
                 result[key] = {
-                    "p75": percentiles.get("p75"),
+                    "p75": p75,
                     "histogram": histogram,
                 }
             return result
@@ -115,16 +136,19 @@ class PageSpeedEngine:
             ("cumulative-layout-shift", "CLS"),
             ("interaction-to-next-paint", "INP"),
         ]:
+            thresholds = CWV_THRESHOLDS.get(key)
+            if not thresholds:
+                continue
+            field_key = _CRUX_FIELD_KEY.get(key)
             value = None
             source = "unknown"
-            if field_data and field_data.get("_available") and field_data.get(key):
-                value = field_data[key].get("p75")
+            if field_data and field_data.get("_available") and field_key and field_data.get(field_key):
+                value = field_data[field_key].get("p75")
                 source = "field"
             elif lab_metrics.get(key):
                 value = lab_metrics[key].get("numeric_value")
                 source = "lab"
             if value is not None:
-                thresholds = CWV_THRESHOLDS.get(key)
                 if value <= thresholds["good"]:
                     status = "good"
                 elif value < thresholds["poor"]:
@@ -145,8 +169,9 @@ class PageSpeedEngine:
         counts = 0
         if field_data and field_data.get("_available"):
             for key in CWV_THRESHOLDS:
-                if field_data.get(key):
-                    value = field_data[key].get("p75")
+                field_key = _CRUX_FIELD_KEY.get(key)
+                if field_key and field_data.get(field_key):
+                    value = field_data[field_key].get("p75")
                     if value is not None:
                         status = self._cwv_status(key, value)
                         score += {"good": 100, "needs_improvement": 50, "poor": 10}.get(status, 0)
