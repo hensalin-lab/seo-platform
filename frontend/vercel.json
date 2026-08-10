@@ -2,7 +2,7 @@
     "rewrites":  [
                      {
                          "source":  "/api/:path*",
-                         "destination":  "https://athens-dom-concerned-trips.trycloudflare.com/api/:path*"
+                         "destination":  "https://zooming-smile-production-9693.up.railway.app/api/:path*"
                      },
                      {
                          "source":  "/((?!api/|assets/).*)",

@@ -1,4 +1,5 @@
 import os
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -11,6 +12,13 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./seo_platform.db"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.5-flash"
@@ -103,6 +111,7 @@ class Settings(BaseSettings):
         "https://seo-platform-e89q0082h-seo-tools1.vercel.app",
         "https://seo-platform-jr83tb3xw-seo-tools1.vercel.app",
         "https://seo-platform-de0dwy0qd-seo-tools1.vercel.app",
+        "https://frontend-one-sand-27.vercel.app",
     ]
 
     AI_TIMEOUT: int = 45
