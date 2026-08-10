@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw, MonitorSmartphone } from 'lucide-react'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
+import FixDetail from '../../../components/FixDetail'
 
 const CWV_MAP = [
   { key: 'lcp', value: null, unit: 'ms', good: 2500, poor: 4000 },
@@ -83,9 +84,9 @@ function IssueRow({ issue }) {
         </span>
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{issue.title || issue.message}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{issue.title || issue.signal || issue.description || issue.message}</div>
         {issue.impact && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Impact: {issue.impact}</div>}
-        {issue.fix && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{issue.fix}</div>}
+        {issue.fix && <FixDetail issue={issue} />}
       </div>
       {issue.time && (
         <div style={{ fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{issue.time}</div>
@@ -359,7 +360,7 @@ export default function SpeedAnalysis() {
             {data.speedIssues.slice(0, 6).map((issue, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-light)', alignItems: 'center' }}>
                 <span className={`badge ${issue.severity === 'CRITICAL' ? 'badge-red' : issue.severity === 'HIGH' ? 'badge-yellow' : 'badge-blue'}`} style={{ fontSize: 10 }}>{issue.severity}</span>
-                <span style={{ fontSize: 13, flex: 1 }}>{issue.title}</span>
+                <span style={{ fontSize: 13, flex: 1 }}>{issue.title || issue.signal || issue.description || issue.message}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{issue.time}</span>
               </div>
             ))}

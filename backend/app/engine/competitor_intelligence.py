@@ -21,6 +21,10 @@ class CompetitorCrawler:
         if not pages:
             return self._empty_profile(competitor_url)
 
+        pages = [p for p in pages if isinstance(p, dict)]
+        if not pages:
+            return self._empty_profile(competitor_url)
+
         domain = urlparse(competitor_url).netloc.replace("www.", "")
 
         # Pages analysis

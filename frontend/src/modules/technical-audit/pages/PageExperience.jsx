@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import DataSourceBadge from '../../../components/DataSourceBadge';
 import { Activity, AlertTriangle, CheckCircle, XCircle, Gauge, Zap } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 export default function PageExperience() {
   const { id } = useParams();
@@ -143,7 +144,7 @@ export default function PageExperience() {
               </div>
               {issue.page_url && <div className="issue-url">{issue.page_url}</div>}
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              {issue.fix && <FixDetail issue={issue} />}
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3, Info } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 export default function BacklinkProfile() {
   const { id } = useParams();
@@ -181,7 +182,7 @@ export default function BacklinkProfile() {
                 <span className={`badge ${issue.severity === 'HIGH' ? 'badge-red' : issue.severity === 'MEDIUM' ? 'badge-yellow' : 'badge-green'}`}>{issue.severity}</span>
               </div>
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              <FixDetail issue={issue} />
             </div>
           ))}
         </div>

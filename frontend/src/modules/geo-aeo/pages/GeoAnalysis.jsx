@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Globe, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Sparkles, Target, Info, Shield, Brain, FileText, Link2, Zap } from 'lucide-react';
 import { api } from '../../../api';
+import FixDetail from '../../../components/FixDetail';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -73,14 +74,7 @@ function IssueCard({ issue }) {
               <div style={{ fontSize: 13, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.6 }}>{issue.impact}</div>
             </div>
           )}
-          {issue.fix && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Exact Fix</div>
-              <div style={{ fontSize: 13, color: 'var(--green, #22c55e)', lineHeight: 1.6, fontWeight: 500, padding: '10px 14px', background: 'rgba(34,197,94,0.06)', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid rgba(34,197,94,0.15)' }}>
-                {issue.fix}
-              </div>
-            </div>
-          )}
+          {issue.fix && <FixDetail issue={issue} />}
         </div>
       )}
     </div>
@@ -107,7 +101,7 @@ function SignalCard({ name, signal }) {
   );
 }
 
-function QuickCheck({ label, passed, fix }) {
+function QuickCheck({ label, passed, fix, aiSuggestion }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 16px',
@@ -121,8 +115,22 @@ function QuickCheck({ label, passed, fix }) {
         <AlertTriangle size={18} color="var(--red, #ef4444)" style={{ marginTop: 1, flexShrink: 0 }} />
       )}
       <div style={{ flex: 1 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: passed ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)' }}>{label}</span>
-        {!passed && fix && <div style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)', marginTop: 2 }}>{fix}</div>}
+        <span style={{ fontSize: 13, fontWeight: 600, color: passed ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)' }}>{label}</span>
+        {!passed && fix && (
+          <div style={{ marginTop: 8, padding: '10px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 'var(--radius-sm, 6px)' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>How to Correct</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.5 }}>{fix}</div>
+          </div>
+        )}
+        {!passed && aiSuggestion && (
+          <div style={{ marginTop: 6, padding: '10px 12px', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 'var(--radius-sm, 6px)', display: 'flex', gap: 8 }}>
+            <Sparkles size={13} color="#8b5cf6" style={{ marginTop: 1, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>AI Suggestion</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.5 }}>{aiSuggestion}</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -217,12 +225,12 @@ export default function GeoAnalysis() {
   ).filter(([, s]) => (s.score ?? 0) < 0.5);
 
   const quickChecks = [
-    { label: 'AI-citable content structure', passed: !!signals.ai_citable_content || !!signals.citable_passages, fix: 'Structure content with clear headings, bullet points, and summary paragraphs that AI can easily extract and cite.' },
-    { label: 'Source attribution & references', passed: !!signals.source_attribution || !!signals.citations, fix: 'Add "According to [source]" references and link to authoritative sources in your content.' },
-    { label: 'Statistics & data points', passed: !!signals.statistics || !!signals.data_points, fix: 'Include specific numbers, percentages, and data points with attribution from reliable sources.' },
-    { label: 'Comprehensive topic coverage', passed: !!signals.topic_coverage || !!signals.content_depth, fix: 'Expand content to cover subtopics thoroughly — aim for 1500+ words with multiple H2/H3 sections.' },
-    { label: 'Structured data for AI parsing', passed: !!signals.structured_data || !!signals.schema_markup, fix: 'Add FAQPage, Article, or HowTo schema markup to help AI engines parse your content.' },
-    { label: 'Freshness & recency signals', passed: !!signals.freshness || !!signals.content_freshness, fix: 'Add "Last Updated" dates and refresh content quarterly to signal freshness to AI crawlers.' },
+    { label: 'AI-citable content structure', passed: !!signals.ai_citable_content || !!signals.citable_passages, fix: 'Structure content with clear headings, bullet points, and summary paragraphs that AI can easily extract and cite.', aiSuggestion: 'Rewrite the page like a well-structured answer: an H1 with a summary, one H2 per subtopic, bullet lists for key points, and a short "Key Takeaways" section so ChatGPT and Perplexity can quote your page directly.' },
+    { label: 'Source attribution & references', passed: !!signals.source_attribution || !!signals.citations, fix: 'Add "According to [source]" references and link to authoritative sources in your content.', aiSuggestion: 'Add inline citations such as "According to Google\u2019s Search documentation\u2026" with a link to the primary source. AI models treat named, verifiable sources as trust signals and cite them far more often than unsourced claims.' },
+    { label: 'Statistics & data points', passed: !!signals.statistics || !!signals.data_points, fix: 'Include specific numbers, percentages, and data points with attribution from reliable sources.', aiSuggestion: 'Add concrete figures with attribution, e.g. "Sites with 1500+ word guides earn 3x more AI citations (study, 2024)". Specific numbers are the most quoted content in AI answers.' },
+    { label: 'Comprehensive topic coverage', passed: !!signals.topic_coverage || !!signals.content_depth, fix: 'Expand content to cover subtopics thoroughly — aim for 1500+ words with multiple H2/H3 sections.', aiSuggestion: 'Expand to 1500+ words covering every sub-question of the topic: add an FAQ block, related subheadings (H2/H3), and answer the exact wording people type into search. Full topic coverage makes your page the reference answer.' },
+    { label: 'Structured data for AI parsing', passed: !!signals.structured_data || !!signals.schema_markup, fix: 'Add FAQPage, Article, or HowTo schema markup to help AI engines parse your content.', aiSuggestion: 'Add FAQPage and Article JSON-LD schema, then validate it in Google\u2019s Rich Results Test. Structured data lets both Google and AI engines extract your questions and answers directly.' },
+    { label: 'Freshness & recency signals', passed: !!signals.freshness || !!signals.content_freshness, fix: 'Add "Last Updated" dates and refresh content quarterly to signal freshness to AI crawlers.', aiSuggestion: 'Add a visible "Last Updated: [date]" line and update key pages quarterly with the latest stats. AI models and Google both favor current content when citing sources.' },
   ];
 
   return (

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FileText, AlertTriangle, CheckCircle, TrendingUp, Target, Zap, ArrowRight, Clock, Brain, BarChart3, Plus, ExternalLink, Search, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { api } from '../../../api';
+import FixDetail from '../../../components/FixDetail';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -111,14 +112,7 @@ function IssueCard({ issue, index }) {
               <div style={{ fontSize: 13, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.6 }}>{issue.impact}</div>
             </div>
           )}
-          {issue.fix && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Exact Fix</div>
-              <div style={{ fontSize: 13, color: 'var(--green, #22c55e)', lineHeight: 1.6, fontWeight: 500, padding: '10px 14px', background: 'rgba(34,197,94,0.06)', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid rgba(34,197,94,0.15)' }}>
-                {issue.fix}
-              </div>
-            </div>
-          )}
+          {issue.fix && <FixDetail issue={issue} />}
         </div>
       )}
     </div>

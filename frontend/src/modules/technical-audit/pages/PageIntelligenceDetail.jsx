@@ -23,6 +23,7 @@ import {
   Tag,
   Lightbulb,
 } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 const SCORE_COLORS = {
   excellent: '#059669',
@@ -267,6 +268,20 @@ export default function PageIntelligenceDetail() {
     : Object.entries(rawIssues).flatMap(([cat, arr]) =>
         (Array.isArray(arr) ? arr : []).map(issue => ({ ...issue, category: issue.category || cat }))
       );
+  const quickWinsFallback = (quickWins.length === 0 && issues.length > 0)
+    ? issues.slice(0, 5).map(issue => ({
+        title: issue.signal_name || issue.title || issue.issue || 'Priority fix',
+        description: issue.fix || issue.impact || issue.description || `Resolve the '${issue.signal_name || 'issue'}' on this page.`,
+        impact: issue.impact,
+        severity: issue.severity,
+        fix: issue.fix,
+        location: issue.location,
+        exact_text: issue.exact_text,
+        replacement: issue.replacement,
+        steps: issue.steps,
+      }))
+    : [];
+  const quickWinsToShow = quickWins.length > 0 ? quickWins : quickWinsFallback;
   const recommendations = data.recommendations || [];
   const headings = data.headings || data.heading_structure || [];
   const metadata = data.page_data || data.metadata || data.page_metadata || {};
@@ -386,7 +401,7 @@ export default function PageIntelligenceDetail() {
                 <div style={{ fontSize: 12, color: 'var(--cyan)', marginTop: 4 }}>Impact: {issue.impact}</div>
               )}
               {issue.fix && (
-                <div className="issue-fix">Fix: {issue.fix}</div>
+                <FixDetail issue={issue} />
               )}
             </div>
           ))}
@@ -521,29 +536,32 @@ export default function PageIntelligenceDetail() {
       </div>
 
       {/* Quick Wins */}
-      {quickWins.length > 0 && (
+      {quickWinsToShow.length > 0 && (
         <div className="card" style={{ marginBottom: 20, borderLeft: '3px solid var(--yellow)' }}>
           <div className="card-header">
             <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Zap size={18} style={{ color: 'var(--yellow)' }} /> Quick Wins
             </h2>
-            <span className="badge badge-yellow">{quickWins.length}</span>
+            <span className="badge badge-yellow">{quickWinsToShow.length}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
-            {quickWins.map((qw, i) => (
+            {quickWinsToShow.map((qw, i) => (
               <div key={i} className="rec-card" style={{ borderTop: '2px solid var(--yellow-bg)' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
-                  {typeof qw === 'string' ? qw : qw.title || qw.message || qw.text}
+                  {typeof qw === 'string' ? qw : qw.title || qw.message || qw.text || qw.issue || qw.fix}
                 </div>
-                {typeof qw === 'object' && (qw.description || qw.detail || qw.impact) && (
+                {typeof qw === 'object' && (qw.description || qw.detail || qw.impact || qw.fix) && (
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {qw.description || qw.detail || qw.impact}
+                    {qw.description || qw.detail || qw.impact || qw.fix}
                   </div>
                 )}
                 {typeof qw === 'object' && qw.effort && (
                   <div style={{ marginTop: 6, fontSize: 11, color: 'var(--cyan)', fontWeight: 500 }}>
                     Effort: {qw.effort}
                   </div>
+                )}
+                {typeof qw === 'object' && (qw.fix || qw.location || qw.steps) && (
+                  <div style={{ marginTop: 8 }}><FixDetail issue={qw} /></div>
                 )}
               </div>
             ))}
@@ -587,7 +605,7 @@ export default function PageIntelligenceDetail() {
                       </div>
                     )}
                     {issue.fix && (
-                      <div className="issue-fix">Fix: {issue.fix}</div>
+                      <FixDetail issue={issue} />
                     )}
                     {issue.element && (
                       <code style={{ display: 'block', marginTop: 6, fontSize: 11, background: 'var(--bg-secondary)', padding: '6px 10px', borderRadius: 4, color: 'var(--text-secondary)', overflow: 'auto' }}>

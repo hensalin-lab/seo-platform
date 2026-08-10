@@ -142,46 +142,71 @@ class PageIntelligenceEngine:
     # ---------- 1. googlebot_view ----------
 
     def _googlebot_view(self, html: str, page: dict) -> dict:
-        rendered_size = len(html.encode("utf-8", errors="replace"))
-        js_patterns = [
-            r"document\.write",
-            r"window\.location\s*=",
-            r"location\.href\s*=",
-            r"setTimeout\s*\(",
-            r"setInterval\s*\(",
-            r"XMLHttpRequest",
-            r"fetch\s*\(",
-            r"\.ajax\s*\(",
-            r"addEventListener\s*\(\s*['\"]load['\"]",
-            r"DOMContentLoaded",
-        ]
-        js_required = any(re.search(p, html, re.I) for p in js_patterns)
+        html_present = bool(html and html.strip())
+        signals = page.get("signals", {}) or {}
+        js_signals = signals.get("js_signals", {}) or {}
 
-        render_blocking = self._count_pattern(html, r'<script\s[^>]*(?!async|defer)[^>]*src=["\']') > 0
+        if html_present:
+            rendered_size = len(html.encode("utf-8", errors="replace"))
+            js_patterns = [
+                r"document\.write",
+                r"window\.location\s*=",
+                r"location\.href\s*=",
+                r"setTimeout\s*\(",
+                r"setInterval\s*\(",
+                r"XMLHttpRequest",
+                r"fetch\s*\(",
+                r"\.ajax\s*\(",
+                r"addEventListener\s*\(\s*['\"]load['\"]",
+                r"DOMContentLoaded",
+            ]
+            js_required = any(re.search(p, html, re.I) for p in js_patterns)
 
-        resource_blocking = (
-            self._count_pattern(html, r'<link\s[^>]*rel=["\']stylesheet["\'][^>]*href=["\']') > 2
-            or render_blocking
-        )
+            render_blocking = self._count_pattern(html, r'<script\s[^>]*(?!async|defer)[^>]*src=["\']') > 0
 
-        server_rendered = bool(re.search(r"__NEXT_DATA__|__NUXT__|__APP_DATA__|window\.__PRELOADED_STATE__", html))
+            resource_blocking = (
+                self._count_pattern(html, r'<link\s[^>]*rel=["\']stylesheet["\'][^>]*href=["\']') > 2
+                or render_blocking
+            )
 
-        meta_tags = bool(
-            self._meta_content(html, "description")
-            or self._meta_property(html, "og:description")
-        )
+            server_rendered = bool(re.search(r"__NEXT_DATA__|__NUXT__|__APP_DATA__|window\.__PRELOADED_STATE__", html))
 
-        canonical = re.search(r'<link\s[^>]*rel=["\']canonical["\'][^>]*href=["\']([^"\']+)["\']', html, re.I)
-        canonical_correct = bool(canonical)
+            meta_tags = bool(
+                self._meta_content(html, "description")
+                or self._meta_property(html, "og:description")
+            )
 
-        robots = self._meta_content(html, "robots").lower()
-        robots_directive = robots if robots else "index, follow"
+            canonical = re.search(r'<link\s[^>]*rel=["\']canonical["\'][^>]*href=["\']([^"\']+)["\']', html, re.I)
+            canonical_correct = bool(canonical)
 
-        sitemap_inclusion = not any(
-            term in robots for term in ["noindex", "nosnippet"]
-        )
+            robots = self._meta_content(html, "robots").lower()
+            robots_directive = robots if robots else "index, follow"
+
+            sitemap_inclusion = not any(
+                term in robots for term in ["noindex", "nosnippet"]
+            )
+        else:
+            # Completed audits clear raw HTML to reclaim disk space, so the
+            # byte-level checks below are derived from the stored crawl snapshot.
+            content = page.get("content_text", "") or ""
+            rendered_with_js = bool(signals.get("rendered_with_js"))
+            external_scripts = int(js_signals.get("external_scripts", 0) or 0)
+            word_count = int(page.get("word_count", 0) or 0)
+
+            rendered_size = max(len(content.encode("utf-8", errors="replace")) * 4, word_count * 40)
+            js_required = bool(rendered_with_js)
+            resource_blocking = bool(external_scripts > 3)
+            server_rendered = bool(not rendered_with_js and word_count > 0)
+            meta_tags = bool(page.get("meta_description") or (page.get("open_graph") or {}).get("description"))
+            canonical_correct = bool(page.get("canonical"))
+            robots = str(signals.get("robots_meta") or "").lower()
+            robots_directive = robots if robots else "index, follow"
+            sitemap_inclusion = not any(
+                term in robots for term in ["noindex", "nosnippet"]
+            )
 
         return {
+            "html_available": html_present,
             "rendered_html_size": rendered_size,
             "javascript_required": js_required,
             "resource_blocking": resource_blocking,

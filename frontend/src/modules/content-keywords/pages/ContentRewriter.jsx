@@ -12,6 +12,7 @@ import {
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
+import GooglebotView from '../../../components/GooglebotView';
 
 const GOOGLE_TABS = [
   { key: 'googlebot', label: 'Googlebot', icon: Globe },
@@ -488,22 +489,7 @@ function SerpPreview({ title, url, description }) {
 
 function GoogleCrawlView({ sv }) {
   if (!sv) return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 11 }}>Loading Google crawl data...</div>;
-  return (
-    <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Globe size={16} color="#3b82f6" /> How Google Sees This Page
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>This is exactly what Googlebot crawls, indexes, and uses to rank your page</div>
-      {Object.entries(sv.googlebot_view || {}).map(([key, value]) => {
-        if (value === null || value === undefined) return null;
-        if (typeof value === 'boolean') return <BoolField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={value} />;
-        if (typeof value === 'number') return <MetricField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={value} />;
-        if (Array.isArray(value)) return <ListView key={key} items={value} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} />;
-        if (typeof value === 'object') return <MetricField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={JSON.stringify(value).slice(0, 100)} />;
-        return <MetricField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={String(value)} />;
-      })}
-    </div>
-  );
+  return <GooglebotView data={sv.googlebot_view || {}} />;
 }
 
 function MissingSignalsView({ signals }) {
@@ -695,6 +681,21 @@ function IssueCard({ issue, index }) {
           {issue.what_wrong && <div style={{ padding: '6px 8px', background: '#fef2f2', borderRadius: 5, border: '1px solid #fecaca', marginBottom: 4, fontSize: 10, color: '#7f1d1d', lineHeight: 1.5 }}><strong>What is wrong:</strong> {issue.what_wrong}</div>}
           {issue.why_it_matters && <div style={{ padding: '6px 8px', background: '#fef3c7', borderRadius: 5, border: '1px solid #fde68a', marginBottom: 4, fontSize: 10, color: '#78350f', lineHeight: 1.5 }}><strong>Why it matters:</strong> {issue.why_it_matters}</div>}
           {issue.how_to_fix && <div style={{ padding: '6px 8px', background: '#f0fdf4', borderRadius: 5, border: '1px solid #bbf7d0', marginBottom: 4, fontSize: 10, color: '#065f46', lineHeight: 1.5 }}><strong>How to fix:</strong> {issue.how_to_fix}</div>}
+          {issue.location && <div style={{ padding: '6px 8px', background: '#eff6ff', borderRadius: 5, border: '1px solid #bfdbfe', marginBottom: 4, fontSize: 10, color: '#1e40af', lineHeight: 1.5 }}><strong>Where:</strong> {issue.location}</div>}
+          {issue.exact_text && <div style={{ padding: '6px 8px', background: '#1e293b', borderRadius: 5, border: '1px solid #334155', marginBottom: 4, fontSize: 10, color: '#fda4af', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><strong style={{ color: '#f87171' }}>Current text:</strong> {issue.exact_text}</div>}
+          {issue.replacement && <div style={{ padding: '6px 8px', background: '#f0fdf4', borderRadius: 5, border: '1px solid #bbf7d0', marginBottom: 4, fontSize: 10, color: '#065f46', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><strong style={{ color: '#059669' }}>Replace with:</strong> {issue.replacement}</div>}
+          {issue.fix && <div style={{ padding: '6px 8px', background: '#fefce8', borderRadius: 5, border: '1px solid #fef08a', marginBottom: 4, fontSize: 10, color: '#713f12', lineHeight: 1.5 }}><strong>Fix:</strong> {issue.fix}</div>}
+          {Array.isArray(issue.steps) && issue.steps.length > 0 && (
+            <div style={{ marginBottom: 4 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 3 }}>STEPS</div>
+              {issue.steps.map((s, si) => (
+                <div key={si} style={{ display: 'flex', gap: 6, fontSize: 10, color: '#334155', lineHeight: 1.5, marginBottom: 2 }}>
+                  <span style={{ flexShrink: 0, width: 16, height: 16, borderRadius: 8, background: '#3b82f6', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700 }}>{si + 1}</span>
+                  <span>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {(issue.before_code || issue.after_code || issue.code_example) && (
             <div style={{ display: 'grid', gridTemplateColumns: issue.before_code && issue.after_code ? '1fr 1fr' : '1fr', gap: 4, marginTop: 4 }}>
               {issue.before_code && <div style={{ background: '#1e293b', borderRadius: 5, padding: 6 }}><div style={{ fontSize: 7, color: '#f87171', marginBottom: 1, fontWeight: 700 }}>BEFORE</div><pre style={{ fontSize: 9, color: '#e2e8f0', margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{issue.before_code}</pre></div>}

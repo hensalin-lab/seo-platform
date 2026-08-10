@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { MessageCircle, AlertTriangle, CheckCircle, XCircle, Zap, HelpCircle, ListChecks } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 export default function AeoAnalysis() {
   const { id } = useParams();
@@ -224,7 +225,7 @@ export default function AeoAnalysis() {
                     <strong>Impact:</strong> {issue.impact}
                   </div>
                 )}
-                {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+                {issue.fix && <FixDetail issue={issue} />}
               </div>
             ))
           )}

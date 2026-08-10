@@ -8,6 +8,8 @@ import {
   ChevronDown, ChevronRight, Eye, Sparkles, Target, Lightbulb, Zap,
   TrendingUp, BarChart3, Clock, Users, Image, Database,
 } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
+import GooglebotView from '../../../components/GooglebotView';
 
 const TAB_GROUPS = [
   { label: 'Google Sees', tabs: [
@@ -88,26 +90,6 @@ function Section({ title, children, color = '#1e293b' }) {
   );
 }
 
-function GooglebotView({ data }) {
-  if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>No Googlebot data</div>;
-  return (
-    <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Globe size={18} color="#3b82f6" /> How Google Sees This Page
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>This is exactly what Googlebot crawls, indexes, and uses to rank your page</div>
-      {Object.entries(data).map(([key, value]) => {
-        if (value === null || value === undefined) return null;
-        if (typeof value === 'boolean') return <BoolField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={value} />;
-        if (typeof value === 'number') return <MetricField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={value} />;
-        if (Array.isArray(value)) return <ListView key={key} items={value} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} />;
-        if (typeof value === 'object') return <MetricField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={JSON.stringify(value).slice(0, 100)} />;
-        return <MetricField key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} value={String(value)} />;
-      })}
-    </div>
-  );
-}
-
 function GenericSubView({ title, icon, data }) {
   const Icon = icon || Eye;
   if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>No data available</div>;
@@ -141,7 +123,7 @@ function SignalCard({ signal, index }) {
     <div style={{ border: `1px solid ${sc}30`, borderRadius: 10, marginBottom: 6, background: 'var(--bg-white)', borderLeft: `3px solid ${sc}` }}>
       <button onClick={() => setExpanded(!expanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: hasIssues ? `${sc}05` : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ width: 20, height: 20, borderRadius: 4, background: `${sc}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: sc, flexShrink: 0 }}>{index + 1}</span>
-        <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{signal.name}</span>
+        <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{signal.signal_name || signal.name || signal.title || signal.issue || 'Signal'}</span>
         <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: `${sc}15`, color: sc, fontWeight: 700 }}>{statusLabels[signal.status]}</span>
         {hasIssues && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: `${sevColor}15`, color: sevColor, fontWeight: 700 }}>{signal.severity}</span>}
         <ChevronDown size={12} color="#94a3b8" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }} />
@@ -162,6 +144,7 @@ function SignalCard({ signal, index }) {
             {signal.expected_impact && <span style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>Impact: {signal.expected_impact}</span>}
             {signal.effort && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Effort: {signal.effort}</span>}
           </div>
+          <div style={{ marginTop: 8 }}><FixDetail issue={signal} /></div>
         </div>
       )}
       {expanded && !hasIssues && (
@@ -214,7 +197,7 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
               <div key={i} style={{ padding: '8px 10px', background: '#fef2f2', borderRadius: 6, marginBottom: 6, borderLeft: '2px solid #dc2626' }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#991b1b', marginBottom: 2 }}>{item.element}</div>
                 <div style={{ fontSize: 11, color: '#7f1d1d', marginBottom: 4 }}>{item.why}</div>
-                {item.fix && <div style={{ fontSize: 11, color: '#059669', background: '#f0fdf4', padding: '4px 8px', borderRadius: 4 }}><strong>Fix:</strong> {item.fix}</div>}
+                {item.fix && <FixDetail issue={item} />}
               </div>
             ))}
           </div>

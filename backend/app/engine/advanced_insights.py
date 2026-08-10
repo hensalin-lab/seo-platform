@@ -444,24 +444,30 @@ def analyze_js_dependency(pages) -> dict:
 # Content briefs + topic clusters
 # ---------------------------------------------------------------------------
 
-def _keyword_entries(keyword_data):
+def _keyword_entries(keyword_data, keyword_records=None):
     """Flatten keyword data into candidate keyword objects."""
     out = []
-    if not keyword_data:
-        return out
     seen = set()
-    for field in ("top_keywords", "keyword_opportunities", "keyword_clusters", "content_gaps", "missing_keywords"):
-        for item in getattr(keyword_data, field) or []:
-            if isinstance(item, dict):
-                k = item.get("keyword") or item.get("key") or item.get("name") or ""
-                opp = item.get("opportunity") or item.get("priority") or "MEDIUM"
-            else:
-                k = str(item or "")
-                opp = "MEDIUM"
-            key = re.sub(r"\s+", " ", k.strip().lower())
-            if key and key not in seen:
-                seen.add(key)
-                out.append({"keyword": k.strip(), "opportunity": str(opp).upper()})
+    if keyword_data:
+        for field in ("top_keywords", "keyword_opportunities", "keyword_clusters", "content_gaps", "missing_keywords"):
+            for item in getattr(keyword_data, field) or []:
+                if isinstance(item, dict):
+                    k = item.get("keyword") or item.get("key") or item.get("name") or ""
+                    opp = item.get("opportunity") or item.get("priority") or "MEDIUM"
+                else:
+                    k = str(item or "")
+                    opp = "MEDIUM"
+                key = re.sub(r"\s+", " ", k.strip().lower())
+                if key and key not in seen:
+                    seen.add(key)
+                    out.append({"keyword": k.strip(), "opportunity": str(opp).upper()})
+    for rec in keyword_records or []:
+        k = (rec.keyword or "").strip()
+        key = re.sub(r"\s+", " ", k.lower())
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append({"keyword": k, "opportunity": str(rec.opportunity or "MEDIUM").upper()})
     return out
 
 
@@ -470,8 +476,8 @@ def _cluster_name(keyword: str) -> str:
     return words[0] if words else keyword
 
 
-def build_content_briefs(keyword_data, content_data, pages) -> dict:
-    entries = _keyword_entries(keyword_data)
+def build_content_briefs(keyword_data, content_data, pages, keyword_records=None) -> dict:
+    entries = _keyword_entries(keyword_data, keyword_records)
     clusters_map = {}
     for e in entries:
         name = _cluster_name(e["keyword"])

@@ -3,6 +3,7 @@ OpenRouter GPT-4o + Groq Llama 3.3 70B + Cerebras Gemma 4 31B + Ollama Local LLM
 All run simultaneously, best insights from each are combined.
 """
 import json
+import re
 import time
 import asyncio
 import logging
@@ -46,6 +47,10 @@ _HEALTH_NAME = {
 
 _COOLDOWN_S = 900
 
+# Local providers are free/unlimited and often just slow (CPU inference).
+# Never lock them out for the full cloud cooldown — retry them quickly.
+_LOCAL_PROVIDERS = {"ollama", "lmstudio", "vllm", "llamacpp"}
+
 
 def _record_health(name: str, ok: bool, detail: str = ""):
     if ok:
@@ -60,6 +65,8 @@ def _provider_healthy(name: str, cooldown_s: int = _COOLDOWN_S) -> bool:
         return True
     if h.get("status") == "error":
         at = h.get("at") or 0
+        if name in _LOCAL_PROVIDERS:
+            cooldown_s = min(cooldown_s, 30)
         if time.time() - at < cooldown_s:
             return False
     return True
@@ -267,21 +274,24 @@ async def _cerebras_chat(system_prompt: str, user_prompt: str, max_tokens: int =
 
 
 async def _ollama_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> Optional[dict]:
-    """Call Ollama local LLM."""
+    """Call Ollama local LLM (fast model so suggestions finish inside the grace window)."""
     if not settings.OLLAMA_BASE_URL:
         _record_health("ollama", False, "OLLAMA_BASE_URL not configured")
         return None
+    model = settings.OLLAMA_MODEL_FAST or settings.OLLAMA_MODEL
+    # Cap output so a CPU model can finish within the local grace window.
+    num_predict = min(max_tokens or 2000, 2200)
     try:
-        async with httpx.AsyncClient(timeout=min(settings.OLLAMA_TIMEOUT, 60)) as client:
+        async with httpx.AsyncClient(timeout=settings.OLLAMA_TIMEOUT) as client:
             resp = await client.post(
                 f"{settings.OLLAMA_BASE_URL}/api/chat",
                 json={
-                    "model": settings.OLLAMA_MODEL,
+                    "model": model,
                     "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                     "stream": False,
                     "think": False,
                     "keep_alive": "30m",
-                    "options": {"temperature": 0.3, "num_predict": max_tokens},
+                    "options": {"temperature": 0.3, "num_predict": num_predict},
                     "format": "json",
                 },
             )
@@ -292,6 +302,10 @@ async def _ollama_chat(system_prompt: str, user_prompt: str, max_tokens: int = 2
             data = resp.json()
             content = data.get("message", {}).get("content", "")
             return json.loads(content) if content else None
+    except (TimeoutError, httpx.TimeoutException) as e:
+        logger.warning("Ollama busy (timed out after %ss): %s", settings.OLLAMA_TIMEOUT, e)
+        _record_health("ollama", True)
+        return None
     except Exception as e:
         logger.warning("Ollama: %s", e)
         _record_health("ollama", False, str(e)[:200])
@@ -656,7 +670,7 @@ def _merge_lists(lists: list[list]) -> list:
     return merged
 
 
-async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 12.0, wait_for_local: bool = False) -> dict:
+async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000, task: str = "default", timeout: float = 30.0, wait_for_local: bool = True, local_grace: float = None, local_system_prompt: str = None, local_user_prompt: str = None) -> dict:
     """Run AI providers in parallel, merged. Task routes to the best model per job:
     - default    -> all providers (local Ollama/LM Studio/vLLM/llama.cpp + OpenRouter/Groq/Cerebras/Gemini/CF/Mistral/NVIDIA/HF/GitHub)
     - rewrite    -> Qwen 3 (OpenRouter) + Gemini + Groq  (best writing quality)
@@ -666,14 +680,25 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
     models on a laptop CPU) are cancelled so they never block the response.
     With wait_for_local=True the full `timeout` window is kept so the unlimited
     local providers (Ollama/LM Studio/vLLM/llama.cpp) can finish and contribute.
+    Once a cloud provider answers the deadline tightens to ~6s UNLESS an alive
+    local provider is working — then it gets `local_grace` extra seconds (default
+    from LOCAL_GRACE_SECONDS) so its free/unlimited suggestions actually merge in.
+    local_system_prompt/local_user_prompt: a COMPACT prompt used only for slow
+    CPU local providers (Ollama) so they can finish inside the grace window.
     """
+    if local_grace is None:
+        local_grace = settings.LOCAL_GRACE_SECONDS
+    if local_system_prompt and local_user_prompt:
+        lsp, lup = local_system_prompt, local_user_prompt
+    else:
+        lsp, lup = system_prompt, user_prompt
     def _build():
         base = [
             ("gpt-4o", _openrouter_chat, (system_prompt, user_prompt, min(max_tokens, 2900))),
             ("groq-llama-3.3-70b", _groq_chat, (system_prompt, user_prompt, min(max_tokens, 3500))),
             ("cerebras-gemma-4-31b", _cerebras_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("lmstudio-local", _lmstudio_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
-            ("ollama-local", _ollama_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
+            ("ollama-local", _ollama_chat, (lsp, lup, min(max_tokens, 2000))),
             ("vllm-local", _vllm_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
             ("llamacpp-local", _llamacpp_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
             ("openrouter-free", _openrouter_free_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),
@@ -724,7 +749,13 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
         elif wait_for_local and results:
             local_names = {"lmstudio-local", "ollama-local", "vllm-local", "llamacpp-local"}
             if any(n not in local_names for n in results):
-                deadline = min(deadline, time.monotonic() + 6.0)
+                alive_local = any(
+                    _provider_healthy(_HEALTH_NAME.get(n, n), cooldown_s=10) for n in local_names
+                )
+                if alive_local:
+                    deadline = min(deadline, time.monotonic() + local_grace)
+                else:
+                    deadline = min(deadline, time.monotonic() + 6.0)
     for t in remaining:
         t.cancel()
     if remaining:
@@ -942,25 +973,138 @@ Rules: exactly one entry per issue preserving the exact id; impact_pct and confi
 async def quad_ai_batch_fixes(issues: list[dict]) -> dict:
     """Generate ready-to-paste fixes for a batch of issues.
     Runs through the full provider set (LM Studio/Ollama local + cloud) so every
-    fix gets an AI suggestion. Returns {"fixes":[{id,fix,fix_code,root_cause,effort,before_code,after_code,why,impact_pct,confidence,priority,why_it_matters,business_impact,expected_improvement,confidence_basis,estimated_time_minutes,dependencies,snippets}], "providers_used":[...]}.
+    fix gets an AI suggestion. When an issue includes `page_content`, the fix
+    quotes the EXACT offending text (`exact_text`), says where it is (`location`)
+    and gives a copy-paste `replacement`. Returns {"fixes":[{id,fix,fix_code,root_cause,effort,before_code,after_code,why,impact_pct,confidence,priority,why_it_matters,business_impact,expected_improvement,confidence_basis,estimated_time_minutes,dependencies,snippets,exact_text,location,replacement}], "providers_used":[...]}.
     """
     sys = """You are a senior SEO engineer. For EVERY issue in the provided JSON array, write a precise fix. Return ONLY valid JSON:
-{"fixes":[{"id":"<exact issue id>","fix":"step-by-step fix, under 150 words, concrete and ready to paste","fix_code":"FIX-####","root_cause":"one-sentence cause","effort":"LOW|MEDIUM|HIGH","before_code":"...","after_code":"...","why":"one plain-language sentence a non-technical person understands about why this hurts rankings","impact_pct":"integer 0-100 estimating how much ranking lift fixing this gives","confidence":"integer 0-100 estimating how certain you are this fix is correct for this site","priority":"P0|P1|P2|P3","why_it_matters":"one specific sentence on how this issue affects this site's rankings, traffic or conversions","business_impact":"one sentence on the practical business effect (lost traffic, lower conversion, slower pages)","expected_improvement":"short estimate like '+8-15% CTR (estimate)'","confidence_basis":"short methodology phrase describing WHY you set that confidence, e.g. 'directly verifiable rule check with full page data'","estimated_time_minutes":"integer minutes to implement","dependencies":["FIX-####" or other issue ids this fix depends on, empty array if none],"snippets":{"html":{"before":"...","after":"..."},"react":{"before":"","after":""},"nextjs":{"before":"","after":""},"wordpress":{"before":"","after":""},"shopify":{"before":"","after":""},"framer":{"before":"","after":""}}}]}
+{"fixes":[{"id":"<exact issue id>","fix":"step-by-step fix, under 150 words, concrete and ready to paste","fix_code":"FIX-####","root_cause":"one-sentence cause","effort":"LOW|MEDIUM|HIGH","before_code":"...","after_code":"...","why":"one plain-language sentence a non-technical person understands about why this hurts rankings","impact_pct":"integer 0-100 estimating how much ranking lift fixing this gives","confidence":"integer 0-100 estimating how certain you are this fix is correct for this site","priority":"P0|P1|P2|P3","why_it_matters":"one specific sentence on how this issue affects this site's rankings, traffic or conversions","business_impact":"one sentence on the practical business effect (lost traffic, lower conversion, slower pages)","expected_improvement":"short estimate like '+8-15% CTR (estimate)'","confidence_basis":"short methodology phrase describing WHY you set that confidence, e.g. 'directly verifiable rule check with full page data'","estimated_time_minutes":"integer minutes to implement","dependencies":["FIX-####" or other issue ids this fix depends on, empty array if none],"exact_text":"VERBATIM quote of the offending sentence/paragraph taken word-for-word from the issue's page_content (40-400 chars). REQUIRED whenever page_content is present.","location":"where exactly on the page this text sits, e.g. '2nd paragraph after the H1' or 'meta description'. REQUIRED whenever page_content is present.","replacement":"the EXACT replacement text, ready to paste in place of exact_text, fixing the issue. REQUIRED whenever page_content is present.","snippets":{"html":{"before":"...","after":"..."},"react":{"before":"","after":""},"nextjs":{"before":"","after":""},"wordpress":{"before":"","after":""},"shopify":{"before":"","after":""},"framer":{"before":"","after":""}}}]}
 CRITICAL RULES:
 - Include exactly one entry per input issue, preserving the exact id.
-- Never invent data beyond what is provided in the issue description.
+- Never invent data beyond what is provided in the issue description and page_content.
+- If the issue includes page_content, you MUST quote real text verbatim from it. Do NOT paraphrase or make up the exact_text. If page_content is empty, set exact_text, location and replacement to empty strings.
+- Make the replacement concrete: a rewritten sentence/paragraph or exact code the user can paste.
 - If code is not applicable, set before_code and after_code to empty strings.
 - Keep the fix practical: tell the user exactly what to change and where.
 - For every framework where a code change applies, give a copy-paste-ready before/after snippet pair. Leave frameworks that do not apply as empty strings.
 - impact_pct and confidence must be integers, never strings or decimals."""
     user = "Issues:\n" + json.dumps(issues, default=str)
-    result = await _run_all(sys, user, 5000, task="rewrite", timeout=70, wait_for_local=True)
+    # Compact prompt for slow CPU local providers (Ollama): short per-fix JSON
+    # so a 1.7B model can finish inside the local grace window and contribute.
+    local_sys = "You are a senior SEO engineer. Return ONLY valid JSON: {\"fixes\":[{\"id\":\"<exact issue id>\",\"fix\":\"short concrete fix under 60 words\",\"fix_code\":\"FIX-####\",\"root_cause\":\"one short sentence\",\"effort\":\"LOW|MEDIUM|HIGH\",\"impact_pct\":\"0-100\",\"confidence\":\"0-100\",\"exact_text\":\"verbatim quote from page_content if provided else empty\",\"location\":\"where on the page\",\"replacement\":\"exact text to replace it with\"}]}. Include exactly one entry per input issue, preserving exact ids. Never invent data beyond the issue description and page_content."
+    local_user = "Write short fixes for these issues:\n" + json.dumps(
+        [{"id": it.get("id"), "signal_name": it.get("signal_name"), "severity": it.get("severity"), "description": it.get("description"), "page_content": (it.get("page_content") or "")[:800]} for it in issues], default=str)
+    result = await _run_all(sys, user, 6000, task="rewrite", timeout=70, wait_for_local=True,
+                            local_system_prompt=local_sys, local_user_prompt=local_user)
     if isinstance(result, dict) and result.get("fixes"):
-        return result
+        return {"fixes": _enrich_detailed_fixes(result["fixes"], issues), "providers_used": result.get("providers_used", [])}
     simple = await _ollama_simple_fixes(issues)
     if simple and simple.get("fixes"):
-        return {"fixes": simple["fixes"], "providers_used": ["ollama-local"]}
+        return {"fixes": _enrich_detailed_fixes(simple["fixes"], issues), "providers_used": ["ollama-local"]}
     return result
+
+
+def _split_long_paragraph(text: str, max_words: int = 70) -> str:
+    """Break a wall-of-text paragraph into 3-5 sentence chunks."""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    chunks, cur, wc = [], [], 0
+    for s in sentences:
+        cur.append(s)
+        wc += len(s.split())
+        if wc >= max_words:
+            chunks.append(" ".join(cur))
+            cur, wc = [], 0
+    if cur:
+        chunks.append(" ".join(cur))
+    if len(chunks) > 1:
+        return "\n\n".join(chunks)
+    return text
+
+
+def _extract_exact(issue: dict) -> dict:
+    """Deterministically find the offending text, its location and a replacement
+    from the page content so every card shows WHAT / WHERE / REPLACE-WITH even
+    when the AI model returns no exact_text."""
+    content = (issue.get("page_content") or "").strip()
+    signal = (issue.get("signal_name") or "").lower()
+    if not content:
+        return {"exact_text": "", "location": "", "replacement": ""}
+
+    paras = [p.strip() for p in re.split(r"\n\s*\n", content) if p.strip()]
+    target = ""
+    location = ""
+
+    # Wall-of-text / long paragraph issues
+    if any(k in signal for k in ("paragraph", "word", "wall", "long")):
+        for i, p in enumerate(paras):
+            if len(p.split()) > 150:
+                target = p
+                location = f"Paragraph {i + 1} of the body content (about {len(p.split())} words, over the 150-word limit)"
+                break
+        if not target:
+            for i, p in enumerate(paras):
+                if len(p.split()) > 80:
+                    target = p
+                    location = f"Paragraph {i + 1} of the body content"
+                    break
+        if target:
+            return {
+                "exact_text": target[:700],
+                "location": location,
+                "replacement": _split_long_paragraph(target),
+            }
+
+    # Keyword density / stuffing issues
+    if any(k in signal for k in ("keyword", "density", "stuff", "repetit")):
+        if paras:
+            target = max(paras, key=lambda p: len(p.split()))
+            location = f"Paragraph {paras.index(target) + 1} of the body content (densest keyword use)"
+            return {
+                "exact_text": target[:700],
+                "location": location,
+                "replacement": _split_long_paragraph(target),
+            }
+
+    # Default: the longest paragraph (most likely the substantive content block)
+    if paras:
+        target = max(paras, key=lambda p: len(p))
+        location = f"Paragraph {paras.index(target) + 1} of the body content"
+        return {
+            "exact_text": target[:700],
+            "location": location,
+            "replacement": _split_long_paragraph(target) if len(target.split()) > 120 else target,
+        }
+    return {"exact_text": content[:700], "location": "Body content", "replacement": content[:700]}
+
+
+def _enrich_detailed_fixes(fixes: list, issues: list[dict]) -> list:
+    """Ensure every fix carries exact_text / location / replacement so the UI can
+    show WHAT to change, WHERE it is, and the exact REPLACE-WITH text."""
+    by_id = {str(it.get("id")): it for it in issues}
+    out = []
+    for f in fixes:
+        if not isinstance(f, dict):
+            out.append(f)
+            continue
+        issue = by_id.get(str(f.get("id") or ""), {})
+        detail = {}
+        if not (f.get("exact_text") or f.get("replacement")):
+            detail = _extract_exact(issue)
+        exact = str(f.get("exact_text") or detail.get("exact_text") or "").strip()
+        location = str(f.get("location") or detail.get("location") or "").strip()
+        replacement = str(f.get("replacement") or detail.get("replacement") or "").strip()
+        if exact and not replacement:
+            replacement = exact
+        fix = str(f.get("fix") or "").strip()
+        if exact and location and fix:
+            f["fix"] = f"{fix}\n\nExact text to change ({location}): \"{exact[:400]}\"\n\nReplace with: \"{replacement[:400]}\""
+        elif exact and fix:
+            f["fix"] = f"{fix}\n\nExact text to change: \"{exact[:400]}\"\n\nReplace with: \"{replacement[:400]}\""
+        f["exact_text"] = exact
+        f["location"] = location
+        f["replacement"] = replacement
+        out.append(f)
+    return out
 
 
 async def quad_ai_schema_generation(url, title, content, page_type):

@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const data = await api.login(email, password);
+      api.setToken(data.access_token);
       setToken(data.access_token);
       setUser(data.user);
       return data;
@@ -46,6 +47,7 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const data = await api.register(email, username, password);
+      api.setToken(data.access_token);
       setToken(data.access_token);
       setUser(data.user);
       return data;

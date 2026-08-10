@@ -245,14 +245,19 @@ function OverviewTab({ contentData, qualityData, opportunitiesData }) {
               oppList.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {oppList.map((opp, i) => {
-                    const oppLabel = opp.keyword || opp.opportunity || opp.description || opp.label || `Opportunity ${i + 1}`;
-                    const oppType = opp.type || opp.category || 'keyword';
+                    const oppLabel = opp.title || opp.keyword || opp.opportunity || opp.description || opp.label || opp.action || `Opportunity ${i + 1}`;
+                    const oppType = opp.priority || opp.type || opp.category || 'fix';
+                    const isPriority = oppType === 'HIGH' || oppType === 'MEDIUM' || oppType === 'LOW' || oppType === 'CRITICAL';
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4, background: oppType === 'keyword' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)', color: oppType === 'keyword' ? '#22c55e' : '#3b82f6', whiteSpace: 'nowrap', marginTop: 1 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4, background: oppType === 'HIGH' || oppType === 'CRITICAL' ? 'rgba(239,68,68,0.15)' : oppType === 'MEDIUM' ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)', color: oppType === 'HIGH' || oppType === 'CRITICAL' ? '#ef4444' : oppType === 'MEDIUM' ? '#f59e0b' : '#22c55e', whiteSpace: 'nowrap', marginTop: 1 }}>
                           {oppType}
                         </span>
-                        <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, flex: 1 }}>{oppLabel}</span>
+                        <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, flex: 1 }}>
+                          {oppLabel}
+                          {opp.action && <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{opp.action}</span>}
+                          {opp.issues?.length > 0 && <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{opp.issues.join(', ')}</span>}
+                        </span>
                       </div>
                     );
                   })}

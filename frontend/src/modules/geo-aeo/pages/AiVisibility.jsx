@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Bot, Sparkles, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Zap, Target, Info, Shield, Brain, FileText, Link2, Quote } from 'lucide-react';
 import { api } from '../../../api';
 import DataSourceBadge from '../../../components/DataSourceBadge';
+import FixDetail from '../../../components/FixDetail';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -74,14 +75,7 @@ function IssueCard({ issue, index }) {
               <div style={{ fontSize: 13, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.6 }}>{issue.impact}</div>
             </div>
           )}
-          {issue.fix && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Exact Fix</div>
-              <div style={{ fontSize: 13, color: 'var(--green, #22c55e)', lineHeight: 1.6, fontWeight: 500, padding: '10px 14px', background: 'rgba(34,197,94,0.06)', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid rgba(34,197,94,0.15)' }}>
-                {issue.fix}
-              </div>
-            </div>
-          )}
+          {issue.fix && <FixDetail issue={issue} />}
         </div>
       )}
     </div>
@@ -266,9 +260,9 @@ export default function AiVisibility() {
           <div style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)' }}>Checking live AI Overviews for your top keywords...</div>
         ) : !aoData.configured ? (
           <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-sm, 8px)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#b45309', marginBottom: 4 }}>Live monitoring not configured</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#b45309', marginBottom: 4 }}>Estimated AI Overviews</div>
             <div style={{ fontSize: 12.5, color: 'var(--text-secondary, #6b7280)', lineHeight: 1.6 }}>
-              Set <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 5px', borderRadius: 4 }}>SERP_API_KEY</code> (SerpAPI) in the backend env to check whether your site actually appears in Google AI Overviews for your keywords — real results, not estimates.
+              The built-in engine estimated whether your site would appear in Google AI Overviews for these keywords, based on your page content and AI judgement.
             </div>
           </div>
         ) : (

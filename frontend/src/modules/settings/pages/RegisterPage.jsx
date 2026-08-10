@@ -8,17 +8,20 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const { register, loading } = useAuth();
   const navigate = useNavigate();
   const { addToast } = useToast();
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       await register(email, username, password);
       addToast('Account created successfully', 'success');
       navigate('/');
     } catch (err) {
+      setError(err.message || 'Registration failed');
       addToast(err.message || 'Registration failed', 'error');
     }
   };
@@ -30,6 +33,11 @@ export default function RegisterPage() {
           <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>SEO Intel</div>
           <div style={{ color: 'var(--text-secondary)', marginTop: 8 }}>Create your account</div>
         </div>
+        {error && (
+          <div style={{ marginBottom: 16, padding: '10px 12px', background: 'var(--danger-bg, #fee2e2)', color: '#b91c1c', borderRadius: 8, fontSize: 13 }}>
+            {error}
+          </div>
+        )}
         <form onSubmit={handleRegister}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Email</label>

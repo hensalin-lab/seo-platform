@@ -6,6 +6,7 @@ import { Shield, CheckCircle, XCircle, Award, BookOpen, Users, Star, AlertTriang
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import FixDetail from '../../../components/FixDetail';
 
 export default function EeatAnalysis() {
   const { id } = useParams();
@@ -188,11 +189,7 @@ export default function EeatAnalysis() {
                     <strong>Impact:</strong> {issue.impact}
                   </div>
                 )}
-                {issue.fix && (
-                  <div className="issue-desc" style={{ color: 'var(--color-success, #22c55e)' }}>
-                    <strong>Fix:</strong> {issue.fix}
-                  </div>
-                )}
+                <FixDetail issue={issue} />
               </div>
             ))}
           </div>

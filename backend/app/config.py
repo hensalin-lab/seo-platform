@@ -49,7 +49,15 @@ class Settings(BaseSettings):
 
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5-coder:7b"
+    # Fast local model used in the live provider race so free/unlimited Ollama
+    # suggestions finish quickly and actually get merged into results. The full
+    # OLLAMA_MODEL is still used by deeper fallback paths (_ollama_simple_fixes).
+    OLLAMA_MODEL_FAST: str = "qwen3:1.7b"
     OLLAMA_TIMEOUT: int = 180
+
+    # When wait_for_local=True, how many extra seconds to wait after the first
+    # cloud answer for an alive local provider to contribute its suggestions.
+    LOCAL_GRACE_SECONDS: float = 40.0
 
     LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
     LMSTUDIO_MODEL: str = "qwen3-8b"

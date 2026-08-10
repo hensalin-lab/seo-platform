@@ -437,6 +437,93 @@ def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dic
     return {"where": where, "current_value": current, "replace_with": replace_with}
 
 
+def _issue_fix_steps(fix, exact="", repl="", loc="") -> list:
+    """Turn a fix string into concrete numbered how-to steps for the UI."""
+    raw = str(fix or "").strip()
+    if raw:
+        lines = [ln.strip(" \t\n\r.-") for ln in raw.splitlines() if ln.strip()]
+        lines = [ln for ln in lines if ln and not ln.startswith(("Exact text to change", "Replace with", "Location"))]
+        if lines:
+            return lines[:8]
+    if exact and repl:
+        return [
+            f"Go to the {loc or 'flagged element'} on the page.",
+            f"Replace the current text with: {repl}",
+            "Save, then re-crawl / re-check the page to confirm the fix.",
+        ]
+    if repl:
+        return [f"Replace the flagged content with: {repl}", "Verify the change renders correctly on desktop and mobile."]
+    return [raw] if raw else ["Review the flagged area and apply the recommended change."]
+
+
+def _issue_detail_fields(issue, page=None) -> dict:
+    """Exact text / location / replacement / steps for ANY issue object.
+    Prefers persisted AI detail, then deterministic crawl-derived guidance."""
+    sn = getattr(issue, "framework_snippets", None) or {}
+    if isinstance(sn, dict):
+        detail = sn.get("__detail__") or {}
+        if not isinstance(detail, dict):
+            detail = {}
+    else:
+        detail = {}
+    exact = str(detail.get("exact_text") or "").strip()
+    loc = str(detail.get("location") or "").strip()
+    repl = str(detail.get("replacement") or "").strip()
+    fix = str(getattr(issue, "fix", "") or "").strip()
+    if not (exact or loc or repl):
+        g = _issue_fix_guidance(
+            page, getattr(issue, "signal_id", None),
+            getattr(issue, "signal_name", "") or "",
+            getattr(issue, "category", "") or "",
+        )
+        if not loc:
+            loc = g.get("where", "")
+        if not exact:
+            exact = g.get("current_value", "")
+        if not repl:
+            repl = g.get("replace_with", "")
+    if not exact and "Exact text to change" in fix:
+        m = re.search(r"Exact text to change\s*\(([^)]+)\)\s*:\s*(.+)", fix, re.S)
+        if m:
+            loc = loc or m.group(1).strip()
+            body = m.group(2)
+            rm = re.search(r"Replace with:\s*(.+)", body, re.S)
+            exact = body.split("Replace with:")[0].strip().strip("“”\"'")
+            if rm:
+                repl = repl or rm.group(1).strip()
+    steps = _issue_fix_steps(fix, exact, repl, loc)
+    return {"exact_text": exact, "location": loc, "replacement": repl, "steps": steps}
+
+
+def _serialize_issue(issue, page=None) -> dict:
+    """One consistent issue object for every endpoint so every tab renders the
+    same WHAT / WHERE / REPLACE-WITH / STEPS detail."""
+    d = _issue_detail_fields(issue, page)
+    return {
+        "id": getattr(issue, "id", ""),
+        "page_url": getattr(issue, "page_url", "") or getattr(issue, "url", ""),
+        "category": getattr(issue, "category", ""),
+        "severity": getattr(issue, "severity", ""),
+        "signal_id": getattr(issue, "signal_id", ""),
+        "signal_name": getattr(issue, "signal_name", "") or getattr(issue, "title", ""),
+        "description": getattr(issue, "description", ""),
+        "impact": getattr(issue, "impact", ""),
+        "fix": getattr(issue, "fix", ""),
+        "root_cause": getattr(issue, "root_cause", ""),
+        "effort": getattr(issue, "effort", ""),
+        "fix_code": getattr(issue, "fix_code", ""),
+        "ai_generated": getattr(issue, "ai_generated", 0) or 0,
+        "ai_why": getattr(issue, "ai_why", "") or "",
+        "ai_impact_pct": _fallback_impact(issue),
+        "ai_confidence": getattr(issue, "ai_confidence", 0) or 0,
+        "priority": _priority_for(issue),
+        "exact_text": d["exact_text"],
+        "location": d["location"],
+        "replacement": d["replacement"],
+        "steps": d["steps"],
+    }
+
+
 @router.get("/audit/{audit_id}/issues")
 async def get_audit_issues(audit_id: str, category: str = None, severity: str = None, offset: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
@@ -458,16 +545,7 @@ async def get_audit_issues(audit_id: str, category: str = None, severity: str = 
         pages_res = await db.execute(select(Page).where(Page.audit_id == audit_id, Page.url.in_(page_urls)))
         pages = {p.url: p for p in pages_res.scalars().all()}
     return {
-        "items": [{
-            "id": i.id, "page_url": i.page_url, "category": i.category, "severity": i.severity,
-            "signal_id": i.signal_id, "signal_name": i.signal_name,
-            "description": i.description, "impact": i.impact, "fix": i.fix,
-            "root_cause": i.root_cause, "effort": i.effort, "fix_code": i.fix_code,
-            "ai_generated": i.ai_generated or 0,
-            "ai_why": i.ai_why or "", "ai_impact_pct": i.ai_impact_pct or 0,
-            "ai_confidence": i.ai_confidence or 0, "priority": _priority_for(i),
-            **_issue_fix_guidance(pages.get(i.page_url), i.signal_id, i.signal_name or "", i.category or ""),
-        } for i in rows],
+        "items": [_serialize_issue(i, pages.get(i.page_url)) for i in rows],
         "total": total, "offset": offset, "limit": limit,
     }
 
@@ -684,7 +762,7 @@ async def get_page_detail(audit_id: str, url: str = "", db: AsyncSession = Depen
     result = await db.execute(
         select(Page).where(Page.audit_id == audit_id, Page.url == url)
     )
-    page = result.scalar_one_or_none()
+    page = result.scalars().first()
     if not page:
         result2 = await db.execute(select(Page).where(Page.audit_id == audit_id))
         all_pages = result2.scalars().all()
@@ -701,7 +779,7 @@ async def get_page_detail(audit_id: str, url: str = "", db: AsyncSession = Depen
             PageAnalysisRecord.page_url == page.url,
         )
     )
-    pa = pa_result.scalar_one_or_none()
+    pa = pa_result.scalars().first()
 
     issues_result = await db.execute(
         select(Issue).where(Issue.audit_id == audit_id, Issue.page_url == page.url)
@@ -750,7 +828,7 @@ async def get_page_analysis(audit_id: str, page_url: str, db: AsyncSession = Dep
             PageAnalysisRecord.page_url == full_url,
         )
     )
-    pa = result.scalar_one_or_none()
+    pa = result.scalars().first()
     if not pa:
         alt_result = await db.execute(
             select(PageAnalysisRecord).where(PageAnalysisRecord.audit_id == audit_id)
@@ -766,7 +844,7 @@ async def get_page_analysis(audit_id: str, page_url: str, db: AsyncSession = Dep
     page_result = await db.execute(
         select(Page).where(Page.audit_id == audit_id, Page.url == pa.page_url)
     )
-    page = page_result.scalar_one_or_none()
+    page = page_result.scalars().first()
 
     return {
         "page_url": pa.page_url,
@@ -860,9 +938,11 @@ async def get_aeo_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
         select(Issue).where(Issue.audit_id == audit_id, Issue.category == "AEO")
     )
     aeo_issues = issues_result.scalars().all()
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages_by_url = {p.url: p for p in pages_result.scalars().all() if p.url}
     return {
         "aeo_score": scores.aeo_score if scores else 0,
-        "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "impact": i.impact, "fix": i.fix} for i in aeo_issues],
+        "issues": [_serialize_issue(i, pages_by_url.get(i.page_url)) for i in aeo_issues],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict) and v.get("category") == "AEO"},
     }
 
@@ -875,9 +955,11 @@ async def get_geo_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
         select(Issue).where(Issue.audit_id == audit_id, Issue.category == "GEO")
     )
     geo_issues = issues_result.scalars().all()
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages_by_url = {p.url: p for p in pages_result.scalars().all() if p.url}
     return {
         "geo_score": scores.geo_score if scores else 0,
-        "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "impact": i.impact, "fix": i.fix} for i in geo_issues],
+        "issues": [_serialize_issue(i, pages_by_url.get(i.page_url)) for i in geo_issues],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict) and v.get("category") == "GEO"},
     }
 
@@ -899,11 +981,8 @@ async def get_ai_visibility(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     all_pages = list(pages_result.scalars().all())
 
-    issues_data = [
-        {"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name,
-         "description": i.description, "impact": i.impact, "fix": i.fix}
-        for i in ai_issues
-    ]
+    pages_by_url = {p.url: p for p in all_pages if p.url}
+    issues_data = [_serialize_issue(i, pages_by_url.get(i.page_url)) for i in ai_issues]
     signals_data = {
         k: v for k, v in (scores.signals if scores else {}).items()
         if isinstance(v, dict) and v.get("category") == "AI_SEARCH"
@@ -1674,6 +1753,7 @@ async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
             "signal_name": i.signal_name, "description": i.description,
             "impact": enhanced_impact or i.impact or "",
             "fix": enhanced_fix or i.fix or "",
+            **_issue_detail_fields(i, page),
         })
 
     total_pages = eeat_signals.get("total_pages", 1) or 1
@@ -1709,11 +1789,7 @@ async def get_content_analysis(audit_id: str, db: AsyncSession = Depends(get_db)
         "avg_word_count": round(avg_words),
         "thin_content_count": len(thin),
         "thin_content_urls": thin[:20],
-        "issues": [{
-            "id": i.id, "page_url": i.page_url, "severity": i.severity,
-            "signal_name": i.signal_name, "description": i.description,
-            "impact": i.impact, "fix": i.fix,
-        } for i in content_issues],
+        "issues": [_serialize_issue(i, {p.url: p for p in pages}.get(i.page_url)) for i in content_issues],
     }
 
 
@@ -1802,7 +1878,7 @@ async def chat_with_ai(audit_id: str, body: dict, db: AsyncSession = Depends(get
     score_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = score_result.scalar_one_or_none()
 
-    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id).limit(30))
+    issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id).limit(60))
     issues = issues_result.scalars().all()
 
     recent_chat_result = await db.execute(
@@ -1817,32 +1893,30 @@ async def chat_with_ai(audit_id: str, body: dict, db: AsyncSession = Depends(get
 
     retrieved = _retrieve_audit_context(message, issues)
 
-    if openai_engine.available:
-        try:
-            audit_context = {
-                "website_url": audit.website_url,
-                "overall_score": scores.overall_score if scores else 0,
-                "seo_score": scores.seo_score if scores else 0,
-                "technical_score": scores.technical_score if scores else 0,
-                "aeo_score": scores.aeo_score if scores else 0,
-                "geo_score": scores.geo_score if scores else 0,
-                "content_score": scores.content_score if scores else 0,
-                "total_issues": len(issues),
-                "top_issues": retrieved,
-                "chat_history": memory_context,
-            }
-            response = await openai_engine.chat(message, audit_context)
-            if response:
-                db.add(ChatMessage(audit_id=audit_id, role="assistant", content=response))
-                await db.commit()
-                return {"response": response, "role": "assistant"}
-        except Exception as e:
-            logger.warning(f"OpenAI chat failed: {e}")
+    audit_context = {
+        "website_url": audit.website_url,
+        "overall_score": scores.overall_score if scores else 0,
+        "seo_score": scores.seo_score if scores else 0,
+        "technical_score": scores.technical_score if scores else 0,
+        "aeo_score": scores.aeo_score if scores else 0,
+        "geo_score": scores.geo_score if scores else 0,
+        "content_score": scores.content_score if scores else 0,
+        "total_issues": len(issues),
+        "top_issues": retrieved,
+        "chat_history": memory_context,
+    }
 
-    # Try Gemini
-    ai = AIEngine()
-    if ai.available:
-        context = f"""You are an expert SEO consultant analyzing {audit.website_url}.
+    async def _live_answer() -> str:
+        if openai_engine.available:
+            try:
+                response = await openai_engine.chat(message, audit_context)
+                if response:
+                    return response
+            except Exception as e:
+                logger.warning(f"OpenAI chat failed: {e}")
+        ai = AIEngine()
+        if ai.available:
+            context = f"""You are an expert SEO consultant analyzing {audit.website_url}.
 Overall Score: {scores.overall_score if scores else 0}/100
 SEO: {scores.seo_score if scores else 0} | Technical: {scores.technical_score if scores else 0}
 AEO: {scores.aeo_score if scores else 0} | GEO: {scores.geo_score if scores else 0}
@@ -1857,16 +1931,25 @@ Conversation history:
 User question: {message}
 
 Provide a helpful, specific, actionable response. Reference the audit data above. Be concise."""
-        response = await ai._call_text(context)
-        if response:
-            db.add(ChatMessage(audit_id=audit_id, role="assistant", content=response))
-            await db.commit()
-            return {"response": response, "role": "assistant"}
+            response = await ai._call_text(context)
+            if response:
+                return response
+        return ""
 
-    fallback = f"I'd be happy to help with your question about {audit.website_url}. Your site has an overall score of {scores.overall_score if scores else 0}/100. Set OPENAI_API_KEY or GEMINI_API_KEY in backend .env for AI-powered answers."
-    db.add(ChatMessage(audit_id=audit_id, role="assistant", content=fallback))
+    response = ""
+    try:
+        response = await asyncio.wait_for(_live_answer(), timeout=20)
+    except (asyncio.TimeoutError, TimeoutError):
+        logger.warning("AI chat timed out after 20s; using built-in answer")
+    except Exception as e:
+        logger.warning(f"AI chat error: {e}")
+
+    if not response:
+        response = _chat_builtin_answer(message, audit, scores, issues, retrieved)
+
+    db.add(ChatMessage(audit_id=audit_id, role="assistant", content=response))
     await db.commit()
-    return {"response": fallback, "role": "assistant"}
+    return {"response": response, "role": "assistant"}
 
 
 def _retrieve_audit_context(message: str, issues: list) -> list:
@@ -1895,6 +1978,98 @@ def _retrieve_audit_context(message: str, issues: list) -> list:
         "page_url": i.page_url, "category": i.category, "severity": i.severity,
         "signal_name": i.signal_name, "description": i.description, "fix": i.fix,
     } for i in ranked]
+
+
+def _issue_dict(i):
+    if isinstance(i, dict):
+        return i
+    return {
+        "severity": getattr(i, "severity", None),
+        "signal_name": getattr(i, "signal_name", None),
+        "description": getattr(i, "description", None),
+        "page_url": getattr(i, "page_url", None),
+        "fix": getattr(i, "fix", None),
+    }
+
+
+def _chat_builtin_answer(message: str, audit, scores, issues: list, retrieved: list) -> str:
+    """Deterministic, data-backed assistant answer used when every live AI provider
+    is unreachable. Never asks the user to configure API keys."""
+    msg = message.lower()
+    url = audit.website_url
+    score = scores.overall_score if scores else 0
+    seo = scores.seo_score if scores else 0
+    tech = scores.technical_score if scores else 0
+    aeo = scores.aeo_score if scores else 0
+    geo = scores.geo_score if scores else 0
+    content = scores.content_score if scores else 0
+
+    issues = [_issue_dict(i) for i in issues]
+    retrieved = [_issue_dict(i) for i in retrieved]
+
+    def _issue_lines(items: list, n: int = 6) -> str:
+        lines = []
+        for i in items[:n]:
+            severity = (i.get("severity") or "MEDIUM").upper()
+            signal = i.get("signal_name") or i.get("description") or "Issue"
+            page = i.get("page_url") or "sitewide"
+            fix = i.get("fix")
+            entry = f"- **[{severity}] {signal}** — {page}"
+            if fix:
+                entry = f"{entry}\n  → Fix: {fix}"
+            lines.append(entry)
+        return "\n".join(lines) if lines else "No issues found for this topic."
+
+    by_severity = sorted(issues, key=lambda i: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get((i.get("severity") or "").upper(), 9))
+
+    header = f"Here's what I found for **{url}** (overall **{score}/100**).\n"
+    score_line = f"**Scores:** SEO {seo} | Technical {tech} | Content {content} | AEO {aeo} | GEO {geo}\n"
+
+    if any(k in msg for k in ("speed", "fast", "slow", "load", "core web", "performance", "ttfb")):
+        perf = [i for i in issues if any(k in f"{i.get('signal_name','')} {i.get('category','')}".lower() for k in
+                ("speed", "load", "image", "css", "javascript", "render", "ttfb", "vital"))]
+        picked = retrieved if any(any(k in f"{i.get('signal_name','')} {i.get('description','')}".lower() for k in ("speed", "load", "image", "css", "javascript", "render", "ttfb")) for i in retrieved) else perf
+        return (header + score_line +
+                "\n**Speed & Core Web Vitals issues:**\n" + _issue_lines(picked) +
+                "\n\nFix images, minify CSS/JS, and improve server response time (TTFB) first — these move LCP, INP and CLS the most.")
+
+    if any(k in msg for k in ("mobile", "responsive", "viewport", "phone")):
+        mobile = [i for i in issues if "mobile" in f"{i.get('signal_name','')} {i.get('category','')}".lower()]
+        return (header + score_line +
+                "\n**Mobile issues:**\n" + _issue_lines(mobile or by_severity[:5]) +
+                "\n\nMake sure tap targets are large, text isn't too small, and content isn't hidden behind viewport barriers.")
+
+    if any(k in msg for k in ("content", "thin", "word count", "text", "heading", "title", "meta")):
+        content_issues = [i for i in issues if (i.get("category") or "").upper() in ("CONTENT", "SEO") or any(k in (i.get("signal_name") or "").lower() for k in ("title", "meta", "heading", "content", "word"))]
+        return (header + score_line +
+                "\n**Content & on-page issues:**\n" + _issue_lines(content_issues or retrieved) +
+                "\n\nStart with titles and meta descriptions (they lift CTR), then expand thin pages with useful headings and FAQ content.")
+
+    if any(k in msg for k in ("schema", "structured", "rich", "json-ld", "faq", "markup")):
+        schema = [i for i in issues if any(k in (i.get("signal_name") or "").lower() for k in ("schema", "structured", "json-ld", "rich", "faq"))]
+        return (header + score_line +
+                "\n**Schema / structured data issues:**\n" + _issue_lines(schema or by_severity[:5]) +
+                "\n\nAdding valid Article, FAQPage and Organization schema helps search engines (and AI assistants) understand and cite your content.")
+
+    if any(k in msg for k in ("ai", "geo", "aeo", "chatgpt", "perplexity", "citation", "visibility")):
+        ai_issues = [i for i in issues if any(k in (i.get("signal_name") or "").lower() for k in ("ai", "citation", "geo", "aeo", "llm", "schema", "faq"))]
+        return (header + score_line +
+                "\n**AI search readiness:**\n" + _issue_lines(ai_issues or by_severity[:5]) +
+                "\n\nAI assistants cite pages with clear Q&A structure, FAQ schema, author E-E-A-T signals and statistics. Add those on your strongest pages first.")
+
+    if any(k in msg for k in ("fix", "issue", "problem", "priorit", "what should", "next step", "action", "improve", "score")):
+        return (header + score_line +
+                "\n**Priority fixes (worst first):**\n" + _issue_lines(by_severity) +
+                "\n\n**Suggested order:**\n1. Fix CRITICAL/HIGH issues (indexability, titles, meta, broken links, mobile).\n2. Improve content depth on your top pages.\n3. Add schema + FAQ for AI search visibility.\n4. Optimize images and reduce server response time.")
+
+    if retrieved:
+        return (header + score_line +
+                "\n**Most relevant issues:**\n" + _issue_lines(retrieved) +
+                "\n\nAsk me about speed, content, schema, mobile, or AI visibility for focused guidance.")
+
+    return (header + score_line +
+            "\n**Priority fixes (worst first):**\n" + _issue_lines(by_severity) +
+            "\n\nAsk me about speed, content, schema, mobile, or AI visibility for focused guidance.")
 
 
 @router.delete("/audit/{audit_id}")
@@ -2258,6 +2433,9 @@ async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = 
     if not issues:
         return {"items": [], "generated": 0, "total": 0, "providers_used": []}
 
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages_by_url = {p.url: p for p in pages_result.scalars().all()}
+
     fixes_by_id = {}
     providers_used = set()
     for i in range(0, len(issues), 5):
@@ -2266,6 +2444,7 @@ async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = 
             "id": it.id, "signal_name": it.signal_name, "category": it.category,
             "severity": it.severity, "description": it.description, "impact": it.impact,
             "page_url": it.page_url,
+            "page_content": _page_content_excerpt(pages_by_url, it.page_url, it.signal_name),
         } for it in chunk]
         ai_result = await quad_ai_batch_fixes(payload)
         if not isinstance(ai_result, dict):
@@ -2303,6 +2482,10 @@ async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = 
             "ai_why": it.ai_why or "", "ai_impact_pct": it.ai_impact_pct or 0,
             "ai_confidence": it.ai_confidence or 0,
             "priority": _priority_for(it),
+            "exact_text": (fixes_by_id.get(it.id) or {}).get("exact_text", ""),
+            "location": (fixes_by_id.get(it.id) or {}).get("location", ""),
+            "replacement": (fixes_by_id.get(it.id) or {}).get("replacement", ""),
+            "steps": _issue_fix_steps(it.fix),
         } for it in issues],
         "generated": generated, "total": len(issues),
         "providers_used": sorted(providers_used),
@@ -2325,6 +2508,16 @@ def _priority_for(issue) -> str:
     if sev == "MEDIUM":
         return "P2"
     return "P3"
+
+
+def _fix_detail(fixes_by_id: dict, issue) -> dict:
+    """Best available AI detail for an issue: live fix first, else the
+    exact_text/location/replacement persisted on a previous run."""
+    f = fixes_by_id.get(getattr(issue, "id", ""))
+    if isinstance(f, dict):
+        return f
+    sn = getattr(issue, "framework_snippets", None) or {}
+    return sn.get("__detail__", {}) or {}
 
 
 _SEVERITY_IMPACT = {"CRITICAL": 92, "HIGH": 76, "MEDIUM": 52, "LOW": 28, "INFO": 15}
@@ -2366,6 +2559,27 @@ _TOOL_CATEGORIES = {
 }
 
 
+def _page_content_excerpt(pages_by_url: dict, page_url: str, signal_name: str = "", max_chars: int = 1500) -> str:
+    """Pull the most relevant slice of a page's content for the AI so its fix can
+    quote the exact offending paragraph/sentence and give a replacement."""
+    page = pages_by_url.get(page_url or "")
+    if not page or not getattr(page, "content_text", ""):
+        return ""
+    text = page.content_text
+    signal = (signal_name or "").lower()
+    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    if any(k in signal for k in ("paragraph", "word", "wall", "long", "keyword", "density", "stuff", "readab")):
+        for p in paras:
+            if len(p.split()) > 150:
+                return p[:max_chars]
+        if paras:
+            longest = max(paras, key=len)
+            if len(longest) > 200:
+                return longest[:max_chars]
+    stripped = re.sub(r"\s+", " ", text).strip()
+    return stripped[:max_chars]
+
+
 @router.post("/audit/{audit_id}/ai/tool-suggestions")
 async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
     """AI suggestions scoped to a single tool page (SEO, Speed, Content, ...).
@@ -2390,17 +2604,25 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
     if not issues:
         return {"items": [], "generated": 0, "providers_used": [], "tool": tool}
 
-    to_fix = [it for it in issues if not it.ai_generated]
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages_by_url = {p.url: p for p in pages_result.scalars().all()}
+
+    # Regenerate any fix that is still the old generic text so every card carries
+    # the exact quote / location / replacement detail.
+    to_fix = [it for it in issues if (not it.ai_generated) or ("Exact text to change" not in (it.fix or ""))]
     fixes_by_id = {}
     fix_source = {}
     providers_used = set()
     if to_fix:
-        for i in range(0, len(to_fix), 5):
-            chunk = to_fix[i:i + 5]
+        # Chunks of 3 (not 5) so a slow free local provider (Ollama) can finish
+        # a chunk inside the local grace window and contribute its fixes too.
+        for i in range(0, len(to_fix), 3):
+            chunk = to_fix[i:i + 3]
             payload = [{
                 "id": it.id, "signal_name": it.signal_name, "category": it.category,
                 "severity": it.severity, "description": it.description, "impact": it.impact,
                 "page_url": it.page_url,
+                "page_content": _page_content_excerpt(pages_by_url, it.page_url, it.signal_name),
             } for it in chunk]
             ai_result = await quad_ai_batch_fixes(payload)
             if not isinstance(ai_result, dict):
@@ -2409,8 +2631,11 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             providers_used.update(chunk_providers)
             for f in ai_result.get("fixes", []) or []:
                 if isinstance(f, dict) and f.get("id") and f.get("fix"):
-                    fixes_by_id[f["id"]] = f
-                    fix_source[f["id"]] = chunk_providers
+                    # First fix wins so the richer cloud fix is kept; Ollama
+                    # backfills ids the cloud providers missed.
+                    if f["id"] not in fixes_by_id:
+                        fixes_by_id[f["id"]] = f
+                        fix_source[f["id"]] = chunk_providers
         for it in to_fix:
             f = fixes_by_id.get(it.id)
             if not f:
@@ -2440,6 +2665,13 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             it.status = "open"
             it.last_checked = _dt.datetime.utcnow()
             it.ai_generated = 1
+            sn = dict(it.framework_snippets or {})
+            sn["__detail__"] = {
+                "exact_text": str(f.get("exact_text", "") or ""),
+                "location": str(f.get("location", "") or ""),
+                "replacement": str(f.get("replacement", "") or ""),
+            }
+            it.framework_snippets = sn
         await db.commit()
 
     return {
@@ -2461,6 +2693,10 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             "source_model": it.source_model or "",
             "status": it.status or "open",
             "last_checked": (it.last_checked.isoformat() + "Z") if it.last_checked else None,
+            "exact_text": _fix_detail(fixes_by_id, it).get("exact_text", ""),
+            "location": _fix_detail(fixes_by_id, it).get("location", ""),
+            "replacement": _fix_detail(fixes_by_id, it).get("replacement", ""),
+            "steps": _issue_fix_steps(it.fix),
         } for it in issues],
         "generated": len(fixes_by_id), "total": len(issues),
         "providers_used": sorted(providers_used), "tool": tool,
@@ -2835,11 +3071,28 @@ async def _get_page_intelligence_impl(audit_id: str, page_url: str, db: AsyncSes
     # Quick wins - easy fixes
     quick_wins = []
     for issue in page_issues:
-        if issue.severity in ("CRITICAL", "HIGH") and issue.fix:
+        if issue.severity in ("CRITICAL", "HIGH"):
+            title = issue.signal_name or issue.title or "Priority fix"
+            fix_text = issue.fix or issue.impact or issue.description or f"Resolve the '{title}' issue on this page."
             quick_wins.append({
-                "issue": issue.signal_name,
-                "fix": issue.fix,
+                "issue": title,
+                "fix": fix_text,
                 "severity": issue.severity,
+                "title": title,
+                "description": fix_text,
+                "impact": issue.impact,
+            })
+    if not quick_wins:
+        for issue in page_issues[:5]:
+            title = issue.signal_name or issue.title or "Priority fix"
+            fix_text = issue.fix or issue.impact or issue.description or f"Resolve the '{title}' issue on this page."
+            quick_wins.append({
+                "issue": title,
+                "fix": fix_text,
+                "severity": issue.severity or "MEDIUM",
+                "title": title,
+                "description": fix_text,
+                "impact": issue.impact,
             })
     quick_wins = quick_wins[:5]
 
@@ -3474,7 +3727,7 @@ async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
         "total_pages": total,
         "slow_pages_count": len(slow_pages),
         "mobile_issues_count": len(mobile_issues),
-        "mobile_issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in mobile_issues[:20]],
+        "mobile_issues": [_serialize_issue(i, {p.url: p for p in pages}.get(i.page_url)) for i in mobile_issues[:20]],
         "slow_pages": [{"url": p.url, "response_time_ms": p.response_time_ms} for p in sorted(slow_pages, key=lambda x: x.response_time_ms or 0, reverse=True)[:10]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict)},
         "recommendations": recs,
@@ -3539,7 +3792,7 @@ async def get_image_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
         "potential_large_images": large_images,
         "pages_with_images": len(image_pages),
         "page_details": sorted(image_pages, key=lambda x: x["image_count"], reverse=True)[:20],
-        "issues": [{"signal_name": "Missing Alt Text", "severity": "HIGH", "description": f"{images_without_alt} images missing alt text", "fix": "Add descriptive alt text to all images"}] if images_without_alt > 0 else [],
+        "issues": [{"signal_name": "Missing Alt Text", "severity": "HIGH", "description": f"{images_without_alt} images missing alt text", "fix": "Add descriptive alt text to all images", "steps": _issue_fix_steps("Add descriptive alt text to all images. Describe what each image shows in 5-15 words, incorporating relevant keywords naturally.")}] if images_without_alt > 0 else [],
         "recommendations": recs,
     }
 
@@ -3600,7 +3853,7 @@ async def get_sitemap_robots(audit_id: str, db: AsyncSession = Depends(get_db)):
         "canonical_coverage_pct": round(canonicals / max(total, 1) * 100, 1),
         "url_structure": sorted([{"pattern": k, "count": v} for k, v in url_patterns.items()], key=lambda x: x["count"], reverse=True)[:15],
         "error_pages": [{"url": p.url, "status_code": p.status_code} for p in pages if p.status_code and p.status_code >= 400][:20],
-        "issues": [{"signal_name": "Missing Canonical", "severity": "MEDIUM", "description": f"{total - canonicals} pages missing canonical tag", "fix": "Add canonical tags to all pages"}] if total - canonicals > 0 else [],
+        "issues": [{"signal_name": "Missing Canonical", "severity": "MEDIUM", "description": f"{total - canonicals} pages missing canonical tag", "fix": "Add canonical tags to all pages", "steps": _issue_fix_steps("Add a canonical tag to every page. Point <link rel='canonical' href='URL'> to the clean, preferred version of each URL without parameters or tracking. Use full HTTPS URLs.")}] if total - canonicals > 0 else [],
         "recommendations": recs,
     }
 
@@ -3650,7 +3903,7 @@ async def get_security_headers(audit_id: str, db: AsyncSession = Depends(get_db)
         "mixed_content": security_signals["mixed_content"],
         "checks": security_signals,
         "issues": [
-            {"signal_name": "Mixed Content", "severity": "HIGH", "description": "Some pages use HTTP while others use HTTPS", "fix": "Redirect all HTTP pages to HTTPS"},
+            {"signal_name": "Mixed Content", "severity": "HIGH", "description": "Some pages use HTTP while others use HTTPS", "fix": "Redirect all HTTP pages to HTTPS", "steps": _issue_fix_steps("Redirect all HTTP pages to HTTPS with 301 redirects. Update every internal link, image src, and script/stylesheet URL to use https://. Set up HSTS (Strict-Transport-Security) once migration is complete.")},
         ] if security_signals["mixed_content"] else [],
         "recommendations": recs,
     }
@@ -3701,8 +3954,8 @@ async def get_social_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
         "pages_with_og_urls": og_pages[:20],
         "pages_with_twitter_urls": twitter_pages[:20],
         "issues": [
-            {"signal_name": "Missing Open Graph Tags", "severity": "MEDIUM", "description": f"{total - og_count} pages missing Open Graph tags", "fix": "Add og:title, og:description, og:image to all pages"},
-            {"signal_name": "Missing Twitter Cards", "severity": "LOW", "description": f"{total - twitter_count} pages missing Twitter Card tags", "fix": "Add twitter:card, twitter:title, twitter:description"},
+            {"signal_name": "Missing Open Graph Tags", "severity": "MEDIUM", "description": f"{total - og_count} pages missing Open Graph tags", "fix": "Add og:title, og:description, og:image to all pages", "steps": _issue_fix_steps("Add Open Graph tags to every page's <head>: og:title (page title), og:description (compelling 150-160 char summary), og:image (1200x630), og:url (canonical URL). Test with the Facebook Sharing Debugger after adding.")},
+            {"signal_name": "Missing Twitter Cards", "severity": "LOW", "description": f"{total - twitter_count} pages missing Twitter Card tags", "fix": "Add twitter:card, twitter:title, twitter:description", "steps": _issue_fix_steps("Add Twitter Card meta tags: twitter:card (summary_large_image), twitter:title, twitter:description, twitter:image. Verify with the Twitter Card Validator.")},
         ] if total - og_count > 0 else [],
         "recommendations": recs,
     }
@@ -3761,7 +4014,7 @@ async def get_page_experience(audit_id: str, db: AsyncSession = Depends(get_db))
             "moderate_1s_3s": medium_pages,
             "slow_over_3s": slow_pages_count,
         },
-        "cwv_issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in cwv_issues[:20]],
+        "cwv_issues": [_serialize_issue(i, {p.url: p for p in pages}.get(i.page_url)) for i in cwv_issues[:20]],
         "all_issues": [{"id": i.id, "signal_name": i.signal_name, "severity": i.severity, "description": i.description} for i in all_issues[:30]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict)},
         "recommendations": recs,
@@ -3847,7 +4100,7 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
         "eeat_coverage_pct": round(sum(1 for v in eeat_signals.values() if v > 0) / max(len(eeat_signals), 1) * 100, 1),
         "thin_content_pages": [{"url": p.url, "word_count": p.word_count or 0, "title": p.title or ""} for p in sorted(thin, key=lambda x: x.word_count or 0)[:20]],
         "top_content_pages": [{"url": p.url, "word_count": p.word_count or 0, "title": p.title or ""} for p in sorted(pages, key=lambda x: x.word_count or 0, reverse=True)[:10]],
-        "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in content_issues[:30]],
+        "issues": [_serialize_issue(i, {p.url: p for p in pages}.get(i.page_url)) for i in content_issues[:30]],
         "recommendations": recs,
     }
 
@@ -3856,7 +4109,7 @@ async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db))
 async def get_ai_overviews(audit_id: str, limit: int = 6, db: AsyncSession = Depends(get_db)):
     """Live AI Overviews check: for the audit's top keywords, does the site actually appear in Google AI Overviews?
 
-    Requires SERP_API_KEY to be configured. Returns a clear 'configured: false' state otherwise.
+    Uses the built-in AI engine to estimate visibility when no SERP API key is configured.
     """
     import httpx
 
@@ -4045,7 +4298,7 @@ async def _ai_overviews_estimate(audit_id: str, host: str, limit: int, db: Async
         "estimated": True,
         "domain": host,
         "checked_at": _dt.datetime.utcnow().isoformat(),
-        "message": "Estimated by the built-in AI engine. Set SERP_API_KEY (SerpAPI) for live Google results.",
+        "message": "Estimated by the built-in AI engine from your page content and AI judgement.",
         "results": results,
         "summary": {"keywords_checked": len(results), "with_ai_overview": with_ao, "mentioned_in_ai_overview": mentioned},
     }
@@ -5481,6 +5734,58 @@ def _rule_ai_rewrite(page, content: str, issues: list, targets: dict, h1_text: s
     }
 
 
+def _cw_location_hint(category: str, element: str) -> str:
+    cat = (category or "").lower()
+    el = (element or "").lower()
+    blob = f"{cat} {el}"
+    if "title" in blob:
+        return "the <title> tag in the <head>"
+    if "description" in blob or "meta" in blob:
+        return 'the <meta name="description"> tag in the <head>'
+    if "h1" in blob or "heading" in blob:
+        return "the <h1>/<h2> heading tags in the page body"
+    if "schema" in blob or "structured" in blob or "json" in blob or "faq" in blob:
+        return 'a <script type="application/ld+json"> block in the <head>'
+    if "image" in blob or "img" in blob or "alt" in blob:
+        return 'the alt="..." attribute on <img> tags'
+    if "link" in blob:
+        return "<a> link tags in the page body"
+    if "word" in blob or "content" in blob or "read" in blob or "thin" in blob:
+        return "page body content (the visible text)"
+    if "url" in blob or "canonical" in blob or "og:" in blob or "open graph" in blob:
+        return "the URL structure / <link rel=\"canonical\"> or Open Graph tags"
+    if "security" in blob or "https" in blob or "ssl" in blob:
+        return "server headers / SSL configuration"
+    if "speed" in blob or "lcp" in blob or "cwv" in blob or "vital" in blob or "render" in blob:
+        return "page performance settings (images, scripts, server response)"
+    if element:
+        return f"the {element} on the page"
+    return "page body content"
+
+
+def _dict_issue_detail(issue: dict) -> dict:
+    """Add standard exact_text / location / replacement / steps to a content-rewrite issue dict."""
+    fix = str(issue.get("fix") or issue.get("recommendation") or "").strip()
+    el = str(issue.get("element") or "").strip()
+    current = str(issue.get("current") or issue.get("current_value") or issue.get("exact_text") or "").strip()
+    issue_text = str(issue.get("issue") or issue.get("name") or issue.get("signal_name") or "").strip()
+    category = str(issue.get("category") or "").strip()
+    replacement = str(issue.get("replacement") or issue.get("recommendation") or "").strip()
+    steps = _issue_fix_steps(fix)
+    if len(steps) == 1 and fix:
+        steps = [fix, "Re-crawl this page and confirm the signal now passes."]
+    return {
+        "signal_name": issue_text or el or "Content issue",
+        "category": category,
+        "element": el,
+        "exact_text": current,
+        "location": _cw_location_hint(category, el),
+        "replacement": replacement,
+        "fix": fix,
+        "steps": steps,
+    }
+
+
 @router.get("/audit/{audit_id}/content-rewrite/{page_idx}")
 async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db: AsyncSession = Depends(get_db)):
     from urllib.parse import unquote
@@ -5523,6 +5828,7 @@ async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db:
 
     current_content = page.content_text or ""
     issues = analysis["diagnostics"]["actionable_fixes"]
+    issues = [_dict_issue_detail(i) if isinstance(i, dict) else i for i in issues][:20]
     targets = analysis.get("page_type_targets", {})
     
     headings = page.headings or []
@@ -5553,7 +5859,6 @@ async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db:
             dual_ai_eeat_analysis, dual_ai_link_suggestions, dual_ai_keyword_insights,
             has_healthy_provider,
         )
-        import asyncio
         if has_healthy_provider():
             coros = (
                 dual_ai_content_rewrite(page.url, page.title or "", page.meta_description or "", current_content, targets.get("must_have", []) or [h1_text] if h1_text else [], issues),
@@ -5687,7 +5992,6 @@ async def get_page_intelligence_deep(audit_id: str, page_idx: int, db: AsyncSess
 
     try:
         from app.engine.dual_ai import dual_ai_analyze_seo, dual_ai_search_optimization, dual_ai_entity_extraction, dual_ai_eeat_analysis, has_healthy_provider
-        import asyncio
         current_content = pages[page_idx].content_text or ""
         if has_healthy_provider():
             coros = (
@@ -6067,12 +6371,23 @@ async def get_competitor_deep_by_url(audit_id: str, url: str, db: AsyncSession =
             comp_dict = {"competitor": comp_data.backlink_gap}
 
     engine = CompetitorIntelligenceEngine()
-    return engine.analyze(page_adapters, comp_dict)
+    try:
+        return engine.analyze(page_adapters, comp_dict)
+    except Exception as e:
+        logger.exception(f"competitor-deep-by-url failed: {e}")
+        my_profile = engine.crawler.analyze_competitor(page_adapters, "")
+        return {
+            "my_profile": my_profile,
+            "competitors": {},
+            "gaps": {},
+            "competitive_position": {},
+            "dimensions_analyzed": [],
+            "error": str(e),
+        }
 
 
 @router.get("/audit/{audit_id}/dashboard-deep")
 async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
-    import asyncio, logging
     log = logging.getLogger(__name__)
 
     cache_key = f"dash_deep:{audit_id}"
@@ -6661,7 +6976,6 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
 
     try:
         from app.engine.dual_ai import dual_ai_analyze_seo, dual_ai_search_optimization, has_healthy_provider
-        import asyncio
         current_content = page.content_text or ""
         signals = result.get("all_signals", [])
         if has_healthy_provider():
@@ -6854,7 +7168,7 @@ async def get_ai_bot_intelligence(audit_id: str, page_idx: int, db: AsyncSession
 
 @router.get("/audit/{audit_id}/offsite-authority/{page_idx}")
 async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"osa:{audit_id}:{page_idx}"
+    cache_key = f"osa2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -6898,6 +7212,30 @@ async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession =
         "domain": domain,
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    raw_issues = resp.get("issues") or []
+    raw_recs = resp.get("recommendations") or []
+    structured = []
+    for i, msg in enumerate(raw_issues):
+        fix = raw_recs[i] if i < len(raw_recs) else ""
+        low = str(msg).lower()
+        if "no external links" in low or "low cross-platform visibility" in low or "authority score is low" in low:
+            severity = "HIGH"
+        elif "no social media" in low or "no contact" in low or "no author" in low or "no outbound" in low:
+            severity = "HIGH"
+        else:
+            severity = "MEDIUM"
+        steps = _issue_fix_steps(fix)
+        if len(steps) == 1:
+            steps = [steps[0], "Re-crawl this page and confirm the authority/offsite signal now appears."]
+        structured.append({
+            "signal_name": (str(msg).split(".")[0][:90] or str(msg)[:90]),
+            "severity": severity,
+            "description": msg,
+            "impact": msg,
+            "fix": fix,
+            "steps": steps,
+        })
+    resp["issues"] = structured
     _cache_set(cache_key, resp)
     return resp
 
@@ -7302,16 +7640,48 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
             }
 
     engine = PageSpeedEngine()
-    data = await engine.analyze(target_url, "mobile")
-    assessment = data.get("core_web_vitals", {}).get("_assessment", {})
-    field = data.get("field_data", {})
-    lab = data.get("core_web_vitals", {})
+    try:
+        data = await engine.analyze(target_url, "mobile")
+        assessment = data.get("core_web_vitals", {}).get("_assessment", {})
+        field = data.get("field_data", {})
+        lab = data.get("core_web_vitals", {})
 
-    lcp_ms = (field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value")
-    cls = (field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value")
-    inp_ms = (field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value")
-    fcp_ms = (field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value")
-    ttfb_ms = (field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value")
+        lcp_ms = (field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value")
+        cls = (field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value")
+        inp_ms = (field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value")
+        fcp_ms = (field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value")
+        ttfb_ms = (field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value")
+    except Exception as e:
+        logger.warning(f"PSI CWV fetch failed for {target_url}: {e}")
+        data, assessment, field, lab = {}, {}, {}, {}
+        lcp_ms = cls = inp_ms = fcp_ms = ttfb_ms = None
+
+    source = "live"
+    if lcp_ms is None and cls is None and inp_ms is None and fcp_ms is None and ttfb_ms is None:
+        # Google PSI returned nothing (no-key quota / headless render failure).
+        # Fall back to our own crawler's real response times measured during the audit.
+        pages_res = await db.execute(select(Page).where(Page.audit_id == audit_id, Page.response_time_ms > 0))
+        crawl_pages = pages_res.scalars().all()
+        if crawl_pages:
+            times = sorted(p.response_time_ms for p in crawl_pages)
+            p75_ms = times[int(len(times) * 0.75)] if len(times) > 1 else times[0]
+            ttfb_ms = p75_ms
+            score = max(0, min(100, round(100 - (p75_ms / 45))))
+            note = (
+                f"Google PageSpeed Insights returned no field data (no API key / render failed). "
+                f"Estimated TTFB from the {len(crawl_pages)} pages our crawler measured during the audit "
+                f"(p75 response time). Open the site in Chrome (DevTools > Lighthouse) for exact LCP/CLS/INP lab numbers."
+            )
+            field = {"_available": False, "_note": note, "source": "crawl"}
+            data = {"note": note, "performance_score": score, "field_data": field}
+            assessment = {
+                "ttfb": {
+                    "label": "TTFB", "value": ttfb_ms,
+                    "status": _cwv_status(ttfb_ms, 800, 1800),
+                    "thresholds": {"good": 800, "poor": 1800},
+                }
+            }
+            source = "crawl"
 
     response = {
         "url": target_url,
@@ -7326,7 +7696,7 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
         "field_data": field,
         "lab_data": data,
         "note": data.get("note", ""),
-        "source": "live",
+        "source": source,
     }
 
     # Persist every result — including empty/negative ones — so repeat visits

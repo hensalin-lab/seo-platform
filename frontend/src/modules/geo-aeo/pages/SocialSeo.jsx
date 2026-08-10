@@ -5,6 +5,7 @@ import { Share2, AlertTriangle, CheckCircle, XCircle, Globe, Hash } from 'lucide
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import FixDetail from '../../../components/FixDetail';
 
 export default function SocialSeo() {
   const { id } = useParams();
@@ -118,7 +119,7 @@ export default function SocialSeo() {
                 <span className={`badge ${issue.severity === 'HIGH' ? 'badge-red' : 'badge-yellow'}`}>{issue.severity}</span>
               </div>
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              <FixDetail issue={issue} />
             </div>
           ))}
         </div>

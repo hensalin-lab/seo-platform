@@ -145,16 +145,143 @@ def _merged_artifacts(merged):
     return None
 
 
-def _fallback_artifacts(page):
+_STOPWORDS = {
+    "about", "above", "after", "again", "against", "also", "among", "another", "any", "are",
+    "because", "been", "before", "being", "between", "both", "could", "does", "doing", "down",
+    "during", "each", "else", "from", "further", "have", "having", "here", "into", "more",
+    "most", "much", "must", "only", "other", "over", "same", "such", "than", "that", "their",
+    "them", "then", "there", "these", "they", "this", "those", "through", "under", "until",
+    "very", "were", "what", "when", "where", "which", "while", "with", "would", "your",
+    "will", "this", "page", "web", "site", "https", "com", "org", "net",
+}
+
+
+def _text_sentences(text, limit=10):
+    if not text:
+        return []
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    out = []
+    for p in parts:
+        p = (p or "").strip()
+        if p and len(p) > 3:
+            out.append(p)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _primary_keyword(title, h1, content):
+    source = title or h1 or content
+    words = re.findall(r"[A-Za-z][A-Za-z0-9&\-']{2,}", (source or "").lower())
+    meaningful = [w for w in words if w not in _STOPWORDS and len(w) > 3]
+    pool = meaningful or words
+    if not pool:
+        return None
+    phrase = " ".join(pool[:3])
+    return phrase.strip(" -")[:60]
+
+
+def _faq_pairs(content, title, h1):
+    sents = _text_sentences(content, limit=12)
+    pairs = []
+    seen = set()
+    for i, s in enumerate(sents):
+        q = s.rstrip()
+        if q.endswith("?") and len(q) < 130:
+            ans = sents[i + 1] if i + 1 < len(sents) else sents[i]
+            ans = ans[:220]
+            key = q.lower()
+            if key not in seen:
+                seen.add(key)
+                pairs.append({"question": q, "answer": ans})
+        if len(pairs) >= 3:
+            break
+    kw = _primary_keyword(title, h1, content) or "this topic"
+    defaults = [
+        {"question": f"What is {kw}?", "answer": f"{title or kw.title()} — this page explains {kw} in detail."},
+        {"question": f"How does {kw} work?", "answer": "It follows a clear step-by-step process, outlined in the sections of this guide."},
+        {"question": f"Why is {kw} important?", "answer": f"Because it directly shapes how search engines and AI platforms rank and cite this page."},
+    ]
+    for d in defaults:
+        if len(pairs) >= 3:
+            break
+        if d["question"].lower() not in seen:
+            seen.add(d["question"].lower())
+            pairs.append(d)
+    return pairs[:3]
+
+
+def _fallback_artifacts(page, full=None):
+    title = ((full.title if full else "") or "") or page.get("title") or ""
+    h1 = ((full.h1 if full else "") or "") or page.get("h1") or ""
+    meta = ((full.meta_description if full else "") or "") or ""
+    content = ((full.content_text if full else "") or "") or ""
+    kw = _primary_keyword(title, h1, content)
+    sents = _text_sentences(content, limit=8)
+
+    answer_snippet = ""
+    if sents:
+        lead = sents[0]
+        answer_snippet = f"{title or kw or 'This page'}. {lead}"
+    elif title:
+        answer_snippet = title + (f" — {h1}." if h1 else ".")
+    answer_snippet = answer_snippet.strip()[:420]
+
+    faq_pairs = _faq_pairs(content, title, h1)
+    faq_schema = ""
+    if faq_pairs:
+        faq_schema = json.dumps({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {"@type": "Question", "name": p["question"],
+                 "acceptedAnswer": {"@type": "Answer", "text": p["answer"]}}
+                for p in faq_pairs
+            ],
+        }, ensure_ascii=False)
+
+    title_after = title
+    if kw and kw.lower() not in title.lower():
+        title_after = f"{kw} — {title}".strip(" —")[:64]
+    title_rewrite = {
+        "before": title or "",
+        "after": title_after or (kw or ""),
+        "reason": "Front-loads the primary keyword AI models match to queries" if kw and kw.lower() not in title.lower() else "Keeps the existing keyword-rich title",
+    }
+
+    meta_after = (meta or "").strip()
+    if kw and kw.lower() not in meta_after.lower():
+        meta_after = f"{kw} — {sents[0] if sents else meta_after}".strip(" —")
+    meta_after = meta_after[:152].rstrip(" .") + "." if len(meta_after) > 152 else meta_after
+    meta_rewrite = {
+        "before": meta or "",
+        "after": meta_after[:155] or (kw or ""),
+        "reason": "Front-loads the keyword and fits the 155-character meta limit",
+    }
+
+    h2_rewrites = [
+        {"before": "", "after": p["question"], "reason": "Question-form H2 matches how people ask AI"}
+        for p in faq_pairs
+    ]
+
+    intro_before = " ".join(sents[:2])
+    intro_after = f"{title or kw or 'This page'}. {intro_before}".strip() or (title or kw or "")
+    llm_intro = {
+        "before": intro_before,
+        "after": intro_after[:400],
+        "reason": "States the topic and entities in the first sentence for AI citability",
+    }
+
     return {
         "generated": False,
-        "answer_snippet": "",
-        "faq_pairs": [],
-        "faq_schema": "",
-        "title_rewrite": None,
-        "meta_rewrite": None,
-        "h2_rewrites": [],
-        "llm_intro": None,
+        "fallback": True,
+        "answer_snippet": answer_snippet,
+        "faq_pairs": faq_pairs,
+        "faq_schema": faq_schema,
+        "title_rewrite": title_rewrite,
+        "meta_rewrite": meta_rewrite,
+        "h2_rewrites": h2_rewrites,
+        "llm_intro": llm_intro,
         "projection": {"citation_current": 40, "citation_projected": 65, "page_score_current": 55, "page_score_projected": 72},
     }
 
@@ -235,7 +362,7 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
     page_result = await db.execute(
         select(Page).where(Page.audit_id == audit_id, Page.url == page["url"])
     )
-    full = page_result.scalar_one_or_none()
+    full = page_result.scalars().first()
     content = (full.content_text or "")[:4000] if full else ""
     h1 = full.h1 or "" if full else ""
     title = full.title or "" if full else ""
@@ -274,9 +401,10 @@ async def generate_rank_boost(audit_id: str, request: Request, db: AsyncSession 
 
     parsed = _merged_artifacts(merged)
     if not parsed:
-        resp = _fallback_artifacts(page)
+        resp = _fallback_artifacts(page, full)
         resp["page"] = page
         resp["providers"] = providers_used
+        _set_cached(cache_key, resp)
         return resp
 
     faq_pairs = parsed.get("faq_pairs") or []

@@ -77,13 +77,18 @@ export default function ContentBriefs() {
               <div key={idx} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <button
                   onClick={() => setExpanded(open ? null : idx)}
-                  style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '12px 14px', textAlign: 'left', color: 'var(--text)', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
+                  style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '12px 14px', textAlign: 'left', color: 'var(--text)', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 6 }}
                 >
-                  <Badge color={intentColor(b.search_intent)}>{b.search_intent}</Badge>
-                  <span style={{ fontSize: 14, fontWeight: 700, flex: 1, minWidth: 180 }}>{b.title}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.target_keyword}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.word_count_target} words</span>
-                  {b.opportunity && <Badge color={b.opportunity === 'HIGH' ? '#22c55e' : '#f97316'}>{b.opportunity}</Badge>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <Badge color={intentColor(b.search_intent)}>{b.search_intent}</Badge>
+                    <span style={{ fontSize: 14, fontWeight: 700, flex: 1, minWidth: 180 }}>{b.title}</span>
+                    {b.opportunity && <Badge color={b.opportunity === 'HIGH' ? '#22c55e' : '#f97316'}>{b.opportunity}</Badge>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingLeft: 2 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Target: <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{b.target_keyword}</span></span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.word_count_target} words</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.outline?.length || 0} outline sections</span>
+                  </div>
                 </button>
                 {open && (
                   <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border)', marginTop: 0 }}>
@@ -99,11 +104,11 @@ export default function ContentBriefs() {
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Outline</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {(b.outline || []).map((o, oi) => (
-                          <div key={oi} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: '#8b5cf6', background: 'rgba(139,92,246,0.12)', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>{o.word_count}w</span>
+                          <div key={oi} style={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 12, alignItems: 'start' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#8b5cf6', background: 'rgba(139,92,246,0.12)', padding: '2px 7px', borderRadius: 6, textAlign: 'center', justifySelf: 'start' }}>{o.word_count}w</span>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{o.subheading}</div>
-                              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{o.focus}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{o.focus}</div>
                             </div>
                           </div>
                         ))}

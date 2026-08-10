@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Smartphone, AlertTriangle, CheckCircle, XCircle, Gauge } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import FixDetail from '../../../components/FixDetail';
 
 export default function MobileSeo() {
   const { id } = useParams();
@@ -167,7 +168,7 @@ export default function MobileSeo() {
               </div>
               {issue.page_url && <div className="issue-url">{issue.page_url}</div>}
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              {issue.fix && <FixDetail issue={issue} />}
             </div>
           ))}
         </div>

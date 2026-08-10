@@ -5,6 +5,7 @@ import { Bot, CheckCircle, XCircle, AlertTriangle, Shield, FileText, Globe, Exte
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
+import FixDetail from '../../../components/FixDetail';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
@@ -107,7 +108,7 @@ export default function AiBotIntelligence() {
               <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? '#fef2f2' : '#fffbeb', color: issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? '#dc2626' : '#d97706', whiteSpace: 'nowrap' }}>{issue.severity}</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{issue.message}</div>
-                {issue.fix && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{issue.fix}</div>}
+                {issue.fix && <FixDetail issue={issue} />}
               </div>
             </div>
           ))}

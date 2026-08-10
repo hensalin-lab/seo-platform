@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import (
     Audit, AuditScore, Page, Backlink, ReferringDomain, CoreWebVitals,
-    KeywordData, ContentData, DriftReport, HreflangAnalysis, RedirectRecord,
+    KeywordData, KeywordRecord, ContentData, DriftReport, HreflangAnalysis, RedirectRecord,
     DuplicateGroup, DomainAuthority, TopicCluster, ContentBrief, User,
 )
 from app.api.auth import get_current_active_user
@@ -179,7 +179,10 @@ async def get_content_briefs(audit_id: str, user: User = Depends(get_current_act
     pages = await _get_pages(db, audit_id)
     keyword_data = (await db.execute(select(KeywordData).where(KeywordData.audit_id == audit_id))).scalar_one_or_none()
     content_data = (await db.execute(select(ContentData).where(ContentData.audit_id == audit_id))).scalar_one_or_none()
-    result = build_content_briefs(keyword_data, content_data, pages)
+    kw_records = (await db.execute(
+        select(KeywordRecord).where(KeywordRecord.audit_id == audit_id).order_by(KeywordRecord.frequency.desc())
+    )).scalars().all()
+    result = build_content_briefs(keyword_data, content_data, pages, keyword_records=kw_records)
     for c in result["clusters"]:
         db.add(TopicCluster(
             audit_id=audit_id, name=c["name"], keywords=c["keywords"],

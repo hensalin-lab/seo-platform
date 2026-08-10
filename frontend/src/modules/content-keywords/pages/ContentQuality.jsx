@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { BookOpen, AlertTriangle, CheckCircle, XCircle, Award } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 export default function ContentQuality() {
   const { id } = useParams();
@@ -187,7 +188,7 @@ export default function ContentQuality() {
               </div>
               {issue.page_url && <div className="issue-url">{issue.page_url}</div>}
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              <FixDetail issue={issue} />
             </div>
           ))}
         </div>

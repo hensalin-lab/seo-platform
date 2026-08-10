@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Award, ExternalLink, Link2, User, Globe, AlertTriangle, Shield, TrendingUp } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 function ScoreRing({ score, size = 80, label }) {
   const r = (size - 8) / 2;
@@ -156,7 +157,7 @@ export default function OffsiteAuthority() {
           <div style={{ display: 'grid', gap: 8 }}>
             {opportunities.map((opp, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 6, background: 'var(--bg-secondary)', border: '1px solid #f1f5f9' }}>
-                <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: opp.priority === 'HIGH' ? '#fef2f2' : '#eff6ff', color: opp.priority === 'HIGH' ? '#dc2626' : '#2563eb' }}>{opp.priority}</span>
+                <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: String(opp.priority || '').toUpperCase() === 'HIGH' ? '#fef2f2' : '#eff6ff', color: String(opp.priority || '').toUpperCase() === 'HIGH' ? '#dc2626' : '#2563eb' }}>{String(opp.priority || '').toUpperCase()}</span>
                 <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{opp.platform}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opp.difficulty}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opp.notes}</div>
@@ -170,8 +171,12 @@ export default function OffsiteAuthority() {
         <Card title="Issues" icon={AlertTriangle} color="#dc2626">
           {data.issues.map((issue, i) => (
             <div key={i} style={{ padding: '8px 0', borderBottom: i < data.issues.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{issue.message || issue}</div>
-              {issue.fix && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{issue.fix}</div>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {issue.severity && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: issue.severity === 'HIGH' ? '#fef2f2' : '#eff6ff', color: issue.severity === 'HIGH' ? '#dc2626' : '#2563eb', fontWeight: 700 }}>{issue.severity}</span>}
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{issue.signal_name || issue.message || issue}</div>
+              </div>
+              {issue.description && issue.description !== issue.signal_name && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{issue.description}</div>}
+              {issue.fix && <FixDetail issue={issue} />}
             </div>
           ))}
         </Card>

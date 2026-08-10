@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Image, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import FixDetail from '../../../components/FixDetail';
 
 export default function ImageSeo() {
   const { id } = useParams();
@@ -166,7 +167,7 @@ export default function ImageSeo() {
                 <span className={`badge ${issue.severity === 'HIGH' ? 'badge-red' : 'badge-yellow'}`}>{issue.severity}</span>
               </div>
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              {issue.fix && <FixDetail issue={issue} />}
             </div>
           ))}
         </div>

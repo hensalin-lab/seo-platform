@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Lock, Globe } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import FixDetail from '../../../components/FixDetail';
 
 export default function SecurityHeaders() {
   const { id } = useParams();
@@ -138,7 +139,7 @@ export default function SecurityHeaders() {
                 <span className="badge badge-red">{issue.severity}</span>
               </div>
               <div className="issue-desc">{issue.description}</div>
-              {issue.fix && <div className="issue-fix">Fix: {issue.fix}</div>}
+              {issue.fix && <FixDetail issue={issue} />}
             </div>
           ))}
         </div>

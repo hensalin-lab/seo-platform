@@ -182,16 +182,9 @@ export default function Rankings() {
       </div>
 
       {!data?.configured && (
-        <div style={{
-          display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 18,
-          padding: '12px 14px', borderRadius: 10,
-          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#92400e',
-          fontSize: 13, lineHeight: 1.5,
-        }}>
-          <Info size={16} style={{ marginTop: 1, flexShrink: 0 }} />
-          <div>
-            <b>Live tracking is not configured.</b> Add <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 5px', borderRadius: 4 }}>SERP_API_KEY</code> to the backend environment to record real Google positions each time you capture or re-run an audit. Until then, positions are estimated from on-page signals.
-          </div>
+        <div style={{ marginBottom: 18, fontSize: 12.5, color: 'var(--text-secondary, #6b7280)', display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1.5 }}>
+          <Info size={13} style={{ flexShrink: 0 }} />
+          <span>Positions are estimated by the built-in engine from on-page signals. Press <b>Capture now</b> or re-run the audit to refresh them.</span>
         </div>
       )}
 

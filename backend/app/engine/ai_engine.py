@@ -117,7 +117,7 @@ class AIEngine:
             "options": {"temperature": 0.3, "num_predict": 8192},
             "format": "json",
         }
-        data = await self._call("ollama", url, payload, retries=1, timeout=_timeout(min(settings.OLLAMA_TIMEOUT, 45)))
+        data = await self._call("ollama", url, payload, retries=1, timeout=_timeout(settings.OLLAMA_TIMEOUT))
         if data and "message" in data:
             try:
                 return json.loads(data["message"]["content"])
@@ -135,7 +135,7 @@ class AIEngine:
             "keep_alive": "30m",
             "options": {"temperature": 0.4, "num_predict": 4096},
         }
-        data = await self._call("ollama", url, payload, retries=1, timeout=_timeout(min(settings.OLLAMA_TIMEOUT, 45)))
+        data = await self._call("ollama", url, payload, retries=1, timeout=_timeout(settings.OLLAMA_TIMEOUT))
         if data and "message" in data:
             try:
                 return data["message"]["content"]

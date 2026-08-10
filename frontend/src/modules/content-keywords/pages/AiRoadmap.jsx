@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../../api';
 import { Map, ArrowLeft, Clock, AlertTriangle, Target, TrendingUp, Calendar } from 'lucide-react';
+import FixDetail from '../../../components/FixDetail';
 
 const phases = [
   { key: 'immediate', label: 'Immediate Actions', sublabel: 'Fix now', severity: 'critical', icon: AlertTriangle, time: 'This week' },
@@ -35,7 +36,7 @@ function renderTaskItem(task, idx) {
       </div>
       {task.page && <div className="roadmap-item-detail" style={{ marginTop: 4 }}>{task.page}</div>}
       {task.impact && <div className="roadmap-item-detail">Impact: {task.impact}</div>}
-      {task.fix && <div className="roadmap-item-fix">Fix: {task.fix}</div>}
+      {task.fix && <FixDetail issue={task} />}
       {task.details && task.details.length > 0 && (
         <div style={{ marginTop: 6 }}>
           {task.details.map((d, j) => (

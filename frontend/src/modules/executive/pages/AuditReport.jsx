@@ -6,6 +6,7 @@ import AIChatWidget from '../../../components/AIChatWidget'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import ThemeHero from '../../../components/ai/ThemeHero'
 import ThemeStatCard from '../../../components/ai/ThemeStatCard'
+import FixDetail from '../../../components/FixDetail'
 
 function severityBadge(s) {
   if (s === 'CRITICAL') return 'badge-red'
@@ -207,7 +208,7 @@ export default function AuditReport() {
                     {i.page_url && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{i.page_url}</div>}
                     <div className="issue-desc">{i.description}</div>
                     {i.problem && <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>Problem: {i.problem}</div>}
-                    {i.fix && <div style={{ fontSize: 12, color: 'var(--accent-green)', marginTop: 2 }}>Fix: {i.fix}</div>}
+                    {i.fix && <FixDetail issue={i} />}
                   </div>
                 ))}
               </div>
@@ -284,7 +285,7 @@ export default function AuditReport() {
                 <div className="issue-desc">{i.description}</div>
                 {i.problem && <div style={{ fontSize: 12, color: 'var(--accent-red)', marginTop: 4 }}>Problem: {i.problem}</div>}
                 {i.why && <div style={{ fontSize: 12, color: 'var(--accent-yellow)', marginTop: 2 }}>Why it matters: {i.why}</div>}
-                {i.fix && <div style={{ fontSize: 12, color: 'var(--accent-green)', marginTop: 2 }}>How to fix: {i.fix}</div>}
+                {i.fix && <FixDetail issue={i} />}
               </div>
             ))}
             {filteredIssues.length === 0 && <div className="empty-state"><h3>No issues match filters</h3></div>}
@@ -605,7 +606,7 @@ export default function AuditReport() {
                     {task.category && <span className={`badge ${categoryBadge(task.category)}`} style={{ marginBottom: 4 }}>{task.category}</span>}
                     {task.page && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Page: {task.page}</div>}
                     {task.impact && <div className="roadmap-task-desc">Impact: {task.impact}</div>}
-                    {task.fix && <div style={{ fontSize: 12, color: 'var(--accent-green)', marginTop: 4 }}>Fix: {task.fix}</div>}
+                    {task.fix && <FixDetail issue={task} />}
                     {task.details && task.details.length > 0 && (
                       <div style={{ marginTop: 6 }}>
                         {task.details.map((d, j) => (
@@ -706,7 +707,7 @@ export default function AuditReport() {
                       <span className={`badge ${severityBadge(issue.severity)}`}>{issue.severity}</span>
                     </div>
                     <div className="issue-desc">{issue.description}</div>
-                    {issue.fix && <div style={{ fontSize: 12, color: 'var(--accent-green)', marginTop: 4 }}>Fix: {issue.fix}</div>}
+                    {issue.fix && <FixDetail issue={issue} />}
                   </div>
                 ))}
               </div>

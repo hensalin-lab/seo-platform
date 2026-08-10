@@ -23,8 +23,21 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 SCOPES = "openid email profile https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly"
 
 
+@router.get("/config")
+async def oauth_config():
+    """Public: reports which OAuth providers are configured so the UI can
+    hide buttons instead of bouncing users to a Google error page."""
+    return {
+        "google": {
+            "configured": bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET),
+        }
+    }
+
+
 @router.get("/google")
 async def google_login():
+    if not (settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET):
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured on this server yet.")
     state = secrets.token_urlsafe(32)
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,

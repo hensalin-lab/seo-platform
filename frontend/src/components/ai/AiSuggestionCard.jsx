@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Copy, Check, Lightbulb, TrendingUp, ShieldCheck, Zap, Code2, FileCode, Clock, Info, GitBranch } from 'lucide-react';
+import { Sparkles, Copy, Check, Lightbulb, TrendingUp, ShieldCheck, Zap, Code2, FileCode, Clock, Info, GitBranch, FileEdit, Replace, MapPin } from 'lucide-react';
 import AiActionModal from '../AiActionModal';
 import { AI_GRADIENT, AI_GRADIENT_SOFT, sevColor, effColor, priColor, catColor } from './theme';
 
@@ -131,6 +131,31 @@ export default function AiSuggestionCard({ item, index = 0 }) {
               <strong style={{ color: '#7c3aed' }}>Why it matters: </strong>{why}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Exact text to change + replace with */}
+      {item.exact_text && (
+        <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {item.location && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 700, color: '#7c3aed', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 7, padding: '4px 9px', alignSelf: 'flex-start' }}>
+              <MapPin size={10} /> Where: {item.location}
+            </div>
+          )}
+          <div style={{ border: '1px solid rgba(239,68,68,0.25)', borderRadius: 9, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.07)', borderBottom: '1px solid rgba(239,68,68,0.18)', fontSize: 10, fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <FileEdit size={11} /> Current text to change
+            </div>
+            <div style={{ padding: '9px 10px', fontSize: 11.5, color: '#7f1d1d', lineHeight: 1.55, background: '#fffafb', maxHeight: 150, overflowY: 'auto' }}>“{item.exact_text}”</div>
+          </div>
+          {item.replacement && (
+            <div style={{ border: '1px solid rgba(16,185,129,0.3)', borderRadius: 9, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(16,185,129,0.08)', borderBottom: '1px solid rgba(16,185,129,0.2)', fontSize: 10, fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <Replace size={11} /> Replace with (ready to paste)
+              </div>
+              <div style={{ padding: '9px 10px', fontSize: 11.5, color: '#064e3b', lineHeight: 1.55, background: '#f6fef9', maxHeight: 150, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>{item.replacement}</div>
+            </div>
+          )}
         </div>
       )}
 
