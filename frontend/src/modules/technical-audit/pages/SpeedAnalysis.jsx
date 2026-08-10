@@ -117,11 +117,11 @@ export default function SpeedAnalysis() {
   const [cwvSource, setCwvSource] = useState(null)
   const [cwvPerf, setCwvPerf] = useState(null)
 
-  const loadCwv = useCallback(async () => {
+  const loadCwv = useCallback(async (force = false) => {
     try {
       setFetchingCwv(true)
       setCwvError(null)
-      const cwvRes = await api.getCoreWebVitals(id).catch(() => null)
+      const cwvRes = await api.getCoreWebVitals(id, '', force).catch(() => null)
       const cd = {}
       const values = {
         lcp: cwvRes?.lcp_ms, cls: cwvRes?.cls, inp: cwvRes?.inp_ms,
@@ -266,7 +266,7 @@ export default function SpeedAnalysis() {
               <span> Run Lighthouse on <a href={data.siteUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#e67700', textDecoration: 'underline' }}>{data.siteUrl}</a> to get real data.</span>
             )}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-              <button onClick={loadCwv} disabled={fetchingCwv} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#1971c2', color: '#fff', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: fetchingCwv ? 'wait' : 'pointer' }}>
+              <button onClick={() => loadCwv(true)} disabled={fetchingCwv} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#1971c2', color: '#fff', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: fetchingCwv ? 'wait' : 'pointer' }}>
                 <RefreshCw size={14} className={fetchingCwv ? 'spin' : ''} /> {fetchingCwv ? 'Fetching from Google...' : 'Auto-fetch Core Web Vitals now'}
               </button>
               <button onClick={runLocal} disabled={runningLocal} title="Runs Lighthouse in Chrome on this server — works even when Google's cloud Lighthouse can't render the site" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#0b7285', color: '#fff', padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: runningLocal ? 'wait' : 'pointer' }}>

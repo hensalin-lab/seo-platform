@@ -7269,7 +7269,7 @@ async def get_page_speed_live(audit_id: str, url: str = "", strategy: str = "mob
 
 
 @router.get("/audit/{audit_id}/core-web-vitals")
-async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = Depends(get_db)):
+async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db: AsyncSession = Depends(get_db)):
     from app.engine.pagespeed_engine import PageSpeedEngine
     result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = result.scalar_one_or_none()
@@ -7279,13 +7279,11 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
 
     stored = await db.execute(select(CoreWebVitals).where(CoreWebVitals.audit_id == audit_id, CoreWebVitals.url == target_url).order_by(CoreWebVitals.created_at.desc()))
     stored_row = stored.scalars().first()
-    if stored_row:
+    if stored_row and not refresh:
         fd = stored_row.field_data or {}
         has_vals = any(v is not None for v in [stored_row.lcp_ms, stored_row.cls, stored_row.inp_ms, stored_row.fcp_ms, stored_row.ttfb_ms])
-        if not has_vals and not fd.get("_available"):
-            await db.delete(stored_row)
-            await db.commit()
-        else:
+        if has_vals or fd.get("_available") or (stored_row.lab_data or {}).get("note") or fd.get("_note"):
+            note = fd.get("_note") or (stored_row.lab_data or {}).get("note") or ""
             return {
                 "url": target_url,
                 "strategy": stored_row.strategy,
@@ -7299,6 +7297,7 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
                 "field_data": fd,
                 "lab_data": stored_row.lab_data or {},
                 "ai_suggestions": fd.get("ai_suggestions") or [],
+                "note": note,
                 "source": "stored",
             }
 
@@ -7330,23 +7329,23 @@ async def get_core_web_vitals(audit_id: str, url: str = "", db: AsyncSession = D
         "source": "live",
     }
 
-    if not any([lcp_ms, cls, inp_ms, fcp_ms, ttfb_ms]):
-        return response
-
-    row = CoreWebVitals(
+    # Persist every result — including empty/negative ones — so repeat visits
+    # return instantly instead of re-running Google's slow PSI API (90s cap).
+    row = stored_row or CoreWebVitals(
         audit_id=audit_id,
         url=target_url,
         strategy="mobile",
-        lcp_ms=lcp_ms,
-        cls=cls,
-        inp_ms=inp_ms,
-        fcp_ms=fcp_ms,
-        ttfb_ms=ttfb_ms,
-        performance_score=data.get("performance_score", 0),
-        field_data=field,
-        lab_data=data,
     )
-    db.add(row)
+    row.lcp_ms = lcp_ms
+    row.cls = cls
+    row.inp_ms = inp_ms
+    row.fcp_ms = fcp_ms
+    row.ttfb_ms = ttfb_ms
+    row.performance_score = data.get("performance_score", 0)
+    row.field_data = field
+    row.lab_data = data
+    if not stored_row:
+        db.add(row)
     try:
         await db.commit()
     except Exception as e:

@@ -91,7 +91,7 @@ export const api = {
   getInternalLinks: (id) => request(`/audit/${id}/internal-links`),
   getPageSpeed: (id) => request(`/audit/${id}/page-speed`),
   getPageSpeedLive: (id, url, strategy = 'mobile') => request(`/audit/${id}/page-speed-live?url=${encodeURIComponent(url)}&strategy=${strategy}`),
-  getCoreWebVitals: (id, url = '') => request(`/audit/${id}/core-web-vitals?url=${encodeURIComponent(url)}`),
+  getCoreWebVitals: (id, url = '', refresh = false) => request(`/audit/${id}/core-web-vitals?url=${encodeURIComponent(url)}&refresh=${refresh ? 1 : 0}`),
   saveCoreWebVitals: (id, data) => request(`/audit/${id}/core-web-vitals`, {
     method: 'POST',
     body: JSON.stringify(data),
