@@ -1077,9 +1077,49 @@ def _extract_exact(issue: dict) -> dict:
     return {"exact_text": content[:700], "location": "Body content", "replacement": content[:700]}
 
 
+def _normalize_spaces(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _verify_exact(content: str, exact: str) -> bool:
+    """Return True only when the exact_text actually appears in the page content
+    (whitespace-insensitive). Stops the AI from inventing a 'current text' that
+    the user cannot find on the live page."""
+    if not exact:
+        return False
+    return _normalize_spaces(exact) in _normalize_spaces(content or "")
+
+
+def _code_matches_content(content: str, code: str) -> bool:
+    """True when the text inside a before-code snippet is real page content.
+    Handles plain text, <p>, <div>, <span> and <textarea> wrappers."""
+    text = re.sub(r"<[^>]+>", "", code)
+    text = text.replace("&quot;", '"').replace("&#39;", "'").replace("&amp;", "&")
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return False
+    norm = _normalize_spaces(content or "")
+    words = text.split()
+    if len(words) <= 3:
+        return _normalize_spaces(text) in norm
+    return _normalize_spaces(text) in norm or _normalize_spaces(" ".join(words[: len(words) // 2])) in norm
+
+
+def _wrap_code(text: str) -> str:
+    """Wrap a plain-text exact_text in a <p> element for before/after HTML."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    return f"<p>{text.replace('<', '&lt;').replace('>', '&gt;')}</p>"
+
+
 def _enrich_detailed_fixes(fixes: list, issues: list[dict]) -> list:
     """Ensure every fix carries exact_text / location / replacement so the UI can
-    show WHAT to change, WHERE it is, and the exact REPLACE-WITH text."""
+    show WHAT to change, WHERE it is, and the exact REPLACE-WITH text.
+
+    AI-provided exact_text is trusted ONLY when it is verbatim-verifiable inside
+    the page content. Hallucinated snippets are replaced with a deterministic
+    extraction from the real content."""
     by_id = {str(it.get("id")): it for it in issues}
     out = []
     for f in fixes:
@@ -1087,14 +1127,44 @@ def _enrich_detailed_fixes(fixes: list, issues: list[dict]) -> list:
             out.append(f)
             continue
         issue = by_id.get(str(f.get("id") or ""), {})
+        content = str(issue.get("page_content") or "").strip()
         detail = {}
-        if not (f.get("exact_text") or f.get("replacement")):
+        ai_exact = str(f.get("exact_text") or "").strip()
+        # Trust AI text only when it is provably present on the page.
+        if ai_exact and content and _verify_exact(content, ai_exact):
+            pass
+        else:
+            ai_exact = ""
             detail = _extract_exact(issue)
-        exact = str(f.get("exact_text") or detail.get("exact_text") or "").strip()
+        exact = ai_exact or detail.get("exact_text") or ""
         location = str(f.get("location") or detail.get("location") or "").strip()
         replacement = str(f.get("replacement") or detail.get("replacement") or "").strip()
         if exact and not replacement:
             replacement = exact
+        # Code snippets must reference verified text. If the AI's exact_text was
+        # rejected (hallucinated) then its before/after code is suspect too, and
+        # even a verified exact_text must still appear inside before_code.
+        before_code = str(f.get("before_code") or (f.get("snippets") or {}).get("html", {}).get("before", "") or "").strip()
+        after_code = str(f.get("after_code") or (f.get("snippets") or {}).get("html", {}).get("after", "") or "").strip()
+        if not exact:
+            before_code, after_code = "", ""
+        elif not ai_exact:
+            # AI text rejected -> rebuild both snippets from the verified text.
+            before_code, after_code = _wrap_code(exact), _wrap_code(replacement)
+        else:
+            # AI text verified. before_code must quote real page content; if the
+            # AI pasted fabricated text (e.g. repeated the hallucination), rebuild
+            # it from the verified exact_text. after_code is the fix itself, so it
+            # only gets rebuilt when it is identical to the original before.
+            orig_before = before_code
+            if before_code and not _code_matches_content(content, before_code):
+                before_code = _wrap_code(exact)
+            if after_code and after_code.strip() == (orig_before or "").strip():
+                after_code = _wrap_code(replacement)
+        f["before_code"] = before_code
+        f["after_code"] = after_code
+        if isinstance(f.get("snippets"), dict):
+            f["snippets"]["html"] = {"before": before_code, "after": after_code}
         fix = str(f.get("fix") or "").strip()
         if exact and location and fix:
             f["fix"] = f"{fix}\n\nExact text to change ({location}): \"{exact[:400]}\"\n\nReplace with: \"{replacement[:400]}\""

@@ -620,7 +620,7 @@ async def get_competitor_data(audit_id: str, db: AsyncSession = Depends(get_db))
             best_page = max(pages, key=lambda p: p.word_count or 0)
             pa = PageAdapter(best_page)
             comp_url = comp.competitor_url if comp and comp.competitor_url else ""
-            analysis = engine.analyze(pa, [comp_url] if comp_url else [])
+            analysis = engine.analyze([pa], competitor_url=comp_url) if comp_url else engine.analyze([pa])
         except Exception:
             analysis = {}
 
@@ -2607,9 +2607,23 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages_by_url = {p.url: p for p in pages_result.scalars().all()}
 
+    def _has_bad_exact_text(it) -> bool:
+        """Stored exact_text that is not verbatim-verifiable on the live page
+        means the AI hallucinated it — force a regeneration with verified text."""
+        if not it.fix or "Exact text to change" not in it.fix:
+            return True
+        detail = _fix_detail({}, it)
+        exact = detail.get("exact_text") or ""
+        if not exact:
+            return False
+        page_content = _page_content_excerpt(pages_by_url, it.page_url, it.signal_name)
+        from app.engine.dual_ai import _verify_exact
+        return bool(page_content) and not _verify_exact(page_content, exact)
+
     # Regenerate any fix that is still the old generic text so every card carries
-    # the exact quote / location / replacement detail.
-    to_fix = [it for it in issues if (not it.ai_generated) or ("Exact text to change" not in (it.fix or ""))]
+    # the exact quote / location / replacement detail — and re-verify any stored
+    # exact_text against the live page so hallucinated snippets self-heal.
+    to_fix = [it for it in issues if (not it.ai_generated) or ("Exact text to change" not in (it.fix or "")) or _has_bad_exact_text(it)]
     fixes_by_id = {}
     fix_source = {}
     providers_used = set()

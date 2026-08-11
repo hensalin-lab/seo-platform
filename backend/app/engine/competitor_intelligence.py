@@ -21,7 +21,7 @@ class CompetitorCrawler:
         if not pages:
             return self._empty_profile(competitor_url)
 
-        pages = [p for p in pages if isinstance(p, dict)]
+        pages = [p for p in pages if isinstance(p, dict) or hasattr(p, "get")]
         if not pages:
             return self._empty_profile(competitor_url)
 
@@ -514,26 +514,29 @@ class CompetitorIntelligenceEngine:
             gap = self._compute_gap(my_profile, comp)
             gaps[comp_url] = gap
 
-        # Overall competitive position
-        avg_comp_scores = {}
+        # Overall competitive position — only meaningful when we actually
+        # compared against at least one competitor. Without one, an empty dict
+        # stops the UI from rendering a grid of fabricated zeros.
         dimensions = ["authority", "content", "schema", "internal_links", "cwv", "titles", "eeat", "brand_signals", "ai_visibility"]
-        for dim in dimensions:
-            my_score = my_profile.get(dim, {}).get("score", 0)
-            comp_scores = [c.get(dim, {}).get("score", 0) for c in competitors.values()]
-            avg_comp = sum(comp_scores) / max(len(comp_scores), 1)
-            avg_comp_scores[dim] = {
-                "mine": my_score,
-                "avg_competitor": round(avg_comp, 1),
-                "delta": round(my_score - avg_comp, 1),
-                "advantage": "US" if my_score > avg_comp else "COMPETITOR" if avg_comp > my_score else "TIE",
-            }
+        avg_comp_scores = {}
+        if competitors:
+            for dim in dimensions:
+                my_score = my_profile.get(dim, {}).get("score", 0)
+                comp_scores = [c.get(dim, {}).get("score", 0) for c in competitors.values()]
+                avg_comp = sum(comp_scores) / len(comp_scores)
+                avg_comp_scores[dim] = {
+                    "mine": my_score,
+                    "avg_competitor": round(avg_comp, 1),
+                    "delta": round(my_score - avg_comp, 1),
+                    "advantage": "US" if my_score > avg_comp else "COMPETITOR" if avg_comp > my_score else "TIE",
+                }
 
         return {
             "my_profile": my_profile,
             "competitors": competitors,
             "gaps": gaps,
             "competitive_position": avg_comp_scores,
-            "dimensions_analyzed": dimensions,
+            "dimensions_analyzed": dimensions if competitors else [],
         }
 
     def _compute_gap(self, my: dict, competitor: dict) -> dict:
