@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/Toast';
 import { api } from '../../../api';
-import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send } from 'lucide-react';
+import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send, Globe, ExternalLink, Link2, Loader2 } from 'lucide-react';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'password', label: 'Password', icon: Lock },
   { id: 'api-keys', label: 'API Keys', icon: Key },
   { id: 'ai-providers', label: 'AI Providers', icon: Cpu },
+  { id: 'google', label: 'Google', icon: Globe },
   { id: 'webhooks', label: 'Webhooks', icon: Webhook },
   { id: 'digest', label: 'Digest', icon: Mail },
   { id: 'scheduled', label: 'Scheduled', icon: Calendar },
@@ -41,6 +42,7 @@ export default function SettingsPage() {
           {tab === 'password' && <PasswordTab addToast={addToast} />}
           {tab === 'api-keys' && <ApiKeysTab addToast={addToast} />}
           {tab === 'ai-providers' && <AiProvidersTab addToast={addToast} />}
+          {tab === 'google' && <GoogleTab addToast={addToast} />}
           {tab === 'webhooks' && <WebhooksTab addToast={addToast} />}
           {tab === 'digest' && <DigestTab addToast={addToast} />}
           {tab === 'scheduled' && <ScheduledTab addToast={addToast} />}
@@ -569,6 +571,165 @@ function WhiteLabelTab({ addToast }) {
           <button className="btn btn-primary" onClick={save} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Save size={14} /> {saving ? 'Saving...' : 'Save Settings'}
           </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function GoogleTab({ addToast }) {
+  const [accounts, setAccounts] = useState([]);
+  const [configured, setConfigured] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [properties, setProperties] = useState(null);
+  const [propertiesLoading, setPropertiesLoading] = useState(false);
+
+  const loadAccounts = async () => {
+    setLoading(true);
+    try {
+      const res = await api.googleAccounts();
+      setAccounts(res.accounts || []);
+      setConfigured(res.configured ?? false);
+      setSelectedAccount(prev => prev || res.accounts?.[0]?.id || '');
+    } catch (e) {
+      addToast(e.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadAccounts(); }, []);
+
+  const connect = async () => {
+    setConnecting(true);
+    try {
+      const res = await api.googleConnect();
+      if (!res.auth_url) throw new Error('No auth URL returned');
+      window.location.href = res.auth_url;
+    } catch (e) {
+      addToast(e.message, 'error');
+      setConnecting(false);
+    }
+  };
+
+  const loadProperties = async (accountId) => {
+    setSelectedAccount(accountId);
+    setPropertiesLoading(true);
+    setProperties(null);
+    try {
+      const res = await api.googleProperties(accountId);
+      setProperties(res.properties || []);
+    } catch (e) {
+      addToast(e.message, 'error');
+      setProperties([]);
+    } finally {
+      setPropertiesLoading(false);
+    }
+  };
+
+  const disconnect = async (accountId) => {
+    try {
+      await api.googleDisconnect(accountId);
+      addToast('Google account disconnected', 'success');
+      setProperties(null);
+      loadAccounts();
+    } catch (e) {
+      addToast(e.message, 'error');
+    }
+  };
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const googleResult = urlParams.get('google');
+  if (googleResult) {
+    setTimeout(() => {
+      const clean = window.location.pathname;
+      window.history.replaceState({}, '', clean);
+      if (googleResult === 'connected') addToast('Google account connected', 'success');
+      else addToast(urlParams.get('reason') ? `Google connect failed: ${urlParams.get('reason')}` : 'Google connect failed', 'error');
+      loadAccounts();
+    }, 0);
+  }
+
+  return (
+    <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Google Search Console</h2>
+        {configured ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, color: '#065f46', background: '#d1fae5' }}>
+            <CheckCircle2 size={13} /> Configured
+          </span>
+        ) : (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, color: '#92400e', background: '#fef3c7' }}>
+            <XCircle size={13} /> Not configured
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16 }}>
+        Connect Google to fetch real Search Console properties and pull live Core Web Vitals (LCP, INP, CLS, FCP, TTFB) from CrUX field data.
+        Connect multiple Google accounts — each is stored separately with encrypted tokens.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <button className="btn btn-primary" onClick={connect} disabled={connecting || !configured} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {connecting ? <Loader2 size={14} className="spin" /> : <ExternalLink size={14} />}
+          {connecting ? 'Redirecting to Google...' : 'Connect Google Account'}
+        </button>
+        <button className="btn btn-outline" onClick={loadAccounts} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <RefreshCw size={13} /> Refresh
+        </button>
+        {!configured && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ask an admin to set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on the server.</span>
+        )}
+      </div>
+
+      {loading ? (
+        <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+      ) : accounts.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No Google accounts connected yet.</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+            {accounts.map(a => (
+              <div key={a.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, background: 'var(--bg-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>
+                      {(a.name || a.email || 'G').slice(0, 1).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.email}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {a.name || 'Google account'} · {a.scopes?.length || 0} scopes · Connected {a.connected_at?.split('T')[0]}
+                      </div>
+                    </div>
+                  </div>
+                  <button className="btn btn-outline btn-sm" onClick={() => loadProperties(a.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <Link2 size={12} /> Properties
+                  </button>
+                  <button className="btn btn-outline btn-sm" onClick={() => disconnect(a.id)} style={{ color: '#ef4444', flexShrink: 0 }}>
+                    <Trash2 size={12} /> Disconnect
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {propertiesLoading && <p style={{ color: 'var(--text-secondary)' }}>Loading properties...</p>}
+          {properties !== null && !propertiesLoading && (
+            <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>Search Console Properties</div>
+              {properties.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No properties found for this account.</p>
+              ) : properties.map(p => (
+                <div key={p.siteUrl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{p.siteUrl}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.permissionLevel}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

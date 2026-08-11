@@ -301,6 +301,13 @@ export const api = {
     body: JSON.stringify({ config, capability }),
   }),
   getGoogleOAuthStatus: () => request('/oauth/google/status'),
+
+  // Google integrations (Phase A): OAuth connect + Search Console properties.
+  // Tokens never reach the frontend; only safe account metadata is returned.
+  googleConnect: () => request('/integrations/google/connect'),
+  googleAccounts: () => request('/integrations/google/accounts'),
+  googleProperties: (accountId = '') => request(`/integrations/google/properties${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
+  googleDisconnect: (accountId) => request(`/integrations/google/accounts/${accountId}`, { method: 'DELETE' }),
   getKeywordVolumes: (id, limit = 50) => request(`/audit/${id}/keyword-volumes?limit=${limit}`),
   getBrandMonitor: (id, brand = '') => request(`/audit/${id}/brand-monitor${brand ? `?brand=${encodeURIComponent(brand)}` : ''}`),
   getBrandMonitorHistory: (id) => request(`/audit/${id}/brand-monitor/history`),

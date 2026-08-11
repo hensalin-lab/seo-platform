@@ -7908,6 +7908,10 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
                 "ai_suggestions": fd.get("ai_suggestions") or [],
                 "note": note,
                 "source": "stored",
+                "sources": _cwv_sources(fd, lab, {
+                    "lcp": stored_row.lcp_ms, "cls": stored_row.cls, "inp": stored_row.inp_ms,
+                    "fcp": stored_row.fcp_ms, "ttfb": stored_row.ttfb_ms,
+                }),
             }
 
     engine = PageSpeedEngine()
@@ -7969,6 +7973,10 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
         "lab_data": data,
         "note": data.get("note", ""),
         "source": source,
+        "sources": _cwv_sources(field, lab, {
+            "lcp": lcp_ms, "cls": cls, "inp": inp_ms,
+            "fcp": fcp_ms, "ttfb": ttfb_ms,
+        }),
     }
 
     # Persist every result — including empty/negative ones — so repeat visits
@@ -8004,6 +8012,49 @@ _CWV_THRESHOLDS = {
     "fcp": {"label": "FCP", "good": 1800, "poor": 3000},
     "ttfb": {"label": "TTFB", "good": 800, "poor": 1800},
 }
+_CWV_FIELD_KEYS = {
+    "lcp": "largest_contentful_paint",
+    "cls": "cumulative_layout_shift",
+    "inp": "interaction_to_next_paint",
+    "fcp": "first_contentful_paint",
+    "ttfb": "time_to_first_byte",
+}
+_CWV_LAB_KEYS = {
+    "lcp": "largest-contentful-paint",
+    "cls": "cumulative-layout-shift",
+    "inp": "interaction-to-next-paint",
+    "fcp": "first-contentful-paint",
+    "ttfb": "time-to-first-byte",
+}
+
+
+def _cwv_sources(field: dict, lab: dict, values: dict) -> dict:
+    """Per-metric data source: field (CrUX) > lab (Lighthouse) > crawl (crawler estimate).
+
+    Uses the raw PageSpeed payloads plus the flattened metric values so a metric
+    that only exists in one payload is attributed correctly.
+    """
+    sources = {}
+    crawl_fallback = bool(field and field.get("source") == "crawl")
+    for key in _CWV_THRESHOLDS:
+        field_val = (field.get(_CWV_FIELD_KEYS[key]) or {}).get("p75") if field else None
+        lab_val = (lab.get(_CWV_LAB_KEYS[key]) or {}).get("numeric_value") if lab else None
+        value = values.get(key)
+        if field and field.get("_available") and field_val is not None:
+            sources[key] = "field"
+        elif crawl_fallback and key == "ttfb" and value is not None:
+            sources[key] = "crawl"
+        elif lab_val is not None:
+            sources[key] = "lab"
+        elif field_val is not None:
+            sources[key] = "field"
+        elif value is not None:
+            sources[key] = "estimated"
+        else:
+            sources[key] = "unavailable"
+    return sources
+
+
 _CWV_WEIGHTS = {"lcp": 25, "cls": 25, "inp": 25, "fcp": 10, "ttfb": 15}
 _CWV_SUB_SCORE = {"good": 100, "needs_improvement": 60, "poor": 25}
 

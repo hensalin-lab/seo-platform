@@ -32,6 +32,7 @@ async def init_db():
         User, APIKey, Session, Webhook, ScheduledAudit, WhiteLabelSettings,
         Backlink, ReferringDomain, CoreWebVitals, FixAction, DigestPreference,
         RankPosition, ProgrammaticTemplate, ProgrammaticEntry, ProgrammaticPage,
+        GoogleAccount, OAuthFlow,
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

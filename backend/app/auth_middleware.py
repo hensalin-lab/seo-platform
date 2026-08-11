@@ -20,6 +20,7 @@ PUBLIC_PREFIXES = [
     "/api/auth/register",
     "/api/auth/login",
     "/api/oauth/",
+    "/api/integrations/google/callback",
 ]
 
 PUBLIC_METHODS = {"OPTIONS", "HEAD"}

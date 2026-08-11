@@ -130,9 +130,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
+    # Used to encrypt OAuth tokens at rest. When unset, derived from JWT_SECRET_KEY.
+    TOKEN_ENCRYPTION_KEY: str = ""
+
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8001/api/oauth/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8001/api/integrations/google/callback"
 
     PAGESPEED_API_KEY: str = ""
 

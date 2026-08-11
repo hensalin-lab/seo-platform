@@ -16,13 +16,39 @@ const CWV_MAP = [
   { key: 'ttfb', value: null, unit: 'ms', good: 800, poor: 1800 },
 ]
 
-function MetricCard({ label, value, status, target, explanation, recommendation }) {
+const SOURCE_LABEL = {
+  field: 'FIELD',
+  lab: 'LAB',
+  crawl: 'CRAWL',
+  estimated: 'EST.',
+}
+
+function SourceBadge({ source }) {
+  if (!source || !SOURCE_LABEL[source]) return null
+  const map = {
+    field: { color: '#12b886', bg: '#e6fcf5', title: 'Field data from Google CrUX (real users)' },
+    lab: { color: '#1971c2', bg: '#e7f5ff', title: 'Lab data from Lighthouse' },
+    crawl: { color: '#e67700', bg: '#fff9db', title: 'Estimated from our crawler response times' },
+    estimated: { color: '#f59f00', bg: '#fff9db', title: 'Estimated value' },
+  }
+  const m = map[source] || map.estimated
+  return (
+    <span title={m.title} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.3px', padding: '2px 6px', borderRadius: 4, color: m.color, background: m.bg, marginLeft: 6, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+      {SOURCE_LABEL[source]}
+    </span>
+  )
+}
+
+function MetricCard({ label, value, status, target, explanation, recommendation, source }) {
   const color = status === 'good' ? '#12b886' : status === 'needs-improvement' ? '#f59f00' : status === 'unknown' ? 'var(--text-muted)' : '#fa5252'
   const bg = status === 'good' ? '#e6fcf5' : status === 'needs-improvement' ? '#fff9db' : status === 'unknown' ? 'var(--bg-secondary)' : '#fff5f5'
   const isUnknown = status === 'unknown' || !value || value === '-'
   return (
     <div style={{ background: bg, border: `1px solid ${color}22`, borderRadius: 'var(--radius)', padding: '14px 16px' }}>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>
+        {label}
+        {!isUnknown && <SourceBadge source={source} />}
+      </div>
       {isUnknown ? (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Not Measured</div>
@@ -134,11 +160,12 @@ export default function SpeedAnalysis() {
         lcp: cwvRes?.lcp_ms, cls: cwvRes?.cls, inp: cwvRes?.inp_ms,
         fcp: cwvRes?.fcp_ms, ttfb: cwvRes?.ttfb_ms,
       }
+      const perSources = cwvRes?.sources || {}
       CWV_MAP.forEach(({ key, unit, good, poor }) => {
         const v = values[key]
         if (v === null || v === undefined || v === '') return
         const status = v <= good ? 'good' : v < poor ? 'needs-improvement' : 'poor'
-        cd[key] = { display: `${Math.round(v)}${unit}`, status, value: v }
+        cd[key] = { display: `${Math.round(v)}${unit}`, status, value: v, source: perSources[key] || null }
       })
       setCwvData(cd)
       setCwvSource(Object.keys(cd).length
@@ -348,27 +375,27 @@ export default function SpeedAnalysis() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
         <MetricCard
-          label="LCP" value={lcp.display || null} status={lcp.display ? (lcp.status || 'unknown') : 'unknown'} target="< 2.5s"
+          label="LCP" value={lcp.display || null} status={lcp.display ? (lcp.status || 'unknown') : 'unknown'} target="< 2.5s" source={lcp.source}
           explanation="Largest Contentful Paint — time until the main content loads. Affects bounce rate and Google rankings."
           recommendation={lcp.display ? (lcp.status === 'good' ? '✅ Good' : '⚡ Optimize hero images, preload key resources') : undefined}
         />
         <MetricCard
-          label="CLS" value={cls.display || null} status={cls.display ? (cls.status || 'unknown') : 'unknown'} target="< 0.1"
+          label="CLS" value={cls.display || null} status={cls.display ? (cls.status || 'unknown') : 'unknown'} target="< 0.1" source={cls.source}
           explanation="Cumulative Layout Shift — visual stability. High CLS causes poor user experience."
           recommendation={cls.display ? (cls.status === 'good' ? '✅ Good' : '⚡ Set image dimensions, avoid dynamically injected content') : undefined}
         />
         <MetricCard
-          label="INP" value={inp.display || null} status={inp.display ? (inp.status || 'unknown') : 'unknown'} target="< 200ms"
+          label="INP" value={inp.display || null} status={inp.display ? (inp.status || 'unknown') : 'unknown'} target="< 200ms" source={inp.source}
           explanation="Interaction to Next Paint — responsiveness to user input. Delayed INP frustrates users."
           recommendation={inp.display ? (inp.status === 'good' ? '✅ Good' : '⚡ Reduce JavaScript execution time, break up long tasks') : undefined}
         />
         <MetricCard
-          label="FCP" value={fcp.display || null} status={fcp.display ? (fcp.status || 'unknown') : 'unknown'} target="< 1.8s"
+          label="FCP" value={fcp.display || null} status={fcp.display ? (fcp.status || 'unknown') : 'unknown'} target="< 1.8s" source={fcp.source}
           explanation="First Contentful Paint — time until first pixels appear. Signals loading speed to users."
           recommendation={fcp.display ? (fcp.status === 'good' ? '✅ Good' : '⚡ Inline critical CSS, reduce server response time') : undefined}
         />
         <MetricCard
-          label="TTFB" value={ttfb.display || null} status={ttfb.display ? (ttfb.status || 'unknown') : 'unknown'} target="< 800ms"
+          label="TTFB" value={ttfb.display || null} status={ttfb.display ? (ttfb.status || 'unknown') : 'unknown'} target="< 800ms" source={ttfb.source}
           explanation="Time to First Byte — server responsiveness. High TTFB delays all subsequent metrics."
           recommendation={ttfb.display ? (ttfb.status === 'good' ? '✅ Good' : '⚡ Enable caching, use CDN, optimize server response') : undefined}
         />

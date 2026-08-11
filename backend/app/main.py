@@ -29,6 +29,7 @@ from app.api.workspaces import router as workspaces_router
 from app.api.providers import router as providers_router
 from app.api.brand_monitor import router as brand_monitor_router
 from app.api.free_data import router as free_data_router
+from app.api.google_integrations import router as google_integrations_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -195,6 +196,7 @@ app.include_router(workspaces_router)
 app.include_router(providers_router)
 app.include_router(brand_monitor_router)
 app.include_router(free_data_router)
+app.include_router(google_integrations_router)
 
 @app.get("/api/health")
 @limiter.exempt

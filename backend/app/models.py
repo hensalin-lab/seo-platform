@@ -403,6 +403,8 @@ class User(Base):
     webhooks = relationship("Webhook", back_populates="user", cascade="all, delete-orphan")
     scheduled_audits = relationship("ScheduledAudit", back_populates="user", cascade="all, delete-orphan")
     white_label = relationship("WhiteLabelSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    google_accounts = relationship("GoogleAccount", back_populates="user", cascade="all, delete-orphan")
+    oauth_flows = relationship("OAuthFlow", back_populates="user", cascade="all, delete-orphan")
 
 
 class APIKey(Base):
@@ -875,6 +877,51 @@ class ProviderSetting(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
     updated_at = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
+
+
+class GoogleAccount(Base):
+    """A connected Google account with encrypted OAuth tokens.
+
+    One user may connect many Google accounts (never overwritten on connect).
+    Tokens are stored encrypted (app.utils.crypto) and never returned to the
+    frontend."""
+    __tablename__ = "google_accounts"
+    __table_args__ = (
+        Index("ix_google_accounts_user", "user_id"),
+        Index("ix_google_accounts_google", "google_account_id"),
+        Index("ix_google_accounts_user_google", "user_id", "google_account_id", unique=True),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    google_account_id = Column(String, default="")
+    email = Column(String, default="")
+    name = Column(String, default="")
+    encrypted_access_token = Column(Text, default="")
+    encrypted_refresh_token = Column(Text, default="")
+    token_expires_at = Column(DateTime, nullable=True)
+    scopes = Column(JSON, default=list)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    updated_at = Column(DateTime, default=_dt.datetime.utcnow, onupdate=_dt.datetime.utcnow)
+    user = relationship("User")
+
+
+class OAuthFlow(Base):
+    """Short-lived OAuth state record linking a consent redirect back to the
+    authenticated user who initiated the connect flow."""
+    __tablename__ = "oauth_flows"
+    __table_args__ = (
+        Index("ix_oauth_flows_state", "state"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
+    state = Column(String, unique=True, nullable=False, default=generate_uuid)
+    provider = Column(String, default="google")
+    redirect_uri = Column(String, default="")
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    consumed = Column(Boolean, default=False)
+    user = relationship("User")
 
 
 class AiCitationRecord(Base):

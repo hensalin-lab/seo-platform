@@ -16,12 +16,12 @@
 | Content AI | Generic suggestions | Per-page section-level recommendations, missing elements, rewrite suggestions |
 | Blog AI | None | 100 blog ideas, content calendar, trending topics, seasonal content |
 | Page Improvements | None | What to add/remove/rewrite/move/link/optimize per page |
-| Google OAuth | Service account only | Full OAuth flow, auto-refresh, multi-account |
+| Google OAuth | OAuth flow (multi-account, encrypted, auto-refresh) done | GA4 property selector, GSC data wiring |
 | Competitor Analysis | Basic crawl comparison | Real backlink gaps, SERP feature gaps, content gaps, keyword gaps |
 | Reports | PDF only | CSV, Excel, HTML, white-label, scheduled, email |
 | Dashboard | Audit-level only | Portfolio view, trends, alerts, health scores |
 | Historical Tracking | None | Trend lines, regression detection, progress tracking |
-| Core Web Vitals | Response time only | Real Lighthouse/CrUX data via PageSpeed API |
+| Core Web Vitals | Real PSI/CrUX auto-fetch + per-metric FIELD/LAB/CRAWL source | GA4 traffic, per-page field data |
 | Backlinks | Outbound links only | Inbound backlink analysis, toxic links, anchor text |
 | Topic Clusters | Basic keyword grouping | SERP-based clustering, hub-spoke visualization |
 | International SEO | None | Hreflang, multi-language, multi-region |
@@ -212,16 +212,26 @@
 | Audit ownership | HIGH | 3h | Link audits to users/teams |
 | Usage tracking | MEDIUM | 4h | Track API calls, audit counts per user |
 
-### 3.2 Google OAuth Integration (Week 8-9)
+### 3.2 Google OAuth Integration (Week 8-9) — Phase A ✅ (mostly done)
+
+> **Phase A status (2026):** Full authorization-code OAuth implemented under
+> `/api/integrations/google/*` with state-bound connect/callback, encrypted token
+> storage at rest (`app/utils/crypto.py`, Fernet AES-128), automatic token refresh,
+> **multi-account support** (accounts are never overwritten), Search Console property
+> discovery, a Settings → Google tab, and per-metric FIELD/LAB/CRAWL badges on the
+> Speed & Core Web Vitals UI. Tests: `backend/tests/test_google_integrations.py`
+> (10 passing). Remaining: set real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
+> `GOOGLE_REDIRECT_URI` in prod, GA4 property selector, and wiring GSC data into the
+> audit engines.
 
 | Task | Priority | Effort | Details |
 |------|----------|--------|---------|
-| Google OAuth flow | CRITICAL | 8h | Sign in with Google, consent screen |
-| GSC property selector | CRITICAL | 4h | Choose from user's GSC properties |
-| GA4 property selector | CRITICAL | 4h | Choose from user's GA4 properties |
-| Token refresh automation | HIGH | 3h | Auto-refresh expired tokens |
-| Multi-account support | HIGH | 3h | Connect multiple Google accounts |
-| Secure token storage | HIGH | 2h | Encrypt tokens at rest |
+| Google OAuth flow | CRITICAL | 8h | ✅ Connect/callback + consent screen |
+| GSC property selector | CRITICAL | 4h | ✅ Choose from user's GSC properties |
+| GA4 property selector | CRITICAL | 4h | Not started — needs `analytics.readonly` data path |
+| Token refresh automation | HIGH | 3h | ✅ Auto-refresh expired tokens |
+| Multi-account support | HIGH | 3h | ✅ Connect multiple Google accounts |
+| Secure token storage | HIGH | 2h | ✅ Encrypt tokens at rest (Fernet) |
 
 ### 3.3 Real Data Integrations (Week 9-10)
 
