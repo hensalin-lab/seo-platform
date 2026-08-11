@@ -4,9 +4,9 @@
                          "source":  "/api/:path*",
                          "destination":  "https://zooming-smile-production-9693.up.railway.app/api/:path*"
                      },
-                     {
-                         "source":  "/((?!api/|assets/).*)",
-                         "destination":  "/index.html"
-                     }
+                    {
+                        "source":  "/((?!api/|assets/|favicon\\.png|favicon\\.ico|robots\\.txt|\\.well-known/).*)",
+                        "destination":  "/index.html"
+                    }
                  ]
 }
