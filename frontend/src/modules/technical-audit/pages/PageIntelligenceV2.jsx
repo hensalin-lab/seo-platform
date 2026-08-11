@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Layers, CheckCircle, XCircle, AlertTriangle, Brain, Copy, Target, TrendingUp, ArrowRight, FileCode, Link2, User } from 'lucide-react';
+import { LoadingState, EmptyState } from '../../../components/States';
 
 function ScoreRing({ score, size = 70, label }) {
   const r = (size - 6) / 2;
@@ -66,8 +67,8 @@ export default function PageIntelligenceV2() {
     api.getPageIntelligenceV2(id, selectedIdx).then(d => setData(d)).catch(() => {});
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
+  if (loading) return <LoadingState message="Loading page intelligence…" />;
+  if (!data) return <EmptyState title="No page intelligence yet" description="Run an audit to score each page across technical, content, schema and AI-readiness." />;
 
   const scores = data.category_scores || {};
   const beforeAfter = data.before_after_fixes || {};

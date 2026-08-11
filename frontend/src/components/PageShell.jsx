@@ -1,4 +1,5 @@
 import SkeletonLine from './Skeleton';
+import { EmptyState } from './States';
 
 export default function PageShell({ loading, error, empty, title, subtitle, icon: Icon, children, actions }) {
   if (loading) {
@@ -40,11 +41,7 @@ export default function PageShell({ loading, error, empty, title, subtitle, icon
   if (empty) {
     return (
       <div style={{ padding: 24 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>{Icon ? <Icon size={48} /> : '\u{1f50d}'}</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text, #1a1d29)', marginBottom: 4 }}>No data available</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)' }}>Run an audit to see results here.</div>
-        </div>
+        <EmptyState icon={Icon} title="No data available" description="Run an audit to see results here." />
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { api } from '../../../api';
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 import { AlertTriangle, Lightbulb, Activity, CheckCircle, XCircle, Filter, RefreshCw, Clock, ArrowRight, ExternalLink } from 'lucide-react';
+import { EmptyState as SharedEmptyState } from '../../../components/States';
 
 const SEVERITY_COLORS = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
 const PRIORITY_LABELS = { P0: 'Critical', P1: 'High', P2: 'Medium', P3: 'Low' };
@@ -27,13 +28,7 @@ function Spinner({ text }) {
 }
 
 function EmptyState({ icon: Icon, title, message }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 12 }}>
-      {Icon && <Icon size={40} color="var(--text-muted)" />}
-      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{title || 'No data available'}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 400 }}>{message || ''}</div>
-    </div>
-  );
+  return <SharedEmptyState icon={Icon} title={title || 'No data available'} description={message} />;
 }
 
 const SEVERITY_COLORS2 = { CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#eab308', LOW: '#22c55e', INFO: '#64748b' };

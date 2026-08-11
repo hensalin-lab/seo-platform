@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { GitBranch, Clock, AlertTriangle, CheckCircle, ChevronDown, Target, Zap, ArrowRight, Calendar, BarChart3, Code, FileText, Search } from 'lucide-react';
+import { LoadingState, EmptyState } from '../../../components/States';
 
 function PhaseCard({ phase, phaseIndex }) {
   const [expanded, setExpanded] = useState(phaseIndex === 0);
@@ -84,8 +85,8 @@ export default function SeoRoadmap() {
     }).catch(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading roadmap...</p></div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
+  if (loading) return <LoadingState message="Loading roadmap…" />;
+  if (!data) return <EmptyState title="No roadmap yet" description="Run an audit to generate your prioritized SEO roadmap." />;
 
   const roadmap = data.roadmap || data.recommendations?.roadmap || [];
   const topRecs = data.top_recommendations || data.recommendations?.items || [];

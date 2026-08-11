@@ -4,6 +4,7 @@ import { api } from '../api'
 import { Globe, ArrowRight, Download } from 'lucide-react'
 import AuditTable from '../components/AuditTable'
 import { toCsv, downloadFile } from '../utils/exportCsv'
+import { LoadingState } from '../components/States'
 
 export default function History() {
   const [audits, setAudits] = useState([])
@@ -52,7 +53,7 @@ export default function History() {
     ]), `seo-audits-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
   }
 
-  if (loading) return <div className="loading-overlay"><div className="spinner" /><p>Loading...</p></div>
+  if (loading) return <div style={{ padding: 24 }}><LoadingState message="Loading audit history…" /></div>
 
   const avgScore = audits.length ? Math.round(audits.reduce((s, a) => s + (a.overall_score || 0), 0) / audits.length) : 0
   const done = audits.filter(a => a.status === 'COMPLETED').length

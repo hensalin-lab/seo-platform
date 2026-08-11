@@ -6,6 +6,7 @@ import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import FixDetail from '../../../components/FixDetail';
+import { LoadingState, EmptyState } from '../../../components/States';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
@@ -45,8 +46,8 @@ export default function AiBotIntelligence() {
     api.getAiBotIntelligence(id, selectedIdx).then(d => { setData(d); setPageLoading(false); }).catch(() => setPageLoading(false));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
+  if (loading) return <LoadingState message="Loading AI bot access…" />;
+  if (!data) return <EmptyState title="No AI bot data yet" description="Run an audit to see which AI crawlers can access each page." />;
 
   const bots = data.bot_accessibility || {};
   const machineRead = data.machine_readability || {};

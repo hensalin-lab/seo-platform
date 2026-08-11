@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Brain, Globe, Bot, Activity, FileCode, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import VisualSchemaBuilder from '../components/VisualSchemaBuilder';
+import { EmptyState } from '../../../components/States';
 
 function ScoreCard({ label, score, color, icon: Icon }) {
   const scoreColor = score >= 80 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
@@ -79,11 +80,7 @@ export default function GeoAeoHub() {
   const allNull = !geoData && !aeoData && !eeatData && !schemaData && !aiVisibilityData;
   if (allNull) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
-        <Brain size={40} color="var(--text-muted, #9ca3af)" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text, #111827)' }}>No data available</div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary, #6b7280)' }}>Run a full audit to see GEO & AEO intelligence.</div>
-      </div>
+      <EmptyState icon={Brain} title="No GEO & AEO data yet" description="Run a full audit to see GEO & AEO intelligence." />
     );
   }
 

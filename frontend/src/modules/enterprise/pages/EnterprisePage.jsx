@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Globe, Search, ChevronRight, AlertTriangle, CheckCircle, BarChart3, RefreshCw } from 'lucide-react';
+import { EmptyState, ErrorState } from '../../../components/States';
 
 const PAGE_TYPE_COLORS = {
   HOMEPAGE: { bg: '#dbeafe', text: '#1e40af' }, PRICING: { bg: '#fce7f3', text: '#9d174d' },
@@ -127,8 +128,8 @@ export default function EnterprisePage() {
     </div>
   );
 
-  if (error) return <div className="error-state">{error}</div>;
-  if (!basicData) return <div className="empty-state">No data</div>;
+  if (error) return <ErrorState message={error} />;
+  if (!basicData) return <EmptyState title="No enterprise data yet" description="Run an audit to analyze enterprise SEO signals across all pages." />;
 
   return (
     <div>

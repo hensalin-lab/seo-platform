@@ -12,6 +12,7 @@ import PromptTestingLab from '../components/PromptTestingLab';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
+import { EmptyState } from '../../../components/States';
 
 const TABS = [
   { key: 'overview', label: 'Content Overview', icon: BarChart3 },
@@ -675,11 +676,7 @@ export default function ContentStudio() {
   const allNull = !contentData && !qualityData && !opportunitiesData && !revivalData;
   if (allNull) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12 }}>
-        <FileText size={40} color="#6b7280" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>No data available</div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Run a full audit to see content analysis.</div>
-      </div>
+      <EmptyState icon={FileText} title="No content data yet" description="Run a full audit to see content analysis, quality and opportunities." />
     );
   }
 

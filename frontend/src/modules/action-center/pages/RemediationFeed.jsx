@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { ListChecks, AlertTriangle, CheckCircle, ChevronDown, Clock, Users, Code, FileText, Search, BarChart3, Settings, Target } from 'lucide-react';
+import { LoadingState, EmptyState } from '../../../components/States';
 
 const ROLE_CONFIG = {
   DEVELOPER: { label: 'Developer Tasks', icon: Code, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
@@ -98,8 +99,8 @@ export default function RemediationFeed() {
     });
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading...</p></div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
+  if (loading) return <LoadingState message="Loading remediation feed…" />;
+  if (!data) return <EmptyState title="No remediation data yet" description="Run an audit to generate a prioritized remediation feed." />;
 
   const allTasks = data.top_recommendations || data.recommendations?.items || data.action_items || data.tasks || [];
   const issuesByCategory = data.issues_by_category || {};

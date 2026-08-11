@@ -4,6 +4,7 @@ import { api } from '../../../api'
 import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw, MonitorSmartphone } from 'lucide-react'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import FixDetail from '../../../components/FixDetail'
+import { LoadingState, EmptyState, ErrorState } from '../../../components/States'
 
 const CWV_MAP = [
   { key: 'lcp', value: null, unit: 'ms', good: 2500, poor: 4000 },
@@ -231,9 +232,9 @@ export default function SpeedAnalysis() {
     }).catch(e => setError(e.message)).finally(() => setLoading(false))
   }, [id])
 
-  if (loading) return <div className="loading-overlay"><div className="spinner" /><p>Loading speed data...</p></div>
-  if (error) return <div className="error-state">{error}</div>
-  if (!data) return <div className="empty-state"><h3>No data available</h3></div>
+  if (loading) return <LoadingState message="Loading speed data…" />;
+  if (error) return <ErrorState message={error} onRetry={loadCwv} />;
+  if (!data) return <EmptyState title="No speed data yet" description="Run an audit or a Lighthouse run to measure Core Web Vitals for this site." />;
 
   const hasCwvData = data.hasCwvData || Object.keys(cwvData).length > 0
   const perfScore = cwvPerf || (hasCwvData ? 65 : null)

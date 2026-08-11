@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
 import GooglebotView from '../../../components/GooglebotView';
+import { EmptyState } from '../../../components/States';
 
 const TAB_GROUPS = [
   { label: 'Google Sees', tabs: [
@@ -92,7 +93,7 @@ function Section({ title, children, color = '#1e293b' }) {
 
 function GenericSubView({ title, icon, data }) {
   const Icon = icon || Eye;
-  if (!data || typeof data !== 'object') return <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>No data available</div>;
+  if (!data || typeof data !== 'object') return <EmptyState title={`No data for ${title}`} description={`This audit didn't capture data for ${title}. Run a fresh audit to populate it.`} />
   return (
     <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 20 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>

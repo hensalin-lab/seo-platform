@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Award, ExternalLink, Link2, User, Globe, AlertTriangle, Shield, TrendingUp } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
+import { LoadingState, EmptyState } from '../../../components/States';
 
 function ScoreRing({ score, size = 80, label }) {
   const r = (size - 8) / 2;
@@ -61,8 +62,8 @@ export default function OffsiteAuthority() {
     api.getOffsiteAuthority(id, selectedIdx).then(d => setData(d)).catch(() => setData(null));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
+  if (loading) return <LoadingState message="Loading off-site authority…" />;
+  if (!data) return <EmptyState title="No off-site data yet" description="Run an audit to measure domain authority, brand signals and backlink opportunities." />;
 
   const presence = data.platform_presence || {};
   const brandSignals = data.brand_signals || {};

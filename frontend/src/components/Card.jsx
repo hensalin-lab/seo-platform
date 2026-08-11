@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { EmptyState } from './States';
 
 export function Card({ children, title, subtitle, icon: Icon, action, className = '', style = {}, animate = true }) {
   return (
@@ -73,13 +74,4 @@ export function StatCard({ label, value, icon: Icon, color = 'var(--primary, #4c
   );
 }
 
-export function EmptyState({ icon: Icon = Search, title = 'No data available', description = '', action }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, textAlign: 'center' }}>
-      <Icon size={48} style={{ color: 'var(--text-muted, #d1d5db)', marginBottom: 16 }} />
-      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text, #1a1d29)', marginBottom: 4 }}>{title}</div>
-      {description && <div style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)', maxWidth: 300 }}>{description}</div>}
-      {action}
-    </div>
-  );
-}
+export { EmptyState };

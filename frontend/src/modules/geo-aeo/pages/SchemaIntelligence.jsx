@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { FileCode, CheckCircle, XCircle, AlertTriangle, Copy, Shield, Eye } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import { LoadingState, EmptyState } from '../../../components/States';
 
 function ScoreRing({ score, size = 80, label }) {
   const r = (size - 8) / 2;
@@ -71,8 +72,8 @@ export default function SchemaIntelligence() {
     api.getSchemaIntelligence(id, selectedIdx).then(d => setData(d)).catch(() => setData(null));
   }, [id, selectedIdx, pages]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No data available</div>;
+  if (loading) return <LoadingState message="Loading schema intelligence…" />;
+  if (!data) return <EmptyState title="No schema data yet" description="Run an audit to detect and validate structured data across pages." />;
 
   const detected = data.detected_schemas || [];
   const missing = data.missing_schemas || [];

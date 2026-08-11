@@ -13,6 +13,7 @@ import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 import GooglebotView from '../../../components/GooglebotView';
+import { EmptyState, LoadingState } from '../../../components/States';
 
 const GOOGLE_TABS = [
   { key: 'googlebot', label: 'Googlebot', icon: Globe },
@@ -459,7 +460,7 @@ function SignalCard({ signal, index }) {
 
 function GenericSubView({ title, icon, data }) {
   const Icon = icon || Eye;
-  if (!data || typeof data !== 'object') return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 11 }}>No data available</div>;
+  if (!data || typeof data !== 'object') return <EmptyState title={`No data for ${title}`} description={`This audit didn't capture data for ${title}. Run a fresh audit to populate it.`} />;
   return (
     <div style={{ background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: 14 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -765,8 +766,8 @@ export default function ContentRewriter() {
     }).catch(() => setPageLoading(false));
   }, [id, selectedIdx, pages.length]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading...</p></div>;
-  if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No pages found</div>;
+  if (loading) return <LoadingState message="Loading page data…" />;
+  if (!pages.length) return <EmptyState title="No pages found" description="Run an audit to crawl pages and rewrite their content." />;
 
   const page = pages[selectedIdx];
   const sv = deepData?.sub_views || {};

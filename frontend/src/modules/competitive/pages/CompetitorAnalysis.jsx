@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import { Users, TrendingUp, AlertTriangle, ArrowRight, BarChart3, Shield, BookOpen, Link2, Gauge, Award, Brain, ExternalLink, RefreshCw, Play, Loader, Star } from 'lucide-react'
+import { LoadingState } from '../../../components/States'
 
 const DIMENSION_ICONS = { authority: Shield, content: BookOpen, schema: Brain, internal_links: Link2, cwv: Gauge, titles: TrendingUp, eeat: Award, brand_signals: TrendingUp, ai_visibility: Brain }
 const DIMENSION_LABELS = { authority: 'Authority', content: 'Content', schema: 'Schema', internal_links: 'Internal Links', cwv: 'CWV', titles: 'Titles', eeat: 'E-E-A-T', brand_signals: 'Brand', ai_visibility: 'AI Visibility' }
@@ -47,7 +48,7 @@ export default function CompetitorAnalysis() {
     }
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>Loading...</div>
+  if (loading) return <LoadingState message="Loading competitor analysis…" />
 
   const competitorUrl = basic?.competitor_url || deep?.my_profile?.competitor_url || null
   const position = deep?.competitive_position || {}
