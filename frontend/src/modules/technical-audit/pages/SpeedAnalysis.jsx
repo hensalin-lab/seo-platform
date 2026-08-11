@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
-import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw, MonitorSmartphone } from 'lucide-react'
+import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw, MonitorSmartphone, Accessibility, ShieldCheck, Search } from 'lucide-react'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import FixDetail from '../../../components/FixDetail'
 import { LoadingState, EmptyState, ErrorState } from '../../../components/States'
@@ -118,12 +118,14 @@ export default function SpeedAnalysis() {
   const [cwvData, setCwvData] = useState({})
   const [cwvSource, setCwvSource] = useState(null)
   const [cwvPerf, setCwvPerf] = useState(null)
+  const [categoryScores, setCategoryScores] = useState({})
 
   const loadCwv = useCallback(async (force = false) => {
     try {
       setFetchingCwv(true)
       setCwvError(null)
       const cwvRes = await api.getCoreWebVitals(id, '', force).catch(() => null)
+      setCategoryScores(cwvRes?.category_scores || {})
       const cd = {}
       const values = {
         lcp: cwvRes?.lcp_ms, cls: cwvRes?.cls, inp: cwvRes?.inp_ms,
@@ -244,6 +246,14 @@ export default function SpeedAnalysis() {
   const fcp = cwvData.fcp || {}
   const ttfb = cwvData.ttfb || {}
 
+  const cs = categoryScores || {}
+  const catScores = [
+    { label: 'Accessibility', score: cs.Accessibility ?? cs.accessibility ?? null, icon: Accessibility },
+    { label: 'Best Practices', score: cs['Best Practices'] ?? cs['best-practices'] ?? null, icon: ShieldCheck },
+    { label: 'SEO', score: cs.SEO ?? cs.seo ?? null, icon: Search },
+  ]
+  const hasCatScores = catScores.some(c => c.score != null)
+
   return (
     <div>
       <div className="page-header">
@@ -307,9 +317,18 @@ export default function SpeedAnalysis() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
               <CategoryScore label="Performance" score={perfScore || 0} icon={Gauge} />
               <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Accessibility, Best Practices, and SEO scores require Lighthouse. Connect Google PageSpeed Insights API or run Lighthouse for real data.
-                </div>
+                {hasCatScores ? (
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Other Lighthouse categories — from real Lighthouse data</div>
+                    {catScores.map(({ label, score, icon }) => (
+                      <CategoryScore key={label} label={label} score={score ?? 0} icon={icon} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Accessibility, Best Practices, and SEO scores require Lighthouse. Click <strong>Auto-fetch from PageSpeed Insights</strong> or <strong>Run Local Lighthouse</strong> on the Page Speed tab to populate them.
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>

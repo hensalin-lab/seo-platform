@@ -297,6 +297,7 @@ class CrawlerEngine:
                     "rendered_with_js": False,
                     "hreflang_tags": [],
                     "language": "",
+                    "has_viewport": bool(re.search(r'<meta[^>]*name=["\']viewport["\']', html, re.I)),
                     "js_signals": {},
                 }
 

@@ -119,7 +119,7 @@ export default function PromptTestingLab() {
           rows={4}
           style={{
             width: '100%', padding: '12px 14px', background: '#12141a', border: '1px solid var(--border)',
-            borderRadius: 8, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical',
+            borderRadius: 8, color: '#e6eaf2', fontSize: 14, fontFamily: 'inherit', resize: 'vertical',
             lineHeight: 1.6, outline: 'none',
           }}
           onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
@@ -156,7 +156,7 @@ export default function PromptTestingLab() {
             placeholder="e.g. Datavicloud"
             style={{
               flex: 1, padding: '8px 12px', background: '#12141a', border: '1px solid var(--border)',
-              borderRadius: 8, color: 'var(--text)', fontSize: 13, outline: 'none', maxWidth: 300,
+              borderRadius: 8, color: '#e6eaf2', fontSize: 13, outline: 'none', maxWidth: 300,
             }}
           />
           <span style={{ fontSize: 11, color: '#6b7280' }}>Each model's answer is checked for this name.</span>

@@ -3081,6 +3081,7 @@ async def _get_page_intelligence_impl(audit_id: str, page_url: str, db: AsyncSes
             "description": issue.description,
             "impact": issue.impact,
             "fix": issue.fix,
+            "page": getattr(issue, "page_url", None) or page.url,
         })
 
     # Count severity breakdown
@@ -3549,6 +3550,7 @@ async def get_report_data(audit_id: str, db: AsyncSession = Depends(get_db)):
             "signal_name": issue.signal_name,
             "description": issue.description,
             "fix": issue.fix,
+            "page": getattr(issue, "page_url", None) or "",
         })
 
     resp = {
@@ -3820,8 +3822,17 @@ async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     small_text = sum(1 for p in pages if p.word_count and p.word_count < 100)
 
     total = len(pages)
-    has_viewport = sum(1 for p in pages if p.signals and p.signals.get("has_viewport"))
-    responsive_score = round((has_viewport / max(total, 1)) * 100)
+    _viewport_re = re.compile(r'<meta[^>]*name=["\']viewport["\']', re.I)
+    has_viewport = 0
+    missing_viewport = 0
+    for p in pages:
+        sig = p.signals or {}
+        if sig.get("has_viewport") is True:
+            has_viewport += 1
+        elif sig.get("has_viewport") is False or (p.html_raw and not _viewport_re.search(p.html_raw)):
+            missing_viewport += 1
+    known = has_viewport + missing_viewport
+    responsive_score = round((has_viewport / max(known, 1)) * 100) if known else 0
 
     score = 60
     if responsive_score > 80:
@@ -3833,8 +3844,8 @@ async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     score = min(score, 100)
 
     recs = []
-    if responsive_score < 80:
-        recs.append({"priority": "HIGH", "action": f"Add viewport meta tag to {total - has_viewport} pages missing it", "impact": "Required for mobile-first indexing"})
+    if missing_viewport > 0:
+        recs.append({"priority": "HIGH", "action": f"Add viewport meta tag to {missing_viewport} pages missing it", "impact": "Required for mobile-first indexing"})
     if len(slow_pages) > 0:
         recs.append({"priority": "HIGH", "action": f"Optimize {len(slow_pages)} slow pages to load under 3 seconds", "impact": "Core Web Vitals directly affect ranking"})
     if total > 0:
@@ -7742,9 +7753,10 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
     stored_row = stored.scalars().first()
     if stored_row and not refresh:
         fd = stored_row.field_data or {}
+        lab = stored_row.lab_data or {}
         has_vals = any(v is not None for v in [stored_row.lcp_ms, stored_row.cls, stored_row.inp_ms, stored_row.fcp_ms, stored_row.ttfb_ms])
         if has_vals or fd.get("_available") or (stored_row.lab_data or {}).get("note") or fd.get("_note"):
-            note = fd.get("_note") or (stored_row.lab_data or {}).get("note") or ""
+            note = fd.get("_note") or lab.get("note") or ""
             return {
                 "url": target_url,
                 "strategy": stored_row.strategy,
@@ -7754,9 +7766,10 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
                 "fcp_ms": stored_row.fcp_ms,
                 "ttfb_ms": stored_row.ttfb_ms,
                 "performance_score": stored_row.performance_score,
+                "category_scores": lab.get("category_scores") or lab.get("scores") or {},
                 "assessment": fd.get("assessment") or {},
                 "field_data": fd,
-                "lab_data": stored_row.lab_data or {},
+                "lab_data": lab,
                 "ai_suggestions": fd.get("ai_suggestions") or [],
                 "note": note,
                 "source": "stored",
@@ -7815,6 +7828,7 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
         "fcp_ms": fcp_ms,
         "ttfb_ms": ttfb_ms,
         "performance_score": data.get("performance_score", 0),
+        "category_scores": data.get("scores") or {},
         "assessment": assessment,
         "field_data": field,
         "lab_data": data,
@@ -8056,9 +8070,9 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
     if not node or not _os.path.exists(cli):
         raise HTTPException(status_code=500, detail="Node.js or Lighthouse CLI is not installed (run `npm install` in backend/)")
     base = [node, cli, url, "--output=json", f"--output-path={out_path}", "--quiet",
-            "--only-categories=performance", "--max-wait-for-load=60000"]
+            "--only-categories=performance,accessibility,best-practices,seo", "--max-wait-for-load=60000"]
     if chrome:
-        base += ["--headless", f"--chrome-path={chrome}", "--chrome-flags=--headless=new --no-sandbox --disable-gpu"]
+        base += ["--headless", f"--chrome-path={chrome}", "--chrome-flags=--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage"]
 
     try:
         proc = await asyncio.create_subprocess_exec(*base, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL, creationflags=getattr(_subprocess, "CREATE_NO_WINDOW", 0))
@@ -8133,6 +8147,21 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
     if lighthouse_score is not None:
         performance_score = round(lighthouse_score * 100)
 
+    _lh_root = data.get("lighthouseResult") or data
+    _lh_cats = _lh_root.get("categories", {})
+    category_scores = {}
+    for cat_key, label in (
+        ("performance", "Performance"),
+        ("accessibility", "Accessibility"),
+        ("best-practices", "Best Practices"),
+        ("seo", "SEO"),
+    ):
+        cat = _lh_cats.get(cat_key, {})
+        score = cat.get("score")
+        if score is not None:
+            category_scores[label] = round(score * 100)
+            category_scores[cat_key] = round(score * 100)
+
     suggestions = await _cwv_ai_suggestions(url, assessment, performance_score)
 
     existing = await db.execute(select(CoreWebVitals).where(CoreWebVitals.audit_id == audit_id, CoreWebVitals.url == url).order_by(CoreWebVitals.created_at.desc()))
@@ -8154,7 +8183,7 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
         row.performance_score = performance_score
         row.field_data = field_data
         row.strategy = "mobile"
-        row.lab_data = {"source": "local-lighthouse"}
+        row.lab_data = {"source": "local-lighthouse", "category_scores": category_scores}
     else:
         row = CoreWebVitals(
             audit_id=audit_id,
@@ -8167,7 +8196,7 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
             ttfb_ms=values["ttfb"],
             performance_score=performance_score,
             field_data=field_data,
-            lab_data={"source": "local-lighthouse"},
+            lab_data={"source": "local-lighthouse", "category_scores": category_scores},
         )
         db.add(row)
     await db.commit()
@@ -8181,6 +8210,7 @@ async def run_local_lighthouse(audit_id: str, body: dict, db: AsyncSession = Dep
         "fcp_ms": values["fcp"],
         "ttfb_ms": values["ttfb"],
         "performance_score": performance_score,
+        "category_scores": category_scores,
         "assessment": {k: {kk: vv for kk, vv in v.items() if kk != "thresholds"} for k, v in assessment.items()},
         "field_data": field_data,
         "ai_suggestions": suggestions,

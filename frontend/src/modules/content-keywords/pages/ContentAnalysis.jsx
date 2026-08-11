@@ -63,23 +63,59 @@ function PageContentTable({ pages }) {
   )
 }
 
+function IssueGroup({ group }) {
+  const [expanded, setExpanded] = useState(false)
+  const showPages = expanded ? group.pages : group.pages.slice(0, 5)
+  const extra = group.pages.length - showPages.length
+  return (
+    <div style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+      <span className={`badge ${group.severity === 'HIGH' || group.severity === 'CRITICAL' ? 'badge-red' : group.severity === 'MEDIUM' ? 'badge-yellow' : 'badge-blue'}`} style={{ minWidth: 60, textAlign: 'center' }}>
+        {group.severity}
+      </span>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{group.title}</span>
+          {group.pages.length > 1 && <span className="badge badge-blue">{group.pages.length} pages</span>}
+        </div>
+        {group.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{group.description}</div>}
+        {group.pages.length > 0 && (
+          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+            {showPages.map((p, i) => <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</div>)}
+            {extra > 0 && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 0, fontSize: 11, fontFamily: 'inherit', marginTop: 3 }}
+              >
+                {expanded ? 'Show fewer' : `+${extra} more pages`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ContentIssues({ issues }) {
   if (!issues?.length) return <div className="empty-state"><h3>No content issues</h3><p>No content or on-page issues were detected for this site.</p></div>
+  const groups = useMemo(() => {
+    const byKey = new Map()
+    for (const issue of issues) {
+      const title = issue.title || issue.signal_name || issue.message || 'Issue'
+      const key = `${issue.severity || 'MEDIUM'}::${title}::${issue.description || ''}`
+      if (!byKey.has(key)) byKey.set(key, { severity: issue.severity || 'MEDIUM', title, description: issue.description, pages: [] })
+      const page = issue.page || issue.url
+      if (page && !byKey.get(key).pages.includes(page)) byKey.get(key).pages.push(page)
+    }
+    return [...byKey.values()].sort((a, b) => {
+      const w = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
+      return ((w[a.severity] ?? 9) - (w[b.severity] ?? 9)) || (b.pages.length - a.pages.length)
+    })
+  }, [issues])
   return (
     <div className="card">
-      <div className="card-header"><h2>Content Issues</h2></div>
-      {issues.map((issue, i) => (
-        <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
-          <span className={`badge ${issue.severity === 'HIGH' || issue.severity === 'CRITICAL' ? 'badge-red' : issue.severity === 'MEDIUM' ? 'badge-yellow' : 'badge-blue'}`} style={{ minWidth: 60, textAlign: 'center' }}>
-            {issue.severity || 'MEDIUM'}
-          </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{issue.title || issue.signal_name || issue.message}</div>
-            {issue.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{issue.description}</div>}
-            {issue.url && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 2 }}>{issue.url}</div>}
-          </div>
-        </div>
-      ))}
+      <div className="card-header"><h2>Content Issues</h2><span className="badge badge-red">{issues.length}</span></div>
+      {groups.map((group, i) => <IssueGroup key={i} group={group} />)}
     </div>
   )
 }

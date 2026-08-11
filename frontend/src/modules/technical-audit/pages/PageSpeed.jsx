@@ -20,11 +20,11 @@ function CoreWebVitalsPanel({ auditId }) {
   const [runningLocal, setRunningLocal] = useState(false);
   const [form, setForm] = useState({ url: '', lcp_ms: '', inp_ms: '', cls: '', fcp_ms: '', ttfb_ms: '', source: 'lighthouse' });
 
-  const loadCwv = async () => {
+  const loadCwv = async (force = false) => {
     try {
       setLoading(true);
       setError(null);
-      const result = await api.getCoreWebVitals(auditId);
+      const result = await api.getCoreWebVitals(auditId, '', force);
       setCwv(result);
       setForm(f => ({ ...f, url: result?.url || f.url }));
     } catch (err) {
@@ -62,7 +62,11 @@ function CoreWebVitalsPanel({ auditId }) {
         ttfb_ms: get('time_to_first_byte', 'time-to-first-byte'),
       };
       if (!payload.lcp_ms && !payload.inp_ms && !payload.cls && !payload.fcp_ms && !payload.ttfb_ms) {
-        setError('PageSpeed Insights returned no metrics. The site may be unreachable, or the Google API quota is exhausted (works without a key at a low rate limit).');
+        // Google PSI returned no metrics (typical for Framer/JS-heavy sites it can't render).
+        // Fall back to a local Lighthouse run in Chrome on the server so real data still comes through.
+        const saved = await api.runLocalLighthouse(auditId, url);
+        setCwv(saved);
+        setShowForm(false);
         return;
       }
       const saved = await api.saveCoreWebVitals(auditId, payload);
@@ -124,10 +128,18 @@ function CoreWebVitalsPanel({ auditId }) {
 
   const inputStyle = {
     width: '100%', padding: '8px 10px', background: '#12141a', border: '1px solid var(--border)',
-    borderRadius: 8, color: 'var(--text)', fontSize: 13, outline: 'none',
+    borderRadius: 8, color: '#e6eaf2', fontSize: 13, outline: 'none',
   };
 
   const suggestions = cwv?.ai_suggestions || cwv?.field_data?.ai_suggestions || [];
+
+  const csMap = cwv?.category_scores || {};
+  const csRows = [
+    { label: 'Performance', v: csMap.Performance ?? csMap.performance ?? null },
+    { label: 'Accessibility', v: csMap.Accessibility ?? csMap.accessibility ?? null },
+    { label: 'Best Practices', v: csMap['Best Practices'] ?? csMap['best-practices'] ?? null },
+    { label: 'SEO', v: csMap.SEO ?? csMap.seo ?? null },
+  ].filter(r => r.v != null);
 
   return (
     <div className="card" style={{ marginTop: '1rem' }}>
@@ -152,7 +164,7 @@ function CoreWebVitalsPanel({ auditId }) {
         <button className="btn btn-secondary btn-sm" onClick={() => setShowForm(s => !s)}>
           {showForm ? 'Cancel' : 'Enter Results'}
         </button>
-        <button className="btn btn-secondary btn-sm" onClick={loadCwv} disabled={loading} style={{ marginLeft: 8 }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => loadCwv(true)} disabled={loading} style={{ marginLeft: 8 }}>
           <RefreshCw size={14} style={{ marginRight: 4 }} />
           {loading ? 'Analyzing...' : 'Re-analyze'}
         </button>
@@ -222,6 +234,21 @@ function CoreWebVitalsPanel({ auditId }) {
                   </span>
                 </div>
                 <div className="stat-label">{v.value !== undefined ? `${Math.round(v.value)}${k === 'cls' ? '' : 'ms'}` : '—'} ({v.source || 'n/a'})</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {csRows.length > 0 && (
+        <div className="stats-row" style={{ margin: '0.75rem 0 0' }}>
+          {csRows.map(({ label, v }) => (
+            <div className="stat-card" key={label}>
+              <div className="stat-icon"><Gauge size={20} /></div>
+              <div className="stat-info">
+                <div className="stat-value">
+                  <span className={`badge ${v >= 90 ? 'badge-green' : v >= 50 ? 'badge-yellow' : 'badge-red'}`}>{v}</span>
+                </div>
+                <div className="stat-label">{label} (Lighthouse)</div>
               </div>
             </div>
           ))}
