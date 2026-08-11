@@ -54,7 +54,7 @@ export default function Layout({ children }) {
     <div className="layout">
       <aside className="sidebar">
         <Link to={isReport ? `/audit/${auditId}/dashboard` : '/history'} className="sidebar-logo" title="Go to Dashboard">
-          <div className="sidebar-logo-icon" style={{ padding: 4 }}><img src="/logo.png" alt="Datavi RankIQ" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 7 }} /></div>
+          <div className="sidebar-logo-icon">D</div>
           <div className="sidebar-logo-text">Datavi RankIQ</div>
         </Link>
         <nav className="sidebar-nav">
