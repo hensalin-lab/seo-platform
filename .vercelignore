@@ -1,0 +1,17 @@
+.git
+backend
+deploy-*
+.env
+.env.local
+*.log
+node_modules
+*.db
+*.db-journal
+__pycache__
+.vercel
+ARCHITECTURE_REVIEW.md
+ROADMAP.md
+server-on.ps1
+server-off.ps1
+start.bat
+render.yaml
