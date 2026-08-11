@@ -177,9 +177,13 @@ code, pre, .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
 
 .sidebar-logo-text {
   font-size: 16px;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 800;
   letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .sidebar-logo-badge {
