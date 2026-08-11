@@ -30,7 +30,7 @@ export default function RegisterPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
       <div style={{ width: 400, padding: 40, background: 'var(--bg-secondary)', borderRadius: 12, border: '1px solid var(--border)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>SEO Intel</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>Datavi RankIQ</div>
           <div style={{ color: 'var(--text-secondary)', marginTop: 8 }}>Create your account</div>
         </div>
         {error && (

@@ -116,7 +116,13 @@ export default function AiSuggestionCard({ item, index = 0 }) {
               <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: sev + '18', color: sev }}>{item.severity}</span>
             )}
             {item.page_url && (
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 190 }}>{item.page_url}</span>
+              <a
+                href={item.page_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={item.page_url}
+                style={{ fontSize: 10, color: '#7c3aed', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240, textDecoration: 'none', borderBottom: '1px dashed rgba(124,58,237,0.35)' }}
+              >{item.page_url}</a>
             )}
           </div>
         </div>
@@ -130,6 +136,15 @@ export default function AiSuggestionCard({ item, index = 0 }) {
             <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <strong style={{ color: '#7c3aed' }}>Why it matters: </strong>{why}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Where to fix (standalone when no exact text) */}
+      {item.location && !item.exact_text && (
+        <div style={{ padding: '0 16px 10px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#7c3aed', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 7, padding: '5px 10px' }}>
+            <MapPin size={11} /> Where to fix: {item.location}
           </div>
         </div>
       )}
@@ -194,7 +209,21 @@ export default function AiSuggestionCard({ item, index = 0 }) {
           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <Zap size={11} color="#8b5cf6" /> Suggested fix
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{fix}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{fix}</div>
+        </div>
+      )}
+
+      {/* How to fix steps */}
+      {Array.isArray(item.steps) && item.steps.length > 0 && (
+        <div style={{ padding: '0 16px 12px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <GitBranch size={11} color="#8b5cf6" /> How to fix
+          </div>
+          <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {item.steps.slice(0, 8).map((s, si) => (
+              <li key={si} style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{s}</li>
+            ))}
+          </ol>
         </div>
       )}
 

@@ -54,8 +54,8 @@ export default function Layout({ children }) {
     <div className="layout">
       <aside className="sidebar">
         <Link to={isReport ? `/audit/${auditId}/dashboard` : '/history'} className="sidebar-logo" title="Go to Dashboard">
-          <div className="sidebar-logo-icon">S</div>
-          <div className="sidebar-logo-text">SEO Intel</div>
+          <div className="sidebar-logo-icon" style={{ padding: 4 }}><img src="/favicon.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 7 }} /></div>
+          <div className="sidebar-logo-text">Datavi RankIQ</div>
         </Link>
         <nav className="sidebar-nav">
           {!isReport && (
@@ -157,7 +157,7 @@ export default function Layout({ children }) {
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
             <div style={{ fontSize: 9.5, color: 'var(--sidebar-text)', textAlign: 'center', opacity: 0.35, marginLeft: 'auto', letterSpacing: '1px' }}>
-              SEO INTEL v2.6
+              DATAVI RANKIQ v2.6
             </div>
           </div>
         </div>

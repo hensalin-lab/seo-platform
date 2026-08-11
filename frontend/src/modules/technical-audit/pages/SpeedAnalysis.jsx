@@ -6,6 +6,8 @@ import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import FixDetail from '../../../components/FixDetail'
 import { LoadingState, EmptyState, ErrorState } from '../../../components/States'
 
+const AUTO_RUN_ATTEMPTED = new Set()
+
 const CWV_MAP = [
   { key: 'lcp', value: null, unit: 'ms', good: 2500, poor: 4000 },
   { key: 'cls', value: null, unit: '', good: 0.1, poor: 0.25 },
@@ -125,7 +127,8 @@ export default function SpeedAnalysis() {
       setFetchingCwv(true)
       setCwvError(null)
       const cwvRes = await api.getCoreWebVitals(id, '', force).catch(() => null)
-      setCategoryScores(cwvRes?.category_scores || {})
+      const catScores = cwvRes?.category_scores || {}
+      setCategoryScores(catScores)
       const cd = {}
       const values = {
         lcp: cwvRes?.lcp_ms, cls: cwvRes?.cls, inp: cwvRes?.inp_ms,
@@ -147,6 +150,10 @@ export default function SpeedAnalysis() {
         setCwvError(reason
           ? `Auto-fetch returned no metrics. ${reason}`
           : 'Auto-fetch returned no Core Web Vitals data for this site.')
+      }
+      if (Object.keys(catScores).length === 0 && !AUTO_RUN_ATTEMPTED.has(id)) {
+        AUTO_RUN_ATTEMPTED.add(id)
+        runLocal()
       }
     } catch (err) {
       setCwvError(err.message || 'Failed to load Core Web Vitals')

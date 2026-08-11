@@ -74,7 +74,7 @@ export default function ContentBriefs() {
           {data.briefs.map((b, idx) => {
             const open = expanded === idx;
             return (
-              <div key={idx} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              <div key={idx} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8 }}>
                 <button
                   onClick={() => setExpanded(open ? null : idx)}
                   style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '12px 14px', textAlign: 'left', color: 'var(--text)', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 6 }}

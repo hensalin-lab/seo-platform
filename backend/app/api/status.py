@@ -392,6 +392,14 @@ def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dic
         current = h1
     elif "keyword" in lower and "description" not in lower:
         current = title
+    elif ("word" in lower or "thin" in lower or "content" in lower or "read" in lower or "depth" in lower) and page:
+        text = re.sub(r"\s+", " ", (getattr(page, "content_text", "") or "")).strip()
+        if text:
+            current = text[:420] + ("…" if len(text) > 420 else "")
+    elif "spam" in lower and page:
+        body = re.sub(r"\s+", " ", (getattr(page, "content_text", "") or ""))[:3000]
+        m = re.search(r"[\u201c\"']([^\u201d\"']{3,90})[\u201d\"']", body)
+        current = m.group(1) if m else ""
 
     # ---- REPLACE WITH: a concrete, ready-to-paste value ----
     replace_with = ""
@@ -433,6 +441,14 @@ def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dic
                         f'Then add FAQPage schema in a <script type="application/ld+json"> block in the <head>.')
     elif "h1" in lower and ("multiple" in lower or "duplicate" in lower):
         replace_with = f"Keep the first <h1> ({h1 or 'your main heading'}) and convert the other <h1> tags to <h2>."
+    elif "word" in lower or "thin" in lower or "depth" in lower or "content" in lower or "read" in lower:
+        replace_with = (
+            "Expand this section to 1500+ words. Structure: an H2 intro that states the goal, "
+            "step-by-step subsections with real examples, a dedicated FAQ, and a clear CTA — "
+            "each section adding unique, quotable insight so AI engines cite this page."
+        )
+    elif "spam" in lower:
+        replace_with = "Remove or rewrite the flagged phrase so the copy reads naturally and non-promotional, keeping the keyword context intact."
 
     return {"where": where, "current_value": current, "replace_with": replace_with}
 
@@ -2683,6 +2699,101 @@ def _page_content_excerpt(pages_by_url: dict, page_url: str, signal_name: str = 
     return stripped[:max_chars]
 
 
+_CAT_BIZ = {
+    "SEO": "Lower visibility in organic search — Google can rank competing pages above yours for the affected query, shrinking organic clicks and pipeline.",
+    "ON-PAGE": "Weaker on-page relevance reduces how strongly search engines connect this page to its target keywords.",
+    "TECHNICAL": "Technical issues can block crawling or dilute crawl budget, so valuable pages get indexed later or not at all.",
+    "PERFORMANCE": "Slow loading directly hurts Core Web Vitals, user engagement, and conversion rate on the affected pages.",
+    "SPEED": "Slow loading directly hurts Core Web Vitals, user engagement, and conversion rate on the affected pages.",
+    "MEDIA": "Unoptimized media (images/video) is the #1 cause of slow page loads and lower Lighthouse scores.",
+    "CONTENT": "Weak or thin content reduces dwell time, backlinks, and AI-search citations — the core ranking currency for competitive queries.",
+    "Eeat": "Search engines reward demonstrable expertise, authority, and trust; missing proof erodes rankings on high-stakes queries.",
+    "Word-Quality": "Thin or low-quality copy signals low value to both Google and AI answer engines, capping your rankings.",
+    "Depth": "Shallow content fails to satisfy the breadth of search intent, so pages rank for fewer variants and lose long-tail traffic.",
+    "Readability": "Hard-to-read copy increases bounce rate and reduces the chance of being quoted by AI answer engines.",
+    "SCHEMA": "Missing or invalid structured data forfeits rich results (FAQ, breadcrumb, product) that other pages display.",
+    "Schema": "Missing or invalid structured data forfeits rich results (FAQ, breadcrumb, product) that other pages display.",
+    "Links": "Weak internal linking spreads link equity poorly, leaving deep pages under-crawled and under-ranked.",
+    "ACCESSIBILITY": "Accessibility gaps exclude users, fail accessibility audits, and can cost you rich-result and legal goodwill.",
+    "MOBILE": "Poor mobile experience directly conflicts with Google's mobile-first indexing and mobile search intent.",
+    "SECURITY": "Security and trust gaps deter visitors, trigger browser warnings, and undermine ranking trust signals.",
+    "Spam-Risk": "Spam-like patterns risk manual action or algorithmic suppression — the highest-cost penalty a site can incur.",
+    "GEO": "AI answer engines (ChatGPT, Perplexity, AI Overviews) are far less likely to cite content they can't extract cleanly.",
+    "GEO / AI Search": "AI answer engines (ChatGPT, Perplexity, AI Overviews) are far less likely to cite content they can't extract cleanly.",
+    "AI_SEARCH": "AI answer engines (ChatGPT, Perplexity, AI Overviews) are far less likely to cite content they can't extract cleanly.",
+    "AEO": "Answer Engine Optimization gaps mean your content loses the featured/cited slot to competitors' cleaner answers.",
+    "LOCAL": "Local ranking factors (NAP consistency, reviews, citations) lagging lets nearby competitors own the map pack.",
+    "OTHER": "This issue limits the page's ability to rank and convert, and can compound across every page it affects.",
+}
+
+_EXP_BY_SEV = {
+    "CRITICAL": "Resolving typically lifts the affected pages 2–4 positions and removes the highest-risk penalty trigger.",
+    "HIGH": "Expected to improve ranking position and click-through for the affected pages within one to two crawl cycles.",
+    "MEDIUM": "Expected to strengthen relevance and on-page signals, supporting gradual, compounding ranking gains.",
+    "LOW": "Small but compounding improvement to on-page quality and indexing hygiene.",
+    "INFO": "Hygiene improvement that protects future rankings and keeps audits clean.",
+}
+
+_EST_BY_EFFORT = {"LOW": 15, "MEDIUM": 45, "HIGH": 120}
+
+
+def _snippets_for(signal_name: str, exact: str, repl: str, loc: str) -> dict:
+    """Deterministic per-framework before/after code when we have real text."""
+    if not exact and not repl:
+        return {}
+    before = f"<!-- {loc or 'flagged element'} -->\n{exact}" if exact else ""
+    after = f"<!-- {loc or 'flagged element'} -->\n{repl}" if repl else ""
+    if not before and not after:
+        return {}
+    return {"html": {"before": before, "after": after}}
+
+
+def _card_detail(it, pages_by_url: dict) -> dict:
+    """Deterministic full-detail card for ANY issue (no AI needed). Prefers
+    persisted AI fields when a prior generate run wrote them; otherwise fills
+    every card field from the crawl so no suggestion is ever a stub."""
+    page = pages_by_url.get(it.page_url or "")
+    d = _issue_detail_fields(it, page)
+    exact = d.get("exact_text") or ""
+    loc = d.get("location") or ""
+    repl = d.get("replacement") or ""
+    steps = d.get("steps") or []
+    cat = (it.category or "").upper()
+    sev = (it.severity or "").upper()
+    sn = it.signal_name or ""
+    why = (it.why_it_matters or "").strip() or (it.ai_why or "").strip()
+    if not why:
+        why = (it.description or "").strip() or f"Detected on {it.page_url or 'the affected page'}."
+    biz = (it.business_impact or "").strip() or _CAT_BIZ.get(cat, _CAT_BIZ["OTHER"])
+    exp = (it.expected_improvement or "").strip() or _EXP_BY_SEV.get(sev, _EXP_BY_SEV["HIGH"])
+    cb = (it.confidence_basis or "").strip() or (
+        "Deterministic guidance derived from this audit's crawl data. Use Generate AI fixes for a provider-scored estimate."
+        if not (it.ai_generated or 0)
+        else "Scored by the AI provider that wrote this fix."
+    )
+    snippets = dict(it.framework_snippets or {})
+    snippets.pop("__detail__", None)
+    if not snippets:
+        snippets = _snippets_for(sn, exact, repl, loc)
+    et = int(it.estimated_time_minutes or 0)
+    if not et:
+        et = _EST_BY_EFFORT.get((it.effort or "MEDIUM").upper(), 45)
+    deps = list(it.dependencies or [])
+    return {
+        "exact_text": exact,
+        "location": loc,
+        "replacement": repl,
+        "steps": steps,
+        "why_it_matters": why,
+        "business_impact": biz,
+        "expected_improvement": exp,
+        "confidence_basis": cb,
+        "framework_snippets": snippets,
+        "estimated_time_minutes": et,
+        "dependencies": deps,
+    }
+
+
 @router.post("/audit/{audit_id}/ai/tool-suggestions")
 async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depends(get_db)):
     """AI suggestions scoped to a single tool page (SEO, Speed, Content, ...).
@@ -2797,30 +2908,54 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             it.framework_snippets = sn
         await db.commit()
 
-    return {
-        "items": [{
-            "id": it.id, "page_url": it.page_url, "category": it.category, "severity": it.severity,
-            "signal_id": it.signal_id, "signal_name": it.signal_name,
-            "description": it.description, "impact": it.impact, "fix": it.fix,
-            "root_cause": it.root_cause, "effort": it.effort, "fix_code": it.fix_code,
+    items_out = []
+    for it in issues:
+        base = _card_detail(it, pages_by_url)
+        ai = fixes_by_id.get(it.id) or {}
+        out = {
+            "id": it.id, "page_url": it.page_url, "category": it.category,
+            "severity": it.severity, "signal_id": it.signal_id, "signal_name": it.signal_name,
+            "description": it.description, "impact": it.impact,
+            "effort": it.effort, "fix_code": it.fix_code,
             "ai_generated": it.ai_generated or 0,
-            "ai_why": it.ai_why or "", "ai_impact_pct": _fallback_impact(it, fixes_by_id.get(it.id)),
-            "ai_confidence": it.ai_confidence or 0, "priority": _priority_for(it),
-            "why_it_matters": it.why_it_matters or "",
-            "business_impact": it.business_impact or "",
-            "expected_improvement": it.expected_improvement or "",
-            "confidence_basis": it.confidence_basis or "",
-            "dependencies": list(it.dependencies or []),
-            "estimated_time_minutes": it.estimated_time_minutes or 0,
-            "framework_snippets": it.framework_snippets or {},
+            "ai_impact_pct": _fallback_impact(it, ai),
+            "ai_confidence": it.ai_confidence or 0,
+            "priority": _priority_for(it),
+            "fix": it.fix or "",
+            "root_cause": it.root_cause or "",
             "source_model": it.source_model or "",
             "status": it.status or "open",
             "last_checked": (it.last_checked.isoformat() + "Z") if it.last_checked else None,
-            "exact_text": (fixes_by_id.get(it.id) or _persisted_detail(it)).get("exact_text", ""),
-            "location": (fixes_by_id.get(it.id) or _persisted_detail(it)).get("location", ""),
-            "replacement": (fixes_by_id.get(it.id) or _persisted_detail(it)).get("replacement", ""),
-            "steps": _issue_fix_steps(it.fix),
-        } for it in issues],
+        }
+        for k in ("exact_text", "location", "replacement", "steps", "why_it_matters",
+                  "business_impact", "expected_improvement", "confidence_basis",
+                  "framework_snippets", "estimated_time_minutes", "dependencies"):
+            out[k] = base.get(k)
+        for k, src in (("exact_text", "exact_text"), ("location", "location"), ("replacement", "replacement")):
+            v = ai.get(src)
+            if v:
+                out[k] = str(v).strip()
+        if ai.get("why_it_matters"):
+            out["why_it_matters"] = str(ai["why_it_matters"]).strip()
+        if ai.get("business_impact"):
+            out["business_impact"] = str(ai["business_impact"]).strip()
+        if ai.get("expected_improvement"):
+            out["expected_improvement"] = str(ai["expected_improvement"]).strip()
+        if ai.get("confidence_basis"):
+            out["confidence_basis"] = str(ai["confidence_basis"]).strip()
+        if ai.get("snippets"):
+            out["framework_snippets"] = {k: v for k, v in ai["snippets"].items() if isinstance(v, dict)}
+        if ai.get("dependencies") and isinstance(ai["dependencies"], list):
+            out["dependencies"] = [str(d) for d in ai["dependencies"]]
+        if ai.get("estimated_time_minutes"):
+            try:
+                out["estimated_time_minutes"] = max(0, int(float(ai["estimated_time_minutes"])))
+            except (TypeError, ValueError):
+                pass
+        items_out.append(out)
+
+    return {
+        "items": items_out,
         "generated": len(fixes_by_id), "total": len(issues),
         "providers_used": sorted(providers_used), "tool": tool,
     }
