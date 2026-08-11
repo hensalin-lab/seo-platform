@@ -37,8 +37,10 @@ export function ToastProvider({ children }) {
     warning: (msg, dur) => addToast(msg, 'warning', dur),
   }, [addToast]);
 
+  const value = { addToast, toast };
+
   return (
-    <ToastContext.Provider value={toast}>
+    <ToastContext.Provider value={value}>
       {children}
       <div style={{
         position: 'fixed', top: 20, right: 20, zIndex: 9999,
@@ -80,6 +82,6 @@ export function ToastProvider({ children }) {
 
 export function useToast() {
   const ctx = useContext(ToastContext);
-  if (!ctx) return { success: () => {}, error: () => {}, info: () => {}, warning: () => {} };
+  if (!ctx) return { addToast: () => {}, success: () => {}, error: () => {}, info: () => {}, warning: () => {} };
   return ctx;
 }
