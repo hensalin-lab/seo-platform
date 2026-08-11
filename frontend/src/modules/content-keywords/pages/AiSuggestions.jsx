@@ -42,7 +42,7 @@ export default function AiSuggestions() {
       setElapsed(0);
       const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
       try {
-        const result = await api.getToolSuggestions(id, { tool, limit: 10 });
+        const result = await api.getToolSuggestions(id, { tool, limit: 10, regenerate: isGenerate });
         setData(result);
       } finally {
         clearInterval(timer);

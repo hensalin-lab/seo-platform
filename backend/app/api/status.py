@@ -2539,24 +2539,127 @@ def _fallback_impact(issue, ai_fix: dict | None = None) -> int:
     return min(98, base + min(14, int(affected or 1) * 2))
 
 
-_TOOL_CATEGORIES = {
-    "seo": ["SEO"],
-    "speed": ["TECHNICAL", "MEDIA"],
-    "pagespeed": ["TECHNICAL", "MEDIA"],
-    "content": ["CONTENT", "Eeat", "Word-Quality", "Depth", "Readability", "AEO"],
-    "schema": ["Schema"],
-    "internal-links": ["SEO"],
-    "accessibility": ["TECHNICAL"],
-    "mobile": ["TECHNICAL", "MEDIA"],
-    "security": ["TECHNICAL", "Spam-Risk"],
-    "social": ["SEO", "AEO"],
-    "image": ["Media", "TECHNICAL"],
-    "serp": ["SEO", "AI_SEARCH", "AEO", "GEO / AI Search"],
-    "geo": ["GEO / AI Search", "AI_SEARCH", "AEO"],
-    "ai-overviews": ["GEO / AI Search", "AI_SEARCH", "CONTENT", "SEO"],
-    "eeat": ["Eeat"],
-    "all": [],
+# Tool tabs are filtered by BOTH category AND signal-name keywords so each tab
+# only shows issues that actually belong to it (speed/mobile/accessibility used
+# to all collapse into TECHNICAL and show unrelated issues).
+_TOOL_RULES = {
+    "seo": {
+        "cats": ["SEO", "ON-PAGE"],
+        "kw": ["title", "meta", "canonical", "heading", "h1", "h2", "hreflang",
+               "og:", "opengraph", "redirect", "url", "duplicate", "keyword",
+               "index", "sitemap", "robots", "breadcrumb", "internal link"],
+    },
+    "speed": {
+        "cats": ["TECHNICAL", "PERFORMANCE", "MEDIA", "SPEED"],
+        "kw": ["lcp", "cls", "inp", "fcp", "ttfb", "speed", "slow",
+               "render", "css", "javascript", "font", "lazy", "cache",
+               "compress", "webp", "vital", "paint", "performance", "load"],
+    },
+    "pagespeed": {
+        "cats": ["TECHNICAL", "PERFORMANCE", "MEDIA", "SPEED"],
+        "kw": ["lcp", "cls", "inp", "fcp", "ttfb", "speed", "slow",
+               "render", "css", "javascript", "font", "lazy", "cache",
+               "compress", "webp", "vital", "paint", "performance", "load"],
+    },
+    "content": {
+        "cats": ["CONTENT", "Eeat", "Word-Quality", "Depth", "Readability", "AEO"],
+        "kw": ["thin", "word count", "readab", "content", "paragraph", "text",
+               "headline", "fresh", "depth", "duplicate content", "keyword"],
+    },
+    "schema": {
+        "cats": ["Schema", "SCHEMA"],
+        "kw": ["schema", "structured data", "json-ld", "microdata", "faq schema",
+               "organization schema", "website schema", "breadcrumb schema"],
+    },
+    "internal-links": {
+        "cats": ["Links"],
+        "kw": ["internal link", "broken link", "internal linking", "link from", "orphan"],
+    },
+    "accessibility": {
+        "cats": ["ACCESSIBILITY"],
+        "kw": ["alt text", "aria", "accessib", "contrast", "tabindex", "landmark",
+               "keyboard", "screen reader", "a11y"],
+    },
+    "mobile": {
+        "cats": ["MOBILE"],
+        "kw": ["mobile", "viewport", "tap target", "touch", "font size"],
+    },
+    "security": {
+        "cats": ["Spam-Risk", "SECURITY"],
+        "kw": ["instead of https", "ssl", "malware", "spam", "header",
+               "insecure", "tls", "phish", "certificate"],
+    },
+    "social": {
+        "cats": [],
+        "kw": ["social", "og:", "og tag", "opengraph", "twitter card", "twitter", "share"],
+    },
+    "image": {
+        "cats": ["Media", "IMAGES"],
+        "kw": ["image", "alt text", "webp", "srcset", "lazy load", "img"],
+    },
+    "serp": {"cats": ["SEO", "AI_SEARCH", "AEO", "GEO", "GEO / AI Search"], "kw": []},
+    "geo": {"cats": ["GEO / AI Search", "GEO", "AI_SEARCH", "AEO"], "kw": []},
+    "ai-overviews": {"cats": ["GEO / AI Search", "GEO", "AI_SEARCH", "CONTENT", "SEO"], "kw": []},
+    "eeat": {"cats": ["Eeat"], "kw": ["eeat", "author", "expert", "trust", "authority"]},
+    "pagespeed": {
+        "cats": ["TECHNICAL", "PERFORMANCE", "MEDIA", "SPEED"],
+        "kw": ["lcp", "cls", "inp", "fcp", "ttfb", "speed", "slow", "response",
+               "render", "image", "css", "javascript", "font", "lazy", "cache",
+               "compress", "webp", "vital", "paint", "performance", "load"],
+    },
+    "content-revival": {
+        "cats": ["CONTENT", "Content", "Eeat", "Word-Quality", "Depth", "Readability", "AEO"],
+        "kw": ["thin", "word count", "readab", "content", "paragraph", "text",
+               "headline", "fresh", "depth", "duplicate content", "keyword", "reviv", "update", "old"],
+    },
+    "keywords": {
+        "cats": ["CONTENT", "Content", "Depth", "Readability"],
+        "kw": ["keyword", "word count", "density", "stuff", "thin", "search", "volume", "difficult", "opportun"],
+    },
+    "keyword-opportunities": {
+        "cats": ["CONTENT", "Content", "Depth", "Readability"],
+        "kw": ["keyword", "word count", "density", "stuff", "thin", "search", "volume", "difficult", "opportun"],
+    },
+    "ai-accessibility": {
+        "cats": ["CRAWLABILITY", "Indexability", "TECHNICAL"],
+        "kw": ["crawl", "index", "render", "javascript", "bot", "blocked", "robots",
+               "googlebot", "access", "fetch", "javascript rendered"],
+    },
+    "rank-boost": {
+        "cats": ["GEO / AI Search", "GEO", "AI_SEARCH", "AEO"],
+        "kw": ["rank", "position", "snippet", "authority", "featured", "ai search"],
+    },
+    "local": {
+        "cats": ["GEO", "GEO / AI Search", "Local"],
+        "kw": ["local", "nap", "address", "phone", "review", "map", "business",
+               "service area", "geo", "postal", "store"],
+    },
+    "citations": {
+        "cats": ["GEO", "GEO / AI Search", "AI_SEARCH", "Local"],
+        "kw": ["citation", "nap", "local", "directory", "reference", "mention", "listed", "business"],
+    },
+    "compare": {"cats": ["SEO", "CONTENT", "TECHNICAL"], "kw": []},
+    "report": {"cats": [], "kw": []},
+    "all": {"cats": [], "kw": []},
 }
+
+
+def _matches_tool(issue, tool: str) -> bool:
+    """Issue belongs to a tool tab when its category OR signal name matches."""
+    rule = _TOOL_RULES.get(tool) or {"cats": [], "kw": []}
+    cats = rule.get("cats") or []
+    kws = rule.get("kw") or []
+    if not cats and not kws:
+        return True
+    cat = (issue.category or "").strip().lower()
+    name = (issue.signal_name or "").lower()
+    # Strip URLs before keyword matching: descriptions embed page URLs whose
+    # slugs ("/blog/speed-to-lead", "/avoiding-spam") cause false matches.
+    desc = re.sub(r"https?://\S+", " ", (issue.description or "").lower())
+    if any(c.lower() == cat for c in cats):
+        return True
+    hay = f"{name} {desc}"
+    return any(k.lower() in hay for k in kws)
 
 
 def _page_content_excerpt(pages_by_url: dict, page_url: str, signal_name: str = "", max_chars: int = 1500) -> str:
@@ -2590,15 +2693,19 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
     category = (str(body.get("category", "") or "")).upper().strip()
     limit = min(max(int(body.get("limit", 5)), 1), 10)
 
-    cats = _TOOL_CATEGORIES.get(tool) or ([category] if category else [])
+    # Tool tabs match by BOTH category and signal-name keywords so speed/mobile/
+    # accessibility no longer all collapse into TECHNICAL and show each other's
+    # issues. The full row set is loaded and filtered in Python because keyword
+    # matches legitimately live outside the rule's categories (e.g. "Missing Alt
+    # Text" is SEO-categorised but belongs to the accessibility tool).
+    rule = _TOOL_RULES.get(tool) or {}
+    extra_cat = category if not (rule.get("cats") or []) else ""
     severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 
-    stmt = select(Issue).where(Issue.audit_id == audit_id)
-    if cats:
-        from sqlalchemy import func
-        stmt = stmt.where(func.lower(Issue.category).in_([c.lower() for c in cats]))
-    result = await db.execute(stmt)
-    issues = list(result.scalars().all())
+    result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
+    issues = [i for i in result.scalars().all() if _matches_tool(i, tool)]
+    if extra_cat:
+        issues = [i for i in issues if (i.category or "").strip().lower() == extra_cat.lower()]
     issues.sort(key=lambda i: (severity_rank.get(i.severity, 9), -(i.ai_impact_pct or 0), -(i.pages_affected or 1)))
     issues = issues[:limit]
     if not issues:
@@ -2607,26 +2714,28 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages_by_url = {p.url: p for p in pages_result.scalars().all()}
 
-    def _has_bad_exact_text(it) -> bool:
-        """Stored exact_text that is not verbatim-verifiable on the live page
-        means the AI hallucinated it — force a regeneration with verified text."""
-        if not it.fix or "Exact text to change" not in it.fix:
-            return True
-        detail = _fix_detail({}, it)
-        exact = detail.get("exact_text") or ""
-        if not exact:
-            return False
-        page_content = _page_content_excerpt(pages_by_url, it.page_url, it.signal_name)
-        from app.engine.dual_ai import _verify_exact
-        return bool(page_content) and not _verify_exact(page_content, exact)
+    # NEVER run the AI providers on a plain page view — that blocks the request
+    # past the proxy timeout (502) and makes every tool tab slow. Only the
+    # explicit "Generate AI fixes" action (regenerate=true) calls them.
+    regenerate = bool(body.get("regenerate", False))
 
-    # Regenerate any fix that is still the old generic text so every card carries
-    # the exact quote / location / replacement detail — and re-verify any stored
-    # exact_text against the live page so hallucinated snippets self-heal.
-    to_fix = [it for it in issues if (not it.ai_generated) or ("Exact text to change" not in (it.fix or "")) or _has_bad_exact_text(it)]
+    def _persisted_detail(it) -> dict:
+        """Best available detail for a card WITHOUT waiting on AI. Stored
+        exact_text that is not verbatim-verifiable on the live page means it was
+        hallucinated — replace it deterministically so the user never sees
+        fabricated text."""
+        from app.engine.dual_ai import _verify_exact, _extract_exact
+        d = _fix_detail({}, it)
+        exact = d.get("exact_text") or ""
+        page_content = _page_content_excerpt(pages_by_url, it.page_url, it.signal_name)
+        if exact and page_content and not _verify_exact(page_content, exact):
+            d = _extract_exact({"page_content": page_content, "signal_name": it.signal_name or ""})
+        return d
+
     fixes_by_id = {}
     fix_source = {}
     providers_used = set()
+    to_fix = [it for it in issues if regenerate]
     if to_fix:
         # Chunks of 3 (not 5) so a slow free local provider (Ollama) can finish
         # a chunk inside the local grace window and contribute its fixes too.
@@ -2707,9 +2816,9 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             "source_model": it.source_model or "",
             "status": it.status or "open",
             "last_checked": (it.last_checked.isoformat() + "Z") if it.last_checked else None,
-            "exact_text": _fix_detail(fixes_by_id, it).get("exact_text", ""),
-            "location": _fix_detail(fixes_by_id, it).get("location", ""),
-            "replacement": _fix_detail(fixes_by_id, it).get("replacement", ""),
+            "exact_text": (fixes_by_id.get(it.id) or _persisted_detail(it)).get("exact_text", ""),
+            "location": (fixes_by_id.get(it.id) or _persisted_detail(it)).get("location", ""),
+            "replacement": (fixes_by_id.get(it.id) or _persisted_detail(it)).get("replacement", ""),
             "steps": _issue_fix_steps(it.fix),
         } for it in issues],
         "generated": len(fixes_by_id), "total": len(issues),
