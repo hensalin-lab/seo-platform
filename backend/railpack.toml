@@ -1,8 +1,0 @@
-$schema = "https://schema.railpack.com"
-
-# Install headless Chromium in the final image so the backend's
-# /run-local-lighthouse endpoint can render any site (incl. Framer)
-# that Google's cloud Lighthouse cannot. Node + npm are auto-detected
-# from backend/package.json (installs the Lighthouse CLI).
-[deploy]
-aptPackages = ["...", "chromium"]

@@ -1,7 +1,5 @@
 [build]
-builder = "RAILPACK"
-buildCommand = "pip install -r requirements.txt"
+builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 numReplicas = 1
