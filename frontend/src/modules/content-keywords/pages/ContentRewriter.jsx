@@ -14,6 +14,7 @@ import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 import GooglebotView from '../../../components/GooglebotView';
 import { EmptyState, LoadingState } from '../../../components/States';
+import ScoreRing from '../../../components/ScoreRing';
 
 const GOOGLE_TABS = [
   { key: 'googlebot', label: 'Googlebot', icon: Globe },
@@ -358,26 +359,6 @@ const SIGNAL_CATEGORIES = {
   mobile_first: { label: 'Mobile First', icon: Smartphone, color: '#10b981' },
   technical_integrity: { label: 'Technical Integrity', icon: Shield, color: 'var(--text-muted)' },
 };
-
-function ScoreRing({ score, size = 60, stroke = 5, label }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  const color = pct >= 70 ? '#059669' : pct >= 50 ? '#d97706' : '#dc2626';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.24, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 7, color: 'var(--text-muted)', marginTop: 1 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
 
 function BoolField({ label, value }) {
   return (
@@ -803,7 +784,7 @@ export default function ContentRewriter() {
 
         {mega && (
           <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)', padding: '12px 16px' }}>
-            <ScoreRing score={mega.overall_score} size={60} label="SCORE" />
+            <ScoreRing score={mega.overall_score} size={60} label="SCORE" stroke={5} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{mega.page_title || page.title || page.url}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>

@@ -4,29 +4,7 @@ import { api } from '../../../api';
 import DataSourceBadge from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import { Search, ChevronDown, AlertTriangle, CheckCircle, Code, Target, BarChart3, Globe, Brain, RefreshCw, Filter } from 'lucide-react';
-
-function ScoreRing({ score, size = 100, stroke = 8, label }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  let color = '#ef4444';
-  if (pct >= 80) color = '#059669';
-  else if (pct >= 60) color = '#3b82f6';
-  else if (pct >= 40) color = '#d97706';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.28, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 500 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
+import ScoreRing from '../../../components/ScoreRing';
 
 function SignalCard({ signal, index }) {
   const [expanded, setExpanded] = useState(signal.status === 'fail');
@@ -128,7 +106,7 @@ export default function SeoAnalysis() {
       setMega(d);
       setAnalysisLoading(false);
     }).catch(() => setAnalysisLoading(false));
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
   if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No pages found</div>;

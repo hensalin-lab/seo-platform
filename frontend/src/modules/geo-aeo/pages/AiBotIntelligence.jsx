@@ -44,7 +44,7 @@ export default function AiBotIntelligence() {
     if (!pages.length) return;
     setPageLoading(true);
     api.getAiBotIntelligence(id, selectedIdx).then(d => { setData(d); setPageLoading(false); }).catch(() => setPageLoading(false));
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <LoadingState message="Loading AI bot access…" />;
   if (!data) return <EmptyState title="No AI bot data yet" description="Run an audit to see which AI crawlers can access each page." />;

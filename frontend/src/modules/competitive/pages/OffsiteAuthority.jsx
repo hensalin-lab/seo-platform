@@ -4,26 +4,7 @@ import { api } from '../../../api';
 import { Award, ExternalLink, Link2, User, Globe, AlertTriangle, Shield, TrendingUp } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
 import { LoadingState, EmptyState } from '../../../components/States';
-
-function ScoreRing({ score, size = 80, label }) {
-  const r = (size - 8) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  const color = pct >= 70 ? '#059669' : pct >= 50 ? '#d97706' : '#dc2626';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.25, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
+import ScoreRing from '../../../components/ScoreRing';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
@@ -60,7 +41,7 @@ export default function OffsiteAuthority() {
   useEffect(() => {
     if (!pages.length) return;
     api.getOffsiteAuthority(id, selectedIdx).then(d => setData(d)).catch(() => setData(null));
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <LoadingState message="Loading off-site authority…" />;
   if (!data) return <EmptyState title="No off-site data yet" description="Run an audit to measure domain authority, brand signals and backlink opportunities." />;
@@ -84,7 +65,7 @@ export default function OffsiteAuthority() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
         <Card title="Authority Score" icon={Award} color="#8b5cf6">
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <ScoreRing score={data.authority_score} size={90} />
+            <ScoreRing score={data.authority_score} size={90} stroke={6} />
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               <div>External links: {extLinks.total_external || 0}</div>
               <div>Authority links: {extLinks.authority_links || 0}</div>

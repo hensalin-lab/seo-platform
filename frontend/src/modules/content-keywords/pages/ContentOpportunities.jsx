@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { FileText, AlertTriangle, CheckCircle, TrendingUp, Target, Zap, ArrowRight, Clock, Brain, BarChart3, Plus, ExternalLink, Search, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { api } from '../../../api';
 import FixDetail from '../../../components/FixDetail';
+import ScoreRing from '../../../components/ScoreRing';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -20,25 +21,6 @@ function SeverityBadge({ severity }) {
       padding: '3px 10px', borderRadius: 'var(--radius-sm, 6px)',
       background: style.bg, color: style.color,
     }}>{s}</span>
-  );
-}
-
-function ScoreRing({ score, size = 160 }) {
-  const color = score >= 70 ? 'var(--green, #22c55e)' : score >= 40 ? 'var(--yellow, #f59e0b)' : 'var(--red, #ef4444)';
-  const radius = (size - 12) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--border, #e5e7eb)" strokeWidth={10} />
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1s ease' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 36, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(score)}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted, #9ca3af)' }}>/100</span>
-      </div>
-    </div>
   );
 }
 
@@ -216,7 +198,7 @@ export default function ContentOpportunities() {
         display: 'flex', alignItems: 'center', gap: 48, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <ScoreRing score={contentScore} size={160} />
+          <ScoreRing score={contentScore} size={160} stroke={10} label="/100" />
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Score</span>
         </div>
         <div style={{ flex: 1, minWidth: 280 }}>

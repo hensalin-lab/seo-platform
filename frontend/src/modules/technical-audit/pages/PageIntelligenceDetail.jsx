@@ -24,6 +24,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
+import ScoreRing from '../../../components/ScoreRing';
 
 const SCORE_COLORS = {
   excellent: '#059669',
@@ -44,56 +45,6 @@ function getScoreLabel(score) {
   if (score >= 60) return 'Good';
   if (score >= 40) return 'Fair';
   return 'Poor';
-}
-
-function ScoreRing({ score, label, size = 120 }) {
-  const color = getScoreColor(score);
-  const radius = (size - 12) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div style={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="var(--border-light)"
-            strokeWidth={8}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={8}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          />
-        </svg>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span style={{ fontSize: size > 80 ? 28 : 20, fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/100</span>
-        </div>
-      </div>
-      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
-    </div>
-  );
 }
 
 function ExpandableSection({ title, count, icon: Icon, color, children, defaultOpen = false }) {

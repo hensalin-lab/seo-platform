@@ -1,6 +1,8 @@
-import { Search, Shield, FileCode, Layers, Cpu, Edit3, Gauge, Network, Braces, HeartPulse, Flag, Sparkles, Link2 } from 'lucide-react';
+import { Search, Shield, FileCode, Layers, Cpu, Edit3, Gauge, Network, Braces, HeartPulse, Flag, Sparkles, Link2, List } from 'lucide-react';
 import TabbedPage from '../../components/ai/TabbedPage';
 import SeoAnalysis from '../../modules/technical-audit/pages/SeoAnalysis';
+import PagesList from '../../modules/technical-audit/pages/PagesList';
+import PageIntelligenceV2 from '../../modules/technical-audit/pages/PageIntelligenceV2';
 import EnterprisePage from '../../modules/enterprise/pages/EnterprisePage';
 import PageDetail from '../../modules/technical-audit/pages/PageDetail';
 import PageIntelligenceDetail from '../../modules/technical-audit/pages/PageIntelligenceDetail';
@@ -32,8 +34,27 @@ export function SeoHub() {
   );
 }
 
-export function PageDetailHub() {
+export function PagesHub() {
   return (
+    <TabbedPage
+      hero={{
+        icon: FileCode,
+        title: 'Pages',
+        subtitle: 'Crawled page list with per-page scores, issues and fixes',
+        badges: [
+          { icon: List, t: 'Page List' },
+          { icon: Cpu, t: 'Page Intelligence' },
+        ],
+      }}
+      tabs={[
+        { key: 'pages-list', label: 'Page List', icon: List, component: PagesList },
+        { key: 'page-intelligence', label: 'Page Intelligence', icon: Cpu, component: PageIntelligenceV2 },
+      ]}
+    />
+  );
+}
+
+export function PageDetailHub() {  return (
     <TabbedPage
       hero={{
         icon: Layers,

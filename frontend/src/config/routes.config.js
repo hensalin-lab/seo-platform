@@ -33,7 +33,7 @@ const EnterprisePage = lazy(() => import('../modules/enterprise/pages/Enterprise
 const AiBotIntelligence = lazy(() => import('../modules/geo-aeo/pages/AiBotIntelligence'));
 const OffsiteAuthority = lazy(() => import('../modules/competitive/pages/OffsiteAuthority'));
 const SchemaIntelligence = lazy(() => import('../modules/geo-aeo/pages/SchemaIntelligence'));
-const PageIntelligenceV2 = lazy(() => import('../modules/technical-audit/pages/PageIntelligenceV2'));
+const PagesHub = lazy(() => import('../pages/hubs/TechnicalHubs').then(m => ({ default: m.PagesHub })));
 const AuditCompare = lazy(() => import('../modules/executive/pages/AuditCompare'));
 const AuditReport = lazy(() => import('../modules/executive/pages/AuditReport'));
 const BacklinkProfile = lazy(() => import('../modules/competitive/pages/BacklinkProfile'));
@@ -61,7 +61,6 @@ const AiRoadmap = lazy(() => import('../modules/content-keywords/pages/AiRoadmap
 const AiSuggestions = lazy(() => import('../modules/content-keywords/pages/AiSuggestions'));
 const IssuesExplorer = lazy(() => import('../modules/action-center/pages/IssuesExplorer'));
 const Trends = lazy(() => import('../modules/executive/pages/Trends'));
-const GeoAeoHub = lazy(() => import('../modules/geo-aeo/pages/GeoAeoHub'));
 const AeoAnalysis = lazy(() => import('../modules/geo-aeo/pages/AeoAnalysis'));
 const GeoAnalysis = lazy(() => import('../modules/geo-aeo/pages/GeoAnalysis'));
 const ActionCenter = lazy(() => import('../modules/action-center/pages/ActionCenter'));
@@ -146,18 +145,18 @@ export const auditSections = [
     label: '2. DIAGNOSE · TECHNICAL',
     items: [
       { suffix: '/seo', icon: 'Search', label: 'SEO Analysis', title: 'SEO Analysis', component: SeoHub },
-      { suffix: '/pages', icon: 'FileCode', label: 'Pages', title: 'Pages', component: PageIntelligenceV2 },
+      { suffix: '/pages', icon: 'FileCode', label: 'Pages', title: 'Pages', component: PagesHub },
       { suffix: '/page-detail', icon: 'Layers', label: 'Page Detail', title: 'Page Detail', component: PageDetailHub },
       { suffix: '/schema', icon: 'Network', label: 'Schema', title: 'Schema', component: SchemaHub },
       { suffix: '/speed', icon: 'Gauge', label: 'Speed & CWV', title: 'Speed & CWV', component: SpeedHub },
       { suffix: '/internal-links', icon: 'Link2', label: 'Internal Links', title: 'Internal Links', component: InternalLinks },
+      { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO', title: 'Mobile SEO', component: MobileSeo },
+      { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots', title: 'Sitemap & Robots', component: SitemapRobots },
       {
         label: 'Crawlability & Indexation',
         icon: 'Globe',
         group: true,
         children: [
-          { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO', title: 'Mobile SEO', component: MobileSeo },
-          { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots', title: 'Sitemap & Robots', component: SitemapRobots },
           { suffix: '/security-headers', icon: 'ShieldAlert', label: 'Security Headers', title: 'Security Headers', component: SecurityHeaders },
           { suffix: '/image-seo', icon: 'Camera', label: 'Image SEO', title: 'Image SEO', component: ImageSeo },
           { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang', title: 'Hreflang & i18n', component: HreflangAnalysis },

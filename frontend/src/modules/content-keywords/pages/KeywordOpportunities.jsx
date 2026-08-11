@@ -10,6 +10,7 @@ import { api } from '../../../api';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ScoreRing from '../../../components/ScoreRing';
 
 const INTENT_COLORS = {
   Informational: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
@@ -45,30 +46,6 @@ const INTENT_TAG_COLORS = {
   INFORMATIONAL: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
   NAVIGATIONAL: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' },
 };
-
-function ScoreRing({ score, size = 120, stroke = 8, label }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score));
-  const offset = c - (pct / 100) * c;
-  let color = '#ef4444';
-  if (pct >= 70) color = '#22c55e';
-  else if (pct >= 40) color = '#f59e0b';
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border, #e5e7eb)" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
-      </svg>
-      <div style={{ position: 'relative', top: -(size + 8), height: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.25, fontWeight: 700, color: color, lineHeight: 1 }}>{pct}</span>
-        <span style={{ fontSize: 10, color: 'var(--text-muted, #6b7280)', fontWeight: 500 }}>{label || 'Score'}</span>
-      </div>
-    </div>
-  );
-}
 
 function TabBar({ tabs, active, onChange }) {
   return (

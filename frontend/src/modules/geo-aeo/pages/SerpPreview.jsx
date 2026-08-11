@@ -133,7 +133,7 @@ export default function SerpPreview() {
   useEffect(() => {
     if (pages.length === 0) return;
     api.request(`/audit/${id}/enterprise/${selectedIdx}`).then(d => setEnterprise(d)).catch(() => {});
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <div className="loading-skeleton" />;
   if (error) return <div className="empty-state">{error}</div>;

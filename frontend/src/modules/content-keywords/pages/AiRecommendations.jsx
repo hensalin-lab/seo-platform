@@ -5,29 +5,7 @@ import { Brain, Target, BarChart3, ChevronDown, CheckCircle, AlertTriangle, Ligh
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
-
-function ScoreRing({ score, size = 80, stroke = 6, label }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  let color = '#ef4444';
-  if (pct >= 80) color = '#059669';
-  else if (pct >= 60) color = '#3b82f6';
-  else if (pct >= 40) color = '#d97706';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.26, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
+import ScoreRing from '../../../components/ScoreRing';
 
 function IssueCard({ issue, index }) {
   const [expanded, setExpanded] = useState(index < 5);
@@ -79,7 +57,7 @@ export default function AiRecommendations() {
     if (!pages.length) return;
     setPageLoading(true);
     api.getMegaAnalysis(id, selectedIdx).then(d => { setMega(d); setPageLoading(false); }).catch(() => setPageLoading(false));
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
 
@@ -156,7 +134,7 @@ export default function AiRecommendations() {
             ) : mega ? (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: 16, background: 'var(--bg-white)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                  <ScoreRing score={mega.overall_score} size={80} label="PAGE SCORE" />
+                  <ScoreRing score={mega.overall_score} size={80} label="PAGE SCORE" stroke={6} />
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{mega.page_title}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{mega.word_count} words | {mega.signals_checked} signals | {mega.issues.length} issues</div>

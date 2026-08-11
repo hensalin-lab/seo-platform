@@ -37,7 +37,7 @@ function UnavailableBadge() {
   );
 }
 
-export default function GeoAeoHub() {
+export default function GeoAeoOverview() {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [showSchemaBuilder, setShowSchemaBuilder] = useState(false);

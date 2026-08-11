@@ -6,6 +6,7 @@ import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Targ
 import ThemeHero from '../../../components/ai/ThemeHero'
 import ThemeStatCard from '../../../components/ai/ThemeStatCard'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
+import { Spinner } from '../../../components/States'
 
 function KeywordTable({ keywords, search }) {
   const [sortBy, setSortBy] = useState('frequency')
@@ -325,9 +326,10 @@ export default function KeywordStrategy() {
             )}
             {aiLoading && (
               <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 40, textAlign: 'center' }}>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <Spinner size={48} />
+                </div>
                 <div style={{ fontSize: 15, color: 'var(--text-muted)', fontWeight: 500 }}>AI is analyzing keywords...</div>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             )}
             {aiSuggestions && (() => {

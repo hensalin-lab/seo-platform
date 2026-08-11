@@ -1,9 +1,9 @@
 export const SEVERITY_STYLES = {
-  CRITICAL: { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: '\u{1f534}', label: 'Critical', weight: 4 },
+  CRITICAL: { color: '#ef4444', bg: '#fef2f2', border: '#fecaca', icon: '\u{1f534}', label: 'Critical', weight: 4 },
   HIGH: { color: '#f97316', bg: '#fff7ed', border: '#fed7aa', icon: '\u{1f7e0}', label: 'High', weight: 3 },
-  MEDIUM: { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '\u{1f7e1}', label: 'Medium', weight: 2 },
-  LOW: { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe', icon: '\u{1f535}', label: 'Low', weight: 1 },
-  INFO: { color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb', icon: '\u26aa', label: 'Info', weight: 0 },
+  MEDIUM: { color: '#eab308', bg: '#fffbeb', border: '#fde68a', icon: '\u{1f7e1}', label: 'Medium', weight: 2 },
+  LOW: { color: '#22c55e', bg: '#eff6ff', border: '#bfdbfe', icon: '\u{1f535}', label: 'Low', weight: 1 },
+  INFO: { color: '#64748b', bg: '#f9fafb', border: '#e5e7eb', icon: '\u26aa', label: 'Info', weight: 0 },
 };
 
 export const SCORE_COLORS = {

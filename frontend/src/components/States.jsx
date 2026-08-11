@@ -7,6 +7,24 @@ const btnBase = {
   fontSize: 13, fontWeight: 650, transition: 'opacity 0.15s ease',
 };
 
+export function Spinner({ size = 20, text, color, style }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, ...style }}>
+      <span className="spinner" style={{ width: size, height: size, borderWidth: Math.max(2, Math.round(size / 8)), ...(color ? { borderTopColor: color } : {}) }} />
+      {text && <span style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)', fontWeight: 550 }}>{text}</span>}
+    </span>
+  );
+}
+
+export function LoadingBlock({ text = 'Loading…', size = 20, style }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, padding: 40, gap: 12, ...style }}>
+      <Spinner size={size} />
+      {text && <span style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)', fontWeight: 550 }}>{text}</span>}
+    </div>
+  );
+}
+
 export function LoadingState({ message = 'Loading…', skeleton = 'cards' }) {
   return (
     <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -1,6 +1,6 @@
 import { Brain, Globe, Zap, Sparkles, Cpu, FileText, ShieldCheck, Key, TrendingUp, BarChart3, Award, BookOpen, FileText as FileTextIcon } from 'lucide-react';
 import TabbedPage from '../../components/ai/TabbedPage';
-import GeoAeoHub from '../../modules/geo-aeo/pages/GeoAeoHub';
+import GeoAeoOverview from '../../modules/geo-aeo/pages/GeoAeoOverview';
 import AeoAnalysis from '../../modules/geo-aeo/pages/AeoAnalysis';
 import GeoAnalysis from '../../modules/geo-aeo/pages/GeoAnalysis';
 import AiVisibility from '../../modules/geo-aeo/pages/AiVisibility';
@@ -31,7 +31,7 @@ export function GeoAeoHubTabs() {
         ],
       }}
       tabs={[
-        { key: 'geo-aeo', label: 'GEO & AEO Hub', icon: Brain, component: GeoAeoHub },
+        { key: 'geo-aeo', label: 'Overview', icon: Brain, component: GeoAeoOverview },
         { key: 'aeo-analysis', label: 'AEO Analysis', icon: Zap, component: AeoAnalysis },
         { key: 'geo-analysis', label: 'GEO Analysis', icon: Globe, component: GeoAnalysis },
         { key: 'ai-visibility', label: 'AI Search & Visibility', icon: Sparkles, component: AiVisibility },

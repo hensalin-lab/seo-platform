@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Send, Bot, User, Target, Zap, Lightbulb, Brain, Globe, BarChart3, ChevronRight, ExternalLink, TrendingUp } from 'lucide-react';
+import ScoreRing from '../../../components/ScoreRing';
 
 const QUICK_ACTIONS = [
   { label: 'Top issues & fixes', icon: Target, prompt: 'List my top 5 SEO issues with exact URLs affected and step-by-step fix instructions for each.' },
@@ -28,31 +29,6 @@ function formatMarkdown(text) {
 function formatTime(dateStr) {
   if (!dateStr) return '';
   try { return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
-}
-
-function ScoreRing({ score, size = 64, label }) {
-  const stroke = 5;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  let color = '#fa5252';
-  if (pct >= 80) color = '#12b886';
-  else if (pct >= 60) color = '#4c6ef5';
-  else if (pct >= 40) color = '#f59f00';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef0f2" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.28, fontWeight: 700, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 1 }}>{label}</span>}
-      </div>
-    </div>
-  );
 }
 
 function SidebarStat({ label, value, color, onClick }) {
@@ -190,7 +166,7 @@ export default function AiChat() {
                 )}
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
                   {[{ l: 'SEO', v: seo }, { l: 'Tech', v: tech }, { l: 'AEO', v: aeo }, { l: 'GEO', v: geo }].map(s => (
-                    <ScoreRing key={s.l} score={s.v} size={58} label={s.l} />
+                    <ScoreRing key={s.l} score={s.v} size={58} label={s.l} stroke={5} />
                   ))}
                 </div>
               </div>
@@ -259,7 +235,7 @@ export default function AiChat() {
             <div style={styles.sideSection}>
               <div style={styles.sideHeading}>Score</div>
               <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
-                <ScoreRing score={overall} size={90} label="Overall" />
+                <ScoreRing score={overall} size={90} label="Overall" stroke={5} />
               </div>
             </div>
 

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Globe, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Sparkles, Target, Info, Shield, Brain, FileText, Link2, Zap } from 'lucide-react';
 import { api } from '../../../api';
 import FixDetail from '../../../components/FixDetail';
+import ScoreRing from '../../../components/ScoreRing';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -10,25 +11,6 @@ const SEVERITY_STYLES = {
   MEDIUM: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
   LOW: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
 };
-
-function ScoreRing({ score, size = 160 }) {
-  const color = score >= 70 ? 'var(--green, #22c55e)' : score >= 40 ? 'var(--yellow, #f59e0b)' : 'var(--red, #ef4444)';
-  const radius = (size - 12) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--border, #e5e7eb)" strokeWidth={10} />
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1s ease' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 36, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(score)}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted, #9ca3af)' }}>/100</span>
-      </div>
-    </div>
-  );
-}
 
 function SeverityBadge({ severity }) {
   const s = (severity || 'MEDIUM').toUpperCase();
@@ -242,7 +224,7 @@ export default function GeoAnalysis() {
 
       <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '32px 40px', display: 'flex', alignItems: 'center', gap: 48, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <ScoreRing score={geoScore} size={160} />
+          <ScoreRing score={geoScore} size={160} stroke={10} label="/100" />
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>GEO Score</span>
         </div>
         <div style={{ flex: 1, minWidth: 300 }}>

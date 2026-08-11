@@ -7,36 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
-
-function ScoreRing({ score, size = 120, stroke = 10 }) {
-  const [mounted, setMounted] = useState(false);
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = mounted ? c - (pct / 100) * c : c;
-  let color = '#ef4444';
-  let glowColor = 'rgba(239,68,68,0.3)';
-  if (pct >= 80) { color = '#22c55e'; glowColor = 'rgba(34,197,94,0.3)'; }
-  else if (pct >= 60) { color = 'var(--accent)'; glowColor = 'rgba(99,102,241,0.3)'; }
-  else if (pct >= 40) { color = '#f59e0b'; glowColor = 'rgba(245,158,11,0.3)'; }
-
-  useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
-
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', filter: `drop-shadow(0 0 12px ${glowColor})` }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" style={{ stroke: 'var(--border)' }} strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.28, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>OVERALL</span>
-      </div>
-    </div>
-  );
-}
+import ScoreRing from '../../../components/ScoreRing';
 
 function ScoreBadge({ label, score, icon: Icon }) {
   const pct = Math.min(100, Math.max(0, score || 0));
@@ -405,7 +376,7 @@ export default function ExecutiveDashboard() {
       {/* ScoreRing and ScoreBadge kept from original */}
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, marginBottom: 28 }}>
         <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <ScoreRing score={overallScore} size={140} stroke={12} />
+          <ScoreRing score={overallScore} size={140} stroke={12} label="OVERALL" />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <ScoreBadge label="SEO Score" score={siteSummary.seo_score} icon={Search} />

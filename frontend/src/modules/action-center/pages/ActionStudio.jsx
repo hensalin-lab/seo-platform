@@ -7,13 +7,8 @@ import {
 } from 'lucide-react';
 import { api } from '../../../api';
 import { useToast } from '../../../components/Toast';
+import { SEVERITY_COLORS } from '../../../components/ai/theme';
 
-const SEVERITY_COLORS = {
-  CRITICAL: '#ef4444',
-  HIGH: '#f59e0b',
-  MEDIUM: '#3b82f6',
-  LOW: '#6b7280',
-};
 const CATEGORY_COLORS = {
   SEO: '#3b82f6',
   CONTENT: '#a855f7',

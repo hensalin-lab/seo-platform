@@ -4,9 +4,9 @@ import { api } from '../../../api';
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 import { AlertTriangle, Lightbulb, Activity, CheckCircle, XCircle, Filter, RefreshCw, Clock, ArrowRight, ExternalLink } from 'lucide-react';
-import { EmptyState as SharedEmptyState } from '../../../components/States';
+import { EmptyState as SharedEmptyState, LoadingBlock } from '../../../components/States';
+import { SEVERITY_COLORS } from '../../../components/ai/theme';
 
-const SEVERITY_COLORS = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
 const PRIORITY_LABELS = { P0: 'Critical', P1: 'High', P2: 'Medium', P3: 'Low' };
 const PRIORITY_COLORS = { P0: '#ef4444', P1: '#f59e0b', P2: '#3b82f6', P3: '#6b7280' };
 const STATUS_COLORS = { open: '#f59e0b', in_progress: '#3b82f6', resolved: '#22c55e' };
@@ -18,20 +18,13 @@ const TABS = [
 ];
 
 function Spinner({ text }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
-      <div style={{ fontSize: 15, color: 'var(--text-muted)', fontWeight: 500 }}>{text || 'Loading...'}</div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
+  return <LoadingBlock text={text || 'Loading...'} size={48} style={{ minHeight: 400 }} />;
 }
 
 function EmptyState({ icon: Icon, title, message }) {
   return <SharedEmptyState icon={Icon} title={title || 'No data available'} description={message} />;
 }
 
-const SEVERITY_COLORS2 = { CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#eab308', LOW: '#22c55e', INFO: '#64748b' };
 const CAT_COLORS2 = { SEO: '#3b82f6', CONTENT: '#10b981', PERFORMANCE: '#8b5cf6', ACCESSIBILITY: '#f59e0b', SECURITY: '#ef4444', MOBILE: '#06b6d4', SOCIAL: '#ec4899', OTHER: '#64748b' };
 
 function IssuesTab({ issues, loading }) {
@@ -87,7 +80,7 @@ function IssuesTab({ issues, loading }) {
           <select value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setPage(0); }}
             style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
             <option value="ALL">All Severities</option>
-            {Object.keys(SEVERITY_COLORS2).map(s => (<option key={s} value={s}>{s}</option>))}
+            {Object.keys(SEVERITY_COLORS).map(s => (<option key={s} value={s}>{s}</option>))}
           </select>
           <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(0); }}
             style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none', cursor: 'pointer' }}>
@@ -109,7 +102,7 @@ function IssuesTab({ issues, loading }) {
           {paginated.map((issue, idx) => (
             <div key={idx} style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ width: 60, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textAlign: 'center', color: '#fff', background: SEVERITY_COLORS2[issue.severity] || '#64748b', flexShrink: 0 }}>
+                <span style={{ width: 60, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textAlign: 'center', color: '#fff', background: SEVERITY_COLORS[issue.severity] || '#64748b', flexShrink: 0 }}>
                   {issue.severity}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>

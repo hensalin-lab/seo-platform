@@ -5,6 +5,7 @@ import { Clock, AlertTriangle, CheckCircle, TrendingUp, FileText, ExternalLink, 
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import ScoreRing from '../../../components/ScoreRing';
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -12,29 +13,6 @@ const SEVERITY_STYLES = {
   MEDIUM: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
   LOW: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
 };
-
-function ScoreRing({ score, size = 180 }) {
-  const color = score >= 80 ? '#22c55e' : score >= 60 ? '#06b6d4' : score >= 40 ? '#f59e0b' : '#ef4444';
-  const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Needs Work' : 'Critical';
-  const radius = (size - 12) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-      <div style={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--border)" strokeWidth={10} />
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1s ease' }} />
-        </svg>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 42, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(score)}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>/100</span>
-        </div>
-      </div>
-      <span style={{ fontSize: 13, fontWeight: 600, color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-    </div>
-  );
-}
 
 function SeverityBadge({ severity }) {
   const s = (severity || 'MEDIUM').toUpperCase();
@@ -310,7 +288,7 @@ export default function ContentRevival() {
         padding: '40px 24px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
-        <ScoreRing score={freshnessScore} size={180} />
+        <ScoreRing score={freshnessScore} size={180} stroke={10} label={freshnessScore >= 80 ? 'Excellent' : freshnessScore >= 60 ? 'Good' : freshnessScore >= 40 ? 'Needs Work' : 'Critical'} />
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginTop: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Freshness Score</span>
       </div>
 

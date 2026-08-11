@@ -3,26 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Layers, CheckCircle, XCircle, AlertTriangle, Brain, Copy, Target, TrendingUp, ArrowRight, FileCode, Link2, User } from 'lucide-react';
 import { LoadingState, EmptyState } from '../../../components/States';
-
-function ScoreRing({ score, size = 70, label }) {
-  const r = (size - 6) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.min(100, Math.max(0, score || 0));
-  const offset = c - (pct / 100) * c;
-  const color = pct >= 70 ? '#059669' : pct >= 50 ? '#d97706' : '#dc2626';
-  return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e2e8f0" strokeWidth="4" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="4" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.22, fontWeight: 800, color, lineHeight: 1 }}>{Math.round(pct)}</span>
-        {label && <span style={{ fontSize: 7, color: 'var(--text-muted)', marginTop: 1 }}>{label}</span>}
-      </div>
-    </div>
-  );
-}
+import ScoreRing from '../../../components/ScoreRing';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
@@ -65,7 +46,7 @@ export default function PageIntelligenceV2() {
   useEffect(() => {
     if (!pages.length) return;
     api.getPageIntelligenceV2(id, selectedIdx).then(d => setData(d)).catch(() => {});
-  }, [id, selectedIdx, pages]);
+  }, [id, selectedIdx, pages.length]);
 
   if (loading) return <LoadingState message="Loading page intelligence…" />;
   if (!data) return <EmptyState title="No page intelligence yet" description="Run an audit to score each page across technical, content, schema and AI-readiness." />;
@@ -111,7 +92,7 @@ export default function PageIntelligenceV2() {
           {Object.entries(scores).map(([cat, info]) => (
             <Card key={cat} title={cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} icon={Layers} color="#3b82f6">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <ScoreRing score={info.score} size={60} />
+                <ScoreRing score={info.score} size={60} stroke={4} />
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   <div>Target: {info.target}</div>
                   <div>Passed: {info.passed || 0}</div>
@@ -172,7 +153,7 @@ export default function PageIntelligenceV2() {
               <div key={platform} style={{ padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, textTransform: 'capitalize' }}>{platform.replace(/_/g, ' ')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <ScoreRing score={info.score} size={45} />
+                  <ScoreRing score={info.score} size={45} stroke={4} />
                 </div>
                 {info.improvement && <div style={{ fontSize: 11, color: '#059669' }}>+ {info.improvement}</div>}
               </div>

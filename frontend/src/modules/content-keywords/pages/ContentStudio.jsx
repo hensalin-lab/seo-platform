@@ -12,7 +12,7 @@ import PromptTestingLab from '../components/PromptTestingLab';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
-import { EmptyState } from '../../../components/States';
+import { EmptyState, LoadingBlock } from '../../../components/States';
 
 const TABS = [
   { key: 'overview', label: 'Content Overview', icon: BarChart3 },
@@ -68,13 +68,7 @@ function SectionCard({ title, icon: Icon, iconColor, badge, children, unavailabl
 }
 
 function LoadingSpinner({ message }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
-      <div style={{ fontSize: 15, color: 'var(--text-muted)', fontWeight: 500 }}>{message || 'Loading...'}</div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
+  return <LoadingBlock text={message || 'Loading...'} size={48} style={{ minHeight: 400 }} />;
 }
 
 function OverviewTab({ contentData, qualityData, opportunitiesData }) {
