@@ -520,7 +520,7 @@ The AI visibility analysis assess 6 factors as "present / partial / missing":
 | **Competitor (5)** | CompetitorAnalysis, CompetitorDeep, CompetitorGap, OffsiteAuthority, BacklinkProfile | 🟡 Data partial |
 | **Schema (3)** | SchemaAnalysis, SchemaIntelligence, SerpPreview | 🟢 Good |
 | **Keyword (2)** | KeywordOpportunities, KeywordStrategy | 🟢 Excellent |
-| **Data (3)** | GscData, History, Trends | 🟡 Stub data |
+| **Data (4)** | GscData, History, Trends, AuditTrends | 🟢 Real data |
 | **Auth (3)** | LoginPage, RegisterPage, SettingsPage | 🟢 Working |
 | **Enterprise (4)** | EnterprisePage, PortfolioDashboard, Dashboard, PageDetail | 🟡 Partial data |
 | **Local (1)** | LocalSeo | 🟡 Exists |
@@ -986,7 +986,7 @@ See section 13 for full inventory.
 | `/api/alerts/slack/test` | POST | Test Slack webhook delivery | ✅ |
 | `/api/audit/compare` | POST | Comparison data | ✅ |
 | `/api/dashboard/portfolio` | GET | Portfolio data | ✅ |
-| `/api/audit/{id}/trends` | GET | Trend data | ✅ |
+| `/api/audit/{id}/trends` | GET | Snapshot-based score trends (`?metric=`) | ✅ |
 | `/api/audit/{id}/full-strategy` | GET | Full strategy | ✅ |
 | `/api/audit/{id}/content-intelligence-deep/{idx}` | GET | Deep content | ✅ |
 | `/api/audit/{id}/content-opportunities` | GET | Content opportunities | ✅ |

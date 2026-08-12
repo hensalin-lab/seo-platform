@@ -469,7 +469,7 @@ class AnalyzerEngine:
         has_faq_section = bool(re.search(r'frequently.asked|faq|common.questions', (page.content_text or "").lower()))
         result.add_signal(sid, "FAQ Schema", "AEO", 1.0 if faq_schema else (0.5 if has_faq_section else 0.0), 1.0, "FAQPage schema found" if faq_schema else ("FAQ section exists" if has_faq_section else "No FAQ schema"), page.url, page.url)
         if not faq_schema and page.word_count > 500:
-            result.add_issue(page.url, "AEO", "HIGH", sid, "Missing FAQ Schema", f"No FAQPage JSON-LD on {page.url}", "FAQ schema enables rich results and AI answer extraction", "Add FAQPage schema with 4-6 Q&As")
+            result.add_issue(page.url, "AEO", "HIGH", sid, "Missing FAQ Schema", f"No FAQPage JSON-LD on {page.url}", "FAQ schema enables AI answer extraction (GEO/AEO) and citation readiness", "Add FAQPage schema with 4-6 Q&As")
 
         sid = self._sid()
         result.add_signal(sid, "FAQ Section Content", "AEO", 1.0 if has_faq_section else 0.0, 0.8, "FAQ section in content" if has_faq_section else "No FAQ section", page.url, page.url)

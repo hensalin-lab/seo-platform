@@ -298,7 +298,7 @@ class AiSearchIntelligenceEngine:
         if table_count >= 1: google_reasons.append("Tables for data-rich content")
         if def_blocks >= 2: google_reasons.append("Clear definitions for answer boxes")
         if q_in_headings >= 2: google_reasons.append("Question headings match user queries")
-        if "FAQPage" in schema_types: google_reasons.append("FAQPage schema for rich results")
+        if "FAQPage" in schema_types: google_reasons.append("FAQPage schema as AI answer / GEO structured data")
         if word_count >= 800: google_reasons.append("Sufficient content depth")
 
         google_weak = []
@@ -801,7 +801,7 @@ class AiSearchIntelligenceEngine:
                 {"name": "Definition paragraphs", "weight": "15%", "status": "pass" if definition_blocks >= 2 else "fail" if definition_blocks == 0 else "warn", "detail": f"Found {definition_blocks} definition blocks (target: 2+)"},
                 {"name": "Lists", "weight": "15%", "status": "pass" if list_count >= 3 else "fail" if list_count == 0 else "warn", "detail": f"Found {list_count} lists (target: 3+)"},
                 {"name": "Tables", "weight": "12%", "status": "pass" if table_count >= 1 else "fail", "detail": f"Found {table_count} tables (target: 1+)"},
-                {"name": "FAQ Schema", "weight": "8%", "status": "pass" if "FAQPage" in schema_types else "fail", "detail": "FAQPage schema for rich results"},
+                {"name": "FAQ Schema", "weight": "8%", "status": "pass" if "FAQPage" in schema_types else "fail", "detail": "FAQPage schema as AI answer / GEO structured data"},
                 {"name": "Question headings", "weight": "10%", "status": "pass" if q_in_headings >= 2 else "warn" if q_in_headings >= 1 else "fail", "detail": f"Found {q_in_headings} question headings (target: 2+)"},
                 {"name": "HowTo steps", "weight": "10%", "status": "pass" if howto_steps >= 3 else "warn" if howto_steps >= 1 else "fail", "detail": f"Found {howto_steps} step indicators (target: 3+)"},
                 {"name": "Content depth", "weight": "8%", "status": "pass" if word_count >= 800 else "fail", "detail": f"{word_count} words (target: 800+)"},
@@ -1058,7 +1058,7 @@ class AiSearchIntelligenceEngine:
             missing_signals.append("Add FAQ Schema")
 
         if "FAQPage" in schema_types:
-            eligible_signals.append("FAQPage schema for rich results")
+            eligible_signals.append("FAQPage schema as AI answer / GEO structured data")
         else:
             missing_signals.append("Add FAQPage schema")
 

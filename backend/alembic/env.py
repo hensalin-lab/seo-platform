@@ -14,6 +14,7 @@ from app.models import (
     KeywordRecord, RoadmapRecord, ChatMessage,
     RoadmapItem, KeywordData, ContentData, AIVisibilityData,
     User, APIKey, Session, Webhook, ScheduledAudit, WhiteLabelSettings,
+    AuditSnapshot,
 )
 
 config = context.config

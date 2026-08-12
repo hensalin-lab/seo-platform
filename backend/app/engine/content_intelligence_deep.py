@@ -458,7 +458,7 @@ class ContentIntelligenceDeep:
 
         schema_count = len(schema) if isinstance(schema, list) else 0
         if schema_count == 0:
-            issues.append({"severity": "high", "category": "technical", "issue": "No structured data / schema markup", "fix": "Add JSON-LD schema (FAQPage, Article, Organization) for rich results"})
+            issues.append({"severity": "high", "category": "technical", "issue": "No structured data / schema markup", "fix": "Add JSON-LD schema (FAQPage, Article, Organization) for AI answer extraction (GEO/AEO)"})
 
         if isinstance(internal, list):
             int_count = len(internal)
@@ -481,7 +481,7 @@ class ContentIntelligenceDeep:
 
             faq_signal = re.search(r"\b(?:frequently asked|faq|q:|a:)\b", content, re.IGNORECASE)
             if not faq_signal:
-                issues.append({"severity": "high", "category": "ai_search", "issue": "No FAQ section detected", "fix": "Add FAQ section with schema markup for AI Overview and rich result eligibility"})
+                issues.append({"severity": "high", "category": "ai_search", "issue": "No FAQ section detected", "fix": "Add FAQ section with schema markup for AI Overview and answer extraction eligibility"})
 
             author_signal = re.search(r"\b(written by|author|byline|bio)\b", content, re.IGNORECASE)
             if not author_signal and page_type in ("BLOG", "DOCS"):
@@ -1752,7 +1752,7 @@ class ContentIntelligenceDeep:
                 "section": "FAQ Section",
                 "current": "(not present)",
                 "recommended": faq_text,
-                "why_better": "FAQs directly feed AI Overviews, ChatGPT answers, and Google rich results. FAQPage schema enables rich snippets.",
+                "why_better": "FAQs directly feed AI Overviews and ChatGPT answers. FAQPage schema enables AI answer extraction (GEO/AEO).",
                 "copy_ready": True,
             })
 

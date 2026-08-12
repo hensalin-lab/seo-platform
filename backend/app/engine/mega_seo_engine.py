@@ -696,7 +696,7 @@ class MegaSEOEngine:
         if not schema_list:
             sigs.append(self._s("S001", "No Schema Markup", "schema_markup", "fail", "HIGH",
                 "This page has zero structured data (Schema.org markup).",
-                "Schema markup helps Google understand your content and can generate rich results (star ratings, FAQs, breadcrumbs, etc.). Pages with schema rank an average of 4 positions higher.",
+                "Schema markup helps AI assistants and search engines understand your content and makes it citable for answer extraction (GEO/AEO). Pages with schema rank an average of 4 positions higher.",
                 "Add at minimum: Organization, WebPage, or BreadcrumbList schema. Use JSON-LD format.",
                 "Can enable rich results in SERPs", "Medium",
                 '<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "WebPage",\n  "name": "Page Title",\n  "description": "Page description"\n}\n</script>',
@@ -712,9 +712,9 @@ class MegaSEOEngine:
                         schema_types.add(t)
             if "FAQPage" not in schema_types:
                 sigs.append(self._s("S003", "No FAQ Schema", "schema_markup", "warn", "LOW",
-                    "You don't have FAQPage schema. This can generate FAQ rich results in Google.",
-                    "FAQ rich results take up more SERP space and dramatically improve click-through rate.",
-                    "Add FAQPage schema for any Q&A content on the page.", "Can significantly increase SERP visibility", "Medium"))
+                    "You don't have FAQPage schema. This structure powers AI answer extraction (GEO/AEO) across Google AI Overviews and LLM citations.",
+                    "Structured Q&A content makes it easier for AI assistants to cite your page verbatim.",
+                    "Add FAQPage schema for any Q&A content on the page.", "Can significantly increase AI visibility", "Medium"))
             if "BreadcrumbList" not in schema_types:
                 sigs.append(self._s("S004", "No Breadcrumb Schema", "schema_markup", "warn", "LOW",
                     "You don't have BreadcrumbList schema.",
@@ -1289,9 +1289,9 @@ class MegaSEOEngine:
             text_lower = (text or "").lower()
             has_qa = bool(re.search(r'(?i)(?:q:|question:|faq|frequently asked|how do i|what is|why does)', text or ""))
             if has_qa:
-                sigs.append(self._s("AS005", "Q&A Content Without FAQPage Schema", "schema_markup", "warn", "HIGH", "Page has Q&A content but no FAQPage schema.", "FAQ schema directly generates rich results and AI citations.", "Add FAQPage schema for all Q&A content.", "Major visibility boost", "Medium"))
+                sigs.append(self._s("AS005", "Q&A Content Without FAQPage Schema", "schema_markup", "warn", "HIGH", "Page has Q&A content but no FAQPage schema.", "FAQ schema directly supports AI citations and answer extraction (GEO/AEO).", "Add FAQPage schema for all Q&A content.", "Major visibility boost", "Medium"))
             else:
-                sigs.append(self._s("AS006", "No FAQPage Schema", "schema_markup", "warn", "LOW", "No FAQPage schema.", "FAQ schema can generate rich results.", "Consider adding FAQ section and schema.", "", "Medium"))
+                sigs.append(self._s("AS006", "No FAQPage Schema", "schema_markup", "warn", "LOW", "No FAQPage schema.", "FAQ schema enables AI answer extraction.", "Consider adding FAQ section and schema.", "", "Medium"))
 
         if "HowTo" not in schema_types:
             text_lower = (text or "").lower()

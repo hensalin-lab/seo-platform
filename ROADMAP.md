@@ -13,6 +13,21 @@
 | Phase 2: Core Features | ✅ COMPLETED | Keyword research, content AI, blog AI, page improvements, reports |
 | Phase 3: Enterprise | ✅ COMPLETED (remaining items listed below) | Auth/roles/API keys, Google OAuth, real data integrations, client portal, webhooks, scheduled audits, audit trails, admin panel |
 | Phase 3 remaining | ⏳ Optional | SSO/SAML, video/news/ecommerce-deep modules, custom report builder |
+| Phase B: Score Trends | ✅ COMPLETED | `audit_snapshots` model + migration, snapshot capture on audit completion, `GET /api/audit/{id}/trends?metric=`, Score Trends page + `/trends` route |
+
+> **Phase B status (2026):** Each completed audit now persists an immutable score
+> snapshot (`audit_snapshots`, one per audit, unique on `audit_id`) recording all
+> 7 scores (overall/seo/technical/aeo/geo/content/ai_visibility). The new
+> `GET /api/audit/{id}/trends?metric=X` endpoint returns the site's snapshot
+> series ascending by date (scoped to `website_url`, so reruns of the same site
+> build a trend while other sites stay isolated), with `snapshot_count`,
+> `enough_data` (≥2 snapshots), `change` (value/direction vs previous), and a
+> 7-metric selector (`_TREND_METRICS`). Frontend: lazy-loaded Score Trends page
+> (metric dropdown, stat cards, inline SVG trend chart, timeline table) wired into
+> the TRACK section as `/audit/{id}/trends`. Migration: `002_audit_snapshots.py`
+> (down_revision `001_initial`). Tests: `backend/tests/test_trends.py` (9 passing:
+> persistence, 404, empty/single/three-point series, metric selector, 422 invalid
+> metric, per-site scoping). Backend suite: 158 passing; frontend build green.
 
 ---
 
@@ -96,7 +111,7 @@
 | POST /api/audit/{id}/rerun | HIGH | 2h | ✅ Rerun endpoint implemented |
 | GET /api/audit/{id}/export/csv | HIGH | 3h | ✅ CSV export for issues/pages/recommendations |
 | GET /api/audit/{id}/export/excel | HIGH | 3h | Multi-sheet Excel with formatting |
-| GET /api/audit/{id}/trends | MEDIUM | 4h | Compare current vs previous audit scores |
+| GET /api/audit/{id}/trends | MEDIUM | 4h | ✅ Snapshot-based historical score trends (`/api/audit/{id}/trends?metric=`) |
 | GET /api/dashboard/portfolio | MEDIUM | 4h | ✅ Portfolio endpoint implemented |
 | GET /api/audit/{id}/health-score | MEDIUM | 2h | Single health score with breakdown |
 

@@ -349,7 +349,7 @@ def analyze_blog(page, result):
             "severity": "MEDIUM", "category": "CONTENT",
             "signal_name": "Missing Blog FAQ",
             "description": "Blog post has no FAQ section",
-            "impact": "Missing FAQ rich results; not optimized for 'People Also Ask'",
+            "impact": "Not optimized for AI answer extraction; 'People Also Ask' gaps",
             "fix": "Add 3-5 FAQ pairs related to the blog topic with FAQPage schema"
         })
 
@@ -607,7 +607,7 @@ def analyze_faq(page, result):
             "severity": "CRITICAL", "category": "SEO",
             "signal_name": "Missing FAQPage Schema",
             "description": "FAQ page missing FAQPage structured data",
-            "impact": "FAQ rich results won't appear in Google; major missed opportunity",
+            "impact": "AI assistants cannot cite structured Q&A; major missed opportunity",
             "fix": "Add FAQPage JSON-LD with mainEntity containing Question/Answer pairs"
         })
 
@@ -696,7 +696,7 @@ def run_context_aware_analysis(page, result, page_type: str):
             "severity": "LOW", "category": "CONTENT",
             "signal_name": "Missing FAQ",
             "description": "No FAQ section on page",
-            "impact": "Missed opportunity for FAQ rich results and user engagement",
+            "impact": "Missed opportunity for AI answer extraction and user engagement",
             "fix": "Add 3-5 relevant FAQ pairs with FAQPage schema"
         })
 

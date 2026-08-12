@@ -1165,13 +1165,13 @@ class RecommendationEngine:
                 group="DEVELOPER",
                 element="script[type='application/ld+json'] (FAQPage)",
                 current_value="FAQ-like content without FAQPage schema",
-                recommended_value="Add FAQPage schema to enable FAQ rich results in SERP.",
+                recommended_value="Add FAQPage schema as AI answer / GEO structured data.",
                 reason=(
                     "This page appears to contain FAQ-like content but has no FAQPage schema. "
                     "Adding FAQPage schema can display expandable Q&A pairs directly in search "
                     "results, significantly increasing SERP visibility and CTR."
                 ),
-                expected_impact="FAQ rich results can increase CTR by 15-25% and occupy more SERP space.",
+                expected_impact="Structured Q&A is more likely to be cited by AI assistants and surfaced in AI Overviews.",
                 estimated_time="30 minutes",
                 difficulty="MODERATE",
                 dependencies=["Identify and structure FAQ pairs from existing content"],

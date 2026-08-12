@@ -2735,8 +2735,8 @@ _CAT_BIZ = {
     "Word-Quality": "Thin or low-quality copy signals low value to both Google and AI answer engines, capping your rankings.",
     "Depth": "Shallow content fails to satisfy the breadth of search intent, so pages rank for fewer variants and lose long-tail traffic.",
     "Readability": "Hard-to-read copy increases bounce rate and reduces the chance of being quoted by AI answer engines.",
-    "SCHEMA": "Missing or invalid structured data forfeits rich results (FAQ, breadcrumb, product) that other pages display.",
-    "Schema": "Missing or invalid structured data forfeits rich results (FAQ, breadcrumb, product) that other pages display.",
+    "SCHEMA": "Missing or invalid structured data forfeits AI answer extraction, knowledge panel data, and citation opportunities.",
+    "Schema": "Missing or invalid structured data forfeits AI answer extraction, knowledge panel data, and citation opportunities.",
     "Links": "Weak internal linking spreads link equity poorly, leaving deep pages under-crawled and under-ranked.",
     "ACCESSIBILITY": "Accessibility gaps exclude users, fail accessibility audits, and can cost you rich-result and legal goodwill.",
     "MOBILE": "Poor mobile experience directly conflicts with Google's mobile-first indexing and mobile search intent.",
@@ -5358,7 +5358,7 @@ async def get_content_audit(audit_id: str, db: AsyncSession = Depends(get_db)):
                 missing_schema.append({"type": "Product", "fix": "Add Product schema for rich results (price, rating, availability)"})
         if "FAQ" in page_type:
             if "FAQPage" not in schema_types:
-                missing_schema.append({"type": "FAQPage", "fix": "Add FAQPage schema for FAQ rich results"})
+                missing_schema.append({"type": "FAQPage", "fix": "Add FAQPage schema as AI answer / GEO structured data"})
         if not schema_types:
             missing_schema.append({"type": "Organization", "fix": "Add Organization schema with brand info for Knowledge Graph"})
 
@@ -7025,7 +7025,7 @@ async def get_ai_recommendations_global(audit_id: str, db: AsyncSession = Depend
             "priority": "critical",
         })
     if no_schema > 5:
-        tech_priorities.append({"issue": "Missing structured data on most pages", "impact": "Missing rich results, knowledge panel data, and AI citation opportunities", "fix": "Implement JSON-LD schema for Organization, WebPage, FAQ, and Article types on all pages", "priority": "high"})
+        tech_priorities.append({"issue": "Missing structured data on most pages", "impact": "Missing AI answer extraction, knowledge panel data, and citation opportunities", "fix": "Implement JSON-LD schema for Organization, WebPage, FAQ, and Article types on all pages", "priority": "high"})
 
     aeo_platform_tips = {
         "google_ai_overview": [
@@ -8476,3 +8476,69 @@ async def get_historical_trends(audit_id: str, db: AsyncSession = Depends(get_db
     data["regressions"] = regressions
     _cache_set(cache_key, data)
     return data
+
+
+_TREND_METRICS = {
+    "overall": "overall_score",
+    "seo": "seo_score",
+    "technical": "technical_score",
+    "aeo": "aeo_score",
+    "geo": "geo_score",
+    "content": "content_score",
+    "ai_visibility": "ai_visibility_score",
+}
+
+
+@router.get("/audit/{audit_id}/trends")
+async def get_audit_trends(audit_id: str, metric: str = "overall", db: AsyncSession = Depends(get_db)):
+    """Time series of a score metric across all completed snapshots for the
+    audit's website. Returns a per-metric series plus an enough_data flag so the
+    UI can show an empty state until at least 2 snapshots exist."""
+    from app.models import AuditSnapshot
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    if metric not in _TREND_METRICS:
+        raise HTTPException(status_code=422, detail=f"metric must be one of: {', '.join(_TREND_METRICS)}")
+
+    cache_key = f"trends:{audit_id}:{metric}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    snap_res = await db.execute(
+        select(AuditSnapshot)
+        .where(AuditSnapshot.website_url == audit.website_url)
+        .order_by(AuditSnapshot.created_at.asc())
+    )
+    snapshots = snap_res.scalars().all()
+    col = _TREND_METRICS[metric]
+    data_points = [
+        {
+            "audit_id": s.audit_id,
+            "date": s.created_at.isoformat() if s.created_at else "",
+            "value": round(getattr(s, col) or 0, 1),
+            "snapshot_type": s.snapshot_type,
+        }
+        for s in snapshots
+    ]
+    current = snapshots[-1] if snapshots else None
+    previous = snapshots[-2] if len(snapshots) >= 2 else None
+    change = None
+    if current and previous:
+        diff = round((getattr(current, col) or 0) - (getattr(previous, col) or 0), 1)
+        change = {"value": diff, "direction": "up" if diff > 0 else "down" if diff < 0 else "flat"}
+
+    response = {
+        "metric": metric,
+        "label": metric.replace("_", " ").title(),
+        "website_url": audit.website_url,
+        "snapshot_count": len(snapshots),
+        "enough_data": len(snapshots) >= 2,
+        "data_points": data_points,
+        "change": change,
+        "metrics": list(_TREND_METRICS),
+    }
+    _cache_set(cache_key, response)
+    return response

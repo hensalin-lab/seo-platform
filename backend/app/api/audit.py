@@ -10,7 +10,7 @@ from slowapi import Limiter
 from app.database import get_db
 from app.models import (
     Audit, AuditStatus, Page, Issue, Recommendation,
-    CompetitorData, AuditScore, AuditHistory, AuditLinterResult,
+    CompetitorData, AuditScore, AuditHistory, AuditLinterResult, AuditSnapshot,
     PageAnalysisRecord, KeywordRecord, RoadmapRecord, WhiteLabelSettings,
 )
 from app.schemas import AuditRequest, AuditStartResponse
@@ -33,7 +33,7 @@ FIX_TEMPLATES = {
     "Missing Canonical": {"issue": "Missing canonical tag", "problem": "No canonical tag on page", "why": "Without canonical, search engines may index duplicate versions", "fix": "Add <link rel=\"canonical\" href=\"URL\" /> to the <head>", "before": "<head>\n  <!-- no canonical -->\n</head>", "after": "<head>\n  <link rel=\"canonical\" href=\"https://example.com/page\" />\n</head>", "difficulty": "EASY", "impact": "HIGH"},
     "Missing H1": {"issue": "Missing H1 tag", "problem": "No H1 heading found on page", "why": "H1 is a primary on-page signal for topic relevance", "fix": "Add one H1 tag with the primary target keyword", "before": "<body>\n  <h2>Page Title</h2>\n</body>", "after": "<body>\n  <h1>Primary Keyword - Page Title</h1>\n</body>", "difficulty": "EASY", "impact": "HIGH"},
     "Thin Content": {"issue": "Thin content", "problem": "Page has fewer than 300 words", "why": "Thin pages rarely rank; Panda algorithm targets thin content", "fix": "Expand to 800+ words with comprehensive topic coverage, FAQs, and examples", "before": "<!-- ~100 words, minimal content -->", "after": "<!-- 800+ words with H2/H3 structure, lists, examples, FAQs -->", "difficulty": "MODERATE", "impact": "HIGH"},
-    "Missing FAQ Schema": {"issue": "Missing FAQPage schema", "problem": "No FAQPage JSON-LD detected", "why": "FAQ schema enables rich results and AI answer extraction", "fix": "Add FAQPage JSON-LD schema with 4-6 Q&As matching page content", "before": "<!-- no structured data -->", "after": "<script type=\"application/ld+json\">\n{\"@context\":\"https://schema.org\",\"@type\":\"FAQPage\",\"mainEntity\":[...]}\n</script>", "difficulty": "MODERATE", "impact": "HIGH"},
+    "Missing FAQ Schema": {"issue": "Missing FAQPage schema", "problem": "No FAQPage JSON-LD detected", "why": "FAQ schema enables AI answer extraction (GEO/AEO) and citation readiness", "fix": "Add FAQPage JSON-LD schema with 4-6 Q&As matching page content", "before": "<!-- no structured data -->", "after": "<script type=\"application/ld+json\">\n{\"@context\":\"https://schema.org\",\"@type\":\"FAQPage\",\"mainEntity\":[...]}\n</script>", "difficulty": "MODERATE", "impact": "HIGH"},
     "No Question Headings": {"issue": "No question-format headings", "problem": "No H2/H3 headings in question format", "why": "Question headings target featured snippets and AI answers", "fix": "Add 2-3 question-format H2/H3 headings (How to, What is, Why...)", "before": "<h2>Our Services</h2>", "after": "<h2>What Services Do We Offer?</h2>\n<h2>How Can We Help Your Business?</h2>", "difficulty": "EASY", "impact": "MEDIUM"},
     "No Internal Links": {"issue": "No internal links", "problem": "Page has zero internal links", "why": "Internal links distribute PageRank and improve crawlability", "fix": "Add 3-5 contextual internal links to related pages", "before": "<!-- page with no links to other site pages -->", "after": "<!-- 3-5 contextual links to related pages -->", "difficulty": "EASY", "impact": "MEDIUM"},
     "Missing Alt Text": {"issue": "Missing image alt text", "problem": "Images missing alt attributes", "why": "Alt text helps image SEO and accessibility", "fix": "Add descriptive alt text to all images with relevant keywords where natural", "before": "<img src=\"photo.jpg\">", "after": "<img src=\"photo.jpg\" alt=\"Descriptive text with relevant keyword\">", "difficulty": "EASY", "impact": "MEDIUM"},
@@ -1301,6 +1301,22 @@ async def run_audit_task(audit_id: str):
                 overall_score=round(scores.get("overall", 0), 1),
                 status=AuditStatus.COMPLETED.value,
                 linter_warnings=len([e for e in linter_errors if "warning" not in str(e).lower()]),
+            ))
+
+            prior_snap = (await db.execute(
+                select(AuditSnapshot).where(AuditSnapshot.website_url == website_url).limit(1)
+            )).scalar_one_or_none()
+            db.add(AuditSnapshot(
+                audit_id=audit_id, website_url=website_url,
+                overall_score=round(scores.get("overall", 0), 1),
+                seo_score=round(scores.get("seo", 0), 1),
+                technical_score=round(scores.get("technical", 0), 1),
+                aeo_score=aeo_score_site, geo_score=geo_score_site,
+                content_score=round(scores.get("content", 0), 1),
+                ai_visibility_score=round(ai_vis_score, 1),
+                total_pages=len(pages_saved),
+                total_issues=len(analysis.issues) + len(enterprise_issues),
+                snapshot_type="rerun" if prior_snap else "initial",
             ))
 
             if linter_errors:

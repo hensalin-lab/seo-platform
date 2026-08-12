@@ -315,6 +315,29 @@ class AuditHistory(Base):
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
 
 
+class AuditSnapshot(Base):
+    __tablename__ = "audit_snapshots"
+    __table_args__ = (
+        Index("ix_snapshots_website_url", "website_url"),
+        Index("ix_snapshots_website_created", "website_url", "created_at"),
+        Index("ix_snapshots_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, unique=True)
+    website_url = Column(String, default="")
+    overall_score = Column(Float, default=0.0)
+    seo_score = Column(Float, default=0.0)
+    technical_score = Column(Float, default=0.0)
+    aeo_score = Column(Float, default=0.0)
+    geo_score = Column(Float, default=0.0)
+    content_score = Column(Float, default=0.0)
+    ai_visibility_score = Column(Float, default=0.0)
+    total_pages = Column(Integer, default=0)
+    total_issues = Column(Integer, default=0)
+    snapshot_type = Column(String, default="initial")
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
 class AuditLinterResult(Base):
     __tablename__ = "audit_linter_results"
     __table_args__ = (

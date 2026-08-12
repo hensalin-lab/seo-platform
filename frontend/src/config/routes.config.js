@@ -8,6 +8,7 @@ import {
   MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck, PenTool, Star,
   Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight, Moon, Sun,
   LayoutGrid, Copy, Code2, KeyRound, Webhook, Languages, Play, Pause, ArrowRight, Plug,
+  LineChart,
 } from 'lucide-react';
 
 const SeoAnalysis = lazy(() => import('../modules/technical-audit/pages/SeoAnalysis'));
@@ -61,6 +62,7 @@ const AiRoadmap = lazy(() => import('../modules/content-keywords/pages/AiRoadmap
 const AiSuggestions = lazy(() => import('../modules/content-keywords/pages/AiSuggestions'));
 const IssuesExplorer = lazy(() => import('../modules/action-center/pages/IssuesExplorer'));
 const Trends = lazy(() => import('../modules/executive/pages/Trends'));
+const AuditTrends = lazy(() => import('../modules/executive/pages/AuditTrends'));
 const AeoAnalysis = lazy(() => import('../modules/geo-aeo/pages/AeoAnalysis'));
 const GeoAnalysis = lazy(() => import('../modules/geo-aeo/pages/GeoAnalysis'));
 const ActionCenter = lazy(() => import('../modules/action-center/pages/ActionCenter'));
@@ -112,6 +114,7 @@ export const ICON_MAP = {
   MessageCircle, Rss, ClipboardList, FolderOpen, ShieldCheck, PenTool, Star,
   Sparkle, Settings, LogIn, LogOut, User, AlertTriangle, ChevronRight, Moon, Sun,
   LayoutGrid, Copy, Code2, KeyRound, Webhook, Languages, Play, Pause, ArrowRight, Plug,
+  LineChart,
 };
 
 export function getIcon(name) {
@@ -218,6 +221,7 @@ export const auditSections = [
     label: '8. TRACK',
     items: [
       { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: Rankings },
+      { suffix: '/trends', icon: 'LineChart', label: 'Score Trends', title: 'Score Trends', component: AuditTrends },
       { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor', title: 'AI Overviews Monitor', component: AiOverviews },
       { suffix: '/drift', icon: 'GitCompare', label: 'Drift & Changes', title: 'Drift & Change Detection', component: DriftDetection },
       { suffix: '/gsc', icon: 'Search', label: 'Google Search Console', title: 'Google Search Console', component: GscData },

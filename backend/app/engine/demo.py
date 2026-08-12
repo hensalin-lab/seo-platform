@@ -15,7 +15,7 @@ _SAMPLE_ISSUES = [
     ("Slow LCP", "PERFORMANCE", "MEDIUM", "Largest Contentful Paint exceeds 2.5s", "Slow pages hurt user experience and rankings", "Optimize hero image and server response"),
     ("Duplicate Title", "SEO", "MEDIUM", "Title tag duplicated across pages", "Confuses search engines", "Write unique titles"),
     ("Broken Internal Link", "CRAWLABILITY", "HIGH", "Internal link returns 404", "Wastes crawl budget", "Fix or remove the broken link"),
-    ("Missing FAQ Schema", "SCHEMA", "MEDIUM", "No FAQPage JSON-LD detected", "Misses rich result opportunities", "Add FAQ schema"),
+    ("Missing FAQ Schema", "SCHEMA", "MEDIUM", "No FAQPage JSON-LD detected", "Misses AI answer / GEO opportunities", "Add FAQ schema"),
     ("No Question Headings", "CONTENT", "LOW", "No question-format headings", "Misses featured snippet opportunities", "Add 2-3 question H2s"),
     ("HTTP not HTTPS", "TECHNICAL", "CRITICAL", "Page served over insecure HTTP", "Google prioritizes HTTPS", "Enable SSL and 301 redirect"),
     ("Long Title Tag", "SEO", "LOW", "Title exceeds 60 characters", "May be truncated in SERPs", "Shorten the title"),

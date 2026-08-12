@@ -1215,7 +1215,7 @@ class PageIntelligenceV2Engine:
                     "ai_impact": "High",
                     "difficulty": "Medium",
                     "time_to_fix": "1-2 hours",
-                    "expected_effect": "FAQ content is highly citable by AI systems and eligible for FAQ rich results.",
+                    "expected_effect": "FAQ content is highly citable by AI systems for answer extraction (GEO/AEO).",
                 }
             )
         if definition_count < 2:
