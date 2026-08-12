@@ -182,6 +182,45 @@ async def list_properties(
     }
 
 
+@router.get("/ga4-properties")
+async def list_ga4_properties(
+    account_id: str = "",
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List GA4 Analytics properties for a connected account (requires the
+    analytics.readonly scope granted at connect time)."""
+    result = await db.execute(select(GoogleAccount).where(
+        GoogleAccount.user_id == user.id,
+        GoogleAccount.is_active == True,
+    ))
+    accounts = result.scalars().all()
+    if not accounts:
+        raise HTTPException(status_code=404, detail="No Google account connected.")
+
+    account = next((a for a in accounts if a.id == account_id), None) if account_id else accounts[0]
+    if account_id and account is None:
+        raise HTTPException(status_code=404, detail="Google account not found.")
+
+    scopes = account.scopes or []
+    if not any("analytics.readonly" in s for s in scopes):
+        raise HTTPException(status_code=400, detail="Connected account lacks GA4 permission. Reconnect with the analytics.readonly scope.")
+
+    access_token = await google_oauth.get_valid_access_token(account)
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Google access is expired. Reconnect the account.")
+
+    try:
+        properties = await google_oauth.list_analytics_properties(access_token)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=f"Google Analytics Admin API error: {e}")
+
+    return {
+        "account": _safe_account(account),
+        "properties": properties,
+    }
+
+
 @router.delete("/accounts/{account_id}")
 async def disconnect_account(
     account_id: str,

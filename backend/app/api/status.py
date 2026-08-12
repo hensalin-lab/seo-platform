@@ -109,6 +109,30 @@ def _cache_clear(audit_id=None):
         _endpoint_cache.clear()
 
 
+async def _ga4_access_token(db, user_id: str) -> str:
+    """Return a fresh GA4-capable access token for the user's most recent
+    active Google account, or '' when none is connected (engine falls back
+    to the API-key path)."""
+    if not user_id:
+        return ""
+    try:
+        from app.models import GoogleAccount
+        from auth import google_oauth
+        acc = (await db.execute(
+            select(GoogleAccount)
+            .where(GoogleAccount.user_id == user_id, GoogleAccount.is_active == True)
+            .order_by(GoogleAccount.created_at.desc())
+        )).scalars().first()
+        if not acc:
+            return ""
+        scopes = acc.scopes or []
+        if not any("analytics.readonly" in s for s in scopes):
+            return ""
+        return await google_oauth.get_valid_access_token(acc)
+    except Exception:
+        return ""
+
+
 class PageAdapter:
     def __init__(self, page):
         self._page = page
@@ -8416,7 +8440,8 @@ async def get_ga4_traffic(audit_id: str, property_id: str = "", days: int = 28, 
     cached = _cache_get(cache_key)
     if cached:
         return cached
-    engine = GA4Engine()
+    access_token = await _ga4_access_token(db, audit.user_id)
+    engine = GA4Engine(access_token=access_token)
     data = await engine.get_organic_traffic(ga_property, days)
     _cache_set(cache_key, data)
     return data
@@ -8429,7 +8454,8 @@ async def get_ga4_top_pages(audit_id: str, property_id: str = "", days: int = 28
     audit = result.scalar_one_or_none()
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
-    engine = GA4Engine()
+    access_token = await _ga4_access_token(db, audit.user_id)
+    engine = GA4Engine(access_token=access_token)
     return await engine.get_top_pages(property_id or audit.ga_property or "", days)
 
 

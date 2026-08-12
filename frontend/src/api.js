@@ -159,6 +159,32 @@ export const api = {
     a.click();
     URL.revokeObjectURL(a.href);
   },
+  exportExcel: async (id, type = 'full') => {
+    const url = `${API_BASE}/audit/${id}/export/excel?type=${type}`;
+    const headers = {};
+    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error('Excel export failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `seo-report-${id}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  exportHtml: async (id) => {
+    const url = `${API_BASE}/audit/${id}/export/html`;
+    const headers = {};
+    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error('HTML export failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `seo-report-${id}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
 
   // Auth
   register: (email, username, password) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, username, password }) }),
@@ -200,6 +226,17 @@ export const api = {
   updateDigestPreferences: (data) => request('/digest/preferences', { method: 'PUT', body: JSON.stringify(data) }),
   getDigestStatus: () => request('/digest/status'),
   sendDigest: () => request('/digest/send', { method: 'POST' }),
+
+  // Slack alerts
+  getSlackSettings: () => request('/alerts/slack'),
+  saveSlackSettings: (data) => request('/alerts/slack', { method: 'PUT', body: JSON.stringify(data) }),
+  testSlack: (webhook_url) => request('/alerts/slack/test', { method: 'POST', body: JSON.stringify({ webhook_url }) }),
+  deleteSlackSettings: () => request('/alerts/slack', { method: 'DELETE' }),
+
+  // Google Analytics 4
+  listGa4Properties: (accountId = '') => request(`/integrations/google/ga4-properties?account_id=${accountId}`),
+  updateAuditGoogleProperties: (id, data) => request(`/audit/${id}/google-properties`, { method: 'PUT', body: JSON.stringify(data) }),
+  getGa4Traffic: (id, propertyId = '', days = 28) => request(`/audit/${id}/ga4-traffic?property_id=${encodeURIComponent(propertyId)}&days=${days}`),
 
   // Rank tracking
   getRankings: (id) => request(`/audit/${id}/rankings`),

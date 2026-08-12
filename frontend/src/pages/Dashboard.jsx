@@ -172,6 +172,16 @@ export default function Dashboard() {
               <Download size={13} /> Export CSV
             </button>
           )}
+          {activeId && (
+            <button className="btn btn-secondary btn-sm" onClick={() => api.exportExcel(activeId, 'full').catch(e => alert(e.message))} title="Export full report as Excel workbook">
+              <Download size={13} /> Export Excel
+            </button>
+          )}
+          {activeId && (
+            <button className="btn btn-secondary btn-sm" onClick={() => api.exportHtml(activeId).catch(e => alert(e.message))} title="Export printable HTML report">
+              <Download size={13} /> Export HTML
+            </button>
+          )}
           {activeId && <PdfDownloadButton auditId={activeId} />}
         </div>
       </div>

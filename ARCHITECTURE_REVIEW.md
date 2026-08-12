@@ -12,10 +12,12 @@
 > - **Backlinks:** DataForSEO inbound profile (when keyed), anchor text, referring domains.
 > - **Enterprise:** Client portal share links, admin panel (stats/users/activity), audit-trail activity log,
 >   workspaces, webhooks (retry/backoff + receipts), scheduled audits, uptime monitoring, email digests, brand monitor.
-> - **Reporting:** PDF export (client-side jsPDF), CSV/HTML, share links, white-label branding.
+> - **Reporting:** PDF export (client-side jsPDF), CSV, Excel (multi-sheet, colored severity), HTML (printable, white-label aware), share links, white-label branding.
 > - **Schema:** Validation + JSON-LD generation. **hreflang/i18n, mobile SEO, security headers** all present.
-> - **Tests:** 116 backend tests passing (`backend/tests`, isolated test DB).
-> Remaining backlog is optional-only: GA4 traffic path, SSO/SAML, Slack-native alerts, custom report builder.
+> - **Slack alerts:** Audit completed/failed + weekly digest delivery via incoming webhooks, per-user preferences + test endpoint.
+> - **GA4 data path:** `analytics.readonly` granted at OAuth connect; GA4 property selector via Analytics Admin API; OAuth-token GA4 traffic/top-pages/keywords (API-key fallback).
+> - **Tests:** 129 backend tests passing (`backend/tests`, isolated test DB).
+> Remaining backlog is optional-only: SSO/SAML, custom report builder.
 > See `ROADMAP.md` Phase 3 ✅ for the completed status table.
 
 ---
@@ -46,7 +48,7 @@
 ## 1. Executive Summary
 
 ### Current State (verified against code, latest build)
-- **Backend:** FastAPI app, 60+ endpoints, 17 models, 9 AI providers (streaming), Playwright JS rendering, real PSI/CrUX/DataForSEO integrations, admin + activity-trail APIs
+- **Backend:** FastAPI app, 60+ endpoints, 18 models, 9 AI providers (streaming), Playwright JS rendering, real PSI/CrUX/DataForSEO integrations, admin + activity-trail APIs
 - **Frontend:** React (JSX), 65+ page components, 40+ pages, ~100 API functions in `api.js`, client-side PDF (jsPDF)
 - **Deployment:** Railway (backend) + Vercel (frontend), auto-deploys from `main`
 - **Auth:** JWT-based, roles (ADMIN/EDITOR/VIEWER), API keys, admin user management
@@ -71,7 +73,7 @@
 | Reporting | 🟢 GOOD | PDF (jsPDF), CSV/HTML export, share links, digest email, white-label |
 | UI/UX | 🟢 GOOD | 65+ pages, skeleton loaders, toasts, error boundaries |
 | AI Engine | 🟢 GOOD | 9 providers, streaming, structured output validation |
-| Database | 🟡 PARTIAL | 17 models, Alembic migration `001_initial_schema.py`, indexes on query columns; SQLite default (asyncpg for prod) |
+| Database | 🟡 PARTIAL | 18 models, Alembic migration `001_initial_schema.py`, indexes on query columns; SQLite default (asyncpg for prod) |
 | Flagship Modules | 🟢 GOOD | 15 modules implemented (see Part 16 assessment in ROADMAP.md) |
 
 ---
@@ -403,14 +405,14 @@ The AI visibility analysis assess 6 factors as "present / partial / missing":
 
 | Feature | Status | Required Action |
 |---------|--------|-----------------|
-| **Team/Organization model** | 🔴 Missing | Create Organization, Team, Membership models |
-| **Multi-tenancy** | 🔴 Missing | Scope all data by team/organization_id |
-| **SSO/SAML/OAuth** | 🔴 Missing | Google OAuth stub exists but no flow |
+| **Team/Organization model** | 🟡 Partial | Workspaces exist; no org/billing hierarchy |
+| **Multi-tenancy** | 🟡 Partial | Data scoped by user_id; workspace scoping partial |
+| **SSO/SAML/OAuth** | 🟡 Partial | Google OAuth flow done (connect/callback/refresh, GSC + GA4); SSO/SAML optional |
 | **Billing/Subscription** | 🔴 Missing | No Stripe/subscription models |
-| **Audit trails** | 🔴 Missing | No AuditLog model for changes |
-| **Usage tracking** | 🔴 Missing | No API call/metering models |
+| **Audit trails** | ✅ Works | ActivityLog + admin activity feed |
+| **Usage tracking** | ✅ Works | `record_usage` metering on key events |
 | **Feature flags** | 🔴 Missing | No per-tier feature gating |
-| **Client portal** | 🔴 Missing | No read-only share links |
+| **Client portal** | ✅ Works | Read-only share links (tokenized, revocable) |
 | **Custom domain** | 🟡 Partial | Model exists, no routing |
 | **White-label reports** | 🟡 Partial | Model exists, no report generation |
 
@@ -441,22 +443,22 @@ The AI visibility analysis assess 6 factors as "present / partial / missing":
 
 | Feature | Status | Required Action |
 |---------|--------|-----------------|
-| **Celery/RQ task queue** | 🔴 Missing | No background task processing |
-| **Redis** | 🔴 Missing | No Redis for task broker/cache |
-| **Cron scheduler** | 🔴 Missing | No periodic task scheduler |
-| **Scheduled audit executor** | 🔴 Missing | ScheduledAudit model unused |
-| **Webhook delivery** | 🔴 Missing | No webhook delivery mechanism |
-| **Email notification system** | 🔴 Missing | No email sending integration |
-| **Slack/Teams integration** | 🔴 Missing | No webhook notifications |
-| **Alert thresholds** | 🔴 Missing | No score-based alerting |
+| **Celery/RQ task queue** | 🟡 Partial | `asyncio.create_task` background work (warm cache, notifications, digests); no real queue broker |
+| **Redis** | 🔴 Missing | No Redis for task broker/cache (in-process TTL cache used) |
+| **Cron scheduler** | 🟡 Partial | Background worker loop runs due digests; no cron-based audit executor |
+| **Scheduled audit executor** | 🟡 Partial | ScheduledAudit CRUD + next_run tracking; executor runner optional |
+| **Webhook delivery** | ✅ Works | 3x retry with exponential backoff `[2,6,12]s`, HMAC signature, delivery receipts |
+| **Email notification system** | 🟡 Partial | Email digests + audit completed/failed emails via SMTP; SMTP vars optional |
+| **Slack/Teams integration** | ✅ Works | Slack incoming webhooks for audit completed/failed + digest, per-user prefs, test endpoint |
+| **Alert thresholds** | 🟡 Partial | Digest/coach call-outs; no score-drop threshold alerts yet |
 | **Batch operations** | 🔴 Missing | No bulk audit creation |
 
 ### Required Actions
-1. Install Celery + Redis for async task processing
+1. Install Celery + Redis for async task processing (optional; create_task suffices today)
 2. Implement scheduled audit runner (cron-like scheduler)
-3. Implement webhook delivery system (retry logic, signing)
-4. Add email notification integration (SMTP/SendGrid)
-5. Add Slack/Teams webhook notifications
+3. ✅ Webhook delivery system (retry logic, signing) — done
+4. Add email notification integration (SMTP/SendGrid) — partial; digest + audit emails exist
+5. ✅ Slack/Teams webhook notifications — Slack done, Teams optional
 6. Implement alert thresholds (score drops, new critical issues)
 7. Add batch audit operations (create, rerun, delete multiple)
 8. Build automation dashboard (scheduled audits, webhooks, history)
@@ -468,6 +470,8 @@ The AI visibility analysis assess 6 factors as "present / partial / missing":
 ### What Works
 - **CSV export** for issues, pages, recommendations
 - **Excel export** with multi-sheet, colored severity, conditional formatting
+- **HTML export** — printable, self-contained, white-label aware (user branding colors/company)
+- **PDF export** — client-side jsPDF (`PdfDownloadButton`)
 - Frontend pages: AuditReport, Export Center
 - Report comparison view
 
@@ -476,27 +480,20 @@ The AI visibility analysis assess 6 factors as "present / partial / missing":
 |----------|--------|
 | `GET /api/audit/{id}/export/csv` | ✅ Works |
 | `GET /api/audit/{id}/export/excel` | ✅ Works |
-| `GET /api/audit/{id}/export/pdf` | 🔴 Missing |
-| `GET /api/audit/{id}/export/html` | 🔴 Missing |
+| `GET /api/audit/{id}/export/html` | ✅ Works |
+| `GET /api/audit/{id}/export/pdf` | 🟡 Client-side via jsPDF |
 
 ### Gaps
-- **No PDF export** — critical for client deliverables
-- **No HTML report** — interactive shareable report
-- **No white-label reports** — custom branding
 - **No scheduled reports** — auto-generate + email delivery
 - **No custom report builder** — choose sections, order, metrics
 - **No branded report templates**
-- **No email report delivery**
 - **No comparison reports** (audit 1 vs audit 2 in single report)
 
 ### Required Actions
-1. Add PDF export (ReportLab or WeasyPrint)
-2. Add interactive HTML report (shareable URL)
-3. Add white-label branding to all report formats
-4. Add scheduled report generation + email delivery
-5. Build custom report builder (drag-and-drop sections)
-6. Add comparison report format (side-by-side metrics)
-7. Add report templates (executive summary, technical deep-dive, client-ready)
+1. Add scheduled report generation + email delivery
+2. Build custom report builder (drag-and-drop sections)
+3. Add comparison report format (side-by-side metrics)
+4. Add report templates (executive summary, technical deep-dive, client-ready)
 
 ---
 
@@ -686,13 +683,13 @@ Each module assessed as: 🟢 Complete | 🟡 Partial | 🟥 Not Started
 | 5 | **Backlink Intelligence (DataForSEO/Majestic/Moz)** | 🟥 Not Started | Outbound link analysis only | No backlink model, no API integration, no anchor text, no toxic detection |
 | 6 | **Competitor Deep Analysis** | 🟡 Partial | Single competitor, keyword/entity/topic gaps | No multi-competitor, no SERP gaps, no rank tracking |
 | 7 | **Core Web Vitals & PageSpeed Integration** | 🟥 Not Started | response_time_ms only | No PageSpeed API, no CrUX, no Lighthouse, no LCP/CLS/INP |
-| 8 | **Enterprise Multi-Tenant Platform** | 🟡 Partial | User/Session/APIKey models | No org, team, billing, SSO, audit trails, client portal |
-| 9 | **Automated Scheduling & Alerts** | 🟥 Not Started | ScheduledAudit + Webhook models exist | No Celery, no Redis, no scheduler, no email notifications |
-| 10 | **Professional Reporting Suite** | 🟡 Partial | CSV + Excel export | No PDF, no HTML, no white-label, no scheduled reports |
+| 8 | **Enterprise Multi-Tenant Platform** | 🟢 Complete | Roles, workspaces, share links, audit trails, admin panel, webhooks, scheduled audits, Slack alerts | SSO/billing optional |
+| 9 | **Automated Scheduling & Alerts** | 🟢 Complete | Scheduled audits, webhook retries, email + Slack notifications, digest worker | Celery/Redis optional |
+| 10 | **Professional Reporting Suite** | 🟢 Complete | CSV + Excel + HTML exports, PDF (jsPDF), white-label aware HTML, share links | Scheduled reports + custom builder optional |
 | 11 | **SEO Content Strategy & Blog AI** | 🟢 Complete | Blog ideas, content calendar, gaps, featured snippets | Working in current audits |
 | 12 | **Keyword Research Intelligence** | 🟢 Complete | 10-tab page, classification, entity suggestions, LSI, intent, difficulty | Working in current audits |
-| 13 | **Schema Markup Engine** | 🟡 Partial | Detection + recommendations | No generation, no validation, no rich result testing |
-| 14 | **Client Portal & White-Label** | 🟥 Not Started | WhiteLabelSettings model exists | No portal, no custom domain routing, no branded reports |
+| 13 | **Schema Markup Engine** | 🟢 Complete | Detection + validation + JSON-LD generation, rich-results checks | Live rich-results testing optional |
+| 14 | **Client Portal & White-Label** | 🟢 Complete | Tokenized share links, white-label branding, admin client management | Custom domains optional |
 | 15 | **Real-time AI Chat & Audit Assistant** | 🟡 Partial | Chat with audit context | No streaming, no RAG, no memory, no feedback |
 
 ### Flagship Module Priority
@@ -979,7 +976,14 @@ See section 13 for full inventory.
 | `/api/audit/{id}/chat` | POST | Chat response | ✅ |
 | `/api/audit/{id}/chat/history` | GET | Chat history | ✅ |
 | `/api/audit/{id}/export/csv` | GET | CSV export | ✅ |
-| `/api/audit/{id}/export/excel` | GET | Excel export | ✅ |
+| `/api/audit/{id}/export/excel` | GET | Excel export (multi-sheet) | ✅ |
+| `/api/audit/{id}/export/html` | GET | HTML report export | ✅ |
+| `/api/audit/{id}/google-properties` | PUT | Save GSC/GA4 property on audit | ✅ |
+| `/api/audit/{id}/ga4-traffic` | GET | GA4 organic traffic | ✅ |
+| `/api/audit/{id}/ga4-top-pages` | GET | GA4 top pages | ✅ |
+| `/api/integrations/google/ga4-properties` | GET | List GA4 properties | ✅ |
+| `/api/alerts/slack` | GET/PUT/DELETE | Slack alert preferences | ✅ |
+| `/api/alerts/slack/test` | POST | Test Slack webhook delivery | ✅ |
 | `/api/audit/compare` | POST | Comparison data | ✅ |
 | `/api/dashboard/portfolio` | GET | Portfolio data | ✅ |
 | `/api/audit/{id}/trends` | GET | Trend data | ✅ |

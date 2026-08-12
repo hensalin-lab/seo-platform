@@ -516,6 +516,22 @@ class DigestPreference(Base):
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
 
 
+class SlackPreference(Base):
+    __tablename__ = "slack_preferences"
+    __table_args__ = (
+        Index("ix_slack_prefs_user_id", "user_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), unique=True)
+    webhook_url = Column(String, default="")
+    enabled = Column(Boolean, default=True)
+    notify_audit_completed = Column(Boolean, default=True)
+    notify_audit_failed = Column(Boolean, default=True)
+    notify_digest = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+    updated_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
 class Backlink(Base):
     __tablename__ = "backlinks"
     __table_args__ = (

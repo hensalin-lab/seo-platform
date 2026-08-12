@@ -33,6 +33,7 @@ from app.api.google_integrations import router as google_integrations_router
 from app.api.shares import router as shares_router
 from app.api.admin import router as admin_router
 from app.api.activity import router as activity_router
+from app.api.alerts import router as alerts_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -203,6 +204,7 @@ app.include_router(google_integrations_router)
 app.include_router(shares_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
+app.include_router(alerts_router)
 
 @app.get("/api/health")
 @limiter.exempt

@@ -1,6 +1,6 @@
 # Enterprise SEO Intelligence Platform — Product Roadmap
 
-**Current State:** 60+ endpoints, 40+ pages, 20+ engines, 17 models
+**Current State:** 60+ endpoints, 40+ pages, 20+ engines, 18 models
 **Target State:** Semrush/Ahrefs-grade platform
 
 ---
@@ -12,7 +12,7 @@
 | Phase 1: Foundation | ✅ COMPLETED | Security, indexes, rate limiting, cancel/rerun, CSV, portfolio, error boundaries |
 | Phase 2: Core Features | ✅ COMPLETED | Keyword research, content AI, blog AI, page improvements, reports |
 | Phase 3: Enterprise | ✅ COMPLETED (remaining items listed below) | Auth/roles/API keys, Google OAuth, real data integrations, client portal, webhooks, scheduled audits, audit trails, admin panel |
-| Phase 3 remaining | ⏳ Optional | GA4 property selector + traffic data, SSO/SAML, Slack alerts, video/news/ecommerce-deep modules, custom report builder |
+| Phase 3 remaining | ⏳ Optional | SSO/SAML, video/news/ecommerce-deep modules, custom report builder |
 
 ---
 
@@ -27,9 +27,9 @@
 | Content AI | ✅ Per-page section recommendations, rewrites, EEAT, schema recs | — |
 | Blog AI | ✅ 100 blog ideas, content calendar, seasonal topics | — |
 | Page Improvements | ✅ Add/remove/rewrite/move/link/optimize per page | — |
-| Google OAuth | ✅ OAuth connect/callback, encrypted tokens, multi-account, GSC properties | GA4 property selector + traffic data |
+| Google OAuth | ✅ OAuth connect/callback, encrypted tokens, multi-account, GSC properties, GA4 property selector + OAuth traffic data | — |
 | Competitor Analysis | ✅ Crawl comparison, backlink profile, offsite authority, SERP preview | — |
-| Reports | ✅ PDF (client-side jsPDF), CSV, HTML, share links, digest email | Excel builder, white-label domains |
+| Reports | ✅ PDF (client-side jsPDF), CSV, Excel (multi-sheet, colored severity), HTML (printable, white-label aware), share links, digest email | white-label domains |
 | Dashboard | ✅ Portfolio view, trends, health scores, executive dashboard | GA4 traffic charts |
 | Historical Tracking | ✅ Trend lines, drift/regression detection | — |
 | Core Web Vitals | ✅ Real PSI/CrUX with FIELD/LAB/CRAWL badges, local Lighthouse | GA4 per-page field data |
@@ -39,7 +39,7 @@
 | Programmatic SEO | ✅ Template detection, CSV entry, generated pages, export | — |
 | Enterprise SEO | ✅ Workspaces, share links (client portal), audit trails, webhooks, scheduled audits, admin panel | SSO, SAML |
 | Schema | ✅ Detection + validation + generation (JSON-LD) | Rich-results live testing |
-| Alerts/Notifications | ✅ Webhooks (retry/backoff + receipts), email digests | Slack-native alerts |
+| Alerts/Notifications | ✅ Webhooks (retry/backoff + receipts), email digests, Slack alerts (audit completed/failed + digest) | — |
 | API Access | ✅ REST + API keys + public info | Rate-limit quotas per plan |
 | White Label | ✅ Branding settings | Custom domains |
 | Webhooks | ✅ Create/test/delivery stats, 3x retry w/ exponential backoff, signatures | — |
@@ -219,14 +219,13 @@
 > discovery, a Settings → Google tab, and per-metric FIELD/LAB/CRAWL badges on the
 > Speed & Core Web Vitals UI. Tests: `backend/tests/test_google_integrations.py`
 > (10 passing). Remaining: set real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
-> `GOOGLE_REDIRECT_URI` in prod, GA4 property selector, and wiring GSC data into the
-> audit engines.
+> `GOOGLE_REDIRECT_URI` in prod, and wiring GSC data into the audit engines.
 
 | Task | Priority | Effort | Details |
 |------|----------|--------|---------|
 | Google OAuth flow | CRITICAL | 8h | ✅ Connect/callback + consent screen |
 | GSC property selector | CRITICAL | 4h | ✅ Choose from user's GSC properties |
-| GA4 property selector | CRITICAL | 4h | Not started — needs `analytics.readonly` data path |
+| GA4 property selector | CRITICAL | 4h | ✅ `analytics.readonly` granted at connect; GA4 properties listed via Analytics Admin API |
 | Token refresh automation | HIGH | 3h | ✅ Auto-refresh expired tokens |
 | Multi-account support | HIGH | 3h | ✅ Connect multiple Google accounts |
 | Secure token storage | HIGH | 2h | ✅ Encrypt tokens at rest (Fernet) |
@@ -236,7 +235,7 @@
 | Task | Priority | Effort | Details |
 |------|----------|--------|---------|
 | PageSpeed Insights API | HIGH | 6h | ✅ Real Core Web Vitals (LCP, INP, CLS, FCP, TTFB) + CrUX field data |
-| GA4 organic traffic data | HIGH | 6h | Not started — needs `analytics.readonly` path after GA4 property selector |
+| GA4 organic traffic data | HIGH | 6h | ✅ Traffic/top-pages/keywords via OAuth token (API-key fallback) |
 | Backlink data (if API available) | MEDIUM | 8h | ✅ DataForSEO backlink profile when keyed |
 | Bing Webmaster Tools | MEDIUM | 6h | ✅ Bing extension + IndexNow submission |
 | IndexNow integration | MEDIUM | 3h | ✅ Submit URLs to Bing/Yandex |
@@ -319,7 +318,7 @@
 25. ✅ Multi-tenancy with teams (workspaces)
 26. ⏳ SSO/SAML
 27. ⏳ Custom report builder
-28. ⏳ Slack-native alert system
+28. ✅ Slack-native alert system (audit completed/failed + digest, webhook delivery)
 29. ✅ Audit trails (activity log + admin feed)
 30. ✅ Usage billing (metering)
 
@@ -334,7 +333,7 @@
 | Phase 3 | Weeks 8-12 | Auth, OAuth, real integrations, enterprise ✅ |
 
 **Total estimated effort:** 220-280 hours ✅ COMPLETED
-**Remaining backlog (optional):** GA4 data path, SSO/SAML, custom report builder, Slack alerts, richer report exports
+**Remaining backlog (optional):** SSO/SAML, custom report builder, richer report exports (white-label domains), GA4 traffic charts on dashboard
 
 ---
 

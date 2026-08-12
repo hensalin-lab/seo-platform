@@ -156,13 +156,19 @@ async def send_digest(user_id: str) -> dict:
             }
 
     sent = await send_digest_email(user.email, stats=stats, app_url=settings.APP_URL or "", **branding)
-    if sent:
+    slack_sent = False
+    try:
+        from app.engine.slack import send_digest_alert
+        slack_sent = await send_digest_alert(user_id, stats)
+    except Exception as e:
+        logger.warning(f"Slack digest delivery failed for {user_id}: {e}")
+    if sent or slack_sent:
         async with async_session() as db:
             pref = (await db.execute(select(DigestPreference).where(DigestPreference.user_id == user_id))).scalar_one_or_none()
             if pref:
                 pref.last_sent_at = _dt.datetime.utcnow()
                 await db.commit()
-    return {"sent": sent, "stats": stats}
+    return {"sent": sent, "slack_sent": slack_sent, "stats": stats}
 
 
 async def check_and_send_digests():

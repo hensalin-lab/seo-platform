@@ -11,12 +11,20 @@ from app.database import get_db
 from app.models import (
     Audit, AuditStatus, Page, Issue, Recommendation,
     CompetitorData, AuditScore, AuditHistory, AuditLinterResult,
-    PageAnalysisRecord, KeywordRecord, RoadmapRecord,
+    PageAnalysisRecord, KeywordRecord, RoadmapRecord, WhiteLabelSettings,
 )
 from app.schemas import AuditRequest, AuditStartResponse
+from pydantic import BaseModel
+from app.models import User
+from app.api.auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["audit"])
+
+
+class GooglePropertiesRequest(BaseModel):
+    gsc_property: str = ""
+    ga_property: str = ""
 
 
 FIX_TEMPLATES = {
@@ -206,6 +214,25 @@ async def rerun_audit(audit_id: str, request: Request, background_tasks: Backgro
     return {"status": "rerun", "audit_id": audit_id}
 
 
+@router.put("/audit/{audit_id}/google-properties")
+async def update_google_properties(
+    audit_id: str,
+    body: "GooglePropertiesRequest",
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    if audit.user_id and audit.user_id != user.id and user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Not allowed to update this audit")
+    audit.gsc_property = (body.gsc_property or "").strip() or None
+    audit.ga_property = (body.ga_property or "").strip() or None
+    await db.commit()
+    return {"gsc_property": audit.gsc_property, "ga_property": audit.ga_property}
+
+
 @router.get("/audit/{audit_id}/export/csv")
 async def export_csv(audit_id: str, type: str = "issues", db: AsyncSession = Depends(get_db)):
     from fastapi.responses import StreamingResponse
@@ -245,6 +272,246 @@ async def export_csv(audit_id: str, type: str = "issues", db: AsyncSession = Dep
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _build_excel_workbook(audit, audit_id: str, types: list, issues, pages, recs):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    header_fill = PatternFill("solid", fgColor="1F2937")
+    header_font = Font(color="FFFFFF", bold=True)
+    sev_fills = {
+        "CRITICAL": PatternFill("solid", fgColor="FEE2E2"),
+        "HIGH": PatternFill("solid", fgColor="FEF3C7"),
+        "MEDIUM": PatternFill("solid", fgColor="FEF9C3"),
+        "LOW": PatternFill("solid", fgColor="D1FAE5"),
+    }
+
+    def _style_sheet(ws, headers, widths=None):
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(vertical="center")
+        if widths:
+            for col, w in enumerate(widths, 1):
+                ws.column_dimensions[get_column_letter(col)].width = w
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = ws.dimensions
+
+    def _add_rows(ws, rows, sev_col=None):
+        for row in rows:
+            ws.append(row)
+            if sev_col:
+                idx = ws.max_row
+                cell = ws.cell(row=idx, column=sev_col)
+                fill = sev_fills.get((cell.value or "").upper())
+                if fill:
+                    cell.fill = fill
+
+    # Overview
+    ws = wb.active
+    ws.title = "Overview"
+    severity = {}
+    for i in issues:
+        severity[i.severity or "LOW"] = severity.get(i.severity or "LOW", 0) + 1
+    score = getattr(audit, "overall_score", None)
+    overview = [
+        ["Audit ID", audit_id],
+        ["Website URL", audit.website_url],
+        ["Generated", str(audit.created_at) if audit.created_at else ""],
+        ["Total Pages", len(pages)],
+        ["Total Issues", len(issues)],
+        ["Total Recommendations", len(recs)],
+        ["Overall Score", score if score is not None else ""],
+        ["CRITICAL", severity.get("CRITICAL", 0)],
+        ["HIGH", severity.get("HIGH", 0)],
+        ["MEDIUM", severity.get("MEDIUM", 0)],
+        ["LOW", severity.get("LOW", 0)],
+    ]
+    for row in overview:
+        ws.append(row)
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 60
+
+    # Issues
+    if "issues" in types:
+        ws = wb.create_sheet("Issues")
+        _style_sheet(ws, ["Page URL", "Category", "Severity", "Issue", "Description", "Impact", "Fix"],
+                     [45, 16, 12, 40, 50, 40, 50])
+        _add_rows(ws, [[i.page_url, i.category, i.severity, i.signal_name, i.description, i.impact, i.fix] for i in issues], sev_col=3)
+
+    # Pages
+    if "pages" in types:
+        ws = wb.create_sheet("Pages")
+        _style_sheet(ws, ["URL", "Status", "Title", "Word Count", "Page Type", "Internal Links", "External Links", "Images", "Response Time (ms)"],
+                     [50, 10, 45, 12, 14, 14, 14, 10, 18])
+        for p in pages:
+            ws.append([p.url, p.status_code, p.title, p.word_count, p.page_type or "UNKNOWN",
+                       len(p.links_internal or []), len(p.links_external or []), len(p.images or []), p.response_time_ms])
+
+    # Recommendations
+    if "recommendations" in types:
+        ws = wb.create_sheet("Recommendations")
+        _style_sheet(ws, ["Page URL", "Category", "Priority", "Issue", "Problem", "Why It Matters", "Fix", "Difficulty", "Expected Impact"],
+                     [45, 16, 12, 40, 45, 45, 50, 12, 30])
+        _add_rows(ws, [[r.page_url, r.category, r.priority, r.issue, r.current_problem, r.why_it_matters, r.exact_fix, r.difficulty, r.expected_impact] for r in recs], sev_col=3)
+
+    return wb
+
+
+@router.get("/audit/{audit_id}/export/excel")
+async def export_excel(audit_id: str, type: str = "full", db: AsyncSession = Depends(get_db)):
+    from fastapi.responses import Response
+    from openpyxl import Workbook
+    import io
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    allowed = {"issues", "pages", "recommendations"}
+    if type == "full":
+        types = ["issues", "pages", "recommendations"]
+    elif type in allowed:
+        types = [type]
+    else:
+        raise HTTPException(status_code=400, detail="type must be full, issues, pages, or recommendations")
+
+    issues = (await db.execute(select(Issue).where(Issue.audit_id == audit_id).order_by(Issue.severity))).scalars().all()
+    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    recs = (await db.execute(select(Recommendation).where(Recommendation.audit_id == audit_id).order_by(Recommendation.priority))).scalars().all()
+
+    wb = await asyncio.to_thread(_build_excel_workbook, audit, audit_id, types, issues, pages, recs)
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"seo-report-{audit_id[:8]}.xlsx"
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _escape_html(value):
+    import html as _html
+    return _html.escape(str(value if value is not None else ""))
+
+
+@router.get("/audit/{audit_id}/export/html")
+async def export_html(audit_id: str, db: AsyncSession = Depends(get_db)):
+    from fastapi.responses import HTMLResponse
+
+    result = await db.execute(select(Audit).where(Audit.id == audit_id))
+    audit = result.scalar_one_or_none()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    from app.api.status import get_report_data
+    data = await get_report_data(audit_id, db)
+    branding = {"primary": "#3b82f6", "company": "SEO Intelligence"}
+    if audit.user_id:
+        wl = (await db.execute(select(WhiteLabelSettings).where(WhiteLabelSettings.user_id == audit.user_id))).scalar_one_or_none()
+        if wl and wl.is_active:
+            branding = {
+                "primary": wl.primary_color or "#3b82f6",
+                "company": wl.company_name or "SEO Intelligence",
+            }
+
+    primary = branding["primary"]
+    company = _escape_html(branding["company"])
+    summary = data.get("site_summary", {})
+    issues_summary = data.get("issues_summary", {})
+    by_sev = issues_summary.get("by_severity", {})
+
+    def _sev_rows(items):
+        rows = []
+        for it in (items or []):
+            rows.append(
+                f"<tr><td>{_escape_html(it.get('page'))}</td><td>{_escape_html(it.get('signal'))}</td>"
+                f"<td><span class='sev sev-{_escape_html((it.get('severity') or 'LOW').lower())}'>{_escape_html(it.get('severity'))}</span></td>"
+                f"<td>{_escape_html(it.get('description'))}</td><td>{_escape_html(it.get('fix'))}</td></tr>"
+            )
+        return "\n".join(rows)
+
+    def _rec_rows(items):
+        rows = []
+        for r in (items or []):
+            rows.append(
+                f"<tr><td>{_escape_html(r.get('category'))}</td>"
+                f"<td><span class='sev sev-{_escape_html((r.get('priority') or 'LOW').lower())}'>{_escape_html(r.get('priority'))}</span></td>"
+                f"<td>{_escape_html(r.get('issue'))}</td><td>{_escape_html(r.get('current_problem'))}</td>"
+                f"<td>{_escape_html(r.get('exact_fix'))}</td><td>{_escape_html(r.get('expected_impact'))}</td></tr>"
+            )
+        return "\n".join(rows)
+
+    severity_tiles = "".join(
+        f"<div class='tile'><div class='tile-num'>{by_sev.get(s, 0)}</div><div class='tile-label'>{s}</div></div>"
+        for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>{_escape_html(data.get('report_title'))}</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #111827; background: #f3f4f6; padding: 24px; }}
+  .wrap {{ max-width: 960px; margin: 0 auto; }}
+  .banner {{ background: {primary}; color: #fff; border-radius: 12px; padding: 28px 32px; margin-bottom: 20px; }}
+  .banner h1 {{ font-size: 22px; margin-bottom: 6px; }}
+  .banner p {{ opacity: .9; font-size: 14px; }}
+  .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }}
+  .tile {{ background: #fff; border-radius: 10px; padding: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); }}
+  .tile-num {{ font-size: 28px; font-weight: 700; color: {primary}; }}
+  .tile-label {{ font-size: 12px; color: #6b7280; margin-top: 4px; letter-spacing: .05em; }}
+  .card {{ background: #fff; border-radius: 12px; padding: 22px 26px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }}
+  .card h2 {{ font-size: 16px; margin-bottom: 14px; color: #1f2937; border-bottom: 2px solid {primary}; padding-bottom: 8px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  th {{ text-align: left; background: #f9fafb; padding: 8px 10px; border-bottom: 2px solid #e5e7eb; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }}
+  td {{ padding: 8px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }}
+  tr:hover td {{ background: #fafafa; }}
+  .sev {{ display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }}
+  .sev-critical {{ background: #fee2e2; color: #991b1b; }}
+  .sev-high {{ background: #fef3c7; color: #92400e; }}
+  .sev-medium {{ background: #fef9c3; color: #854d0e; }}
+  .sev-low {{ background: #d1fae5; color: #065f46; }}
+  .foot {{ text-align: center; color: #9ca3af; font-size: 12px; margin: 24px 0; }}
+  @media print {{ body {{ background: #fff; padding: 0; }} .card, .tile {{ box-shadow: none; border: 1px solid #e5e7eb; }} }}
+</style></head><body><div class="wrap">
+  <div class="banner">
+    <h1>AI SEO Intelligence Report</h1>
+    <p>{_escape_html(audit.website_url)} &middot; Audit {_escape_html(audit_id)} &middot; Generated {_escape_html(data.get('generated_at'))}</p>
+  </div>
+  <div class="grid">
+    <div class="tile"><div class="tile-num">{summary.get('overall_score', 0)}</div><div class="tile-label">OVERALL</div></div>
+    <div class="tile"><div class="tile-num">{summary.get('seo_score', 0)}</div><div class="tile-label">SEO</div></div>
+    <div class="tile"><div class="tile-num">{summary.get('technical_score', 0)}</div><div class="tile-label">TECHNICAL</div></div>
+    <div class="tile"><div class="tile-num">{summary.get('content_score', 0)}</div><div class="tile-label">CONTENT</div></div>
+    <div class="tile"><div class="tile-num">{summary.get('aeo_score', 0)}</div><div class="tile-label">AEO</div></div>
+    <div class="tile"><div class="tile-num">{summary.get('geo_score', 0)}</div><div class="tile-label">GEO</div></div>
+  </div>
+  <div class="grid"> {severity_tiles} </div>
+  <div class="card">
+    <h2>Critical Issues</h2>
+    <table><thead><tr><th>Page</th><th>Issue</th><th>Severity</th><th>Description</th><th>Fix</th></tr></thead>
+    <tbody>{_sev_rows(data.get('critical_issues'))}</tbody></table>
+  </div>
+  <div class="card">
+    <h2>Top Recommendations</h2>
+    <table><thead><tr><th>Category</th><th>Priority</th><th>Issue</th><th>Problem</th><th>Fix</th><th>Expected Impact</th></tr></thead>
+    <tbody>{_rec_rows(data.get('top_recommendations'))}</tbody></table>
+  </div>
+  <div class="foot">Generated by {company} &middot; SEO Intelligence Platform</div>
+</div></body></html>"""
+
+    filename = f"seo-report-{audit_id[:8]}.html"
+    return HTMLResponse(
+        content=html,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -435,6 +702,12 @@ async def _notify_audit_completed(audit_id: str):
                         "validated_points": validated_points,
                     } if prev else None,
                 })
+                from app.engine.slack import send_alert
+                delta_text = f" (Δ {score_delta:+.1f})" if score_delta is not None else ""
+                await send_alert(audit.user_id, "audit.completed", text=(
+                    f"*Audit completed* · {website_url}\n"
+                    f"Score: {score}/100{delta_text} · Issues: {total_issues} · Pages: {total_pages}"
+                ))
 
             if user_email:
                 branding = {}
@@ -512,6 +785,11 @@ async def _notify_audit_failed(audit_id: str, error: str):
                     "website_url": website_url,
                     "error": (error or "")[:500],
                 })
+                from app.engine.slack import send_alert
+                await send_alert(audit.user_id, "audit.failed", text=(
+                    f"*Audit failed* · {website_url}\n"
+                    f"`{(error or 'Unknown error')[:400]}`"
+                ))
             if user_email:
                 branding = {}
                 wl = (await db.execute(select(WhiteLabelSettings).where(WhiteLabelSettings.user_id == audit.user_id))).scalar_one_or_none()

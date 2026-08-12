@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/Toast';
 import { api } from '../../../api';
-import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send, Globe, ExternalLink, Link2, Loader2, Activity } from 'lucide-react';
+import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send, Globe, ExternalLink, Link2, Loader2, Activity, MessageSquare, BarChart } from 'lucide-react';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -11,6 +11,7 @@ const TABS = [
   { id: 'google', label: 'Google', icon: Globe },
   { id: 'webhooks', label: 'Webhooks', icon: Webhook },
   { id: 'digest', label: 'Digest', icon: Mail },
+  { id: 'slack', label: 'Slack', icon: MessageSquare },
   { id: 'scheduled', label: 'Scheduled', icon: Calendar },
   { id: 'whitelabel', label: 'White Label', icon: Palette },
   { id: 'activity', label: 'Activity', icon: Activity },
@@ -46,6 +47,7 @@ export default function SettingsPage() {
           {tab === 'google' && <GoogleTab addToast={addToast} />}
           {tab === 'webhooks' && <WebhooksTab addToast={addToast} />}
           {tab === 'digest' && <DigestTab addToast={addToast} />}
+          {tab === 'slack' && <SlackTab addToast={addToast} />}
           {tab === 'scheduled' && <ScheduledTab addToast={addToast} />}
           {tab === 'whitelabel' && <WhiteLabelTab addToast={addToast} />}
           {tab === 'activity' && <ActivityTab addToast={addToast} />}
@@ -451,6 +453,112 @@ function DigestTab({ addToast }) {
   );
 }
 
+function SlackTab({ addToast }) {
+  const [settings, setSettings] = useState(null);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [enabled, setEnabled] = useState(true);
+  const [flags, setFlags] = useState({ notify_audit_completed: true, notify_audit_failed: true, notify_digest: true });
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const load = async () => {
+    try {
+      const s = await api.getSlackSettings();
+      setSettings(s);
+      setWebhookUrl(s.webhook_url || '');
+      setEnabled(s.enabled ?? true);
+      setFlags({
+        notify_audit_completed: s.notify_audit_completed ?? true,
+        notify_audit_failed: s.notify_audit_failed ?? true,
+        notify_digest: s.notify_digest ?? true,
+      });
+    } catch (e) { addToast(e.message, 'error'); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const s = await api.saveSlackSettings({ webhook_url: webhookUrl, enabled, ...flags });
+      setSettings(s);
+      addToast('Slack alert preferences saved', 'success');
+    } catch (e) { addToast(e.message, 'error'); }
+    setSaving(false);
+  };
+
+  const test = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const r = await api.testSlack(webhookUrl || settings?.webhook_url);
+      setTestResult(r.ok ? 'success' : 'error');
+      addToast(r.ok ? 'Test message sent to Slack' : 'Slack rejected the webhook', r.ok ? 'success' : 'error');
+    } catch (e) { setTestResult('error'); addToast(e.message, 'error'); }
+    setTesting(false);
+  };
+
+  const remove = async () => {
+    try {
+      await api.deleteSlackSettings();
+      setSettings(null);
+      setWebhookUrl('');
+      addToast('Slack integration removed', 'success');
+    } catch (e) { addToast(e.message, 'error'); }
+  };
+
+  return (
+    <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Slack Alerts</h2>
+        {settings && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, color: settings.configured ? '#065f46' : '#92400e', background: settings.configured ? '#d1fae5' : '#fef3c7' }}>
+            {settings.configured ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+            {settings.configured ? 'Connected' : 'Not configured'}
+          </span>
+        )}
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16 }}>
+        Get audit completion and failure alerts plus weekly digests straight to Slack.
+        Create an <strong>Incoming Webhook</strong> in Slack, then paste its URL below.
+      </p>
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Incoming webhook URL</label>
+        <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/T000000/B000000/XXXXXXXX"
+          style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 14 }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ width: 16, height: 16 }} />
+        <label style={{ fontSize: 13, color: 'var(--text-primary)' }}>Enable Slack alerts</label>
+      </div>
+      {['notify_audit_completed', 'notify_audit_failed', 'notify_digest'].map(key => (
+        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <input type="checkbox" checked={flags[key]} onChange={e => setFlags(f => ({ ...f, [key]: e.target.checked }))} style={{ width: 16, height: 16 }} />
+          <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {key === 'notify_audit_completed' && 'Audit completed'}
+            {key === 'notify_audit_failed' && 'Audit failed'}
+            {key === 'notify_digest' && 'Weekly digest summary'}
+          </label>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button className="btn btn-outline" onClick={test} disabled={testing || !(webhookUrl || settings?.webhook_url)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Send size={14} /> {testing ? 'Sending...' : 'Send test message'}
+        </button>
+        {settings?.configured && (
+          <button className="btn btn-outline" onClick={remove} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#dc2626', borderColor: '#dc2626' }}>
+            <Trash2 size={14} /> Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScheduledTab({ addToast }) {
   const [items, setItems] = useState([]);
   const [url, setUrl] = useState('');
@@ -587,6 +695,9 @@ function GoogleTab({ addToast }) {
   const [selectedAccount, setSelectedAccount] = useState('');
   const [properties, setProperties] = useState(null);
   const [propertiesLoading, setPropertiesLoading] = useState(false);
+  const [ga4Properties, setGa4Properties] = useState(null);
+  const [ga4Loading, setGa4Loading] = useState(false);
+  const [ga4Error, setGa4Error] = useState('');
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -620,6 +731,8 @@ function GoogleTab({ addToast }) {
     setSelectedAccount(accountId);
     setPropertiesLoading(true);
     setProperties(null);
+    setGa4Properties(null);
+    setGa4Error('');
     try {
       const res = await api.googleProperties(accountId);
       setProperties(res.properties || []);
@@ -628,6 +741,21 @@ function GoogleTab({ addToast }) {
       setProperties([]);
     } finally {
       setPropertiesLoading(false);
+    }
+  };
+
+  const loadGa4 = async (accountId) => {
+    setGa4Loading(true);
+    setGa4Properties(null);
+    setGa4Error('');
+    try {
+      const res = await api.listGa4Properties(accountId);
+      setGa4Properties(res.properties || []);
+    } catch (e) {
+      setGa4Error(e.message);
+      setGa4Properties([]);
+    } finally {
+      setGa4Loading(false);
     }
   };
 
@@ -720,7 +848,7 @@ function GoogleTab({ addToast }) {
 
           {propertiesLoading && <p style={{ color: 'var(--text-secondary)' }}>Loading properties...</p>}
           {properties !== null && !propertiesLoading && (
-            <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+            <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>Search Console Properties</div>
               {properties.length === 0 ? (
                 <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No properties found for this account.</p>
@@ -728,6 +856,30 @@ function GoogleTab({ addToast }) {
                 <div key={p.siteUrl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{p.siteUrl}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.permissionLevel}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <button className="btn btn-outline btn-sm" onClick={() => loadGa4(selectedAccount)} disabled={ga4Loading} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {ga4Loading ? <Loader2 size={13} className="spin" /> : <BarChart size={13} />}
+              {ga4Loading ? 'Loading...' : 'Load GA4 properties'}
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Requires the analytics.readonly scope (granted at connect).</span>
+          </div>
+          {ga4Error && <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 10 }}>{ga4Error}</p>}
+          {ga4Properties !== null && !ga4Loading && (
+            <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>GA4 Properties</div>
+              {ga4Properties.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No GA4 properties found for this account.</p>
+              ) : ga4Properties.map(p => (
+                <div key={p.property_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{p.displayName}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{p.property_id} · {p.accountDisplayName}</div>
+                  </div>
                 </div>
               ))}
             </div>

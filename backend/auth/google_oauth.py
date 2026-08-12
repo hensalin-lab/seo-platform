@@ -25,6 +25,8 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 GOOGLE_OAUTH2_REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 SEARCH_CONSOLE_API = "https://searchconsole.googleapis.com/webmasters/v3/sites"
+ANALYTICS_ADMIN_API = "https://analyticsadmin.googleapis.com/v1beta"
+ANALYTICS_DATA_API = "https://analyticsdata.googleapis.com/v1beta"
 
 # Search Console read-only + Analytics read-only + profile basics.
 SCOPES = [
@@ -169,6 +171,62 @@ async def list_search_console_properties(access_token: str) -> list[dict]:
         for e in entries
         if isinstance(e, dict) and e.get("siteUrl")
     ]
+
+
+async def list_analytics_properties(access_token: str) -> list[dict]:
+    """List GA4 properties accessible with the token (requires
+    analytics.readonly + a Google Analytics Admin link). Returns safe metadata."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        accounts_resp = await client.get(
+            f"{ANALYTICS_ADMIN_API}/accounts",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    if accounts_resp.status_code != 200:
+        raise ValueError(f"Google Analytics Admin API returned {accounts_resp.status_code}")
+
+    accounts = accounts_resp.json().get("accounts", [])
+    properties: list[dict] = []
+    for acc in accounts:
+        acc_name = acc.get("name", "")
+        acc_display = acc.get("displayName", "")
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                props_resp = await client.get(
+                    f"{ANALYTICS_ADMIN_API}/{acc_name}/properties",
+                    params={"filter": "STATE:ACTIVE"},
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+        except Exception:
+            continue
+        if props_resp.status_code != 200:
+            continue
+        for prop in props_resp.json().get("properties", []):
+            prop_name = prop.get("name", "")
+            if not prop_name or prop.get("parent") != acc_name:
+                continue
+            properties.append({
+                "property_id": prop_name.replace("properties/", ""),
+                "displayName": prop.get("displayName", ""),
+                "createTime": prop.get("createTime", ""),
+                "currencyCode": prop.get("currencyCode", ""),
+                "timeZone": prop.get("timeZone", ""),
+                "account": acc_name,
+                "accountDisplayName": acc_display,
+            })
+    return properties
+
+
+async def run_ga4_report(access_token: str, property_id: str, body: dict) -> dict:
+    """Run a GA4 Data API report with the OAuth token. Returns raw JSON."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{ANALYTICS_DATA_API}/properties/{property_id}:runReport",
+            json=body,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    if resp.status_code != 200:
+        raise ValueError(f"GA4 Data API returned {resp.status_code}")
+    return resp.json()
 
 
 async def revoke_token(access_token: str) -> None:
