@@ -319,6 +319,35 @@ export const api = {
   freeDns: (url) => request(`/free/dns?url=${encodeURIComponent(url)}`),
   freeSsl: (url) => request(`/free/ssl?url=${encodeURIComponent(url)}`),
 
+  // Client portal share links (Phase: enterprise)
+  listShares: () => request('/shares'),
+  createShare: (auditId, days = 30) => request(`/shares?audit_id=${encodeURIComponent(auditId)}&days=${days}`, { method: 'POST' }),
+  revokeShare: (token) => request(`/shares/${token}`, { method: 'DELETE' }),
+  getPublicShare: (token) => request(`/share/${token}`),
+
+  // Activity trail
+  getActivity: (params = {}) => {
+    let url = `/activity?limit=${params.limit || 50}`;
+    if (params.offset) url += `&offset=${params.offset}`;
+    return request(url);
+  },
+
+  // Admin
+  getAdminStats: () => request('/admin/stats'),
+  listAdminUsers: (params = {}) => {
+    let url = `/admin/users?limit=${params.limit || 50}`;
+    if (params.offset) url += `&offset=${params.offset}`;
+    if (params.q) url += `&q=${encodeURIComponent(params.q)}`;
+    return request(url);
+  },
+  updateAdminUser: (userId, data) => request(`/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getAdminActivity: (params = {}) => {
+    let url = `/admin/activity?limit=${params.limit || 50}`;
+    if (params.offset) url += `&offset=${params.offset}`;
+    if (params.user_id) url += `&user_id=${encodeURIComponent(params.user_id)}`;
+    return request(url);
+  },
+
   request,
   setToken,
 };

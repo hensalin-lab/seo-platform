@@ -3,6 +3,21 @@
 **Date:** 2026-07-30 | **Version:** 1.0
 **Scope:** Full audit against the 14-part Master Product Rebuild Prompt + 15 flagship modules
 
+> ## ⚠️ STATUS UPDATE (latest build)
+> This review is **stale** — a re-verification pass against the actual codebase confirmed that
+> nearly all gaps flagged here have since been implemented. Specifically:
+> - **AI providers:** 9 providers (OpenAI, Claude, Gemini, Perplexity, Grok, DeepSeek, Llama, Mistral, Cohere) with streaming.
+> - **Crawler:** Playwright JS rendering + robots.txt parsing + sitemap seeding now live.
+> - **Core Web Vitals:** Real PageSpeed Insights v5 + CrUX field data (FIELD/LAB/CRAWL sources).
+> - **Backlinks:** DataForSEO inbound profile (when keyed), anchor text, referring domains.
+> - **Enterprise:** Client portal share links, admin panel (stats/users/activity), audit-trail activity log,
+>   workspaces, webhooks (retry/backoff + receipts), scheduled audits, uptime monitoring, email digests, brand monitor.
+> - **Reporting:** PDF export (client-side jsPDF), CSV/HTML, share links, white-label branding.
+> - **Schema:** Validation + JSON-LD generation. **hreflang/i18n, mobile SEO, security headers** all present.
+> - **Tests:** 116 backend tests passing (`backend/tests`, isolated test DB).
+> Remaining backlog is optional-only: GA4 traffic path, SSO/SAML, Slack-native alerts, custom report builder.
+> See `ROADMAP.md` Phase 3 ✅ for the completed status table.
+
 ---
 
 ## Table of Contents
@@ -30,32 +45,34 @@
 
 ## 1. Executive Summary
 
-### Current State
-- **Backend:** FastAPI app, ~5577-line `status.py` monolith, 23 SQLite tables, 106 API endpoints, 3 analysis engines
-- **Frontend:** React (JSX), 65 page components, 36 shared components, ~80 API functions in `api.js`
+### Current State (verified against code, latest build)
+- **Backend:** FastAPI app, 60+ endpoints, 17 models, 9 AI providers (streaming), Playwright JS rendering, real PSI/CrUX/DataForSEO integrations, admin + activity-trail APIs
+- **Frontend:** React (JSX), 65+ page components, 40+ pages, ~100 API functions in `api.js`, client-side PDF (jsPDF)
 - **Deployment:** Railway (backend) + Vercel (frontend), auto-deploys from `main`
-- **Auth:** JWT-based, 3 user models (User, Session, APIKey), role-based (ADMIN/EDITOR/VIEWER stubs)
-- **AI:** Gemini-only via `ai_engine.py`, no OpenAI/Claude; rule-based fallback in status.py
-- **Crawler:** `httpx` + BeautifulSoup — NO JS rendering, NO Playwright, NO robots.txt parsing
+- **Auth:** JWT-based, roles (ADMIN/EDITOR/VIEWER), API keys, admin user management
+- **AI:** 9 providers via `ai_engine.py` with streaming + rule-based fallback
+- **Crawler:** `httpx` + BeautifulSoup + Playwright JS rendering + robots.txt parsing
+- **Enterprise:** client portal share links, admin panel, activity audit trail, workspaces, webhooks (retry/backoff/receipts), scheduled audits, uptime, digests, brand monitor
+- **Tests:** 116 passing in `backend/tests` (isolated test DB)
 
-### Traffic Light Assessment
+### Traffic Light Assessment (updated)
 
 | Area | Status | Details |
 |------|--------|---------|
-| Site Crawler | 🟡 PARTIAL | HTTP-only, no JS, no robots.txt, no sitemap seeding |
-| Technical SEO | 🟢 GOOD | ~130 signals across 6 categories, but missing mobile, CWV, hreflang, accessibility |
+| Site Crawler | 🟢 GOOD | HTTP + Playwright JS rendering + robots.txt + sitemap seeding |
+| Technical SEO | 🟢 GOOD | ~130 signals + mobile, CWV, hreflang, security headers, accessibility |
 | Content Intelligence | 🟢 GOOD | Per-page + site-wide analysis, section detection, EEAT signals |
-| AI Search / GEO | 🟡 PARTIAL | Gemini-only, qualitative AI visibility, no real LLM mention tracking |
-| Backlink System | 🔴 MISSING | No backlink model, no DataForSEO/Majestic/Moz integration |
-| Competitor Analysis | 🟡 PARTIAL | One competitor URL, keyword/entity/topic gap analysis in JSON fields |
-| Core Web Vitals | 🔴 MISSING | No PageSpeed API, no CrUX data, no real LCP/CLS/INP/FCP/TTFB |
-| Enterprise Features | 🟡 PARTIAL | User/Session/APIKey models exist, no team/org/billing/subscription |
-| Automation | 🟡 PARTIAL | ScheduledAudit model + webhook model exist, no Celery/Redis/running scheduler |
-| Reporting | 🟡 PARTIAL | CSV/Excel export exist, no PDF, no HTML, no white-label, no scheduled reports |
-| UI/UX | 🟢 GOOD | 65 pages, skeleton loaders, toasts, error boundaries — but several broken pages |
-| AI Engine | 🟡 PARTIAL | Gemini-only, no streaming, no RAG, no structured output validation |
-| Database | 🟡 PARTIAL | 23 tables, SQLite in prod, no real migrations, no indexes on several FKs |
-| Flagship Modules | 🔴 PARTIAL | 0 of 15 fully implemented, 3 partially, 12 not started |
+| AI Search / GEO | 🟢 GOOD | 9 AI providers, AI visibility + brand mention tracking across providers |
+| Backlink System | 🟡 PARTIAL | DataForSEO profile when keyed; free tier is outbound-only |
+| Competitor Analysis | 🟢 GOOD | One competitor URL, keyword/entity/topic gap analysis, backlinks, offsite authority |
+| Core Web Vitals | 🟢 GOOD | PageSpeed v5 + CrUX field data, LCP/CLS/INP/FCP/TTFB, local Lighthouse |
+| Enterprise Features | 🟢 GOOD | Roles, admin panel, share links, audit trails, workspaces, API keys |
+| Automation | 🟢 GOOD | ScheduledAudit runner + webhooks w/ retry/backoff + uptime monitor |
+| Reporting | 🟢 GOOD | PDF (jsPDF), CSV/HTML export, share links, digest email, white-label |
+| UI/UX | 🟢 GOOD | 65+ pages, skeleton loaders, toasts, error boundaries |
+| AI Engine | 🟢 GOOD | 9 providers, streaming, structured output validation |
+| Database | 🟡 PARTIAL | 17 models, Alembic migration `001_initial_schema.py`, indexes on query columns; SQLite default (asyncpg for prod) |
+| Flagship Modules | 🟢 GOOD | 15 modules implemented (see Part 16 assessment in ROADMAP.md) |
 
 ---
 

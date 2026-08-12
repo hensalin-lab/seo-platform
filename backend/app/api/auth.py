@@ -3,14 +3,13 @@ import secrets
 import datetime as _dt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel, field_validator
 from typing import Optional
 
 from app.database import get_db
 from app.models import User, APIKey
 from app.auth import hash_password, verify_password, create_access_token, decode_access_token
-
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -159,6 +158,10 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
         role="VIEWER",
     )
     db.add(user)
+    await db.flush()
+
+    from app.utils.activity import log_activity
+    await log_activity(db, user.id, "auth.registered", "user", user.id, {"username": req.username})
     await db.commit()
     await db.refresh(user)
 
@@ -176,6 +179,10 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Account is disabled")
 
     token = create_access_token({"sub": user.id, "role": user.role})
+
+    from app.utils.activity import log_activity
+    await log_activity(db, user.id, "auth.logged_in", "user", user.id)
+    await db.commit()
     return TokenResponse(access_token=token, user=_user_dict(user))
 
 
@@ -223,17 +230,33 @@ async def create_api_key(req: CreateAPIKeyRequest, user: User = Depends(get_curr
 
 
 @router.get("/api-keys")
-async def list_api_keys(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(APIKey).where(APIKey.user_id == user.id))
+async def list_api_keys(
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    count_q = select(func.count()).select_from(APIKey).where(APIKey.user_id == user.id)
+    total = (await db.execute(count_q)).scalar()
+    result = await db.execute(
+        select(APIKey).where(APIKey.user_id == user.id).order_by(APIKey.created_at.desc()).limit(limit).offset(offset)
+    )
     keys = result.scalars().all()
-    return [{
-        "id": k.id,
-        "name": k.name,
-        "key": k.key[:8] + "..." + k.key[-4:] if len(k.key) > 12 else k.key,
-        "is_active": k.is_active,
-        "created_at": k.created_at.isoformat() if k.created_at else "",
-        "last_used_at": k.last_used_at.isoformat() if k.last_used_at else None,
-    } for k in keys]
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": [{
+            "id": k.id,
+            "name": k.name,
+            "key": k.key[:8] + "..." + k.key[-4:] if len(k.key) > 12 else k.key,
+            "is_active": k.is_active,
+            "created_at": k.created_at.isoformat() if k.created_at else "",
+            "last_used_at": k.last_used_at.isoformat() if k.last_used_at else None,
+        } for k in keys],
+    }
 
 
 @router.delete("/api-keys/{key_id}")
@@ -243,5 +266,8 @@ async def revoke_api_key(key_id: str, user: User = Depends(get_current_active_us
     if not key:
         raise HTTPException(status_code=404, detail="API key not found")
     key.is_active = False
+
+    from app.utils.activity import log_activity
+    await log_activity(db, user.id, "api_key.revoked", "api_key", key_id, {"name": key.name})
     await db.commit()
     return {"status": "revoked"}

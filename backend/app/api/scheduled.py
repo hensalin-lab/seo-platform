@@ -2,7 +2,7 @@ import logging
 import datetime as _dt
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 
@@ -34,6 +34,13 @@ async def create_scheduled_audit(req: ScheduledAuditRequest, user: User = Depend
         next_run=next_run,
     )
     db.add(sa)
+    await db.flush()
+
+    from app.utils.activity import log_activity
+    await log_activity(
+        db, user.id, "scheduled.created", "scheduled_audit", sa.id,
+        {"website_url": req.website_url, "frequency": req.frequency},
+    )
     await db.commit()
     await db.refresh(sa)
     return {
@@ -44,14 +51,30 @@ async def create_scheduled_audit(req: ScheduledAuditRequest, user: User = Depend
 
 
 @router.get("")
-async def list_scheduled_audits(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ScheduledAudit).where(ScheduledAudit.user_id == user.id))
+async def list_scheduled_audits(
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    count_q = select(func.count()).select_from(ScheduledAudit).where(ScheduledAudit.user_id == user.id)
+    total = (await db.execute(count_q)).scalar()
+    result = await db.execute(
+        select(ScheduledAudit).where(ScheduledAudit.user_id == user.id).order_by(ScheduledAudit.created_at.desc()).limit(limit).offset(offset)
+    )
     items = result.scalars().all()
-    return [{
-        "id": s.id, "website_url": s.website_url, "competitor_url": s.competitor_url,
-        "frequency": s.frequency, "next_run": s.next_run.isoformat() if s.next_run else None,
-        "is_active": s.is_active, "created_at": s.created_at.isoformat() if s.created_at else "",
-    } for s in items]
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": [{
+            "id": s.id, "website_url": s.website_url, "competitor_url": s.competitor_url,
+            "frequency": s.frequency, "next_run": s.next_run.isoformat() if s.next_run else None,
+            "is_active": s.is_active, "created_at": s.created_at.isoformat() if s.created_at else "",
+        } for s in items],
+    }
 
 
 @router.put("/{sa_id}")
@@ -79,6 +102,9 @@ async def delete_scheduled_audit(sa_id: str, user: User = Depends(get_current_ac
     sa = result.scalar_one_or_none()
     if not sa:
         raise HTTPException(status_code=404, detail="Scheduled audit not found")
+
+    from app.utils.activity import log_activity
+    await log_activity(db, user.id, "scheduled.deleted", "scheduled_audit", sa_id, {"website_url": sa.website_url})
     await db.delete(sa)
     await db.commit()
     return {"status": "deleted"}

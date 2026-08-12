@@ -88,6 +88,7 @@ const Providers = lazy(() => import('../modules/advanced/pages/Providers'));
 const KeywordVolumes = lazy(() => import('../modules/advanced/pages/KeywordVolumes'));
 const BrandMonitor = lazy(() => import('../modules/advanced/pages/BrandMonitor'));
 const FreeTools = lazy(() => import('../modules/advanced/pages/FreeTools'));
+const AdminPage = lazy(() => import('../pages/AdminPage'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
 const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
@@ -130,6 +131,7 @@ export const mainNav = [
   { path: '/free-tools', icon: 'Zap', label: 'Free Tools', title: 'Free Data Tools', component: FreeTools },
   { path: '/integrations', icon: 'Plug', label: 'Integrations', title: 'Data Provider Integrations', component: Providers },
   { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings', component: SettingsPage },
+  { path: '/admin', icon: 'Shield', label: 'Admin', title: 'Admin', component: AdminPage, adminOnly: true },
 ];
 
 export const auditSections = [

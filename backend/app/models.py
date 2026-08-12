@@ -452,6 +452,9 @@ class Webhook(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
     last_triggered_at = Column(DateTime, nullable=True)
+    delivery_count = Column(Integer, default=0)
+    last_delivery_status = Column(Integer, nullable=True)
+    last_delivery_error = Column(String, default="")
     user = relationship("User", back_populates="webhooks")
 
 
@@ -922,6 +925,48 @@ class OAuthFlow(Base):
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
     consumed = Column(Boolean, default=False)
     user = relationship("User")
+
+
+class AuditShareLink(Base):
+    """Public, read-only share link for an audit (client portal).
+
+    A link may be revoked (is_active=False) or set to expire. Shared payload is
+    served by GET /api/share/{token} without authentication, so it only exposes
+    the curated read-only report data (scores, issue summaries, recommendations).
+    """
+    __tablename__ = "audit_share_links"
+    __table_args__ = (
+        Index("ix_share_links_token", "token", unique=True),
+        Index("ix_share_links_audit_id", "audit_id"),
+        Index("ix_share_links_created_by", "created_by"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    token = Column(String, unique=True, nullable=False)
+    audit_id = Column(String, ForeignKey("audits.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
+    expires_at = Column(DateTime, nullable=True)
+    views = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+class ActivityLog(Base):
+    """Audit trail of user actions across the platform."""
+    __tablename__ = "activity_logs"
+    __table_args__ = (
+        Index("ix_activity_user_id", "user_id"),
+        Index("ix_activity_action", "action"),
+        Index("ix_activity_created_at", "created_at"),
+        Index("ix_activity_entity_id", "entity_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    action = Column(String, default="")
+    entity_type = Column(String, default="")
+    entity_id = Column(String, default="")
+    details = Column(JSON, default=dict)
+    ip_address = Column(String, default="")
+    created_at = Column(DateTime, default=_dt.datetime.utcnow)
 
 
 class AiCitationRecord(Base):

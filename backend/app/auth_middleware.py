@@ -21,6 +21,7 @@ PUBLIC_PREFIXES = [
     "/api/auth/login",
     "/api/oauth/",
     "/api/integrations/google/callback",
+    "/api/share/",
 ]
 
 PUBLIC_METHODS = {"OPTIONS", "HEAD"}

@@ -91,15 +91,24 @@ async def start_audit(request: Request, req: AuditRequest, background_tasks: Bac
         user_id=user_id,
     )
     db.add(audit)
-    await db.commit()
-    await db.refresh(audit)
-    background_tasks.add_task(run_audit_task, audit.id)
+    await db.flush()
     if user_id:
         try:
             from app.engine.advanced_insights import record_usage
             await record_usage(db, user_id, "audit.started", {"audit_id": audit.id, "website_url": req.website_url})
         except Exception as e:
             logger.warning(f"Usage record failed: {e}")
+        try:
+            from app.utils.activity import log_activity
+            await log_activity(
+                db, user_id, "audit.started", "audit", audit.id,
+                {"website_url": req.website_url},
+            )
+        except Exception as e:
+            logger.warning(f"Activity log failed: {e}")
+    await db.commit()
+    await db.refresh(audit)
+    background_tasks.add_task(run_audit_task, audit.id)
     return AuditStartResponse(audit_id=audit.id, status=AuditStatus.QUEUED.value, message="Audit started")
 
 
@@ -143,7 +152,7 @@ async def get_history(request: Request, limit: int = 20, offset: int = 0, db: As
 
 
 @router.post("/audit/{audit_id}/cancel")
-async def cancel_audit(audit_id: str, db: AsyncSession = Depends(get_db)):
+async def cancel_audit(audit_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = result.scalar_one_or_none()
     if not audit:
@@ -153,12 +162,20 @@ async def cancel_audit(audit_id: str, db: AsyncSession = Depends(get_db)):
     audit.status = AuditStatus.FAILED.value
     audit.error_message = "Cancelled by user"
     audit.completed_at = _dt.datetime.utcnow()
+
+    user_id = getattr(request.state, "user_id", None)
+    if user_id:
+        try:
+            from app.utils.activity import log_activity
+            await log_activity(db, user_id, "audit.cancelled", "audit", audit_id)
+        except Exception as e:
+            logger.warning(f"Activity log failed: {e}")
     await db.commit()
     return {"status": "cancelled", "audit_id": audit_id}
 
 
 @router.post("/audit/{audit_id}/rerun")
-async def rerun_audit(audit_id: str, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+async def rerun_audit(audit_id: str, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = result.scalar_one_or_none()
     if not audit:
@@ -176,6 +193,14 @@ async def rerun_audit(audit_id: str, background_tasks: BackgroundTasks, db: Asyn
     audit.current_step = ""
     audit.error_message = None
     audit.completed_at = None
+
+    user_id = getattr(request.state, "user_id", None)
+    if user_id:
+        try:
+            from app.utils.activity import log_activity
+            await log_activity(db, user_id, "audit.rerun", "audit", audit_id)
+        except Exception as e:
+            logger.warning(f"Activity log failed: {e}")
     await db.commit()
     background_tasks.add_task(run_audit_task, audit_id)
     return {"status": "rerun", "audit_id": audit_id}

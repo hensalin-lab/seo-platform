@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/Toast';
 import { api } from '../../../api';
-import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send, Globe, ExternalLink, Link2, Loader2 } from 'lucide-react';
+import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send, Globe, ExternalLink, Link2, Loader2, Activity } from 'lucide-react';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -13,6 +13,7 @@ const TABS = [
   { id: 'digest', label: 'Digest', icon: Mail },
   { id: 'scheduled', label: 'Scheduled', icon: Calendar },
   { id: 'whitelabel', label: 'White Label', icon: Palette },
+  { id: 'activity', label: 'Activity', icon: Activity },
 ];
 
 export default function SettingsPage() {
@@ -47,6 +48,7 @@ export default function SettingsPage() {
           {tab === 'digest' && <DigestTab addToast={addToast} />}
           {tab === 'scheduled' && <ScheduledTab addToast={addToast} />}
           {tab === 'whitelabel' && <WhiteLabelTab addToast={addToast} />}
+          {tab === 'activity' && <ActivityTab addToast={addToast} />}
         </div>
       </div>
     </div>
@@ -140,7 +142,7 @@ function ApiKeysTab({ addToast }) {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    try { setKeys(await api.listApiKeys()); } catch (e) { addToast(e.message, 'error'); }
+    try { const res = await api.listApiKeys(); setKeys(res?.items ?? res ?? []); } catch (e) { addToast(e.message, 'error'); }
     setLoading(false);
   };
 
@@ -280,7 +282,7 @@ function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
   const [emailStatus, setEmailStatus] = useState(null);
 
   const load = async () => {
-    try { setHooks(await api.listWebhooks()); } catch (e) { addToast(e.message, 'error'); }
+    try { const res = await api.listWebhooks(); setHooks(res?.items ?? res ?? []); } catch (e) { addToast(e.message, 'error'); }
     try { setEmailStatus(await api.getEmailStatus()); } catch (e) { /* non-critical */ }
     setLoading(false);
   };
@@ -456,7 +458,7 @@ function ScheduledTab({ addToast }) {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    try { setItems(await api.listScheduled()); } catch (e) { addToast(e.message, 'error'); }
+    try { const res = await api.listScheduled(); setItems(res?.items ?? res ?? []); } catch (e) { addToast(e.message, 'error'); }
     setLoading(false);
   };
 
@@ -731,6 +733,71 @@ function GoogleTab({ addToast }) {
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+const ACTIVITY_LABELS = {
+  'auth.registered': 'Created account',
+  'auth.logged_in': 'Signed in',
+  'audit.started': 'Started an audit',
+  'audit.cancelled': 'Cancelled an audit',
+  'audit.rerun': 'Reran an audit',
+  'share.created': 'Created a share link',
+  'share.revoked': 'Revoked a share link',
+  'webhook.created': 'Created a webhook',
+  'webhook.deleted': 'Deleted a webhook',
+  'webhook.delivered': 'Webhook delivered',
+  'webhook.failed': 'Webhook delivery failed',
+  'scheduled.created': 'Created a schedule',
+  'scheduled.deleted': 'Deleted a schedule',
+  'api-key.revoked': 'Revoked an API key',
+  'user.updated': 'Account updated by admin',
+};
+
+function ActivityTab({ addToast }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.getActivity();
+        setItems(res?.items ?? res ?? []);
+      } catch (e) { addToast(e.message, 'error'); }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Loading activity...</p>;
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Activity</h2>
+      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 16 }}>Your recent actions across the platform.</p>
+      {items.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No activity recorded yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-card)' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(99,102,241,.12)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Activity size={13} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {ACTIVITY_LABELS[a.action] || a.action.replace(/\./g, ' ')}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                  {a.entity_type && a.entity_id ? `${a.entity_type} ${a.entity_id.slice(0, 8)} · ` : ''}
+                  {a.created_at ? new Date(a.created_at).toLocaleString() : ''}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

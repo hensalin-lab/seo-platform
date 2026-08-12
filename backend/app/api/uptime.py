@@ -4,7 +4,7 @@ import datetime as _dt
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -47,13 +47,24 @@ async def _get_target(db, target_id, user) -> UptimeTarget:
 
 
 @router.get("/targets")
-async def list_targets(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(UptimeTarget).where(UptimeTarget.user_id == user.id).order_by(UptimeTarget.created_at.desc()))
+async def list_targets(
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    count_q = select(func.count()).select_from(UptimeTarget).where(UptimeTarget.user_id == user.id)
+    total = (await db.execute(count_q)).scalar()
+    result = await db.execute(
+        select(UptimeTarget).where(UptimeTarget.user_id == user.id).order_by(UptimeTarget.created_at.desc()).limit(limit).offset(offset)
+    )
     targets = result.scalars().all()
     out = []
     for t in targets:
         out.append(_target_dict(t, await get_uptime_percent(db, t.id)))
-    return {"targets": out}
+    return {"targets": out, "total": total, "limit": limit, "offset": offset}
 
 
 @router.post("/targets")

@@ -7,6 +7,7 @@ import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import ThemeHero from '../../../components/ai/ThemeHero'
 import ThemeStatCard from '../../../components/ai/ThemeStatCard'
 import FixDetail from '../../../components/FixDetail'
+import ShareAuditPanel from '../../../components/share/ShareAuditPanel'
 
 function severityBadge(s) {
   if (s === 'CRITICAL') return 'badge-red'
@@ -116,6 +117,7 @@ export default function AuditReport() {
     { id: 'ai-visibility', label: 'AI Visibility' },
     { id: 'roadmap', label: 'Roadmap' },
     { id: 'signals', label: 'Signals' },
+    { id: 'share', label: 'Share' },
   ]
 
   return (
@@ -658,6 +660,8 @@ export default function AuditReport() {
           </div>
         </div>
       )}
+
+      {tab === 'share' && <ShareAuditPanel auditId={id} />}
 
       {tab === 'page-detail' && pageDetail && (
         <div>

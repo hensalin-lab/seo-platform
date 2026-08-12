@@ -25,7 +25,7 @@ export default function Layout({ children }) {
   const [collapsedSections, setCollapsedSections] = useState({});
   const [openGroups, setOpenGroups] = useState({});
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -61,7 +61,7 @@ export default function Layout({ children }) {
           {!isReport && (
             <div className="sidebar-section">
               <div className="sidebar-section-label">MAIN</div>
-              {mainNav.map(item => (
+              {mainNav.filter(item => !item.adminOnly || isAdmin).map(item => (
                 <SidebarLink
                   key={item.path}
                   to={item.path}

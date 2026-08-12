@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -50,15 +50,26 @@ def _ws_dict(ws: Workspace, member_count: int, audit_count: int) -> dict:
 
 
 @router.get("")
-async def list_workspaces(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Workspace).where(Workspace.user_id == user.id).order_by(Workspace.created_at.desc()))
+async def list_workspaces(
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    count_q = select(func.count()).select_from(Workspace).where(Workspace.user_id == user.id)
+    total = (await db.execute(count_q)).scalar()
+    result = await db.execute(
+        select(Workspace).where(Workspace.user_id == user.id).order_by(Workspace.created_at.desc()).limit(limit).offset(offset)
+    )
     workspaces = result.scalars().all()
     out = []
     for ws in workspaces:
         members = (await db.execute(select(WorkspaceMember).where(WorkspaceMember.workspace_id == ws.id))).scalars().all()
         audits = (await db.execute(select(WorkspaceAudit).where(WorkspaceAudit.workspace_id == ws.id))).scalars().all()
         out.append(_ws_dict(ws, len(members), len(audits)))
-    return {"workspaces": out}
+    return {"workspaces": out, "total": total, "limit": limit, "offset": offset}
 
 
 @router.post("")
