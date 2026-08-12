@@ -210,15 +210,21 @@
 | Audit ownership | HIGH | 3h | ✅ Audits owned + owner-checked via middleware |
 | Usage tracking | MEDIUM | 4h | ✅ Usage metering + activity trail |
 
-### 3.2 Google OAuth Integration (Week 8-9) — Phase A ✅ (mostly done)
+### 3.2 Google OAuth Integration (Week 8-9) — Phase A ✅
 
 > **Phase A status (2026):** Full authorization-code OAuth implemented under
 > `/api/integrations/google/*` with state-bound connect/callback, encrypted token
 > storage at rest (`app/utils/crypto.py`, Fernet AES-128), automatic token refresh,
 > **multi-account support** (accounts are never overwritten), Search Console property
 > discovery, a Settings → Google tab, and per-metric FIELD/LAB/CRAWL badges on the
-> Speed & Core Web Vitals UI. Tests: `backend/tests/test_google_integrations.py`
-> (10 passing). Remaining: set real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
+> Speed & Core Web Vitals UI. Real Core Web Vitals come from PageSpeed Insights v5
+> (lab/Lighthouse) + the CrUX API (field data) with per-URL caching (`CoreWebVitals`
+> table + in-memory TTL) and a crawler-measured TTFB fallback when Google returns
+> nothing. Tests: `backend/tests/test_google_integrations.py` (10 passing) and
+> `backend/tests/test_pagespeed_cwv.py` (20 passing: lab/CrUX parsing, field-over-lab
+> precedence, thresholds, weighted field performance score, `_cwv_sources`
+> attribution, endpoint persistence/stored/refresh/crawl-fallback/cache).
+> Remaining: set real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
 > `GOOGLE_REDIRECT_URI` in prod, and wiring GSC data into the audit engines.
 
 | Task | Priority | Effort | Details |

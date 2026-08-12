@@ -682,7 +682,7 @@ Each module assessed as: 🟢 Complete | 🟡 Partial | 🟥 Not Started
 | 4 | **AI Search / GEO Intelligence** | 🟡 Partial | Qualitative Gemini-based analysis | No real AI mention tracking, no AI Overviews, no GEO benchmarks |
 | 5 | **Backlink Intelligence (DataForSEO/Majestic/Moz)** | 🟥 Not Started | Outbound link analysis only | No backlink model, no API integration, no anchor text, no toxic detection |
 | 6 | **Competitor Deep Analysis** | 🟡 Partial | Single competitor, keyword/entity/topic gaps | No multi-competitor, no SERP gaps, no rank tracking |
-| 7 | **Core Web Vitals & PageSpeed Integration** | 🟥 Not Started | response_time_ms only | No PageSpeed API, no CrUX, no Lighthouse, no LCP/CLS/INP |
+| 7 | **Core Web Vitals & PageSpeed Integration** | 🟢 Complete | Real PSI v5 lab/Lighthouse + CrUX field data (LCP/CLS/INP/FCP/TTFB), FIELD/LAB/CRAWL badges, per-URL caching (`CoreWebVitals` table + TTL), crawler TTFB fallback, weighted performance score, 20 backend tests | GA4 per-page field data optional |
 | 8 | **Enterprise Multi-Tenant Platform** | 🟢 Complete | Roles, workspaces, share links, audit trails, admin panel, webhooks, scheduled audits, Slack alerts | SSO/billing optional |
 | 9 | **Automated Scheduling & Alerts** | 🟢 Complete | Scheduled audits, webhook retries, email + Slack notifications, digest worker | Celery/Redis optional |
 | 10 | **Professional Reporting Suite** | 🟢 Complete | CSV + Excel + HTML exports, PDF (jsPDF), white-label aware HTML, share links | Scheduled reports + custom builder optional |
@@ -696,7 +696,7 @@ Each module assessed as: 🟢 Complete | 🟡 Partial | 🟥 Not Started
 
 | Priority | Modules |
 |----------|---------|
-| **P0 — Critical** | 7 (Core Web Vitals), 5 (Backlinks) |
+| **P0 — Critical** | 5 (Backlinks) — 7 (Core Web Vitals) now complete |
 | **P1 — High** | 1 (JS Crawler), 9 (Scheduling), 10 (Reports PDF), 14 (Client Portal) |
 | **P2 — Medium** | 2 (Expand to 1000+ signals), 15 (RAG Chat), 8 (Full Multi-Tenant) |
 | **P3 — Low** | 4 (AI Search benchmarks), 6 (Multi-competitor), 13 (Schema generation) |
