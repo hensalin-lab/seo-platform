@@ -97,9 +97,9 @@ class Settings(BaseSettings):
     SAMBANOVA_TIMEOUT: int = 30
 
     CRAWLER_TIMEOUT: int = 15
-    CRAWLER_MAX_PAGES: int = 100
+    CRAWLER_MAX_PAGES: int = 300
     CRAWLER_MAX_DEPTH: int = 10
-    CRAWLER_CONCURRENCY: int = 15
+    CRAWLER_CONCURRENCY: int = 6
     CRAWLER_USER_AGENT: str = "SEOIntelligenceBot/2.0 (+https://seo-platform.app; SEO analysis crawler)"
     CRAWLER_VERIFY_SSL: bool = True
     CRAWLER_RESPECT_ROBOTS: bool = True
@@ -107,7 +107,10 @@ class Settings(BaseSettings):
     CRAWLER_SITEMAP_SEEDING: bool = True
     CRAWLER_SITEMAP_MAX_PAGES: int = 300
     CRAWLER_JS_RENDER: bool = False
-    CRAWLER_HTML_RAW_LIMIT: int = 40000
+    CRAWLER_HTML_RAW_LIMIT: int = 20000
+    CRAWLER_CONTENT_LIMIT: int = 200000
+    CRAWLER_PAGE_TIMEOUT: int = 30
+    CRAWLER_CRAWL_TIMEOUT: int = 600
 
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
