@@ -52,7 +52,12 @@ _SQLITE_ADD_COLUMNS = {
         "source_model": "TEXT",
         "status": "TEXT",
         "last_checked": "TIMESTAMP",
-    }
+    },
+    "webhooks": {
+        "delivery_count": "INTEGER DEFAULT 0",
+        "last_delivery_status": "INTEGER",
+        "last_delivery_error": "TEXT DEFAULT ''",
+    },
 }
 
 

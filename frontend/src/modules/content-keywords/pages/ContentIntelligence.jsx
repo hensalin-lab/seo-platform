@@ -298,21 +298,27 @@ export default function ContentIntelligence() {
   const [intel, setIntel] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [pagesError, setPagesError] = useState(null);
+  const [intelError, setIntelError] = useState(null);
 
   useEffect(() => {
     api
       .getAuditPages(id, { limit: 100 })
       .then((res) => setPages(res.items || []))
-      .catch(() => setPages([]));
+      .catch((err) => setPagesError(err.message || 'Failed to load pages for this audit.'));
   }, [id]);
 
   useEffect(() => {
     if (!pages.length) return;
     setLoading(true);
+    setIntelError(null);
     api
       .getContentDeep(id, selectedIdx)
       .then((data) => setIntel(data))
-      .catch(() => setIntel(null))
+      .catch((err) => {
+        setIntel(null);
+        setIntelError(err.message || 'Could not load the deep content analysis. The backend may still be processing — try again in a moment.');
+      })
       .finally(() => setLoading(false));
   }, [id, selectedIdx, pages.length]);
 
@@ -387,6 +393,12 @@ export default function ContentIntelligence() {
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}
         >
+          {pagesError && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 13, color: '#ef4444', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 12px' }}>
+              <span>{pagesError}</span>
+              <button className="btn btn-sm btn-secondary" onClick={() => window.location.reload()}>Retry</button>
+            </div>
+          )}
           <label
             style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}
           >
@@ -412,7 +424,9 @@ export default function ContentIntelligence() {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8 }}>
                 {pages.length
                   ? `${pages[selectedIdx]?.title || pages[selectedIdx]?.url || `Page ${selectedIdx + 1}`}`
-                  : 'Loading pages...'}
+                  : pagesError
+                    ? 'Pages unavailable'
+                    : 'Loading pages...'}
               </span>
               <ChevronDown
                 size={16}
@@ -511,7 +525,35 @@ export default function ContentIntelligence() {
           </div>
         )}
 
-        {!loading && !intel && pages.length > 0 && (
+        {!loading && !intel && intelError && pages.length > 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: 40,
+              background: 'rgba(239,68,68,0.05)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 10,
+            }}
+          >
+            <p style={{ color: '#ef4444', fontWeight: 600 }}>{intelError}</p>
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                setIntelError(null);
+                setLoading(true);
+                api.getContentDeep(id, selectedIdx).then((data) => setIntel(data)).catch((err) => {
+                  setIntel(null);
+                  setIntelError(err.message || 'Still failing — try again shortly.');
+                }).finally(() => setLoading(false));
+              }}
+            >
+              Retry Analysis
+            </button>
+          </div>
+        )}
+
+        {!loading && !intel && !intelError && pages.length > 0 && (
           <div
             style={{
               textAlign: 'center',

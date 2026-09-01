@@ -222,17 +222,17 @@ class MegaSEOEngine:
                 "Critical for ranking — can improve position by 5-10 spots", "Easy",
                 '<head>\n  <title>Your Primary Keyword - Brand Name</title>\n</head>',
                 '<head>\n  <!-- No title tag -->\n</head>',
-                '<head>\n  <title>Data Analytics Platform - DataViCloud AI</title>\n</head>'))
+                f'<head>\n  <title>{t or "Your Primary Keyword"} - Brand Name</title>\n</head>'))
         else:
             if tl < 30:
                 sigs.append(self._s("T002", "Title Tag Too Short", "title_tag", "warn", "HIGH",
                     f"Your title tag is only {tl} characters. Google may rewrite it or add your brand name.",
                     "Short titles waste valuable ranking real estate. You're missing an opportunity to include secondary keywords and make the result more compelling to click. Google may replace your title with content from the page, which may not be as optimized.",
-                    f"Expand your title to 50-60 characters. Include your primary keyword near the start, a secondary keyword or benefit, and your brand name. Example: 'AI Data Analytics Platform | Real-Time Insights - DataViCloud'",
+                    f"Expand your title to 50-60 characters. Include your primary keyword near the start, a secondary keyword or benefit, and your brand name. Example: '{words[0].title() if words else 'Primary Keyword'} Platform | Key Benefit - Brand Name'",
                     "Can improve CTR by 10-20%", "Easy",
-                    f"<title>DataViCloud - AI-Powered Analytics Platform</title>  <!-- {tl} chars, too short -->",
+                    f"<title>{t}</title>  <!-- {tl} chars, too short -->",
                     "",
-                    "<title>AI Data Analytics Platform | Real-Time Insights - DataViCloud</title>  <!-- 58 chars, optimal -->"))
+                    f"<title>{words[0].title() if words else 'Primary Keyword'} Platform | Key Benefit - Brand Name</title>  <!-- ~58 chars, optimal -->"))
             elif tl > 60:
                 sigs.append(self._s("T003", "Title Tag Too Long", "title_tag", "warn", "MEDIUM",
                     f"Your title tag is {tl} characters. Google will truncate it after ~60 characters, cutting off important words.",
@@ -241,7 +241,7 @@ class MegaSEOEngine:
                     "Improved CTR from non-truncated display", "Easy",
                     f"<title>{t[:60]}...</title>  <!-- currently {tl} chars, truncated -->",
                     "",
-                    "<title>AI Data Analytics Platform - DataViCloud</title>  <!-- 48 chars, fits perfectly -->"))
+                    "<title>Shortened title that fits in 60 chars</title>  <!-- ~48 chars, fits perfectly -->"))
             else:
                 sigs.append(self._s("T001", "Title Tag Present", "title_tag", "pass", "LOW",
                     "Your title tag is properly formatted and within optimal length.", "", "", "", "Easy"))
@@ -255,12 +255,12 @@ class MegaSEOEngine:
                     "High — direct ranking signal", "Easy",
                     f"<title>{t}</title>  <!-- missing primary keyword -->",
                     "",
-                    "<title>AI Data Analytics Platform | DataViCloud</title>  <!-- keyword 'AI data analytics' included -->"))
+                    f"<title>{words[0].title() if words else 'Primary Keyword'} | Brand Name</title>  <!-- keyword included -->"))
             else:
                 sigs.append(self._s("T005", "Keyword in Title", "title_tag", "pass", "LOW",
                     "Your primary keyword appears in the title tag. Good.", "", "", "", "Easy"))
 
-            brand_words = ["datavicloud", "brand"]
+            brand_words = ["brand"]
             has_brand = any(b in t.lower() for b in brand_words)
             if not has_brand:
                 sigs.append(self._s("T006", "No Brand Name in Title", "title_tag", "warn", "LOW",
@@ -268,7 +268,7 @@ class MegaSEOEngine:
                     "Brand names increase trust and click-through rate. Users who recognize your brand are more likely to click. Google also uses brand signals to understand your site's authority.",
                     "Add your brand name to the end of the title, separated by a pipe (|) or dash (-).", "Improved brand recognition and CTR", "Easy",
                     "", "",
-                    f"<title>{t} - DataViCloud</title>"))
+                    f"<title>{t} - Brand Name</title>"))
             else:
                 sigs.append(self._s("T007", "Brand in Title", "title_tag", "pass", "LOW", "", "", "", "", "Easy"))
 
@@ -292,7 +292,7 @@ class MegaSEOEngine:
                 "Can improve CTR by 5-10% which improves ranking", "Easy",
                 '<meta name="description" content="Your compelling description here">',
                 '<!-- No meta description -->',
-                '<meta name="description" content="DataViCloud AI analytics platform processes 1B+ data points in real-time. Get actionable insights, predict trends, and make data-driven decisions. Free trial.">'))
+                '<meta name="description" content="Your compelling description here — what the page offers, a key benefit, and a call to action in 150-160 characters.">'))
         else:
             if dl < 70:
                 sigs.append(self._s("M002", "Meta Description Too Short", "meta_tags", "warn", "HIGH",
@@ -356,7 +356,7 @@ class MegaSEOEngine:
                 "Critical — can improve ranking by 3-5 positions", "Easy",
                 '<h1>AI Data Analytics Platform</h1>',
                 '<!-- No H1 tag -->',
-                '<h1>DataViCloud: AI-Powered Data Analytics Platform</h1>'))
+                f'<h1>{t or "Your Primary Keyword"} - Brand Name</h1>'))
         else:
             sigs.append(self._s("H002", "H1 Present", "headings", "pass", "LOW", "", "", "", "", "Easy"))
             if len(h1_text) > 70:
@@ -401,30 +401,31 @@ class MegaSEOEngine:
 
     def _content_quality_signals(self, text, wc, sentences, words, title, h1):
         sigs = []
+        topic = re.sub(r"[^\w\s]", "", (title or h1 or "").split("|")[0].split("-")[0].strip()) or "this topic"
         if wc == 0:
             sigs.append(self._s("CQ001", "No Content Detected", "content_quality", "fail", "CRITICAL",
                 "No text content was detected on this page.",
                 "Content is the foundation of SEO. Without text, Google has nothing to index.",
-                "Add meaningful, original content. Aim for 1500+ words for competitive topics.", "Critical", "Medium"))
+                f"Add original, helpful content about {topic}. Start with a clear introduction explaining what {topic} is, followed by how it works, key benefits, and real-world examples.", "Critical", "Medium"))
             return sigs
 
         if wc < 300:
             sigs.append(self._s("CQ002", "Thin Content", "content_quality", "fail", "CRITICAL",
                 f"This page has only {wc} words. Google considers pages with under 300 words as 'thin content'.",
-                "Thin content rarely ranks because it can't comprehensively cover a topic. Google's Helpful Content Update specifically targets thin pages. The top-ranking pages for most keywords have 1500-2500 words.",
-                f"Expand to at least 1500 words. Add: detailed explanations, examples, statistics, comparisons, FAQs. Cover the topic from every angle.",
+                "Thin content rarely ranks because it can't comprehensively cover a topic. Google's Helpful Content Update specifically targets thin pages.",
+                f"Expand with sections specific to {topic}: an intro explaining what it is, step-by-step details, benefits with data/examples, FAQs, and a clear call to action. Aim for depth over word count.",
                 "Can improve ranking by 5-15 positions", "Medium"))
         elif wc < 800:
             sigs.append(self._s("CQ003", "Below-Average Content Length", "content_quality", "warn", "HIGH",
-                f"This page has {wc} words. The average top-10 page has 1500-2500 words.",
+                f"This page has {wc} words. Most competitive pages for '{topic}' have significantly more depth.",
                 "Shorter content struggles to cover topics comprehensively. Google favors depth and thoroughness.",
-                "Add 700-1700 more words of valuable, relevant content. Include examples, data, and expert insights.",
+                f"Add sections covering {topic} in more detail: use cases, comparisons, data points, and expert insights. Include an FAQ section addressing common questions.",
                 "Improved topical authority", "Medium"))
         elif wc < 1500:
             sigs.append(self._s("CQ004", "Moderate Content Length", "content_quality", "warn", "MEDIUM",
-                f"This page has {wc} words. Competitive pages typically have 1500+ words.",
+                f"This page has {wc} words. Could use more depth for '{topic}' to compete.",
                 "While not thin, more depth could help compete for competitive keywords.",
-                "Consider adding more detail, examples, or a FAQ section to reach 1500+ words.", "Moderate improvement potential", "Medium"))
+                f"Add supporting sections: real-world examples of {topic}, data-backed insights, common pitfalls, and an FAQ. Focus on unique value that other pages don't cover.", "Moderate improvement potential", "Medium"))
         else:
             sigs.append(self._s("CQ005", "Good Content Length", "content_quality", "pass", "LOW", "", "", "", "", "Easy"))
 
@@ -701,7 +702,7 @@ class MegaSEOEngine:
                 "Can enable rich results in SERPs", "Medium",
                 '<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "WebPage",\n  "name": "Page Title",\n  "description": "Page description"\n}\n</script>',
                 '<!-- No schema markup -->',
-                '<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "WebPage",\n  "name": "AI Data Analytics Platform - DataViCloud",\n  "description": "Real-time AI-powered analytics",\n  "url": "https://datavicloud.ai"\n}\n</script>'))
+                '<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "WebPage",\n  "name": "Page Title - Brand Name",\n  "description": "Page description with key benefit",\n  "url": "https://your-domain.com/page"\n}\n</script>'))
         else:
             sigs.append(self._s("S002", f"Schema Markup Present ({len(schema_list)} types)", "schema_markup", "pass", "LOW", "", "", "", "", "Easy"))
             schema_types = set()
@@ -736,7 +737,7 @@ class MegaSEOEngine:
                 "Better social sharing appearance", "Easy",
                 '<meta property="og:title" content="Page Title">\n<meta property="og:description" content="Description">\n<meta property="og:image" content="https://example.com/image.jpg">\n<meta property="og:url" content="https://example.com/page">',
                 '<!-- No OG tags -->',
-                '<meta property="og:title" content="AI Data Analytics Platform - DataViCloud">\n<meta property="og:description" content="Real-time AI-powered data analytics">\n<meta property="og:image" content="https://datavicloud.ai/og-image.png">\n<meta property="og:url" content="https://datavicloud.ai/analytics">\n<meta property="og:type" content="website">'))
+                '<meta property="og:title" content="Page Title - Brand Name">\n<meta property="og:description" content="Compelling description with key benefit">\n<meta property="og:image" content="https://your-domain.com/og-image.png">\n<meta property="og:url" content="https://your-domain.com/page">\n<meta property="og:type" content="website">'))
         elif len(missing) > 0:
             sigs.append(self._s("OG002", f"Missing OG Tags: {', '.join(missing)}", "open_graph", "warn", "MEDIUM",
                 f"You have {len(present)}/5 essential Open Graph tags. Missing: {', '.join(missing)}.",
@@ -867,9 +868,9 @@ class MegaSEOEngine:
                 "Without a canonical tag, Google may index duplicate versions of this page, splitting ranking signals across multiple URLs.",
                 "Add <link rel='canonical' href='[preferred URL]'> pointing to the correct version of this page.",
                 "Consolidates ranking signals", "Easy",
-                '<link rel="canonical" href="https://datavicloud.ai/page">',
+                '<link rel="canonical" href="https://your-domain.com/this-page">',
                 '<!-- No canonical tag -->',
-                '<link rel="canonical" href="https://datavicloud.ai/analytics">'))
+                '<link rel="canonical" href="https://your-domain.com/page-url">'))
         else:
             sigs.append(self._s("IDX002", "Canonical Tag Present", "indexability", "pass", "LOW", "", "", "", "", "Easy"))
             page_domain = re.search(r'https?://([^/]+)', canonical)
@@ -1379,7 +1380,7 @@ class MegaSEOEngine:
         if not text:
             sigs.append(self._s("RD001", "No Content to Analyze", "readability", "fail", "HIGH",
                 "Page has no readable text content.", "Readability is impossible without content.",
-                "Add meaningful text content to the page.", "High", "Medium"))
+                "Add text content that explains the page purpose. Start with a clear heading and 2-3 paragraphs describing the topic, followed by supporting details.", "High", "Medium"))
             return sigs
         avg_sent_len = wc / max(len(sentences), 1)
         if avg_sent_len > 25:
@@ -1943,7 +1944,7 @@ def generate_full_strategy(audit_data, pages, issues, recommendations, competito
             "step": 3,
             "title": "Fix Content Depth & Quality",
             "description": f"Your pages average {'{:,}'.format(sum(p.word_count or 0 for p in pages) // max(len(pages), 1))} words. Top-ranking pages have 1500-2500 words of comprehensive, expert content.",
-            "actions": ["Expand thin pages to 1500+ words", "Add expert insights, data, and examples", "Include FAQ sections", "Use structured formatting (lists, tables, subheadings)"],
+            "actions": ["Add depth to thin pages with topic-specific sections, examples, and data", "Include FAQ sections that answer real user questions", "Use structured formatting (lists, tables, subheadings) to improve readability"],
             "timeline": "Week 2-4",
             "impact": "Major — content quality is a top ranking factor",
         },

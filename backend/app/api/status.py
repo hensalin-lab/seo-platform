@@ -3,6 +3,9 @@ import json
 import re
 import asyncio
 import datetime as _dt
+
+from app.engine.content_intelligence_v2 import _SPAM_PATTERNS
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -80,14 +83,114 @@ def _normalize_url(url: str) -> str:
 
 
 def _dedup_pages(pages: list) -> list:
-    seen = set()
-    result = []
+    groups: dict = {}
     for p in pages:
         norm = _normalize_url(p.url if hasattr(p, "url") else p.get("url", ""))
-        if norm not in seen:
-            seen.add(norm)
-            result.append(p)
+        groups.setdefault(norm, []).append(p)
+
+    def _rank(u: str):
+        return (0 if u.startswith("https://") else 1, 0 if "://www." in u else 1, u)
+
+    result = []
+    for reps in groups.values():
+        best = min(reps, key=lambda p: _rank(p.url if hasattr(p, "url") else p.get("url", "")))
+        result.append(best)
     return result
+
+def _sorted_pages(pages: list) -> list:
+    """Canonical deterministic page order (by URL). SQL without ORDER BY returns
+    undefined row order, so index-based endpoints could analyze a DIFFERENT page
+    than the one the user clicked in the list."""
+    return sorted(pages, key=lambda p: (p.url or ""))
+
+
+_robots_txt_cache: dict = {}
+
+
+async def _fetch_robots_txt(page_url: str) -> str:
+    from urllib.parse import urlsplit
+    import httpx
+    import time as _time
+    try:
+        origin = "{0.scheme}://{0.netloc}".format(urlsplit(page_url))
+        if not origin or origin == "://":
+            return ""
+        cached = _robots_txt_cache.get(origin)
+        if cached and (_time.time() - cached[1]) < _CACHE_TTL:
+            return cached[0]
+        async with httpx.AsyncClient(follow_redirects=True, timeout=8) as client:
+            resp = await client.get(f"{origin}/robots.txt")
+        text = resp.text if resp.status_code == 200 else ""
+        _robots_txt_cache[origin] = (text, _time.time())
+        return text
+    except Exception:
+        return ""
+
+def _ai_meaningful(d) -> bool:
+    if not isinstance(d, dict) or not d:
+        return False
+    for v in d.values():
+        if isinstance(v, list) and v:
+            return True
+        if isinstance(v, dict) and v:
+            return True
+        if isinstance(v, str) and len(v.strip()) > 20:
+            return True
+        if isinstance(v, (int, float)) and v:
+            return True
+    return False
+
+
+def _internal_competitor_insights(pa, pages) -> dict:
+    import re as _re
+
+    def _norm(u):
+        return (u or "").replace("https://www.", "").replace("http://", "").rstrip("/").casefold()
+
+    def _tokens(headings):
+        stop = {"and", "the", "for", "with", "your", "our", "how", "what", "why", "a", "an", "to", "of", "in", "on"}
+        words = set()
+        for h in headings or []:
+            t = h.get("text", h) if isinstance(h, dict) else str(h)
+            for w in _re.findall(r"[a-zA-Z]{4,}", str(t)):
+                if w.lower() not in stop:
+                    words.add(w.lower())
+        return words
+
+    try:
+        cur_tokens = _tokens(pa.headings)
+        peers = [p for p in pages if getattr(p, 'id', None) != getattr(pa._page, 'id', None)]
+        same_type = [p for p in peers if (getattr(p, 'page_type', '') or '') == (pa.page_type or '')]
+        pool = same_type or [p for p in peers if not any(k in _norm(p.url) for k in ("privacy", "terms", "cookie", "404", "login"))]
+        top_peers = sorted(pool, key=lambda p: p.word_count or 0, reverse=True)[:5]
+        top_peers = [p for p in top_peers if (p.word_count or 0) > 0]
+        if not top_peers:
+            return {"what_top_rankers_do_differently": [], "content_gaps_to_fill": [], "note": "Not enough peer pages for an internal benchmark"}
+        avg_words = sum(p.word_count or 0 for p in top_peers) // len(top_peers)
+        best = top_peers[0]
+        scope = f"same-type ({pa.page_type})" if same_type else "site-wide"
+        diffs = []
+        if avg_words > (pa.word_count or 0):
+            diffs.append(f"[Internal benchmark] Your strongest {scope} pages average {avg_words} words — this page has {pa.word_count}. Depth correlates with rankings.")
+        else:
+            diffs.append(f"[Internal benchmark] This page's depth ({pa.word_count} words) matches or beats your {scope} leaders (avg {avg_words}).")
+        if len(pa.schema_markup or []) < len(best.schema_markup or []):
+            bt = ", ".join(s.get("@type", "") for s in (best.schema_markup or [])[:3] if isinstance(s, dict))
+            if bt:
+                diffs.append(f"[Internal benchmark] Top internal page uses schema types you're missing here: {bt}")
+        gaps = []
+        peer_tokens = set()
+        for p in top_peers:
+            peer_tokens |= _tokens(getattr(p, 'headers', []) or [])
+        missing = list(peer_tokens - cur_tokens)[:3]
+        for tok in missing:
+            gaps.append(f"[Internal benchmark] Topic '{tok}' appears in your top-performing pages but not on this page — consider covering it")
+        if not gaps:
+            gaps.append("[Internal benchmark] No obvious topic gaps vs your strongest internal pages")
+        return {"what_top_rankers_do_differently": diffs[:3], "content_gaps_to_fill": gaps[:3]}
+    except Exception:
+        return {"what_top_rankers_do_differently": [], "content_gaps_to_fill": []}
+
 
 def _cache_get(key):
     import time
@@ -200,7 +303,7 @@ async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
                Page.page_type)
         .where(Page.audit_id == audit_id).limit(200)
     )
-    pages = pages_result.all()
+    pages = sorted(pages_result.all(), key=lambda p: p.url or "")
 
     resp = {
         "audit_id": audit.id, "website_url": audit.website_url, "competitor_url": audit.competitor_url,
@@ -421,9 +524,13 @@ def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dic
         if text:
             current = text[:420] + ("…" if len(text) > 420 else "")
     elif "spam" in lower and page:
-        body = re.sub(r"\s+", " ", (getattr(page, "content_text", "") or ""))[:3000]
-        m = re.search(r"[\u201c\"']([^\u201d\"']{3,90})[\u201d\"']", body)
-        current = m.group(1) if m else ""
+        body = re.sub(r"\s+", " ", (getattr(page, "content_text", "") or ""))
+        m = _SPAM_PATTERNS.search(body)
+        if m:
+            s, e = max(0, m.start() - 70), min(len(body), m.end() + 90)
+            current = ("…" if s else "") + body[s:e].strip() + ("…" if e < len(body) else "")
+        elif body:
+            current = body[:300]
 
     # ---- REPLACE WITH: a concrete, ready-to-paste value ----
     replace_with = ""
@@ -465,14 +572,43 @@ def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dic
                         f'Then add FAQPage schema in a <script type="application/ld+json"> block in the <head>.')
     elif "h1" in lower and ("multiple" in lower or "duplicate" in lower):
         replace_with = f"Keep the first <h1> ({h1 or 'your main heading'}) and convert the other <h1> tags to <h2>."
-    elif "word" in lower or "thin" in lower or "depth" in lower or "content" in lower or "read" in lower:
+    elif ("word" in lower or "thin" in lower or "depth" in lower or "content" in lower or "read" in lower) and "spam" not in lower:
+        topic = re.sub(r"[^\w\s]", "", (title or h1 or "").split("|")[0].split("-")[0].strip()) or "this topic"
+        existing_words = len((page.content_text or "").split()) if page else 0
+        sections_to_add = []
+        if existing_words < 300:
+            sections_to_add.append(f"<h2>What is {topic}?</h2>\n<p>A clear 2-3 sentence explanation of {topic} and why it matters for your business.</p>")
+        sections_to_add.append(f"<h2>How {topic} Works</h2>\n<p>Walk through the key steps or components with concrete examples from real use cases.</p>")
+        sections_to_add.append(f"<h2>Key Benefits</h2>\n<ul>\n<li>Benefit 1 with a specific metric or outcome</li>\n<li>Benefit 2 tied to a real business result</li>\n<li>Benefit 3 compared to alternatives</li>\n</ul>")
+        sections_to_add.append(f"<h2>Frequently Asked Questions</h2>\n<p><strong>Q: What is the main advantage of {topic}?</strong></p>\n<p>A: Provide a data-backed answer in 1-2 sentences.</p>")
         replace_with = (
-            "Expand this section to 1500+ words. Structure: an H2 intro that states the goal, "
-            "step-by-step subsections with real examples, a dedicated FAQ, and a clear CTA — "
-            "each section adding unique, quotable insight so AI engines cite this page."
+            f"Current content has ~{existing_words} words. Add these sections to reach 1500+ words "
+            f"with content specific to \"{topic}\":\n\n" +
+            "\n\n".join(sections_to_add) +
+            f"\n\nEach section should include industry-specific examples, data points, "
+            f"and actionable insights — not generic filler — so AI engines cite this page."
         )
     elif "spam" in lower:
-        replace_with = "Remove or rewrite the flagged phrase so the copy reads naturally and non-promotional, keeping the keyword context intact."
+        spam_phrases = []
+        if page:
+            body = re.sub(r"\s+", " ", (page.content_text or ""))[:3000]
+            spam_phrases = _SPAM_PATTERNS.findall(body)[:3]
+        topic = re.sub(r"[^\w\s]", "", (title or h1 or "").split("|")[0].split("-")[0].strip()) or "the topic"
+        if spam_phrases:
+            phrases_list = "\n".join(f'  - "{p}"' for p in spam_phrases)
+            replace_with = (
+                f"Remove or rewrite these flagged spam phrases:\n{phrases_list}\n\n"
+                f"Rewrite each to sound natural and specific to \"{topic}\":\n"
+                f'  Instead of "{spam_phrases[0]}", write a factual statement with a metric or example.\n'
+                f"  Use specific data points, customer outcomes, or feature descriptions rather than promotional language."
+            )
+        else:
+            replace_with = (
+                f"Rewrite promotional language to be factual and specific to \"{topic}\":\n"
+                f"  - Replace superlatives (best, greatest, most powerful) with specific metrics or comparisons.\n"
+                f"  - Replace vague claims with concrete outcomes, data points, or feature descriptions.\n"
+                f"  - Keep the keyword context but use informational, citation-worthy language."
+            )
 
     return {"where": where, "current_value": current, "replace_with": replace_with}
 
@@ -603,7 +739,7 @@ async def get_audit_recommendations(audit_id: str, offset: int = 0, limit: int =
     recs = recs_result.scalars().all()
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     pages_by_url = {p.url: p for p in pages}
 
     conf_engine = RecommendationConfidenceEngine()
@@ -649,7 +785,7 @@ async def get_competitor_data(audit_id: str, db: AsyncSession = Depends(get_db))
     comp = comp_result.scalar_one_or_none()
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     analysis = {}
     if pages:
@@ -702,7 +838,7 @@ async def run_competitor_analysis(audit_id: str, request: Request, db: AsyncSess
     if not audit.competitor_url:
         raise HTTPException(status_code=400, detail="Provide a competitor_url")
 
-    my_pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    my_pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
     if not my_pages:
         raise HTTPException(status_code=400, detail="No pages in this audit")
 
@@ -777,8 +913,8 @@ async def run_competitor_analysis(audit_id: str, request: Request, db: AsyncSess
 @router.get("/audit/{audit_id}/pages")
 async def get_audit_pages(audit_id: str, offset: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
-    all_pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
-    deduped = _dedup_pages(all_pages)
+    all_pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
+    deduped = all_pages
     total = len(deduped)
     paged = deduped[offset:offset + limit]
     return {
@@ -1133,6 +1269,7 @@ async def get_ai_providers_status():
         "huggingface": ("HUGGINGFACE_API_KEY", "HuggingFace Inference (free)", "Paste a token from huggingface.co/settings/tokens — no credit card."),
         "github-models": ("GITHUB_TOKEN", "GitHub Models (free)", "Any GitHub PAT works — Settings -> Developer settings -> Tokens."),
         "sambanova": ("SAMBANOVA_API_KEY", "SambaNova (trial credits)", "Paste a key from cloud.sambanova.ai — no credit card."),
+        "openai-direct": ("OPENAI_API_KEY", "OpenAI (paid)", "Paste a key from platform.openai.com — reliable paid fallback."),
     }
     result = []
     for name, (env, label, guidance) in env_map.items():
@@ -1243,7 +1380,7 @@ async def ai_prompt_test(request: Request):
 @router.get("/audit/{audit_id}/schema-analysis")
 async def get_schema_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     total = len(pages)
     with_schema = [p for p in pages if p.schema_markup and len(p.schema_markup) > 0]
     schema_types = {}
@@ -1269,7 +1406,7 @@ async def get_schema_analysis(audit_id: str, db: AsyncSession = Depends(get_db))
 async def get_canonicalization(audit_id: str, db: AsyncSession = Depends(get_db)):
     from app.engine.url_canonicalization import URLCanonicalizer
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     if not pages:
         raise HTTPException(status_code=404, detail="No pages found")
     page_dicts = [{
@@ -1291,7 +1428,7 @@ async def get_canonicalization(audit_id: str, db: AsyncSession = Depends(get_db)
 async def get_confidence_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     from app.engine.confidence_engine import RecommendationConfidenceEngine
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
     issues = issues_result.scalars().all()
     engine = RecommendationConfidenceEngine()
@@ -1318,7 +1455,7 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
     from urllib.parse import urlparse
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     total = len(pages)
 
     def _safe_links(p):
@@ -1360,14 +1497,8 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
         generic = {"click here", "read more", "learn more", "here", "this", "link", "more", "go", "continue", "see more", "view more"}
         return text.lower().strip() in generic
 
-    def _is_orphan(url, all_pages):
-        for p in all_pages:
-            links = _safe_links(p)
-            for link in links:
-                target = _link_url(link)
-                if _normalize_url(target) == _normalize_url(url):
-                    return False
-        return True
+    def _is_orphan(url, targets):
+        return _normalize_url(url) not in targets
 
     for p in pages:
         raw_links = _safe_links(p)
@@ -1393,7 +1524,7 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     no_links = [p for p in pages if len(getattr(p, '_deduped_links', _safe_links(p))) == 0]
     orphan_pages = [p for p in pages if p.crawl_depth and p.crawl_depth > 3]
-    orphan_urls_list = [p.url for p in pages if _is_orphan(p.url, pages)]
+    orphan_urls_list = [p.url for p in pages if _is_orphan(p.url, all_link_targets)]
 
     link_map = {}
     for p in pages:
@@ -1507,38 +1638,48 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     link_suggestions = []
     pages_by_url = {p.url: p for p in pages}
+    page_meta = {}
     for p in pages:
         if not p.url: continue
+        _ptext = page_text_cache.get(p.url, "")
+        page_meta[p.url] = {
+            "text": _ptext,
+            "words": set(_ptext.split()),
+            "title_words": set((p.title or "").lower().split()),
+            "h1_words": set((p.h1 or "").lower().split()),
+            "title_display": p.title or p.url.split("/")[-1].replace("-", " ").title(),
+            "paragraphs": _ptext.split(". "),
+        }
+    for p in pages:
+        if not p.url: continue
+        pm = page_meta[p.url]
         current_links = {_normalize_url(_link_url(l)) for l in _safe_links(p)}
-        p_text = page_text_cache.get(p.url, "")
-        p_words = set(p_text.split())
-        p_title_words = set((p.title or "").lower().split())
-        p_h1_words = set((p.h1 or "").lower().split())
-        key_terms = (p_words | p_title_words | p_h1_words) - stopwords
+        key_terms = (pm["words"] | pm["title_words"] | pm["h1_words"]) - stopwords
+        key_terms_list = [t for t in list(key_terms) if len(t) > 4]
 
         for other in pages:
             if other.url == p.url or not other.url: continue
             if _normalize_url(other.url) in current_links: continue
-            other_text = page_text_cache.get(other.url, "")
-            other_title_words = set((other.title or "").lower().split())
-            overlap = len(key_terms & other_title_words)
-            if overlap >= 2 or any(t in other_text for t in list(key_terms)[:5] if len(t) > 4):
-                paragraphs = p_text.split(". ")
+            om = page_meta[other.url]
+            overlap = len(key_terms & om["title_words"])
+            if overlap >= 2 or any(t in om["text"] for t in key_terms_list[:5]):
                 best_para = ""
-                for para in paragraphs:
-                    if any(t in para for t in list(key_terms & other_title_words)[:3]):
+                shared = key_terms & om["title_words"]
+                shared_list = list(shared)[:5]
+                for para in pm["paragraphs"]:
+                    if any(t in para for t in shared_list[:3]):
                         best_para = para[:80]
                         break
 
                 link_suggestions.append({
                     "from_page": p.url,
                     "to_page": other.url,
-                    "to_title": other.title or other.url.split("/")[-1].replace("-", " ").title(),
-                    "reason": f"Related content — shares topics: {', '.join(list(key_terms & other_title_words)[:3]) if key_terms & other_title_words else 'thematic relevance'}",
-                    "anchor_suggestion": (other.title or other.url.split("/")[-1].replace("-", " "))[:60],
+                    "to_title": om["title_display"],
+                    "reason": f"Related content — shares topics: {', '.join(shared_list[:3]) if shared_list else 'thematic relevance'}",
+                    "anchor_suggestion": om["title_display"][:60],
                     "priority": "HIGH" if overlap >= 3 else "MEDIUM" if overlap >= 2 else "LOW",
                     "placement_hint": f"Place in paragraph: \"{best_para}...\"" if best_para else "Add as contextual link in body content",
-                    "shared_topics": sorted(list(key_terms & other_title_words)[:5]),
+                    "shared_topics": shared_list,
                 })
 
     link_suggestions.sort(key=lambda x: {"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(x.get("priority", "LOW"), 3))
@@ -1584,7 +1725,7 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
             "inbound_links": inbound,
             "outbound_links": outbound,
             "pagerank_score": pr_score,
-            "is_orphan": _is_orphan(p.url, pages),
+            "is_orphan": _is_orphan(p.url, all_link_targets),
         })
     pagerank_data.sort(key=lambda x: x["pagerank_score"], reverse=True)
 
@@ -1624,7 +1765,7 @@ async def get_internal_links(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/page-speed")
 async def get_page_speed(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     total = len(pages)
     times = [p.response_time_ms for p in pages if p.response_time_ms and p.response_time_ms > 0]
     avg_time = sum(times) / max(len(times), 1)
@@ -1661,14 +1802,71 @@ async def get_eeat_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     issues_result = await db.execute(
         select(Issue).where(Issue.audit_id == audit_id, Issue.category == "SEO")
     )
     seo_issues = issues_result.scalars().all()
+    def _schema_json(val):
+        if val is None:
+            return []
+        if isinstance(val, list):
+            return val
+        if isinstance(val, dict):
+            return [val]
+        if isinstance(val, str):
+            try:
+                parsed = json.loads(val)
+            except Exception:
+                return []
+            return parsed if isinstance(parsed, list) else [parsed] if isinstance(parsed, dict) else []
+        return []
+
+    def _has_author(page):
+        # structured schema author (Person/Organization under Article/NewsArticle/etc.)
+        for s in _schema_json(page.schema_markup):
+            if not isinstance(s, dict):
+                continue
+            authors = s.get("author")
+            if isinstance(authors, list):
+                if any(isinstance(a, dict) and a.get("name") for a in authors if isinstance(a, dict)):
+                    return True
+            elif isinstance(authors, dict) and authors.get("name"):
+                return True
+            elif isinstance(authors, str) and authors.strip():
+                return True
+        # open graph article:author
+        og_author = _og_get(page.open_graph, "article:author") or _og_get(page.open_graph, "author")
+        if og_author:
+            return True
+        # content-level byline / author attribution
+        text = (page.content_text or "").lower()
+        if any(k in text for k in ("written by", "author:", "byline", "by ", "posted by", "about the author")):
+            return True
+        return False
+
+    def _has_date(page):
+        # structured datePublished/dateModified in schema
+        for s in _schema_json(page.schema_markup):
+            if not isinstance(s, dict):
+                continue
+            if s.get("datePublished") or s.get("dateModified") or s.get("dateCreated"):
+                return True
+        # open graph published/modified time
+        for key in ("article:published_time", "article:modified_time", "og:published_time", "og:updated_time"):
+            if _og_get(page.open_graph, key):
+                return True
+        # content-level visible date pattern (e.g. "January 12, 2024", "12 Jan 2024", "2024-01-12")
+        text = (page.content_text or "")
+        if _re.search(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}\b", text, _re.I) or \
+           _re.search(r"\b\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+\d{4}\b", text, _re.I) or \
+           _re.search(r"\b(?:published|updated|posted|released)\s+(?:on\s+)?\d{4}\b", text, _re.I):
+            return True
+        return False
+
     eeat_signals = {
-        "author_signals": len([p for p in pages if p.content_text and "author" in p.content_text.lower()]),
-        "date_signals": len([p for p in pages if _og_get(p.open_graph, "article:published_time")]),
+        "author_signals": len([p for p in pages if _has_author(p)]),
+        "date_signals": len([p for p in pages if _has_date(p)]),
         "source_signals": len([p for p in pages if p.links_external and len(p.links_external) > 0]),
         "expertise_signals": len([p for p in pages if p.word_count and p.word_count > 500]),
         "trust_signals": len([p for p in pages if p.canonical]),
@@ -1816,7 +2014,7 @@ async def get_content_analysis(audit_id: str, db: AsyncSession = Depends(get_db)
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     issues_result = await db.execute(
         select(Issue).where(Issue.audit_id == audit_id, Issue.category == "CONTENT")
     )
@@ -1836,7 +2034,7 @@ async def get_content_analysis(audit_id: str, db: AsyncSession = Depends(get_db)
 @router.get("/audit/{audit_id}/conversion-analysis")
 async def get_conversion_analysis(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
     all_issues = issues_result.scalars().all()
 
@@ -2139,7 +2337,7 @@ async def get_ai_summary(audit_id: str, db: AsyncSession = Depends(get_db)):
     issues = issues_result.scalars().all()
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     high_issues = [i for i in issues if i.severity == "HIGH"]
     medium_issues = [i for i in issues if i.severity == "MEDIUM"]
@@ -2519,8 +2717,8 @@ async def ai_generate_batch_fixes(audit_id: str, body: dict, db: AsyncSession = 
             "description": it.description, "impact": it.impact, "fix": it.fix,
             "root_cause": it.root_cause, "effort": it.effort, "fix_code": it.fix_code,
             "ai_generated": it.ai_generated or 0,
-            "ai_why": it.ai_why or "", "ai_impact_pct": it.ai_impact_pct or 0,
-            "ai_confidence": it.ai_confidence or 0,
+            "ai_why": it.ai_why or "", "ai_impact_pct": _fallback_impact(it, fixes_by_id.get(it.id)),
+            "ai_confidence": _fallback_confidence(it, fixes_by_id.get(it.id)),
             "priority": _priority_for(it),
             "exact_text": (fixes_by_id.get(it.id) or {}).get("exact_text", ""),
             "location": (fixes_by_id.get(it.id) or {}).get("location", ""),
@@ -2537,6 +2735,20 @@ def _clamp_pct(v) -> int:
         return min(100, max(0, int(float(v))))
     except (TypeError, ValueError):
         return 0
+
+
+def _fallback_confidence(issue, ai_fix: dict | None = None) -> int:
+    """Never render a 0% confidence bar. AI-scored issues with no provider
+    confidence get a derived score; deterministic-only guidance gets a lower,
+    honest default."""
+    if ai_fix and isinstance(ai_fix, dict):
+        c = _clamp_pct(ai_fix.get("confidence"))
+        if c:
+            return c
+    c = _clamp_pct(getattr(issue, "ai_confidence", 0) or 0)
+    if c:
+        return c
+    return 74 if (getattr(issue, "ai_generated", 0) or 0) else 60
 
 
 def _priority_for(issue) -> str:
@@ -2943,7 +3155,7 @@ async def ai_tool_suggestions(audit_id: str, body: dict, db: AsyncSession = Depe
             "effort": it.effort, "fix_code": it.fix_code,
             "ai_generated": it.ai_generated or 0,
             "ai_impact_pct": _fallback_impact(it, ai),
-            "ai_confidence": it.ai_confidence or 0,
+            "ai_confidence": _fallback_confidence(it, ai),
             "priority": _priority_for(it),
             "fix": it.fix or "",
             "root_cause": it.root_cause or "",
@@ -3453,7 +3665,7 @@ async def _get_page_intelligence_impl(audit_id: str, page_url: str, db: AsyncSes
 async def get_content_revival(audit_id: str, db: AsyncSession = Depends(get_db)):
     """Analyze content freshness and detect pages that need revival."""
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = audit_result.scalar_one_or_none()
     if not audit:
@@ -3632,7 +3844,7 @@ async def get_report_data(audit_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
@@ -3829,7 +4041,7 @@ async def get_gsc_keywords(audit_id: str, days: int = 28, user: User = Depends(o
 @router.get("/audit/{audit_id}/backlink-profile")
 async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     issues_result = await db.execute(
@@ -3917,7 +4129,7 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
 @router.get("/audit/{audit_id}/local-seo")
 async def get_local_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
 
@@ -3968,7 +4180,7 @@ async def get_local_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/mobile-seo")
 async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     issues_result = await db.execute(
@@ -4030,7 +4242,7 @@ async def get_mobile_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/image-seo")
 async def get_image_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
 
@@ -4093,7 +4305,7 @@ async def get_image_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/sitemap-robots")
 async def get_sitemap_robots(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     audit_result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = audit_result.scalar_one_or_none()
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
@@ -4154,7 +4366,7 @@ async def get_sitemap_robots(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/security-headers")
 async def get_security_headers(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
 
@@ -4205,7 +4417,7 @@ async def get_security_headers(audit_id: str, db: AsyncSession = Depends(get_db)
 @router.get("/audit/{audit_id}/social-seo")
 async def get_social_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
 
@@ -4256,7 +4468,7 @@ async def get_social_seo(audit_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/audit/{audit_id}/page-experience")
 async def get_page_experience(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     issues_result = await db.execute(
@@ -4317,7 +4529,7 @@ async def get_page_experience(audit_id: str, db: AsyncSession = Depends(get_db))
 @router.get("/audit/{audit_id}/content-quality")
 async def get_content_quality(audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     issues_result = await db.execute(
@@ -4428,7 +4640,7 @@ async def get_ai_overviews(audit_id: str, limit: int = 6, db: AsyncSession = Dep
             from app.engine.keyword_research import KeywordResearchEngine
             from app.engine.crawler import PageData
             pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-            pages = pages_result.scalars().all()
+            pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
             page_objects = []
             for p in pages:
                 pd = PageData()
@@ -4530,7 +4742,7 @@ async def _ai_overviews_estimate(audit_id: str, host: str, limit: int, db: Async
     keywords = [k.keyword for k in kw_result.scalars().all() if k.keyword and len(k.keyword) > 2][:limit]
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if not keywords:
         try:
@@ -4607,7 +4819,7 @@ async def get_seo_health(audit_id: str, db: AsyncSession = Depends(get_db)):
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
     scores = scores_result.scalar_one_or_none()
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
     issues = issues_result.scalars().all()
 
@@ -4906,7 +5118,7 @@ async def get_ai_suggestions(audit_id: str, body: dict = None, db: AsyncSession 
     scores = score_result.scalar_one_or_none()
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
     issues = issues_result.scalars().all()
@@ -5020,7 +5232,7 @@ async def get_keywords_enhanced(audit_id: str, days: int = 28, db: AsyncSession 
 
     # --- Pages for per-page mapping ---
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     page_urls = [p.url for p in pages]
     page_content_map = {}
     for p in pages:
@@ -5229,7 +5441,7 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
     internal_kws = kw_result.scalars().all()
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page_objects = []
     for p in pages:
@@ -5281,7 +5493,7 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
 async def get_content_audit(audit_id: str, db: AsyncSession = Depends(get_db)):
     """Per-page content audit: missing sections, links, images, schema, CTAs, trust signals, EEAT."""
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     issues_result = await db.execute(select(Issue).where(Issue.audit_id == audit_id))
     issues = issues_result.scalars().all()
@@ -5493,7 +5705,7 @@ async def get_blog_ai(audit_id: str, db: AsyncSession = Depends(get_db)):
     from app.engine.crawler import PageData
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page_objects = []
     for p in pages:
@@ -5548,7 +5760,7 @@ async def get_page_improvements(audit_id: str, db: AsyncSession = Depends(get_db
     from app.engine.crawler import PageData
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page_objects = []
     for p in pages:
@@ -5752,7 +5964,7 @@ async def get_enterprise_audit(audit_id: str, db: AsyncSession = Depends(get_db)
             raise HTTPException(status_code=404, detail="Audit not found")
 
         pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-        pages = pages_result.scalars().all()
+        pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
         orchestrator = EnterpriseOrchestrator()
         payload = await asyncio.to_thread(orchestrator.generate_enterprise_payload, pages, audit.website_url)
@@ -5774,7 +5986,7 @@ async def get_enterprise_page(audit_id: str, page_idx: int, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -5818,7 +6030,7 @@ async def get_remediation_feed(audit_id: str, severity: str = None, category: st
                 raise HTTPException(status_code=404, detail="Audit not found")
 
             pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-            pages = pages_result.scalars().all()
+            pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
             orchestrator = EnterpriseOrchestrator()
             all_fixes = []
@@ -6100,7 +6312,7 @@ async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db:
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if url:
         normalized = unquote(url).rstrip("/")
@@ -6162,8 +6374,8 @@ async def get_content_rewrite(audit_id: str, page_idx: str, url: str = None, db:
             )
             tasks = [asyncio.create_task(c) for c in coros]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            ai_rewrite = results[0] if isinstance(results[0], dict) else {}
-            ai_readability = results[1] if isinstance(results[1], dict) else {}
+            ai_rewrite = results[0] if _ai_meaningful(results[0]) else {}
+            ai_readability = results[1] if _ai_meaningful(results[1]) else {}
             ai_eeat = results[2] if isinstance(results[2], dict) else {}
             ai_links = results[3] if isinstance(results[3], list) else []
             ai_keywords = results[4] if isinstance(results[4], dict) else {}
@@ -6261,7 +6473,7 @@ async def get_content_opportunities(audit_id: str, db: AsyncSession = Depends(ge
 
 @router.get("/audit/{audit_id}/page-intelligence-deep/{page_idx}")
 async def get_page_intelligence_deep(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"pid:{audit_id}:{page_idx}"
+    cache_key = f"pidv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -6274,7 +6486,7 @@ async def get_page_intelligence_deep(audit_id: str, page_idx: int, db: AsyncSess
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -6295,10 +6507,10 @@ async def get_page_intelligence_deep(audit_id: str, page_idx: int, db: AsyncSess
             )
             tasks = [asyncio.create_task(c) for c in coros]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            base["ai_seo_analysis"] = results[0] if isinstance(results[0], dict) else {}
-            base["ai_search"] = results[1] if isinstance(results[1], dict) else {}
-            base["ai_entities"] = results[2] if isinstance(results[2], dict) else {}
-            base["ai_eeat"] = results[3] if isinstance(results[3], dict) else {}
+            base["ai_seo_analysis"] = results[0] if _ai_meaningful(results[0]) else {}
+            base["ai_search"] = results[1] if _ai_meaningful(results[1]) else {}
+            base["ai_entities"] = results[2] if _ai_meaningful(results[2]) else {}
+            base["ai_eeat"] = results[3] if _ai_meaningful(results[3]) else {}
     except Exception as e:
         logger.warning(f"DualAI page-intelligence-deep failed: {e}")
 
@@ -6325,7 +6537,7 @@ async def get_page_intelligence_deep_by_url(audit_id: str, url: str, db: AsyncSe
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page = next((p for p in pages if p.url == url), None)
     if not page:
@@ -6341,7 +6553,7 @@ async def get_page_intelligence_deep_by_url(audit_id: str, url: str, db: AsyncSe
 
 @router.get("/audit/{audit_id}/content-deep/{page_idx}")
 async def get_content_deep(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"cdeep:{audit_id}:{page_idx}"
+    cache_key = f"cdeepv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -6354,7 +6566,7 @@ async def get_content_deep(audit_id: str, page_idx: int, db: AsyncSession = Depe
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -6384,7 +6596,7 @@ async def get_content_deep_by_url(audit_id: str, url: str, db: AsyncSession = De
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page = next((p for p in pages if p.url == url), None)
     if not page:
@@ -6401,7 +6613,7 @@ async def get_content_deep_by_url(audit_id: str, url: str, db: AsyncSession = De
 
 @router.get("/audit/{audit_id}/recommendations-deep/{page_idx}")
 async def get_recommendations_deep(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"recs:{audit_id}:{page_idx}"
+    cache_key = f"recsv3:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -6414,7 +6626,7 @@ async def get_recommendations_deep(audit_id: str, page_idx: int, db: AsyncSessio
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -6441,7 +6653,7 @@ async def get_recommendations_deep_by_url(audit_id: str, url: str, db: AsyncSess
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page = next((p for p in pages if p.url == url), None)
     if not page:
@@ -6455,7 +6667,7 @@ async def get_recommendations_deep_by_url(audit_id: str, url: str, db: AsyncSess
 
 @router.get("/audit/{audit_id}/ai-search-deep/{page_idx}")
 async def get_ai_search_deep(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"ais:{audit_id}:{page_idx}"
+    cache_key = f"aisv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -6468,7 +6680,7 @@ async def get_ai_search_deep(audit_id: str, page_idx: int, db: AsyncSession = De
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -6513,7 +6725,7 @@ async def get_ai_search_deep_by_url(audit_id: str, url: str, db: AsyncSession = 
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page = next((p for p in pages if p.url == url), None)
     if not page:
@@ -6529,7 +6741,7 @@ async def get_ai_search_deep_by_url(audit_id: str, url: str, db: AsyncSession = 
 
 @router.get("/audit/{audit_id}/ai-search-intelligence/{page_idx}")
 async def get_ai_search_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"aisi:{audit_id}:{page_idx}"
+    cache_key = f"aisiv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -6542,7 +6754,7 @@ async def get_ai_search_intelligence(audit_id: str, page_idx: int, db: AsyncSess
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -6572,7 +6784,7 @@ async def get_ai_search_intelligence_by_url(audit_id: str, url: str, db: AsyncSe
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page = next((p for p in pages if p.url == url), None)
     if not page:
@@ -6597,7 +6809,7 @@ async def get_competitor_deep(audit_id: str, page_idx: int, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -6621,11 +6833,11 @@ async def get_competitor_deep(audit_id: str, page_idx: int, db: AsyncSession = D
 
     engine = CompetitorIntelligenceEngine()
     try:
-        return engine.analyze(page_adapters, comp_dict)
+        result = engine.analyze(page_adapters, comp_dict)
     except Exception as e:
         logger.exception(f"competitor-deep failed: {e}")
         my_profile = engine.crawler.analyze_competitor(page_adapters, "")
-        return {
+        result = {
             "my_profile": my_profile,
             "competitors": {},
             "gaps": {},
@@ -6633,6 +6845,58 @@ async def get_competitor_deep(audit_id: str, page_idx: int, db: AsyncSession = D
             "dimensions_analyzed": [],
             "error": str(e),
         }
+
+    if not result.get("competitors"):
+        try:
+            current = pages[page_idx]
+            peers = [p for p in pages if p.url != current.url]
+            peers.sort(key=lambda p: (p.word_count or 0), reverse=True)
+            top = peers[:5] or peers
+            n = max(len(top), 1)
+
+            def _num(v):
+                return float(v) if isinstance(v, (int, float)) else 0.0
+
+            cur_wc = float(current.word_count or 0)
+            avg_wc = sum(float(p.word_count or 0) for p in top) / n
+            cur_schema = len(current.schema_markup or [])
+            avg_schema = sum(len(p.schema_markup or []) for p in top) / n
+            cur_links = len(current.links_internal or [])
+            avg_links = sum(len(p.links_internal or []) for p in top) / n
+            cur_imgs = len(current.images or [])
+            avg_imgs = sum(len(p.images or []) for p in top) / n
+
+            def _dim(mine, peer_avg):
+                delta = round(mine - peer_avg, 1)
+                return {
+                    "mine": round(mine, 1),
+                    "avg_competitor": round(peer_avg, 1),
+                    "delta": delta,
+                    "advantage": "US" if delta > 0 else ("COMPETITOR" if delta < 0 else "TIE"),
+                }
+
+            result["competitive_position"] = {
+                "content_depth": _dim(cur_wc, avg_wc),
+                "schema_markup": _dim(cur_schema, avg_schema),
+                "internal_links": _dim(cur_links, avg_links),
+                "media_richness": _dim(cur_imgs, avg_imgs),
+            }
+            result["dimensions_analyzed"] = ["content_depth", "schema_markup", "internal_links", "media_richness"]
+            result["gaps"] = {}
+            leaders = [{"url": p.url, "word_count": p.word_count} for p in top[:3]]
+            result["peer_benchmark"] = {
+                "basis": f"Compared against your {len(top)} strongest pages by content volume",
+                "top_pages": leaders,
+                "advice": [
+                    f"This page has {int(cur_wc)} words vs {int(avg_wc)} on your best pages" + (" — add depth to match" if cur_wc < avg_wc * 0.7 else " — depth is competitive"),
+                    f"{cur_schema} schema types found vs {avg_schema:.1f} average" + (" — add FAQPage or Article schema" if cur_schema < avg_schema else ""),
+                ],
+            }
+            result["status_note"] = "No external competitors added yet — showing a real comparison against your site's strongest pages. Add competitors in settings for full market analysis."
+        except Exception as e:
+            logger.warning(f"competitor-deep internal benchmark failed: {e}")
+
+    return result
 
 
 @router.get("/audit/{audit_id}/competitor-deep-by-url")
@@ -6645,7 +6909,7 @@ async def get_competitor_deep_by_url(audit_id: str, url: str, db: AsyncSession =
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     page = next((p for p in pages if p.url == url), None)
     if not page:
@@ -6812,7 +7076,7 @@ async def get_ai_recommendations_page(audit_id: str, page_idx: int, db: AsyncSes
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
 
@@ -6860,6 +7124,9 @@ async def get_ai_recommendations_page(audit_id: str, page_idx: int, db: AsyncSes
     recs = await engine.analyze_page(page_data, audit_data)
     recs["url"] = pa.url
     recs["page_type"] = pa.page_type
+    ci = recs.get("competitor_insights") or {}
+    if not ci.get("what_top_rankers_do_differently") and not ci.get("content_gaps_to_fill"):
+        recs["competitor_insights"] = _internal_competitor_insights(pa, pages)
 
     if groq_result and groq_result.get("executive_summary"):
         recs["ai_recommendations"] = groq_result
@@ -7182,7 +7449,7 @@ async def get_ai_content_suggestion(audit_id: str, page_idx: int, section: str =
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
 
@@ -7222,7 +7489,7 @@ async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = D
 
     from app.engine.mega_seo_engine import MegaSEOEngine
 
-    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
     page = next((p for p in pages if p.url == url), None)
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -7244,14 +7511,14 @@ async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = D
 
 @router.get("/mega-analysis/{audit_id}/{page_idx}")
 async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"mega:{audit_id}:{page_idx}"
+    cache_key = f"megav2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
 
     from app.engine.mega_seo_engine import MegaSEOEngine
 
-    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
     if not pages or page_idx >= len(pages):
         raise HTTPException(status_code=404, detail="Page not found")
 
@@ -7278,10 +7545,10 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
             )
             tasks = [asyncio.create_task(c) for c in coros]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            result["ai_seo_analysis"] = results[0] if isinstance(results[0], dict) else {}
-            result["ai_search"] = results[1] if isinstance(results[1], dict) else {}
-    except Exception:
-        pass
+            result["ai_seo_analysis"] = results[0] if _ai_meaningful(results[0]) else {}
+            result["ai_search"] = results[1] if _ai_meaningful(results[1]) else {}
+    except Exception as e:
+        logger.warning(f"Mega-analysis AI enrichment failed for {getattr(page, 'url', '?')}: {e}")
 
     from app.engine.canonical_scorer import attach_canonical
     result = attach_canonical(result, page)
@@ -7303,7 +7570,7 @@ async def get_full_strategy(audit_id: str, db: AsyncSession = Depends(get_db)):
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
 
-    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
     issues = (await db.execute(select(Issue).where(Issue.audit_id == audit_id))).scalars().all()
     recs = (await db.execute(select(Recommendation).where(Recommendation.audit_id == audit_id))).scalars().all()
     competitor = (await db.execute(select(CompetitorData).where(CompetitorData.audit_id == audit_id))).scalar_one_or_none()
@@ -7345,7 +7612,7 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     from app.engine.mega_seo_engine import MegaSEOEngine
 
-    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
     if not pages:
         raise HTTPException(status_code=404, detail="No pages found")
 
@@ -7412,7 +7679,7 @@ async def get_all_pages_mega(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/audit/{audit_id}/ai-bot-intelligence/{page_idx}")
 async def get_ai_bot_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"abi:{audit_id}:{page_idx}"
+    cache_key = f"abiv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -7425,7 +7692,7 @@ async def get_ai_bot_intelligence(audit_id: str, page_idx: int, db: AsyncSession
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -7455,13 +7722,14 @@ async def get_ai_bot_intelligence(audit_id: str, page_idx: int, db: AsyncSession
         "domain": "",
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    resp["url"] = page_obj.url
     _cache_set(cache_key, resp)
     return resp
 
 
 @router.get("/audit/{audit_id}/offsite-authority/{page_idx}")
 async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"osa2:{audit_id}:{page_idx}"
+    cache_key = f"osa3:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -7474,7 +7742,7 @@ async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession =
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -7505,6 +7773,7 @@ async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession =
         "domain": domain,
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    resp["url"] = page_obj.url
     raw_issues = resp.get("issues") or []
     raw_recs = resp.get("recommendations") or []
     structured = []
@@ -7535,7 +7804,7 @@ async def get_offsite_authority(audit_id: str, page_idx: int, db: AsyncSession =
 
 @router.get("/audit/{audit_id}/schema-intelligence/{page_idx}")
 async def get_schema_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"si:{audit_id}:{page_idx}"
+    cache_key = f"siv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -7548,7 +7817,7 @@ async def get_schema_intelligence(audit_id: str, page_idx: int, db: AsyncSession
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -7577,13 +7846,14 @@ async def get_schema_intelligence(audit_id: str, page_idx: int, db: AsyncSession
         "domain": "",
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    resp["url"] = page_obj.url
     _cache_set(cache_key, resp)
     return resp
 
 
 @router.get("/audit/{audit_id}/speed-intelligence/{page_idx}")
 async def get_speed_intelligence(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"spi:{audit_id}:{page_idx}"
+    cache_key = f"spiv2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -7596,7 +7866,7 @@ async def get_speed_intelligence(audit_id: str, page_idx: int, db: AsyncSession 
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -7625,13 +7895,14 @@ async def get_speed_intelligence(audit_id: str, page_idx: int, db: AsyncSession 
         "domain": "",
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    resp["url"] = page_obj.url
     _cache_set(cache_key, resp)
     return resp
 
 
 @router.get("/audit/{audit_id}/content-deep-v2/{page_idx}")
 async def get_content_deep_v2(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"cdv2:{audit_id}:{page_idx}"
+    cache_key = f"cdv3:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -7644,7 +7915,7 @@ async def get_content_deep_v2(audit_id: str, page_idx: int, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -7673,6 +7944,7 @@ async def get_content_deep_v2(audit_id: str, page_idx: int, db: AsyncSession = D
         "domain": "",
     }
     resp = engine.analyze(page_dict, all_pages=all_pages_data)
+    resp["url"] = page_obj.url
     from app.engine.canonical_scorer import attach_canonical
     resp = attach_canonical(resp, page_obj)
     _cache_set(cache_key, resp)
@@ -7691,7 +7963,7 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
 
-    pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
+    pages = _sorted_pages(_dedup_pages(list((await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all())))
     all_pages_data = [PageAdapter(p) for p in pages]
 
     score_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
@@ -7814,7 +8086,7 @@ async def get_enterprise_dashboard(audit_id: str, db: AsyncSession = Depends(get
 
 @router.get("/audit/{audit_id}/page-intelligence-v2/{page_idx}")
 async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSession = Depends(get_db)):
-    cache_key = f"piv2:{audit_id}:{page_idx}"
+    cache_key = f"piv2v2:{audit_id}:{page_idx}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -7827,7 +8099,7 @@ async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSessio
         raise HTTPException(status_code=404, detail="Audit not found")
 
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-    pages = pages_result.scalars().all()
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
 
     if page_idx < 0 or page_idx >= len(pages):
         raise HTTPException(status_code=400, detail="Invalid page index")
@@ -7852,7 +8124,7 @@ async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSessio
         "response_time_ms": page_obj.response_time_ms,
         "status_code": page_obj.status_code,
         "canonical": page_obj.canonical,
-        "robots_txt": "",
+        "robots_txt": await _fetch_robots_txt(page_obj.url),
     }
     all_pages_dicts = []
     for ap in all_pages_data:

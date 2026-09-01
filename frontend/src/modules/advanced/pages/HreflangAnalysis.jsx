@@ -58,13 +58,13 @@ export default function HreflangAnalysis() {
           <CardHeader icon={AlertTriangle} title="Issues" badge={`${counts.total ?? 0}`} subtitle="By type" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {Object.entries(byType).map(([t, n]) => (
-              <Badge key={t} color={severityColor('HIGH')}>{t} × {n}</Badge>
+              <Badge key={t} color={severityColor(/missing|invalid|error/i.test(t) ? 'HIGH' : /conflict|mismatch/i.test(t) ? 'MEDIUM' : 'LOW')}>{t} × {n}</Badge>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14, maxHeight: 320, overflowY: 'auto' }}>
             {(data.issues || []).map((it, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
-                <AlertTriangle size={15} color="#ef4444" style={{ marginTop: 2, flexShrink: 0 }} />
+                <AlertTriangle size={15} color={/missing|invalid|error/i.test(it.type || '') ? '#ef4444' : '#f59e0b'} style={{ marginTop: 2, flexShrink: 0 }} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{it.type}</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>{it.page_url}</div>

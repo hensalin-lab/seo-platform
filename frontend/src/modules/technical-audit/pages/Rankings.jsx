@@ -184,7 +184,7 @@ export default function Rankings() {
       {!data?.configured && (
         <div style={{ marginBottom: 18, fontSize: 12.5, color: 'var(--text-secondary, #6b7280)', display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1.5 }}>
           <Info size={13} style={{ flexShrink: 0 }} />
-          <span>Positions are estimated by the built-in engine from on-page signals. Press <b>Capture now</b> or re-run the audit to refresh them.</span>
+          <span>Positions are estimated by the built-in engine from on-page signals. Press <b>Capture now</b>, or let the platform's <b>automatic tracker</b> refresh them periodically so your position-over-time trend grows on its own.</span>
         </div>
       )}
 
@@ -223,7 +223,7 @@ export default function Rankings() {
         }}>
           <Target size={36} color="#9ca3af" style={{ marginBottom: 12 }} />
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary, #111827)' }}>No rankings captured yet</div>
-          <div style={{ fontSize: 13, maxWidth: 440, margin: '0 auto 18px' }}>Press <b>Capture now</b> to record positions for keywords found in this audit, or add your own keywords above. Rankings are also captured automatically whenever this site's audit is re-run.</div>
+          <div style={{ fontSize: 13, maxWidth: 460, margin: '0 auto 18px' }}>Press <b>Capture now</b> to record positions for keywords found in this audit, or add your own keywords above. After the first capture, the platform's <b>automatic tracker</b> refreshes positions on a period so your trend line builds up over time.</div>
           <button onClick={() => capture()} disabled={capturing} style={{
             padding: '10px 18px', border: 'none', borderRadius: 10, background: '#3b82f6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
           }}><RefreshCw size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Capture now</button>

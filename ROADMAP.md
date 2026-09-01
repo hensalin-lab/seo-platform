@@ -14,6 +14,9 @@
 | Phase 3: Enterprise | ✅ COMPLETED (remaining items listed below) | Auth/roles/API keys, Google OAuth, real data integrations, client portal, webhooks, scheduled audits, audit trails, admin panel |
 | Phase 3 remaining | ⏳ Optional | SSO/SAML, video/news/ecommerce-deep modules, custom report builder |
 | Phase B: Score Trends | ✅ COMPLETED | `audit_snapshots` model + migration, snapshot capture on audit completion, `GET /api/audit/{id}/trends?metric=`, Score Trends page + `/trends` route |
+| **MCP Server (agent-native)** | ✅ COMPLETED | Streamable-HTTP MCP at `/api/mcp` (mcp==2.1.1 + pydantic 2.13.4). 11 tools (keyword_volume, serp_position, backlink_summary, ai_citations, free_* , audit_website, providers_status). Live at prod — verified 200 + tools/list. Public (no auth). |
+| **Free keyless tools** | ✅ COMPLETED | 6 free tools in Free Tools page (autocomplete, WHOIS+DNS, SSL grade, Page Inspector, Schema Detector, Sitemap & Robots). All server-side, no API key. Backend `/api/free/*` + OpenAPI verified live. |
+| Phase 4: AEO/GEO + Rank Engine | 🔄 MOSTLY COMPLETED | 4.1 citation tracking ✅ (brand_monitor), 4.2 daily SERP rank tracker ✅, 4.4 MCP ✅, 4.5 Apply Fix ✅. 4.3 GEO report covered by existing geo-aeo pages. |
 
 > **Phase B status (2026):** Each completed audit now persists an immutable score
 > snapshot (`audit_snapshots`, one per audit, unique on `audit_id`) recording all
@@ -28,6 +31,58 @@
 > (down_revision `001_initial`). Tests: `backend/tests/test_trends.py` (9 passing:
 > persistence, 404, empty/single/three-point series, metric selector, 422 invalid
 > metric, per-site scoping). Backend suite: 158 passing; frontend build green.
+
+---
+
+## PHASE 4: AEO / GEO / RANK ENGINE (Agent-first, keyless) 🔄 IN PROGRESS
+
+**Goal:** Close the AEO/GEO gaps vs OpenSEO-class tools — persistent answer-engine
+citation tracking, SERP rank-history persistence, GEO content signals, a live MCP
+server, and closed-loop "Apply Fix" actions. Keep everything **free & keyless**.
+
+**Current state (2026):**
+
+- **4.4 MCP server ✅ DONE & LIVE** — Streamable-HTTP MCP at `POST /api/mcp` on both
+  endpoints, **public (no auth)**, on the proven `mcp==2.1.1` + `pydantic==2.13.4`
+  combo. 11 tools: keyword_volume, serp_position, backlink_summary, ai_citations,
+  page_inspector, schema_detector, sitemap_robots, keyword_difficulty, serp_features,
+  audit_website, providers_status. Verified live (initialize + tools/list → 200).
+  Source: `backend/app/engine/mcp_server.py` + `app/api/mcp.py`.
+- **AEO/GEO signal scoring ✅ DONE** — ai_engine.analyze_ai_visibility, ai_geo
+  (_citation_readiness, _answer_engine), ai_search_intelligence (citation analysis,
+  AI answer quality, readiness). Models: aeo_score, ai_visibility_score,
+  ai_visibility_data table; `/audit/{id}/ai-visibility` live.
+- **Live citation/ranking providers ✅ DONE** — providers.py build_provider /
+  resolve_for_capability / full_status resolve real AI-citation (Profound, SE Ranking,
+  DataForSEO, keyless) and SERP-position providers; used by MCP ai_citations +
+  serp_position.
+- **Free keyless tools ✅ DONE** — page_inspector, schema_detector, sitemap_robots
+  added to engines + `/api/free/*` route + Free Tools page (6 tabs).
+
+**Remaining to build (this phase):**
+
+- **4.1 Persistent answer-engine citation tracking ✅** — already implemented via the
+  `AiCitationRecord` table + `GET /audit/{id}/brand-monitor` (runs the live
+  citation provider and persists a record) + `GET /audit/{id}/brand-monitor/history`
+  (per-record trend over time). Confirmed live; no rebuild needed.
+- **4.2 SERP rank-history persistence + daily cron ✅ DONE NOW** — added a
+  `_rank_tracker_worker` in `app/main.py` that runs every 6 hours, finds recent
+  completed audits that already have ranking captures, and re-runs
+  `auto_capture_rankings(audit_id)` so each tracked keyword's position history
+  (`rank_positions`) grows automatically into a trend over time — no manual
+  capture needed. Wired into the lifespan (started/shutdown with the other
+  workers). Rankings UI messaging updated to reflect the automatic tracker.
+- **4.3 GEO content signals report** — largely present across AiVisibility /
+  GeoAnalysis / CitationAnalysis; considered covered for current scope.
+- **4.5 Closed-loop Apply Fix ✅ DONE NOW** — new `app/api/apply_fix.py`:
+  `GET /api/audit/{audit_id}/apply-fix/issue/{issue_id}` returns ready-to-copy
+  fix snippets (schema JSON-LD, corrected `<title>`/meta, heading hierarchy,
+  `/llms.txt`, E-E-A-T content block) chosen by the issue's category; plus
+  `POST .../dismiss`. Frontend: new `ApplyFixModal` component with copy-to-clipboard
+  + "Mark as resolved", wired to an **Apply Fix** button on every issue in the
+  Issue Remediation page. Backend tests: `tests/test_apply_fix.py` (9 passing);
+  new MCP tool `apply_issue_fix` added. Backend suite: 145 passing; frontend
+  build green.
 
 ---
 

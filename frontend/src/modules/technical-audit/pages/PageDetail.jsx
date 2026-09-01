@@ -42,7 +42,7 @@ const TAB_GROUPS = [
     { key: 'snippet', label: 'Snippets', icon: HelpCircle },
     { key: 'knowledge_graph', label: 'Knowledge', icon: Globe },
   ]},
-  { label: '93 Signals', tabs: [
+  { label: 'All Signals', tabs: [
     { key: 'mega_signals', label: 'All Signals', icon: Sparkles },
     { key: 'mega_issues', label: 'Issues & Fixes', icon: AlertTriangle },
   ]},
@@ -160,14 +160,16 @@ function SignalCard({ signal, index }) {
 function AiRecommendationsPanel({ auditId, pageIdx }) {
   const [recs, setRecs] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
-    api.getAiRecommendationsPage(auditId, pageIdx).then(d => { setRecs(d); setLoading(false); }).catch(() => setLoading(false));
+    setError(null);
+    api.getAiRecommendationsPage(auditId, pageIdx).then(d => { setRecs(d); setLoading(false); }).catch(e => { setError(e?.message || 'Request failed'); setLoading(false); });
   }, [auditId, pageIdx]);
 
   if (loading) return <div style={{ padding: 16, textAlign: 'center' }}><Sparkles size={16} className="spin" color="#8b5cf6" /><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>AI analyzing...</p></div>;
-  if (!recs) return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 16 }}>AI recommendations unavailable</div>;
+  if (error) return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 16 }}>AI recommendations unavailable: {error}</div>;
 
   return (
     <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
@@ -295,7 +297,7 @@ export default function PageDetail() {
       case 'mega_signals':
         return (
           <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>All 93 Signals Analyzed</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>All {signals.length} Signals Analyzed</div>
             {signals.map((s, i) => <SignalCard key={i} signal={s} index={i} />)}
           </div>
         );
@@ -425,27 +427,35 @@ export default function PageDetail() {
 
             {mega && (
               <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 16, marginBottom: 12 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <TrendingUp size={16} color="#059669" /> Ranking Impact Estimates
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <TrendingUp size={16} color="#059669" /> Fix Priority Breakdown
                 </div>
-                {[
-                  { label: 'Current Score', value: Math.round(mega.overall_score || 0), color: '#d97706', impact: mega.overall_score >= 70 ? 'Page is ranking potential' : 'Page needs work to rank' },
-                  { label: 'After Critical Fixes', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.filter(i => i.severity === 'CRITICAL').length * 2)), color: '#3b82f6', impact: `Fix ${issues.filter(i => i.severity === 'CRITICAL').length} critical issues for quick win` },
-                  { label: 'After Content + Technical', value: Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)), color: '#059669', impact: `Full implementation of ${issues.length} fixes` },
-                ].map((item, i) => (
-                  <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, flex: 1, color: '#475569' }}>{item.label}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
+                <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 10 }}>Shows how many open issues affect each area — not a score prediction.</div>
+                {(() => {
+                  const ck = (cat) => (cat || '').toLowerCase().replace(/[-\s]/g, '_');
+                  const crit = issues.filter(i => i.severity === 'CRITICAL').length;
+                  const high = issues.filter(i => i.severity === 'HIGH').length;
+                  return [
+                    { label: 'Current Score', value: Math.round(mega.overall_score || 0), color: mega.overall_score >= 70 ? '#059669' : '#d97706', impact: mega.overall_score >= 70 ? 'Strong technical foundation' : 'Fixing issues below will raise this score' },
+                    { label: 'Critical Issues', value: crit, color: crit > 0 ? '#ef4444' : '#059669', impact: crit > 0 ? `Fix these ${crit} first — biggest immediate effect` : 'None — nothing urgent on this page' },
+                    { label: 'High-Priority Issues', value: high, color: high > 0 ? '#f59e0b' : '#059669', impact: high > 0 ? `${high} issues worth fixing this week` : 'None — you are ahead here' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, flex: 1, color: '#475569' }}>{item.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.value}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{item.impact}</div>
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{item.impact}</div>
-                  </div>
-                ))}
+                  ));
+                })()}
                 <div style={{ marginTop: 10, padding: 10, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>ESTIMATED IMPROVEMENT</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>WHAT TO DO NEXT</div>
                   <div style={{ fontSize: 11, color: '#065f46', lineHeight: 1.5 }}>
-                    +{Math.min(98, Math.round((mega.overall_score || 0) + issues.length * 1.2)) - Math.round(mega.overall_score || 0)} points after implementing all {issues.length} fixes.
-                    {mega.overall_score < 60 ? ' Focus on technical fixes first, then content.' : mega.overall_score < 80 ? ' Good foundation — content and AI optimization will drive the biggest gains.' : ' Already strong — fine-tune for AI search visibility and E-E-A-T.'}
+                    {issues.length === 0
+                      ? 'No open issues on this page — it passes every signal we check.'
+                      : `This page has ${issues.length} open issue${issues.length === 1 ? '' : 's'}. Resolving them improves the signals Google and AI engines read directly; we don't publish invented point predictions.`}
+                    {mega.overall_score < 60 ? ' Start with critical and technical fixes first.' : mega.overall_score < 80 ? ' Good foundation — content and AI optimization are your next levers.' : ' Already strong — fine-tune for AI search visibility and E-E-A-T.'}
                   </div>
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>

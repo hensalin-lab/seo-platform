@@ -37,7 +37,12 @@ export default function RedirectAudit() {
         </div>
         {Object.keys(byType).length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-            {Object.entries(byType).map(([t, n]) => <Badge key={t} color={severityColor('HIGH')}>{t} × {n}</Badge>)}
+            {Object.entries(byType).map(([t, n]) => <Badge key={t} color={severityColor(/chain|loop/i.test(t) ? 'HIGH' : /soft|meta|refresh/i.test(t) ? 'MEDIUM' : 'LOW')}>{t} × {n}</Badge>)}
+          </div>
+        )}
+        {(data.chains ?? 0) > 0 && (
+          <div style={{ fontSize: 12.5, color: '#b45309', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '10px 12px', marginTop: 12, lineHeight: 1.55 }}>
+            <strong>Why chains matter:</strong> every extra hop adds latency for users and dilutes link equity — update the original links to point directly at the final URL.
           </div>
         )}
       </Card>

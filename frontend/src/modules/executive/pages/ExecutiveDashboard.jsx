@@ -39,7 +39,7 @@ function IssueCard({ issue, onViewFix }) {
   const severity = issue.severity || 'HIGH';
   const severityColors = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#6b7280' };
   const severityColor = severityColors[severity] || '#6b7280';
-  const estGain = issue.estimated_gain || issue.impact_score || '2.4K';
+  const estGain = issue.estimated_gain || issue.impact_score || null;
 
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
@@ -50,9 +50,11 @@ function IssueCard({ issue, onViewFix }) {
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {issue.title || issue.name || issue.issue || 'Issue'}
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-          +{estGain}
-        </span>
+        {estGain != null && (
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+            +{estGain}
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -87,7 +89,6 @@ export default function ExecutiveDashboard() {
   const navigate = useNavigate();
   const { isAdmin, isViewer } = useAuth();
 
-  const [timeframe, setTimeframe] = useState('30d');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState({
@@ -181,7 +182,7 @@ export default function ExecutiveDashboard() {
         impact: c.impact || '',
         recommendation: c.recommendation || c.suggestion || '',
         target_path: c.url || c.path || '',
-        estimated_gain: c.estimated_gain || '1.2K',
+        estimated_gain: c.estimated_gain || null,
         affected_pages: c.affected_pages || 1,
       }));
 
@@ -237,16 +238,6 @@ export default function ExecutiveDashboard() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
             <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{siteSummary.project_name || siteSummary.name || 'Executive Command Center'}</span>
-
-            {/* Timeframe Selector */}
-            <div style={{ display: 'flex', gap: 2, background: 'var(--bg-white)', borderRadius: 6, padding: 2 }}>
-              {['7d', '30d', '90d'].map(t => (
-                <button key={t} onClick={() => setTimeframe(t)}
-                  style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, border: 'none', cursor: 'pointer', background: timeframe === t ? 'var(--accent)' : 'transparent', color: timeframe === t ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s' }}>
-                  {t}
-                </button>
-              ))}
-            </div>
 
             {/* Role Badge */}
             {isAdmin ? (
@@ -330,8 +321,7 @@ export default function ExecutiveDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {issues.slice(0, 5).map((issue, i) => (
                 <IssueCard key={i} issue={issue} onViewFix={(iss) => {
-                  const e = new CustomEvent('show-toast', { detail: { message: `Fix blueprint for: ${iss.title || iss.name}`, type: 'info' } });
-                  window.dispatchEvent(e);
+                  navigate(`/action-center?audit=${id}&q=${encodeURIComponent(iss.title || iss.name || '')}`);
                 }} />
               ))}
             </div>

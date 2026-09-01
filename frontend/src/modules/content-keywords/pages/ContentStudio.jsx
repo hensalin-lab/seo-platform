@@ -303,11 +303,13 @@ function RewriterTab() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [rewriteReady, setRewriteReady] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState(null);
 
   const handleAnalyze = async () => {
     if (!url.trim()) return;
     setLoading(true);
-    const data = await api.getContentRewriteByUrl(id, url.trim()).catch(() => null);
+    setAnalyzeError(null);
+    const data = await api.getContentRewriteByUrl(id, url.trim()).catch(err => { setAnalyzeError(err.message || 'Analysis failed — check the URL and try again.'); return null; });
     setResult(data);
     setRewriteReady(false);
     setLoading(false);
@@ -392,6 +394,11 @@ function RewriterTab() {
           )
         )}
         {loading && <div style={{ padding: 24, textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Analyzing content...</div>}
+        {!loading && analyzeError && (
+          <div style={{ fontSize: 13, color: '#ef4444', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 12px' }}>
+            {analyzeError}
+          </div>
+        )}
       </SectionCard>
 
       <ProtectedAction requiredRole="VIEWER">

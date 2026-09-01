@@ -28,6 +28,8 @@ export default function AuditProgress() {
   const [status, setStatus] = useState(null)
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  const [rerunning, setRerunning] = useState(false)
+  const [pollTick, setPollTick] = useState(0)
   const intervalRef = useRef(null)
   const pollIntervalRef = useRef(2000)
   const mountedRef = useRef(true)
@@ -52,7 +54,7 @@ export default function AuditProgress() {
     poll()
     intervalRef.current = setInterval(poll, pollIntervalRef.current)
     return () => { mountedRef.current = false; clearInterval(intervalRef.current) }
-  }, [id, navigate])
+  }, [id, navigate, pollTick])
 
   const handleCancel = async () => {
     if (!confirm('Cancel this audit?')) return
@@ -61,6 +63,22 @@ export default function AuditProgress() {
       await api.cancelAudit(id)
       navigate('/history')
     } catch { setCancelling(false) }
+  }
+
+  const handleRerun = async () => {
+    if (rerunning) return
+    setRerunning(true)
+    try {
+      await api.rerunAudit(id)
+      setError('')
+      setStatus({ status: 'QUEUED', progress: 1, message: 'Restarting audit...' })
+      pollIntervalRef.current = 2000
+      setPollTick(t => t + 1)
+    } catch (err) {
+      setError(err.message || 'Could not re-run audit')
+    } finally {
+      setRerunning(false)
+    }
   }
 
   if (error) return <div><div className="error-state">{error}</div><button className="btn btn-secondary" onClick={() => navigate('/')}>Back</button></div>
@@ -123,7 +141,12 @@ export default function AuditProgress() {
         {failed && (
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             <div className="error-box"><p>{status.error_message || 'Audit failed'}</p></div>
-            <button className="btn btn-primary" onClick={() => navigate('/')}>Try Again</button>
+            <button className="btn btn-primary" onClick={handleRerun} disabled={rerunning}>
+              {rerunning ? 'Restarting...' : 'Re-run This Audit'}
+            </button>
+            <button className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={() => navigate('/new')}>
+              New Audit
+            </button>
           </div>
         )}
       </div>

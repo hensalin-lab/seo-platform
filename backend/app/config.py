@@ -167,7 +167,7 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = ""
-    APP_URL: str = "https://seo-platform-xi.vercel.app"
+    APP_URL: str = "https://datavi-rankiq-seo-tools1.vercel.app"
 
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 

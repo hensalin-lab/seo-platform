@@ -263,17 +263,6 @@ function RecommendationsTab({ recommendations, loading }) {
                     {rec.category}
                   </span>
                 )}
-                <a
-                  href="#"
-                  onClick={e => { e.preventDefault(); }}
-                  style={{
-                    marginLeft: 'auto', fontSize: 12, color: '#3b82f6', fontWeight: 600,
-                    textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  View Details <ArrowRight size={12} />
-                </a>
               </div>
             </div>
           );
@@ -284,8 +273,6 @@ function RecommendationsTab({ recommendations, loading }) {
 }
 
 function RemediationFeedTab({ feed, loading }) {
-  if (loading) return <Spinner text="Loading remediation feed..." />;
-
   const grouped = useMemo(() => {
     const map = {};
     (feed || []).forEach(entry => {
@@ -295,6 +282,8 @@ function RemediationFeedTab({ feed, loading }) {
     });
     return Object.entries(map).sort(([a], [b]) => b.localeCompare(a));
   }, [feed]);
+
+  if (loading) return <Spinner text="Loading remediation feed..." />;
 
   if (!feed || feed.length === 0) {
     return <EmptyState icon={Activity} title="No remediation activity" message="No remediation actions have been recorded yet." />;

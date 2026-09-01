@@ -8,19 +8,21 @@ import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
 function GoogleSerpPreview({ url, title, description }) {
   const displayUrl = url?.replace(/^https?:\/\//, '').slice(0, 50) || 'example.com';
-  const displayTitle = title || 'Page Title — 50-60 characters recommended';
-  const displayDesc = description || 'Meta description goes here. Aim for 150-160 characters to maximize click-through rate from search results.';
+  const hasTitle = Boolean(title);
+  const hasDesc = Boolean(description);
+  const displayTitle = title || '';
+  const displayDesc = description || '';
   return (
     <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--bg-white)', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Globe size={12} /> Google Search Result
       </div>
-      <div style={{ color: '#1a0dab', fontSize: 18, fontWeight: 400, lineHeight: 1.3, marginBottom: 2, cursor: 'pointer' }}>
-        {displayTitle.slice(0, 60)}
+      <div style={{ color: hasTitle ? '#1a0dab' : '#e53e3e', fontSize: 18, fontWeight: 400, lineHeight: 1.3, marginBottom: 2, cursor: 'pointer' }}>
+        {hasTitle ? displayTitle.slice(0, 60) : '⚠ No title tag found on this page'}
       </div>
       <div style={{ color: '#006621', fontSize: 12, marginBottom: 4 }}>{displayUrl}</div>
-      <div style={{ color: '#545454', fontSize: 13, lineHeight: 1.4 }}>
-        {displayDesc.slice(0, 160)}
+      <div style={{ color: hasDesc ? '#545454' : '#d69e2e', fontSize: 13, lineHeight: 1.4 }}>
+        {hasDesc ? displayDesc.slice(0, 160) : '⚠ No meta description — Google will auto-generate a snippet from page content.'}
       </div>
       {displayTitle.length > 60 && (
         <div style={{ fontSize: 10, color: '#e53e3e', marginTop: 4 }}>⚠ Title may be truncated ({displayTitle.length} chars, max 60)</div>
@@ -42,7 +44,7 @@ function AIOverviewPreview({ platformScores, title, url }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 16 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: 16 }}>
       {platforms.map(p => {
         const score = platformScores?.[p.key] || 0;
         const Icon = p.icon;
@@ -68,6 +70,7 @@ function ChatGPTCitationPreview({ title, url, contentSnippet }) {
     <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: 'var(--bg-white)', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <MessageSquare size={12} style={{ color: '#10a37f' }} /> ChatGPT Citation Preview
+        <span style={{ fontSize: 9, color: '#999', marginLeft: 'auto', fontStyle: 'italic' }}>illustrative — simulated from your page content</span>
       </div>
       {contentSnippet ? (
         <div style={{ fontSize: 13, lineHeight: 1.6, color: '#333' }}>

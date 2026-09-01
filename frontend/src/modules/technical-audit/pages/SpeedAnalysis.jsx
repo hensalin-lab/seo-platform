@@ -239,7 +239,8 @@ export default function SpeedAnalysis() {
       }))
 
       const hasCwvData = allPages.some(p => p.lcp || p.cls || p.inp)
-      const perfScore = hasCwvData ? 65 : 0
+      const perfScores = allPages.map(p => p.performance_score).filter(s => typeof s === 'number' && s > 0)
+      const perfScore = perfScores.length ? Math.round(perfScores.reduce((a, b) => a + b, 0) / perfScores.length) : null
 
       const generatedIssues = []
       if (!hasCwvData) {
@@ -254,11 +255,8 @@ export default function SpeedAnalysis() {
       setData({
         pages: allPages, cwv: {}, speedIssues: [...generatedIssues, ...speedIssues],
         summary: siteSummary, pagePerformance,
-        perfScore: hasCwvData ? perfScore : null,
-        resources: [
-          { type: 'Images', size: 'N/A', recommendation: 'Compress and convert to WebP/AVIF' },
-          { type: 'JavaScript', size: 'N/A', recommendation: 'Remove unused code, code-split routes' },
-        ],
+        perfScore,
+        resources: [],
         hasCwvData,
         avgResponseTime,
         slowPages,
@@ -273,7 +271,7 @@ export default function SpeedAnalysis() {
   if (!data) return <EmptyState title="No speed data yet" description="Run an audit or a Lighthouse run to measure Core Web Vitals for this site." />;
 
   const hasCwvData = data.hasCwvData || Object.keys(cwvData).length > 0
-  const perfScore = cwvPerf || (hasCwvData ? 65 : null)
+  const perfScore = cwvPerf || data.perfScore || null
   const lcp = cwvData.lcp || {}
   const cls = cwvData.cls || {}
   const inp = cwvData.inp || {}
@@ -346,10 +344,16 @@ export default function SpeedAnalysis() {
 
       {hasCwvData && (
         <div style={{ display: 'flex', gap: 20, marginBottom: 20, alignItems: 'center' }}>
-          <PerformanceScoreRing score={perfScore || 0} />
+          {perfScore != null ? (
+            <PerformanceScoreRing score={perfScore} />
+          ) : (
+            <div style={{ width: 120, height: 120, borderRadius: '50%', border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 10 }}>
+              Run Lighthouse for a performance score
+            </div>
+          )}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-              <CategoryScore label="Performance" score={perfScore || 0} icon={Gauge} />
+              <CategoryScore label="Performance" score={perfScore} icon={Gauge} />
               <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
                 {hasCatScores ? (
                   <div>
@@ -401,18 +405,21 @@ export default function SpeedAnalysis() {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-        <div className="card">
+      {data.resources.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header"><h2>Resource Analysis</h2></div>
           <div style={{ padding: '0 16px' }}>
             {data.resources.map((r, i) => <ResourceRow key={i} resource={r} />)}
           </div>
         </div>
-        <div className="card">
+      )}
+
+      {data.speedIssues.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header"><h2>Optimization Priority</h2></div>
           <div style={{ padding: '0 16px' }}>
             {data.speedIssues.slice(0, 6).map((issue, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-light)', alignItems: 'center' }}>
+              <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < Math.min(5, data.speedIssues.length - 1) ? '1px solid var(--border-light)' : 'none', alignItems: 'center' }}>
                 <span className={`badge ${issue.severity === 'CRITICAL' ? 'badge-red' : issue.severity === 'HIGH' ? 'badge-yellow' : 'badge-blue'}`} style={{ fontSize: 10 }}>{issue.severity}</span>
                 <span style={{ fontSize: 13, flex: 1 }}>{issue.title || issue.signal || issue.description || issue.message}</span>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{issue.time}</span>
@@ -420,27 +427,36 @@ export default function SpeedAnalysis() {
             ))}
           </div>
         </div>
-      </div>
+      )}
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-header"><h2>SEO Impact</h2></div>
+        <div className="card-header"><h2>What Each Metric Means for Your Site</h2></div>
         <div style={{ padding: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
             {[
-              { issue: 'Slow LCP', seo: 'High', user: 'Higher bounce rate', fix: 'Optimize hero images and preload' },
-              { issue: 'High CLS', seo: 'Medium', user: 'Poor visual stability', fix: 'Set explicit image/video dimensions' },
-              { issue: 'Slow INP', seo: 'Medium', user: 'Delayed interactions', fix: 'Reduce JavaScript main thread work' },
-              { issue: 'Slow TTFB', seo: 'High', user: 'Slower crawling and rendering', fix: 'Enable CDN and server caching' },
-            ].map((item, i) => (
+              { key: 'lcp', label: lcp.display ? `LCP: ${lcp.display}` : 'LCP: not measured', bad: !lcp.display || lcp.status !== 'good', seo: 'High — a Core Web Vitals ranking signal', user: lcp.status === 'good' ? 'Visitors see your main content quickly' : 'Visitors wait on a blank page; many bounce before it loads', fix: 'Compress/convert hero images to WebP or AVIF, preload the LCP image, and cut server response time' },
+              { key: 'cls', label: cls.display ? `CLS: ${cls.display}` : 'CLS: not measured', bad: !cls.display || cls.status !== 'good', seo: 'Medium — part of the page experience signal', user: cls.status === 'good' ? 'Page layout stays stable while loading' : 'Buttons jump as content loads, causing accidental taps', fix: 'Set explicit width/height on images and embeds, and reserve space for ads or late-loading widgets' },
+              { key: 'inp', label: inp.display ? `INP: ${inp.display}` : 'INP: not measured', bad: !inp.display || inp.status !== 'good', seo: 'Medium — replaced FID as the responsiveness signal', user: inp.status === 'good' ? 'Clicks respond instantly' : 'Taps feel frozen for a moment after interaction', fix: 'Break up long JavaScript tasks, defer non-critical scripts, and reduce third-party code' },
+              { key: 'ttfb', label: ttfb.display ? `TTFB: ${ttfb.display}` : (data.avgResponseTime > 0 ? `Server response: ${data.avgResponseTime}ms avg` : 'TTFB: not measured'), bad: data.avgResponseTime > 0 ? data.avgResponseTime > 800 : true, seo: 'High — slow servers slow crawling and every metric downstream', user: 'Everything on the page waits for the server before it can start', fix: 'Enable page caching, put a CDN in front of your origin, and optimize database queries' },
+            ].filter(item => item.bad).map((item, i) => (
               <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius)', padding: 12, fontSize: 13 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{item.issue}</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{item.label}</div>
                 <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  SEO Impact: <strong>{item.seo}</strong><br />
-                  User Impact: {item.user}<br />
-                  Fix: {item.fix}
+                  SEO impact: <strong>{item.seo}</strong><br />
+                  User impact: {item.user}<br />
+                  How to improve: {item.fix}
                 </div>
               </div>
             ))}
+            {![
+              { key: 'lcp', bad: !lcp.display || lcp.status !== 'good' },
+              { key: 'cls', bad: !cls.display || cls.status !== 'good' },
+              { key: 'inp', bad: !inp.display || inp.status !== 'good' },
+            ].some(m => m.bad) && (
+              <div style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 'var(--radius)', padding: 12, fontSize: 13, gridColumn: '1 / -1' }}>
+                <strong>All measured Core Web Vitals are in the "good" range.</strong> Google's page experience signals are working in your favor — keep monitoring after major releases.
+              </div>
+            )}
           </div>
         </div>
       </div>

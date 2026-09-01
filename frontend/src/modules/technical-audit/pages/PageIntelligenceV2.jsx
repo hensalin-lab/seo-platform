@@ -37,6 +37,7 @@ export default function PageIntelligenceV2() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('scores');
 
   useEffect(() => {
@@ -45,9 +46,12 @@ export default function PageIntelligenceV2() {
 
   useEffect(() => {
     if (!pages.length) return;
-    api.getPageIntelligenceV2(id, selectedIdx).then(d => setData(d)).catch(() => {});
+    setLoading(true);
+    setError(null);
+    api.getPageIntelligenceV2(id, selectedIdx).then(d => { setData(d); setLoading(false); }).catch(e => { setError(e?.message || 'Failed to load page intelligence'); setLoading(false); });
   }, [id, selectedIdx, pages.length]);
 
+  if (error) return <EmptyState title="Couldn't load this page" description={error} />;
   if (loading) return <LoadingState message="Loading page intelligence…" />;
   if (!data) return <EmptyState title="No page intelligence yet" description="Run an audit to score each page across technical, content, schema and AI-readiness." />;
 
@@ -197,6 +201,11 @@ export default function PageIntelligenceV2() {
 
       {activeTab === 'plan' && (
         <Card title="Action Plan" icon={TrendingUp} color="#059669">
+          {!(actionPlan.critical_today?.length || actionPlan.high_this_week?.length || actionPlan.medium_next_month?.length) && (
+            <div style={{ padding: 16, textAlign: 'center', color: '#059669', fontSize: 13 }}>
+              No critical fixes needed on this page — all priority buckets are clear. Keep monitoring after content updates.
+            </div>
+          )}
           {[
             { key: 'critical_today', label: 'critical', time: 'Today' },
             { key: 'high_this_week', label: 'high', time: 'This Week' },

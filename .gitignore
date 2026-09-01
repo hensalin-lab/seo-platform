@@ -11,5 +11,21 @@ dist/
 .env.local
 .vercel/
 frontend/.env.production
-
 frontend/.env.vercel
+frontend/.env.development
+frontend/.env
+
+# Deploy snapshots & temp artifacts
+deploy-*/
+fc_tmp.py
+lh_*.json
+lh_efd5067d_1786598392.json
+
+# Local deploy link / config
+.fastapicloud/
+backend/.fastapicloud/
+
+# IDE
+.idea/
+.vscode/
+*.swp

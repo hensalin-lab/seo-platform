@@ -116,10 +116,13 @@ async def run_startup_maintenance() -> dict:
     from app.database import engine
 
     result = {"stuck_audits": 0, "html_cleared": 0, "vacuum": "skipped"}
+    is_sqlite = engine.dialect.name == "sqlite"
 
     try:
         async with engine.connect() as conn:
-            now = _dt.datetime.utcnow().isoformat(timespec="seconds")
+            # Pass a real datetime object — asyncpg/Postgres rejects ISO strings
+            # for timestamp columns, while SQLite accepts both.
+            now = _dt.datetime.utcnow()
 
             res = await conn.execute(
                 text(
@@ -131,66 +134,76 @@ async def run_startup_maintenance() -> dict:
             result["stuck_audits"] = res.rowcount or 0
             logger.info(f"Startup maintenance: marked {result['stuck_audits']} stuck audits as FAILED")
 
-            # The disk is often completely full here, so a journaled UPDATE would fail
-            # (it needs rollback space). Turn the journal off first; freed pages go to
-            # the freelist and are reused by later INSERTs without growing the file.
-            try:
-                await conn.execute(text("PRAGMA journal_mode=OFF"))
-                res = await conn.execute(text("UPDATE pages SET html_raw=''"))
-                result["html_cleared"] = res.rowcount or 0
-                logger.info(f"Startup maintenance: cleared html_raw on {result['html_cleared']} pages (journal off)")
-            except Exception as e:
-                result["html_error"] = str(e)
-                logger.warning(f"Startup maintenance: could not clear html_raw: {e}")
-
-            await conn.commit()
-
-            try:
-                await conn.execute(text("PRAGMA journal_mode=DELETE"))
-            except Exception:
-                pass
-
-            # --- schema migrations (idempotent) -------------------------------
-            async def _ensure_columns(conn, table, columns):
-                """Add any missing columns to a table so the ORM model always lines up
-                with the live DB (old databases predate newer model columns)."""
+            if not is_sqlite:
+                await conn.commit()
+                logger.info("Startup maintenance: non-SQLite database — skipping SQLite-only steps")
+            else:
+                # The disk is often completely full here, so a journaled UPDATE would fail
+                # (it needs rollback space). Turn the journal off first; freed pages go to
+                # the freelist and are reused by later INSERTs without growing the file.
                 try:
-                    cols = (await conn.execute(text(f"PRAGMA table_info({table})"))).fetchall()
-                    col_names = {c[1] for c in cols}
-                    for _col, _ddl in columns:
-                        if _col not in col_names:
-                            await conn.execute(text(_ddl))
-                            await conn.commit()
-                            logger.info(f"Startup maintenance: added {table}.{_col} column")
+                    await conn.execute(text("PRAGMA journal_mode=OFF"))
+                    res = await conn.execute(text("UPDATE pages SET html_raw=''"))
+                    result["html_cleared"] = res.rowcount or 0
+                    logger.info(f"Startup maintenance: cleared html_raw on {result['html_cleared']} pages (journal off)")
                 except Exception as e:
-                    logger.warning(f"Startup maintenance: {table} schema migration failed: {e}")
+                    result["html_error"] = str(e)
+                    logger.warning(f"Startup maintenance: could not clear html_raw: {e}")
 
-            try:
-                await _ensure_columns(conn, "issues", [
-                    ("ai_generated", "ALTER TABLE issues ADD COLUMN ai_generated INTEGER DEFAULT 0"),
-                    ("ai_why", "ALTER TABLE issues ADD COLUMN ai_why TEXT DEFAULT ''"),
-                    ("ai_impact_pct", "ALTER TABLE issues ADD COLUMN ai_impact_pct INTEGER DEFAULT 0"),
-                    ("ai_confidence", "ALTER TABLE issues ADD COLUMN ai_confidence INTEGER DEFAULT 0"),
-                    ("effort", "ALTER TABLE issues ADD COLUMN effort TEXT DEFAULT 'MEDIUM'"),
-                    ("root_cause", "ALTER TABLE issues ADD COLUMN root_cause TEXT DEFAULT ''"),
-                    ("fix_code", "ALTER TABLE issues ADD COLUMN fix_code TEXT DEFAULT ''"),
-                    ("snapshot_hash", "ALTER TABLE issues ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
-                    ("pages_affected", "ALTER TABLE issues ADD COLUMN pages_affected INTEGER DEFAULT 1"),
-                ])
-                await _ensure_columns(conn, "pages", [
-                    ("snapshot_hash", "ALTER TABLE pages ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
-                ])
-                await _ensure_columns(conn, "audit_history", [
-                    ("linter_warnings", "ALTER TABLE audit_history ADD COLUMN linter_warnings INTEGER DEFAULT 0"),
-                ])
-            except Exception as e:
-                logger.warning(f"Startup maintenance: schema migration failed: {e}")
+                await conn.commit()
+
+                try:
+                    await conn.execute(text("PRAGMA journal_mode=DELETE"))
+                except Exception:
+                    pass
+
+            # --- schema migrations (idempotent, SQLite only — Postgres uses alembic) ---
+            if is_sqlite:
+                async def _ensure_columns(conn, table, columns):
+                    """Add any missing columns to a table so the ORM model always lines up
+                    with the live DB (old databases predate newer model columns)."""
+                    try:
+                        cols = (await conn.execute(text(f"PRAGMA table_info({table})"))).fetchall()
+                        col_names = {c[1] for c in cols}
+                        for _col, _ddl in columns:
+                            if _col not in col_names:
+                                await conn.execute(text(_ddl))
+                                await conn.commit()
+                                logger.info(f"Startup maintenance: added {table}.{_col} column")
+                    except Exception as e:
+                        logger.warning(f"Startup maintenance: {table} schema migration failed: {e}")
+
+                try:
+                    await _ensure_columns(conn, "issues", [
+                        ("ai_generated", "ALTER TABLE issues ADD COLUMN ai_generated INTEGER DEFAULT 0"),
+                        ("ai_why", "ALTER TABLE issues ADD COLUMN ai_why TEXT DEFAULT ''"),
+                        ("ai_impact_pct", "ALTER TABLE issues ADD COLUMN ai_impact_pct INTEGER DEFAULT 0"),
+                        ("ai_confidence", "ALTER TABLE issues ADD COLUMN ai_confidence INTEGER DEFAULT 0"),
+                        ("effort", "ALTER TABLE issues ADD COLUMN effort TEXT DEFAULT 'MEDIUM'"),
+                        ("root_cause", "ALTER TABLE issues ADD COLUMN root_cause TEXT DEFAULT ''"),
+                        ("fix_code", "ALTER TABLE issues ADD COLUMN fix_code TEXT DEFAULT ''"),
+                        ("snapshot_hash", "ALTER TABLE issues ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
+                        ("pages_affected", "ALTER TABLE issues ADD COLUMN pages_affected INTEGER DEFAULT 1"),
+                    ])
+                    await _ensure_columns(conn, "pages", [
+                        ("snapshot_hash", "ALTER TABLE pages ADD COLUMN snapshot_hash TEXT DEFAULT ''"),
+                    ])
+                    await _ensure_columns(conn, "audit_history", [
+                        ("linter_warnings", "ALTER TABLE audit_history ADD COLUMN linter_warnings INTEGER DEFAULT 0"),
+                    ])
+                except Exception as e:
+                    logger.warning(f"Startup maintenance: schema migration failed: {e}")
     except Exception as e:
         logger.error(f"Startup maintenance failed: {e}")
         result["error"] = str(e)
         return result
 
     # VACUUM shrinks the file but needs free disk to write it; best effort only.
+    # Postgres has no VACUUM statement equivalent here and autovacuum handles it.
+    if not is_sqlite:
+        result["vacuum"] = "skipped (non-SQLite)"
+        return result
+
     try:
         async with engine.connect() as conn:
             await conn.execute(text("VACUUM"))

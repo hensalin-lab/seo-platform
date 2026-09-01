@@ -1,0 +1,10 @@
+seo_platform.db
+*.db
+node_modules/
+credentials/
+__pycache__/
+.pytest_cache/
+logs/
+*.log
+.env
+.git/

@@ -39,10 +39,13 @@ class AIGeoEngine:
         sigs = []
         issues = []
 
-        sigs += self._citation_readiness(text, wc, title, desc, h1, links_ext, schema)
+        from app.engine.page_scope import page_scope
+        scope = page_scope(page)
+
+        sigs += self._citation_readiness(text, wc, title, desc, h1, links_ext, schema, scope)
         sigs += self._bluf_analysis(text, title, h1, desc)
         sigs += self._rag_extraction(text, wc)
-        sigs += self._entity_analysis(text, title, h1, wc)
+        sigs += self._entity_analysis(text, title, h1, wc, url)
         sigs += self._answer_engine(text, wc, schema, html)
         sigs += self._platform_specific(text, wc, schema, links_ext, html)
 
@@ -63,6 +66,8 @@ class AIGeoEngine:
         platform_scores = self._platform_scores(sigs, wc, schema, links_ext, text)
 
         why_not = self._why_not_ranking(text, wc, title, schema, links_ext, images)
+        if scope == "utility":
+            why_not = [r for r in why_not if "too thin" not in r.lower()]
 
         issues = self._generate_issues(sigs, page)
 
@@ -83,7 +88,7 @@ class AIGeoEngine:
     def _sig(self, category, name, status, value, expected, detail):
         return {"category": category, "name": name, "status": status, "value": value, "expected": expected, "detail": detail}
 
-    def _citation_readiness(self, text, wc, title, desc, h1, links_ext, schema):
+    def _citation_readiness(self, text, wc, title, desc, h1, links_ext, schema, scope="standard"):
         s = []
         first_200 = " ".join(text.split()[:40])
 
@@ -149,7 +154,20 @@ class AIGeoEngine:
         else:
             s.append(self._sig("citation_readiness", "formal_citations", "warn", "missing", "present", "No formal citation format"))
 
-        if wc >= 1500:
+        if scope == "utility":
+            s.append(self._sig("citation_readiness", "content_depth", "pass", "excluded", "n/a",
+                               "Utility page (404/legal/auth) — excluded from citation-depth checks"))
+        elif scope == "listing":
+            if wc >= 300:
+                s.append(self._sig("citation_readiness", "content_depth", "pass", wc, ">=300",
+                                   f"Adequate depth for a listing hub ({wc} words)"))
+            elif wc >= 150:
+                s.append(self._sig("citation_readiness", "content_depth", "warn", wc, ">=300",
+                                   f"Light listing page ({wc} words) — add 2-3 sentence descriptions per item"))
+            else:
+                s.append(self._sig("citation_readiness", "content_depth", "fail", wc, ">=300",
+                                   f"Bare listing page ({wc} words) — item descriptions missing"))
+        elif wc >= 1500:
             s.append(self._sig("citation_readiness", "content_depth", "pass", wc, ">=1500", f"Comprehensive content ({wc} words)"))
         elif wc >= 800:
             s.append(self._sig("citation_readiness", "content_depth", "warn", wc, ">=1500", f"Moderate content ({wc} words)"))
@@ -280,7 +298,7 @@ class AIGeoEngine:
 
         return s
 
-    def _entity_analysis(self, text, title, h1, wc):
+    def _entity_analysis(self, text, title, h1, wc, url=""):
         s = []
         entities = _ENTITY_RE.findall(text)
         unique = set(e for e in entities if len(e) > 3)
@@ -328,7 +346,10 @@ class AIGeoEngine:
         else:
             s.append(self._sig("entity_analysis", "entity_stuffing", "warn", f"{len(stuffed)} stuffed", "none", f"Possible stuffing: {', '.join(stuffed[:3])}"))
 
-        brand_mentions = len(re.findall(r'\b(?:DataViCloud|DataviCloud)\b', text, re.I))
+        brand_from_domain = re.search(r'https?://(?:www\.)?([^./]+)', url).group(1).title() if re.search(r'https?://(?:www\.)?([^./]+)', url) else ""
+        brand_from_title = (title.split("|")[0].split("-")[0].strip().split()[0] if title else "") or brand_from_domain or ""
+        brand_pattern = re.compile(r'\b(?:' + re.escape(brand_from_domain) + r'|' + re.escape(brand_from_title) + r')\b', re.I) if brand_from_domain or brand_from_title else None
+        brand_mentions = len(brand_pattern.findall(text)) if brand_pattern else 0
         if brand_mentions >= 2:
             s.append(self._sig("entity_analysis", "brand_mentions", "pass", brand_mentions, ">=2", f"Brand mentioned {brand_mentions} times"))
         elif brand_mentions >= 1:
@@ -480,6 +501,9 @@ class AIGeoEngine:
     def _generate_issues(self, sigs, page):
         issues = []
         counter = 0
+        from app.engine.page_scope import is_utility_page, is_listing_page
+        utility = is_utility_page(page)
+        listing = is_listing_page(page)
         critical_map = {
             "pronoun_issues": ("HIGH", "opening paragraph", "Replace ambiguous pronouns (this, it, they) with specific nouns in the first paragraph"),
             "has_statistics": ("HIGH", "content", "Add specific statistics with sources (e.g., '47% of enterprises report...')"),
@@ -497,8 +521,14 @@ class AIGeoEngine:
 
         for sig in sigs:
             if sig["status"] in ("fail", "warn") and sig["name"] in critical_map:
+                if utility and sig["name"] == "content_depth":
+                    continue
                 counter += 1
                 sev, element, fix = critical_map[sig["name"]]
+                if listing and sig["name"] == "content_depth":
+                    sev = "MEDIUM"
+                    fix = ("Add a 2-3 sentence description under each item on this listing page — "
+                           "listing hubs are navigational and do not need 1500+ word long-form depth")
                 issues.append({
                     "id": f"GEO-{counter:03d}",
                     "category": "GEO / AI Search",

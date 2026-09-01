@@ -9,8 +9,11 @@ from pydantic import BaseModel
 from app.engine.free_data import (
     dns_over_https,
     google_autocomplete,
+    page_inspector,
     rdap_whois,
+    schema_detector,
     site_checks,
+    sitemap_robots,
     ssl_labs_grade,
 )
 
@@ -59,3 +62,21 @@ async def dns_endpoint(url: str = Query(...)):
 async def ssl_endpoint(url: str = Query(...)):
     _validate_url(url)
     return await ssl_labs_grade(url)
+
+
+@router.get("/page-inspector")
+async def page_inspector_endpoint(url: str = Query(...)):
+    _validate_url(url)
+    return await page_inspector(url)
+
+
+@router.get("/schema-detector")
+async def schema_detector_endpoint(url: str = Query(...)):
+    _validate_url(url)
+    return await schema_detector(url)
+
+
+@router.get("/sitemap-robots")
+async def sitemap_robots_endpoint(url: str = Query(...)):
+    _validate_url(url)
+    return await sitemap_robots(url)

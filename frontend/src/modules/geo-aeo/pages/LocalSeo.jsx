@@ -83,17 +83,28 @@ export default function LocalSeo() {
           <h3>NAP Signal Checks</h3>
         </div>
         <div className="grid-3" style={{ padding: '1rem' }}>
-          {Object.entries(nap).map(([key, found]) => (
-            <div className="score-card" key={key}>
-              <div className="label">{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
-              <div className="score" style={{ color: found ? 'var(--green)' : 'var(--red)' }}>
-                {found ? 'Found' : 'Missing'}
+          {Object.entries(nap).map(([key, found]) => {
+            const k = key.toLowerCase();
+            const hint =
+              !found && k.includes('phone') ? 'Add a visible phone number in your footer/contact page — crawlers match it against your Google Business Profile.' :
+              !found && (k.includes('address') || k.includes('street')) ? 'Publish a full street address in schema and footer text so maps and AI engines can verify your location.' :
+              !found && k.includes('name') ? 'Use your exact legal business name consistently in the title tag, footer, and Organization schema.' :
+              !found ? 'Add this signal to your contact page, footer, or LocalBusiness JSON-LD to strengthen local relevance.' :
+              null;
+            return (
+              <div className="score-card" key={key}>
+                <div className="label">{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
+                <div className="score" style={{ color: found ? 'var(--green)' : 'var(--red)' }}>
+                  {found ? 'Found' : 'Missing'}
+                </div>
+                {hint ? (
+                  <div className="out-of" style={{ color: '#b45309', fontSize: 12.5, lineHeight: 1.5 }}>{hint}</div>
+                ) : (
+                  <div className="out-of">✓ Detected</div>
+                )}
               </div>
-              <div className="out-of">
-                {found ? '✓ Detected' : '✗ Not found'}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

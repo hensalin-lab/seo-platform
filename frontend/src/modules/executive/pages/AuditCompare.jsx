@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   GitCompare, AlertTriangle, CheckCircle, ArrowRight, TrendingUp,
-  TrendingDown, Minus, BarChart3, FileText, Layers, Target, Info
+  TrendingDown, Minus, BarChart3, FileText, Layers, Target, Info, Sparkles
 } from 'lucide-react';
 import { api } from '../../../api';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
@@ -129,6 +129,42 @@ export default function AuditCompare() {
               </div>
             </div>
           </div>
+
+          {/* Plain-language interpretation */}
+          {(() => {
+            const aScores = data.audit_a.scores || {};
+            const bScores = data.audit_b.scores || {};
+            const deltas = Object.keys(aScores)
+              .map(k => ({ key: k, label: k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '), delta: (aScores[k] || 0) - (bScores[k] || 0) }))
+              .filter(d => Math.abs(d.delta) >= 1)
+              .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+            if (deltas.length === 0) return null;
+            const better = data.winner === 'A' ? deltas.filter(d => d.delta > 0) : deltas.filter(d => d.delta < 0);
+            const worse = data.winner === 'A' ? deltas.filter(d => d.delta < 0) : deltas.filter(d => d.delta > 0);
+            const winnerName = data.winner === 'A' ? data.audit_a.url : data.winner === 'B' ? data.audit_b.url : null;
+            const otherName = data.winner === 'A' ? data.audit_b.url : data.audit_a.url;
+            const fmt = (d) => `${Math.abs(Math.round(d.delta * 10) / 10)} pts ${d.delta > 0 ? 'higher' : 'lower'} ${d.label.toLowerCase()}`;
+            return (
+              <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', padding: '16px 20px', marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Sparkles size={15} color="#6366f1" />
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>What changed between these audits</span>
+                </div>
+                <div style={{ fontSize: 13.5, color: 'var(--text-secondary, #4b5563)', lineHeight: 1.7 }}>
+                  {winnerName && (
+                    <>
+                      <strong>{winnerName}</strong> is the stronger audit overall.
+                      {better.length > 0 && <> It leads by being <strong>{better.slice(0, 2).map(fmt).join(' and ')}</strong>.</>}
+                      {worse.length > 0 && <> It still trails on <strong>{worse.slice(0, 2).map(fmt).join(' and ')}</strong> — those are your next targets{otherName ? `, using ${otherName} as the benchmark` : ''}.</>}
+                    </>
+                  )}
+                  {!winnerName && deltas.length > 0 && (
+                    <>The audits trade wins: <strong>{fmt(deltas[0])}</strong> in one vs the other. Closest to tied: everything within ±1 point.</>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Score Comparison */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>

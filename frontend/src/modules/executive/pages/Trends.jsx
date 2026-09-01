@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import AnimatedNumber from '../../../components/AnimatedNumber';
-import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, Gauge } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, Gauge, AlertTriangle } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 
@@ -60,12 +60,13 @@ export default function Trends() {
   const navigate = useNavigate();
   const [audits, setAudits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     api.getHistory(50).then(data => {
       const list = Array.isArray(data) ? data : data.audits || [];
       setAudits([...list].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(err => setLoadError(err.message || 'Failed to load audit history.')).finally(() => setLoading(false));
   }, []);
 
   const stats = useMemo(() => {
@@ -86,6 +87,16 @@ export default function Trends() {
       <div className="shimmer shimmer-text" style={{ width: '50%', marginBottom: 24 }} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         {[1,2,3,4,5,6,7].map(i => <div key={i} className="shimmer" style={{ height: 180, borderRadius: 'var(--radius)' }} />)}
+      </div>
+    </div>
+  );
+
+  if (loadError) return (
+    <div className="page-content">
+      <div className="empty-state">
+        <AlertTriangle size={48} style={{ color: 'var(--red)' }} />
+        <p>{loadError}</p>
+        <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
       </div>
     </div>
   );

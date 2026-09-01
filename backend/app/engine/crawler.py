@@ -26,6 +26,21 @@ USER_AGENTS = [
 HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml", "application/xhtml", "text/plain")
 
 
+def _collapse_duplicate_lines(text: str) -> str:
+    """Drop immediately-repeated lines (>12 chars). Marquee/animation widgets
+    render the same tagline 2-3x in the DOM, which inflated word counts and
+    made 'current text' excerpts look duplicated."""
+    out = []
+    prev = ""
+    for ln in (text or "").splitlines():
+        s = ln.strip()
+        if len(s) > 12 and s == prev:
+            continue
+        out.append(s)
+        prev = s
+    return "\n".join(out)
+
+
 def _detect_js_framework(html: str) -> str:
     """Best-effort client-side framework detection from raw HTML."""
     if not html:
@@ -358,7 +373,9 @@ class CrawlerEngine:
                     if body:
                         for t in body.find_all(["script", "style", "noscript"]):
                             t.decompose()
-                        page.content_text = body.get_text(separator=" ", strip=True)
+                        raw_text = body.get_text(separator="\n", strip=True)
+                        cleaned = _collapse_duplicate_lines(raw_text)
+                        page.content_text = re.sub(r"\s*\n\s*", " ", cleaned)[:settings.CRAWLER_CONTENT_LIMIT]
                         page.word_count = len(page.content_text.split())
 
                     page.images = []
@@ -444,6 +461,7 @@ class CrawlerEngine:
 
         queue = [(start_url, 0)]
         pages_crawled = 0
+        crawl_start = time.time()
 
         if settings.CRAWLER_SITEMAP_SEEDING:
             try:
@@ -457,6 +475,9 @@ class CrawlerEngine:
                 logger.warning(f"Sitemap seeding failed: {e}")
 
         while queue and len(self.visited) < max_pages:
+            if time.time() - crawl_start > settings.CRAWLER_CRAWL_TIMEOUT:
+                logger.warning(f"Crawl timed out after {settings.CRAWLER_CRAWL_TIMEOUT}s ({len(self.pages)} pages)")
+                break
             batch = []
             while queue and len(batch) < settings.CRAWLER_CONCURRENCY:
                 url, depth = queue.pop(0)
@@ -467,7 +488,10 @@ class CrawlerEngine:
                 break
 
             tasks = [self._crawl_page(url, depth, base_url, max_pages) for url, depth in batch]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*[
+                asyncio.wait_for(t, timeout=settings.CRAWLER_PAGE_TIMEOUT)
+                for t in tasks
+            ], return_exceptions=True)
 
             for result in results:
                 if isinstance(result, list):

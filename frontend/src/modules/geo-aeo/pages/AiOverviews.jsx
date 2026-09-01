@@ -194,13 +194,25 @@ export default function AiOverviews() {
         </div>
       )}
 
-      {data?.message && (
+      {data?.message && data?.configured !== false && (
         <div style={{ padding: '12px 16px', borderRadius: 'var(--radius, 12px)', background: data?.estimated ? 'rgba(8,145,178,0.06)' : 'rgba(245,158,11,0.08)', border: `1px solid ${data?.estimated ? 'rgba(8,145,178,0.18)' : 'rgba(245,158,11,0.25)'}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: data?.estimated ? '#0e7490' : '#b45309', lineHeight: 1.6 }}>
             {data?.estimated ? <Sparkles size={14} /> : <AlertTriangle size={14} />} {data.message}
           </div>
         </div>
       )}
+      {!data?.configured ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ padding: '40px 24px', textAlign: 'center', color: '#b45309', fontSize: 13.5, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 'var(--radius, 12px)', lineHeight: 1.6 }}>
+            <AlertTriangle size={28} style={{ marginBottom: 8 }} />
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Live AI Overviews check unavailable</div>
+            <div>{data.message || 'The live check could not run right now.'} No results are shown below because nothing was measured — the zeros you may have seen previously were placeholders, not real checks.</div>
+            <button onClick={() => load(true)} style={{ marginTop: 14, padding: '8px 18px', borderRadius: 'var(--radius-sm, 6px)', border: '1px solid rgba(245,158,11,0.4)', background: 'var(--bg-white, #fff)', fontSize: 12.5, fontWeight: 600, color: '#b45309', cursor: 'pointer' }}>
+              <RefreshCw size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} /> Try again
+            </button>
+          </div>
+        </div>
+      ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             <ThemeStatCard icon={Bot} label="Keywords Checked" value={summary.keywords_checked ?? 0} color="#3b82f6" sub="Top keywords by frequency" />
@@ -311,6 +323,7 @@ export default function AiOverviews() {
             </div>
           </div>
         </>
+      )}
     </div>
   );
 }

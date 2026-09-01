@@ -90,6 +90,7 @@ const Providers = lazy(() => import('../modules/advanced/pages/Providers'));
 const KeywordVolumes = lazy(() => import('../modules/advanced/pages/KeywordVolumes'));
 const BrandMonitor = lazy(() => import('../modules/advanced/pages/BrandMonitor'));
 const FreeTools = lazy(() => import('../modules/advanced/pages/FreeTools'));
+const McpAgents = lazy(() => import('../modules/advanced/pages/McpAgents'));
 const AdminPage = lazy(() => import('../pages/AdminPage'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
@@ -132,6 +133,7 @@ export const mainNav = [
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },
   { path: '/api-reference', icon: 'Code2', label: 'API Reference', title: 'API Reference', component: ApiReference },
   { path: '/free-tools', icon: 'Zap', label: 'Free Tools', title: 'Free Data Tools', component: FreeTools },
+  { path: '/agents', icon: 'Bot', label: 'AI Agents & MCP', title: 'AI Agents & MCP', component: McpAgents },
   { path: '/integrations', icon: 'Plug', label: 'Integrations', title: 'Data Provider Integrations', component: Providers },
   { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings', component: SettingsPage },
   { path: '/admin', icon: 'Shield', label: 'Admin', title: 'Admin', component: AdminPage, adminOnly: true },
@@ -204,6 +206,7 @@ export const auditSections = [
     label: '6. FIX',
     items: [
       { suffix: '/action-hub', icon: 'ClipboardList', label: 'Action Hub', title: 'Action Hub', component: ActionHub },
+      { suffix: '/issues', icon: 'AlertTriangle', label: 'Issue Remediation', title: 'Issue Remediation' },
       { suffix: '/rank-boost', icon: 'Star', label: 'Rank Boost', title: 'Rank Boost', component: RankBoost },
       { suffix: '/content-rewrite', icon: 'Edit3', label: 'Content Rewriter', title: 'Content Rewriter', component: ContentRewriter },
     ],

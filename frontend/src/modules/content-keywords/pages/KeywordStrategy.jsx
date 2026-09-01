@@ -79,14 +79,18 @@ function KeywordTable({ keywords, search }) {
                   </span>
                 </td>
                 <td style={{ padding: '10px 14px' }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (diffColors[kw.difficulty] || '#64748b') + '18', color: diffColors[kw.difficulty] || '#64748b' }}>
-                    {kw.difficulty || 'MEDIUM'}
-                  </span>
+                  {kw.difficulty ? (
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (diffColors[kw.difficulty] || '#64748b') + '18', color: diffColors[kw.difficulty] || '#64748b' }}>
+                      {kw.difficulty}
+                    </span>
+                  ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
                 </td>
                 <td style={{ padding: '10px 14px' }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (oppColors[kw.opportunity] || '#94a3b8') + '18', color: oppColors[kw.opportunity] || '#94a3b8' }}>
-                    {kw.opportunity || 'LOW'}
-                  </span>
+                  {kw.opportunity ? (
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (oppColors[kw.opportunity] || '#94a3b8') + '18', color: oppColors[kw.opportunity] || '#94a3b8' }}>
+                      {kw.opportunity}
+                    </span>
+                  ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
                 </td>
                 <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{kw.pages_using ?? '—'}</td>
               </tr>
@@ -204,7 +208,7 @@ function QuickWins({ keywords }) {
             <ArrowUpRight size={14} color="#059669" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>{kw.keyword}</div>
-              <div style={{ fontSize: 11, color: '#059669' }}>Frequency: {kw.frequency || kw.volume || '—'} · {kw.difficulty || 'MEDIUM'} difficulty</div>
+              <div style={{ fontSize: 11, color: '#059669' }}>Frequency: {kw.frequency || kw.volume || '—'}{kw.difficulty ? ` · ${kw.difficulty} difficulty` : ''}</div>
             </div>
           </div>
         ))}
@@ -224,6 +228,7 @@ export default function KeywordStrategy() {
   const [research, setResearch] = useState(null)
   const [enhanced, setEnhanced] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [activeTab, setActiveTab] = useState('keywords')
   const [search, setSearch] = useState('')
   const [aiSuggestions, setAiSuggestions] = useState(null)
@@ -231,19 +236,36 @@ export default function KeywordStrategy() {
 
   useEffect(() => {
     Promise.all([
-      api.getKeywordResearch(id).catch(() => null),
-      api.getKeywordsEnhanced(id).catch(() => null),
-    ]).then(([res, enh]) => { setResearch(res); setEnhanced(enh); }).finally(() => setLoading(false))
+      api.getKeywordResearch(id).catch(e => ({ __error: e?.message || 'failed' })),
+      api.getKeywordsEnhanced(id).catch(e => ({ __error: e?.message || 'failed' })),
+    ]).then(([res, enh]) => {
+      const bothFailed = res?.__error && enh?.__error
+      if (bothFailed) setLoadError(res.__error || 'Could not reach the keyword endpoints')
+      setResearch(res?.__error ? null : res);
+      setEnhanced(enh?.__error ? null : enh);
+    }).finally(() => setLoading(false))
   }, [id])
 
   const loadAiSuggestions = async () => {
     setAiLoading(true);
     const data = await api.getAiSuggestions(id).catch(() => null);
     setAiSuggestions(data);
+    if (!data) {
+      const e = new CustomEvent('show-toast', { detail: { message: 'AI suggestions unavailable right now — try again shortly', type: 'error' } });
+      window.dispatchEvent(e);
+    }
     setAiLoading(false);
   };
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Researching keywords...</p></div>
+  if (loadError && !research && !enhanced) return (
+    <div style={{ padding: 48, textAlign: 'center' }}>
+      <AlertTriangle size={32} color="#dc2626" style={{ marginBottom: 12 }} />
+      <h3 style={{ margin: '0 0 6px' }}>Couldn't load keyword data</h3>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>{String(loadError)}</p>
+      <button onClick={() => window.location.reload()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+    </div>
+  )
 
   const allKeywords = research?.keywords || enhanced?.keywords || []
   const summary = research?.summary || {}

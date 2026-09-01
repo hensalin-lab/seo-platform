@@ -44,6 +44,15 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
   const words = (content || '').split(/\s+/).filter(w => w.length > 0);
   const wordCount = words.length;
 
+  const stopWords = new Set(['the', 'and', 'for', 'with', 'your', 'our', 'how', 'what', 'why', 'that', 'this', 'from', 'are', 'you', 'can', 'will']);
+  const pageKeywords = (() => {
+    const src = `${page?.title || ''} ${page?.h1 || ''}`.toLowerCase();
+    const toks = src.match(/[a-zA-Z]{4,}/g) || [];
+    const freq = {};
+    toks.forEach(t => { if (!stopWords.has(t)) freq[t] = (freq[t] || 0) + 1; });
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => e[0]);
+  })();
+
   const getBlockScore = (text) => {
     const lower = text.toLowerCase();
     let score = 50;
@@ -53,8 +62,8 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
     if (lower.length > 200) { score += 5; strengths.push('Good length'); }
     else { score -= 10; issuesFound.push('Too short'); }
 
-    const hasKeyword = signals?.some(s => s.id === 'K002' && s.status === 'pass');
-    if (hasKeyword && lower.includes('revenue')) { score += 10; strengths.push('Contains keyword'); }
+    const kwHits = pageKeywords.filter(kw => lower.includes(kw));
+    if (pageKeywords.length && kwHits.length > 0) { score += Math.min(10, kwHits.length * 4); strengths.push(`Uses page keywords (${kwHits.slice(0, 2).join(', ')})`); }
 
     if (/\d+/.test(text)) { score += 5; strengths.push('Has data/numbers'); }
     if (text.includes('?')) { score += 3; strengths.push('Question format'); }
@@ -162,6 +171,7 @@ function PageVisualView({ content, signals, issues, page, mega, catScores, platf
         <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Layout size={12} color="#059669" /> Content Blocks ({filteredBlocks.length})
           <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400 }}>- {wordCount} words total</span>
+          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 500, marginLeft: 'auto' }}>readability heuristic — not a Google score</span>
         </div>
 
         {filteredBlocks.map((block, i) => {

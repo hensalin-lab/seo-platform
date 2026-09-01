@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3, Info } from 'lucide-react';
+import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3, Info, FileText } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
 
 export default function BacklinkProfile() {
@@ -14,6 +14,7 @@ export default function BacklinkProfile() {
     async function load() {
       try {
         setLoading(true);
+        setError(null);
         const result = await api.getBacklinkProfile(id);
         setData(result);
       } catch (err) {
@@ -42,7 +43,7 @@ export default function BacklinkProfile() {
         <div className="empty-state">
           <XCircle size={48} style={{ color: 'var(--red)' }} />
           <p>{error}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
+          <button className="btn btn-primary" onClick={() => { setError(null); setLoading(true); api.getBacklinkProfile(id).then(setData).catch(err => setError(err.message || 'Still failing — try again shortly.')).finally(() => setLoading(false)); }}>Retry</button>
         </div>
       </div>
     );
@@ -77,9 +78,9 @@ export default function BacklinkProfile() {
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <Link size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Outbound Link Profile</h1>
+          <h1>Link Profile</h1>
         </div>
-        <p>Analyze your outbound links, linked domains, and anchor text distribution</p>
+        <p>Outbound links, linked domains, and anchor text measured from your crawled pages — external backlink data requires a third-party API (Ahrefs/Moz) and isn't included here.</p>
         {note && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 12px', background: 'rgba(var(--accent-rgb, 99, 102, 241), 0.1)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
             <Info size={14} />
@@ -151,8 +152,7 @@ export default function BacklinkProfile() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Anchor Text</th>
-                  <th>Count</th>
+                  <th>Anchor Text</th>                  <th>Count</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,6 +160,37 @@ export default function BacklinkProfile() {
                   <tr key={idx}>
                     <td>{a.text}</td>
                     <td><span className="badge badge-blue">{a.count}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {pageLinks.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <FileText size={18} style={{ color: 'var(--accent)' }} />
+            <h3>Pages With Most Outbound Links</h3>
+            <span className="badge badge-blue">{pageLinks.length}</span>
+          </div>
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Page</th>
+                  <th>Outbound Links</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageLinks.slice(0, 15).map((p, idx) => (
+                  <tr key={idx}>
+                    <td style={{ maxWidth: 380 }}>
+                      <strong>{p.title || 'Untitled'}</strong>
+                      {p.url && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', wordBreak: 'break-all' }}>{p.url}</div>}
+                    </td>
+                    <td><span className="badge badge-blue">{p.outbound_links ?? p.count ?? 0}</span></td>
                   </tr>
                 ))}
               </tbody>

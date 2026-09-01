@@ -10,6 +10,40 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 
+_PAGE_TYPE_ALIASES: dict[str, set] = {
+    "homepage": {"homepage"},
+    "about": {"about"},
+    "blog": {"blog_post", "article", "news"},
+    "faq": {"faq"},
+    "product": {"product"},
+    "service": {"service"},
+    "services": {"service"},
+    "solutions": {"service", "landing_page"},
+    "pricing": {"landing_page", "product"},
+    "demo": {"landing_page"},
+    "resource": {"documentation", "article"},
+    "legal": set(),
+    "landing_page": {"landing_page"},
+    "contact": {"contact"},
+}
+
+
+def _pt_matches(page_type: str, applicable: set) -> bool:
+    pt = (page_type or "").strip().lower()
+    if not pt or pt == "unknown":
+        return True
+    aliases = _PAGE_TYPE_ALIASES.get(pt, {pt})
+    return bool(aliases & set(applicable))
+
+
+def _pt_is_any(page_type: str, names: set) -> bool:
+    pt = (page_type or "").strip().lower()
+    if not pt or pt == "unknown":
+        return False
+    aliases = _PAGE_TYPE_ALIASES.get(pt, {pt})
+    return pt in names or bool(aliases & names)
+
+
 _SCHEMA_DEFINITIONS: dict[str, dict[str, Any]] = {
     "Organization": {
         "required": {"name": True, "url": True},
@@ -245,7 +279,7 @@ class SchemaIntelligenceEngine:
         h1 = page.get("h1", "") or ""
         images = page.get("images", []) or []
         word_count = page.get("word_count", 0)
-        page_type = page.get("page_type", "unknown") or "unknown"
+        page_type = (page.get("page_type", "unknown") or "unknown").strip().lower()
 
         if not isinstance(schema_markup, list):
             schema_markup = []
@@ -551,7 +585,7 @@ class SchemaIntelligenceEngine:
                 continue
 
             applicable = definition.get("applicable_pages", set())
-            if page_type in applicable or page_type == "unknown":
+            if _pt_matches(page_type, applicable):
                 importance = definition.get("importance", "LOW")
                 rich_result = definition.get("rich_result", "")
                 generated = self._generate_json_ld(
@@ -571,6 +605,21 @@ class SchemaIntelligenceEngine:
                     "estimated_impact": impact_map.get(importance, "Moderate improvement to search presence"),
                     "confidence": self._schema_confidence(type_name, page_type),
                 })
+
+        pt_lower = (page_type or "").strip().lower()
+        is_home = pt_lower in ("homepage", "home") or bool(_PAGE_TYPE_ALIASES.get(pt_lower, {pt_lower}) & {"homepage", "home"})
+        if "BreadcrumbList" not in existing_types and not is_home:
+            generated = self._generate_json_ld(
+                "BreadcrumbList", title, meta_description, url, h1, display_title, description, domain
+            )
+            missing.append({
+                "type": "BreadcrumbList",
+                "importance": "HIGH",
+                "rich_result": "Breadcrumb Rich Result",
+                "generated_json_ld": generated,
+                "estimated_impact": "Enables breadcrumb rich results and gives AI crawlers your site's navigation context on any page type",
+                "confidence": self._schema_confidence("BreadcrumbList", page_type),
+            })
 
         importance_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
         missing.sort(key=lambda x: importance_order.get(x["importance"], 99))
@@ -1008,7 +1057,7 @@ class SchemaIntelligenceEngine:
 
         if not has_breadcrumb:
             recommendations.append("Add BreadcrumbList schema to improve navigation signals and earn breadcrumb rich results")
-        if not has_org and page_type in ("homepage", "about", "contact", "service"):
+        if not has_org and _pt_is_any(page_type, {"homepage", "about", "contact", "service"}):
             recommendations.append("Add Organization schema to establish brand identity and enable Knowledge Panel")
 
         high_importance_missing = [m for m in missing if m["importance"] in ("CRITICAL", "HIGH")]
@@ -1050,7 +1099,7 @@ class SchemaIntelligenceEngine:
 
         for type_name, definition in _SCHEMA_DEFINITIONS.items():
             applicable = definition.get("applicable_pages", set())
-            if page_type not in applicable and page_type != "unknown":
+            if not _pt_matches(page_type, applicable):
                 continue
 
             rich_result = definition.get("rich_result", "")
@@ -1121,6 +1170,9 @@ class SchemaIntelligenceEngine:
                 total_score += 0.0
 
         if max_score == 0:
+            found_completeness = [s.get("completeness", 0.0) for s in detected if s.get("found")]
+            if found_completeness:
+                return round(min(sum(found_completeness) / len(found_completeness), 100.0) * 0.9, 1)
             return 0.0
 
         base_score = (total_score / max_score) * 100.0
@@ -1153,6 +1205,9 @@ class SchemaIntelligenceEngine:
                         break
 
         if applicable_count == 0:
+            found_completeness = [s.get("completeness", 0.0) for s in detected if s.get("found")]
+            if found_completeness:
+                return round(sum(found_completeness) / len(found_completeness) * 0.9, 1)
             return 0.0
 
         coverage = (found_count / applicable_count) * 100.0

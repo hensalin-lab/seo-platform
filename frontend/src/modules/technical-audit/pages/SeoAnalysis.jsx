@@ -88,6 +88,8 @@ export default function SeoAnalysis() {
   const [mega, setMega] = useState(null);
   const [loading, setLoading] = useState(true);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -95,20 +97,33 @@ export default function SeoAnalysis() {
     api.getAuditPages(id, { limit: 100 }).then(d => {
       setPages(d.items || []);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(err => {
+      setLoadError(err.message || 'Failed to load pages for this audit.');
+      setLoading(false);
+    });
   }, [id]);
 
   useEffect(() => {
     if (!pages.length) return;
     setAnalysisLoading(true);
+    setAnalysisError(null);
     setMega(null);
     api.getMegaAnalysis(id, selectedIdx).then(d => {
       setMega(d);
       setAnalysisLoading(false);
-    }).catch(() => setAnalysisLoading(false));
+    }).catch(err => {
+      setAnalysisError(err.message || 'Could not run the deep analysis for this page. Try again in a moment.');
+      setAnalysisLoading(false);
+    });
   }, [id, selectedIdx, pages.length]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
+  if (loadError) return (
+    <div style={{ padding: 40, textAlign: 'center' }}>
+      <p style={{ color: 'var(--red)', fontWeight: 600 }}>{loadError}</p>
+      <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>Retry</button>
+    </div>
+  );
   if (!pages.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>No pages found</div>;
 
   const allSignals = mega?.all_signals || [];
@@ -139,7 +154,7 @@ export default function SeoAnalysis() {
             <Search size={24} color="#3b82f6" /> SEO Signal Analysis
             <DataSourceBadge source="crawler" size="xs" />
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked across 25 categories. All data from on-page HTML crawl.</p>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>{mega?.signals_checked || 0} signals checked{mega?.categories ? ` across ${mega.categories} categories` : ''}. All data from on-page HTML crawl.</p>
         </div>
 
         <div style={{ marginBottom: 20 }}>
@@ -154,8 +169,13 @@ export default function SeoAnalysis() {
         {analysisLoading ? (
           <div style={{ padding: 60, textAlign: 'center', background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)' }}>
             <RefreshCw size={32} className="spin" color="#3b82f6" />
-            <p style={{ marginTop: 12, fontSize: 14, color: 'var(--text-muted)' }}>Running 269+ signal analysis...</p>
+            <p style={{ marginTop: 12, fontSize: 14, color: 'var(--text-muted)' }}>Running full signal analysis...</p>
             <p style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>First visit ~45s (cached after this)</p>
+          </div>
+        ) : analysisError ? (
+          <div style={{ padding: 40, textAlign: 'center', background: 'rgba(239,68,68,0.05)', borderRadius: 12, border: '1px solid rgba(239,68,68,0.25)' }}>
+            <p style={{ color: 'var(--red)', fontWeight: 600 }}>{analysisError}</p>
+            <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => { setSelectedIdx(i => i); setAnalysisLoading(true); setAnalysisError(null); api.getMegaAnalysis(id, selectedIdx).then(d => { setMega(d); }).catch(err => setAnalysisError(err.message || 'Still failing — the backend may be waking up. Try again shortly.')).finally(() => setAnalysisLoading(false)); }}>Retry Analysis</button>
           </div>
         ) : mega ? (
           <>
@@ -223,7 +243,7 @@ export default function SeoAnalysis() {
         ) : (
           <div style={{ padding: 40, textAlign: 'center', background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)' }}>
             <Search size={32} color="#94a3b8" />
-            <p style={{ marginTop: 8, color: 'var(--text-muted)' }}>Select a page to run 500+ signal analysis</p>
+            <p style={{ marginTop: 8, color: 'var(--text-muted)' }}>Select a page to run the full signal analysis</p>
           </div>
         )}
       </div>

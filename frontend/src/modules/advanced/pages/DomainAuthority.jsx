@@ -37,14 +37,21 @@ export default function DomainAuthority() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     api.getDomainAuthority(id).then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, [id]);
 
   if (loading) return <LoadingSpinner message="Computing domain authority…" />;
 
   if (error) {
-    return <EmptyState icon={Award} title="Computation failed" message={error} />;
+    return <EmptyState icon={Award} title="Computation failed" message={error}
+      action={<button className="btn btn-primary" onClick={load}>Retry</button>} />;
   }
 
   const factors = data.factors || {};

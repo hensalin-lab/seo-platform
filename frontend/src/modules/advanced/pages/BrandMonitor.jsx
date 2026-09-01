@@ -34,9 +34,20 @@ export default function BrandMonitor() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
   const [brand, setBrand] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
+
+  const loadHistory = async () => {
+    try {
+      const hist = await api.getBrandMonitorHistory(id);
+      setHistory(hist.records || []);
+      setHistoryError(null);
+    } catch {
+      setHistoryError('Scan history could not be loaded.');
+    }
+  };
 
   const scan = async (override) => {
     setScanning(true);
@@ -44,8 +55,7 @@ export default function BrandMonitor() {
     try {
       const res = await api.getBrandMonitor(id, override || '');
       setData(res);
-      const hist = await api.getBrandMonitorHistory(id).catch(() => ({ records: [] }));
-      setHistory(hist.records || []);
+      await loadHistory();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -54,7 +64,7 @@ export default function BrandMonitor() {
     }
   };
 
-  useEffect(() => { scan(''); }, [id]);
+  useEffect(() => { loadHistory(); }, [id]);
 
   if (loading) return <LoadingSpinner message="Scanning AI-citation signals…" />;
 
@@ -82,7 +92,7 @@ export default function BrandMonitor() {
         />
         {error && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 8 }}>{error}</div>}
         {!data ? (
-          <EmptyState icon={Bot} title="No scan yet" message="Run a scan to measure your brand's AI-citation readiness." />
+          <EmptyState icon={Bot} title="No scan yet" message="Run a scan to measure your brand's AI-citation readiness — results are cached, so it only re-scans when you ask." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
@@ -138,7 +148,13 @@ export default function BrandMonitor() {
 
       <Card>
         <CardHeader icon={Calendar} title="Scan history" badge={`${history.length} scans`} subtitle="Citation-readiness estimates tracked over time — run recurring scans to watch drift" />
-        {history.length === 0 ? (
+        {historyError && (
+          <div style={{ fontSize: 12.5, color: '#b45309', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '10px 12px' }}>
+            {historyError}{' '}
+            <button style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, fontSize: 12.5, textDecoration: 'underline' }} onClick={loadHistory}>Retry</button>
+          </div>
+        )}
+        {!historyError && history.length === 0 ? (
           <EmptyState icon={Sparkles} title="No scans yet" message="Run your first scan above." />
         ) : (
           <div style={{ overflowX: 'auto' }}>

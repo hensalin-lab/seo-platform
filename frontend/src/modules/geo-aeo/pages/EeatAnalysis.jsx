@@ -133,6 +133,16 @@ export default function EeatAnalysis() {
             {signalEntries.map(([key, signal]) => {
               const count = typeof signal === 'number' ? signal : signal.count ?? signal.value ?? 0;
               const label = typeof signal === 'object' ? (signal.name || key.replace(/_/g, ' ')) : key.replace(/_/g, ' ');
+              const k = key.toLowerCase();
+              const meaning =
+                k.includes('author') ? 'Author names/bios found in your content — search engines and AI engines use these to credit real writers.' :
+                k.includes('date') ? 'Publish or update dates detected — freshness signals help both rankings and AI citation.' :
+                k.includes('source') || k.includes('citation') ? 'External references to studies, reports, or documentation — the strongest trust marker for AI answers.' :
+                k.includes('expert') || k.includes('credential') ? 'Expertise indicators (titles, credentials, org names) that distinguish you from generic content.' :
+                k.includes('trust') || k.includes('contact') ? 'Trust markers like contact info, policies, or about pages that verify a real organization stands behind the site.' :
+                k.includes('about') ? 'About/organization information linking content to an identifiable entity.' :
+                'Signals search engines read as evidence of experience, expertise, authority, or trust.';
+              const healthy = count > 0;
               return (
                 <div className="issue-item" key={key}>
                   <div className="issue-header">
@@ -140,7 +150,11 @@ export default function EeatAnalysis() {
                       {getSignalIcon(key)}
                       <span>{label}</span>
                     </div>
-                    <span className="badge badge-blue">{count}</span>
+                    <span className={`badge ${healthy ? 'badge-green' : 'badge-yellow'}`}>{count}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55, marginTop: 6 }}>
+                    {meaning}
+                    {!healthy && <span style={{ color: '#b45309' }}> None detected yet — adding these is one of the fastest E-E-A-T wins.</span>}
                   </div>
                 </div>
               );

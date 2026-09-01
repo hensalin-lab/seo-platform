@@ -810,6 +810,7 @@ async def _notify_audit_failed(audit_id: str, error: str):
 
 
 async def run_audit_task(audit_id: str):
+    from app.config import settings
     from app.database import async_session
     from app.engine.crawler import CrawlerEngine
     from app.engine.analyzer import AnalyzerEngine
@@ -842,6 +843,13 @@ async def run_audit_task(audit_id: str):
                 audit.progress = progress
                 audit.current_step = step
                 await db.commit()
+                # The GET /audit/{id} detail endpoint caches status/progress for
+                # up to 1h; drop it so the frontend always sees the latest state.
+                try:
+                    from app.api.status import _cache_clear
+                    _cache_clear(audit_id)
+                except Exception:
+                    pass
 
             website_url = audit.website_url
             competitor_url = audit.competitor_url
@@ -874,13 +882,20 @@ async def run_audit_task(audit_id: str):
 
             drain_task = asyncio.create_task(_drain_progress())
             try:
-                pages = await crawler.crawl(website_url, max_pages=300, on_progress=_on_progress)
+                pages = await crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress)
             except Exception as e:
                 logger.error(f"Crawler failed: {e}")
                 pages = []
             finally:
                 drain_task.cancel()
                 await crawler.close()
+
+            try:
+                from app.api.status import _cache_clear
+                _cache_clear(audit_id)
+                logger.info(f"Audit {audit_id}: cleared stale endpoint caches from previous crawl")
+            except Exception as e:
+                logger.warning(f"Audit {audit_id}: cache clear skipped: {e}")
 
             if not pages:
                 await update_status(AuditStatus.FAILED.value, 0, "No pages found")
@@ -955,26 +970,19 @@ async def run_audit_task(audit_id: str):
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 52, "Running enterprise engine analysis...")
 
             from app.engine.crawl_snapshot import CrawlSnapshot, build_snapshots, _normalize_url
-            import json
 
-            pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
-            pages_saved = pages_result.scalars().all()
-
-            snapshots = build_snapshots(pages_saved)
-
-            for snap in snapshots:
-                for sp in pages_saved:
-                    if snap.url == sp.url or snap.get("url") == sp.url:
-                        sp.snapshot_hash = snap.snapshot_hash
-                        break
-
+            # Run the enterprise engines against the in-memory pages instead of
+            # re-querying every row back from the DB. The old re-query held two
+            # full copies of all page data in RAM, a major OOM driver on the
+            # 512MB free tier. Snapshot hashes were already persisted during the
+            # page-save loop above, so nothing is lost by skipping the reload.
             seen_norm = set()
             deduped_pages = []
-            for sp in pages_saved:
-                norm = _normalize_url(sp.url)
+            for page in pages:
+                norm = _normalize_url(page.url)
                 if norm not in seen_norm:
                     seen_norm.add(norm)
-                    deduped_pages.append(sp)
+                    deduped_pages.append(page)
             pages_saved = deduped_pages
 
             classic_engine = ClassicSEOEngine()
@@ -983,27 +991,34 @@ async def run_audit_task(audit_id: str):
 
             canonical_geo_by_url = {}
             enterprise_issues = []
-            for sp in pages_saved:
+            for page in pages_saved:
                 try:
-                    snap_for_page = CrawlSnapshot(sp)
+                    snap_for_page = CrawlSnapshot(page)
+                    page.snapshot_hash = snap_for_page.snapshot_hash
                     classic_result = await asyncio.to_thread(classic_engine.analyze, snap_for_page)
                     ai_geo_result = await asyncio.to_thread(ai_geo_engine.analyze, snap_for_page)
-                    canonical_geo_by_url[sp.url] = ai_geo_result
+                    # Keep only the two scores we use downstream; the full AI/GEO
+                    # result (incl. per-category signal diagnostics) is discarded
+                    # here to keep memory bounded on the 512MB free tier.
+                    canonical_geo_by_url[page.url] = {
+                        "geo_score": ai_geo_result.get("geo_score"),
+                        "aeo_score": ai_geo_result.get("aeo_score"),
+                    }
                     content_v2_result = await asyncio.to_thread(content_v2_engine.analyze, snap_for_page)
                     for issue in classic_result.get("issues", []):
-                        issue["page_url"] = sp.url
+                        issue["page_url"] = page.url
                         issue["snapshot_hash"] = snap_for_page.snapshot_hash
                         enterprise_issues.append(issue)
                     for issue in ai_geo_result.get("issues", []):
-                        issue["page_url"] = sp.url
+                        issue["page_url"] = page.url
                         issue["snapshot_hash"] = snap_for_page.snapshot_hash
                         enterprise_issues.append(issue)
                     for issue in content_v2_result.get("issues", []):
-                        issue["page_url"] = sp.url
+                        issue["page_url"] = page.url
                         issue["snapshot_hash"] = snap_for_page.snapshot_hash
                         enterprise_issues.append(issue)
                 except Exception as e:
-                    logger.error(f"Enterprise analysis failed for {sp.url}: {e}")
+                    logger.error(f"Enterprise analysis failed for {page.url}: {e}")
 
             for issue in enterprise_issues:
                 issue_id = issue.get("id", "")
@@ -1030,6 +1045,12 @@ async def run_audit_task(audit_id: str):
                     pages_affected=1,
                 ))
             await db.commit()
+
+            # Enterprise engines are done with the raw HTML; release it so the
+            # large per-page blobs can be garbage collected before the remaining
+            # stages (competitor, AI, report) run.
+            for page in pages_saved:
+                page.html_raw = ""
 
             for issue in analysis.issues:
                 db.add(Issue(
@@ -1108,7 +1129,7 @@ async def run_audit_task(audit_id: str):
                     if not comp_pages_list:
                         continue
                     try:
-                        comp_raw = [s.to_dict() for s in comp_pages_list]
+                        comp_raw = list(comp_pages_list)
                         comp_result = comp_engine.analyze(pages, comp_raw)
                         competitor_data = {
                             "keyword_opportunities": comp_result.get("keyword_opportunities", []),
@@ -1154,6 +1175,11 @@ async def run_audit_task(audit_id: str):
                 competitor_data.setdefault("_note", comp_discovery_info.get("note", "Competitor data not available"))
                 competitor_data.setdefault("_source", comp_discovery_info.get("source", "unavailable"))
                 competitor_data.setdefault("_discovery", comp_discovery_info)
+
+            # Competitor analysis was the last consumer of full page text; free it
+            # so later stages only keep the small per-page aggregates.
+            for page in pages_saved:
+                page.content_text = ""
 
             await update_status(AuditStatus.KEYWORD_ANALYSIS.value, 75, "Keyword analysis...")
 
@@ -1288,20 +1314,36 @@ async def run_audit_task(audit_id: str):
             geo_score_site = round(sum(canon_geos) / max(len(canon_geos), 1), 1) if canon_geos else round(scores.get("geo", 0), 1)
             aeo_score_site = round(sum(canon_aeos) / max(len(canon_aeos), 1), 1) if canon_aeos else round(scores.get("aeo", 0), 1)
 
-            db.add(AuditScore(
+            score_row = (await db.execute(
+                select(AuditScore).where(AuditScore.audit_id == audit_id)
+            )).scalar_one_or_none()
+            score_data = dict(
                 audit_id=audit_id, overall_score=round(scores.get("overall", 0), 1),
                 seo_score=round(scores.get("seo", 0), 1), technical_score=round(scores.get("technical", 0), 1),
                 aeo_score=aeo_score_site, geo_score=geo_score_site,
                 content_score=round(scores.get("content", 0), 1), ai_visibility_score=round(ai_vis_score, 1),
                 signals={sig.name: sig.to_dict() for sig in analysis.signals[:200]},
-            ))
+            )
+            if score_row:
+                for _k, _v in score_data.items():
+                    setattr(score_row, _k, _v)
+            else:
+                db.add(AuditScore(**score_data))
 
-            db.add(AuditHistory(
-                audit_id=audit_id, website_url=website_url,
+            hist = (await db.execute(
+                select(AuditHistory).where(AuditHistory.audit_id == audit_id)
+            )).scalar_one_or_none()
+            history_data = dict(
+                website_url=website_url,
                 overall_score=round(scores.get("overall", 0), 1),
                 status=AuditStatus.COMPLETED.value,
                 linter_warnings=len([e for e in linter_errors if "warning" not in str(e).lower()]),
-            ))
+            )
+            if hist:
+                for _k, _v in history_data.items():
+                    setattr(hist, _k, _v)
+            else:
+                db.add(AuditHistory(audit_id=audit_id, **history_data))
 
             prior_snap = (await db.execute(
                 select(AuditSnapshot).where(AuditSnapshot.website_url == website_url).limit(1)

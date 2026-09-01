@@ -58,7 +58,7 @@ class ContentIntelligenceV2:
         weights = {"readability": 0.20, "structure": 0.15, "depth": 0.20, "eeat": 0.20, "media": 0.05, "freshness": 0.05, "word_quality": 0.10, "spam_risk": 0.05}
         overall = sum(cat_scores.get(c, 50) * w for c, w in weights.items())
 
-        issues = self._generate_issues(all_signals, wc, title)
+        issues = self._generate_issues(all_signals, wc, title, page)
 
         return {
             "content_score": round(overall, 1),
@@ -425,9 +425,15 @@ class ContentIntelligenceV2:
     def _sig(self, category, name, status, value, expected, detail):
         return {"category": category, "name": name, "status": status, "value": value, "expected": expected, "detail": detail}
 
-    def _generate_issues(self, signals, wc, title):
+    def _generate_issues(self, signals, wc, title, page=None):
         issues = []
         counter = 0
+        from app.engine.page_scope import is_utility_page
+        utility = is_utility_page(page) if page is not None else False
+        # Depth/E-E-A-T signals are meaningless on 404/legal/auth pages.
+        utility_skip = {"word_count", "definitions", "statistics", "author_attribution",
+                        "publication_date", "source_citations", "expert_quotes",
+                        "first_hand_experience"}
         issue_map = {
             "flesch_kincaid": ("HIGH", "content readability", "Simplify language: use shorter sentences, common words, and active voice to improve Flesch-Kincaid score"),
             "sentence_length": ("MEDIUM", "sentence length", "Break long sentences into 2 shorter ones (target 15-20 words per sentence)"),
@@ -447,6 +453,8 @@ class ContentIntelligenceV2:
 
         for sig in signals:
             if sig["status"] in ("fail", "warn") and sig["name"] in issue_map:
+                if utility and sig["name"] in utility_skip:
+                    continue
                 counter += 1
                 sev, element, fix = issue_map[sig["name"]]
                 issues.append({

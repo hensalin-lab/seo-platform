@@ -675,6 +675,7 @@ export default function KeywordOpportunities() {
     ]).then(([enh, res]) => {
       setEnhanced(enh);
       setResearch(res);
+      if (!enh && !res) setError('Keyword data could not be loaded — the backend may still be waking up. Try again in a moment.');
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, [id]);
 

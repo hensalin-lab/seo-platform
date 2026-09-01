@@ -61,6 +61,7 @@ export default function AiChat() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const initDone = useRef(false);
+  const lastInitId = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,8 +70,9 @@ export default function AiChat() {
   useEffect(() => { scrollToBottom(); }, [messages, sending, scrollToBottom]);
 
   useEffect(() => {
-    if (initDone.current) return;
+    if (initDone.current && lastInitId.current === id) return;
     initDone.current = true;
+    lastInitId.current = id;
     async function init() {
       try {
         const [historyRes, auditRes] = await Promise.allSettled([

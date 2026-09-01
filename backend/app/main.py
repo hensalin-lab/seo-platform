@@ -28,6 +28,7 @@ from app.api.uptime import router as uptime_router
 from app.api.workspaces import router as workspaces_router
 from app.api.providers import router as providers_router
 from app.api.brand_monitor import router as brand_monitor_router
+from app.api.apply_fix import router as apply_fix_router
 from app.api.free_data import router as free_data_router
 from app.api.google_integrations import router as google_integrations_router
 from app.api.shares import router as shares_router
@@ -77,14 +78,32 @@ async def lifespan(app: FastAPI):
     logger.info("Digest worker started")
     uptime_task = asyncio.create_task(_uptime_worker())
     logger.info("Uptime monitor worker started")
+    rank_task = asyncio.create_task(_rank_tracker_worker())
+    logger.info("SERP rank tracker worker started")
+
+    # Drive the MCP session manager task group for /mcp (if enabled).
+    mcp_session = _get_mcp_session()
+    _mcp_ctx = None
+    if mcp_session is not None:
+        _mcp_ctx = mcp_session.run()
+        await _mcp_ctx.__aenter__()
+        logger.info("MCP session manager started")
+
     yield
     scheduler_task.cancel()
     digest_task.cancel()
     uptime_task.cancel()
+    rank_task.cancel()
+    if _mcp_ctx is not None:
+        try:
+            await _mcp_ctx.__aexit__(None, None, None)
+        except Exception as e:  # pragma: no cover
+            logger.warning(f"MCP session shutdown error: {e}")
     try:
         await scheduler_task
         await digest_task
         await uptime_task
+        await rank_task
     except asyncio.CancelledError:
         pass
     logger.info("Shutting down...")
@@ -163,6 +182,49 @@ async def _uptime_worker():
         await asyncio.sleep(60)
 
 
+async def _rank_tracker_worker():
+    """Periodically re-capture SERP positions for recent audits so the ranking
+    history (position-over-time) grows automatically without a manual capture.
+    Runs every 6 hours (≈4 captures/day)."""
+    from sqlalchemy import select, func
+    from app.database import async_session
+    from app.models import Audit, AuditStatus, RankPosition
+    from app.api.rankings import auto_capture_rankings
+
+    while True:
+        try:
+            async with async_session() as db:
+                cutoff = _dt.datetime.utcnow() - _dt.timedelta(days=45)
+                result = await db.execute(
+                    select(Audit.id, Audit.website_url)
+                    .where(
+                        Audit.status == AuditStatus.COMPLETED.value,
+                        Audit.created_at >= cutoff,
+                    )
+                    .order_by(Audit.created_at.desc())
+                    .limit(40)
+                )
+                candidates = result.all()
+                tracked = 0
+                for audit_id, _url in candidates:
+                    try:
+                        kw_count = (
+                            await db.execute(
+                                select(func.count(RankPosition.id)).where(RankPosition.audit_id == audit_id)
+                            )
+                        ).scalar()
+                        if (kw_count or 0) >= 1:
+                            asyncio.get_running_loop().create_task(auto_capture_rankings(audit_id))
+                            tracked += 1
+                    except Exception as e:
+                        logger.warning(f"Rank tracker eval failed for {audit_id}: {e}")
+                if tracked:
+                    logger.info(f"Rank tracker queued recapture for {tracked} audits")
+        except Exception as e:
+            logger.warning(f"Rank tracker worker error (non-fatal): {e}")
+        await asyncio.sleep(6 * 3600)
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -199,12 +261,35 @@ app.include_router(uptime_router)
 app.include_router(workspaces_router)
 app.include_router(providers_router)
 app.include_router(brand_monitor_router)
+app.include_router(apply_fix_router)
 app.include_router(free_data_router)
 app.include_router(google_integrations_router)
 app.include_router(shares_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
 app.include_router(alerts_router)
+
+_mcp_session = None
+
+
+def _get_mcp_session():
+    return _mcp_session
+
+
+try:
+    from app.engine.mcp_server import get_mcp_app, get_mcp_session_manager
+    _mcp = get_mcp_app()
+    if _mcp is not None:
+        # Served under /api/mcp (not /mcp): FastAPI Cloud forwards /api/* paths,
+        # and the Vercel frontend proxies /api/* -> backend. Exempted from auth
+        # in auth_middleware so MCP clients can connect directly.
+        app.mount("/api/mcp", _mcp, name="mcp")
+        _mcp_session = get_mcp_session_manager()
+        logger.info("MCP server mounted at /api/mcp")
+    else:
+        logger.warning("MCP server not available; /api/mcp disabled")
+except Exception as e:  # pragma: no cover
+    logger.warning(f"MCP mount failed (non-fatal): {e}")
 
 @app.get("/api/health")
 @limiter.exempt

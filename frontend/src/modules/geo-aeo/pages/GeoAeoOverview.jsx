@@ -46,6 +46,7 @@ export default function GeoAeoOverview() {
   const [eeatData, setEeatData] = useState(null);
   const [schemaData, setSchemaData] = useState(null);
   const [aiVisibilityData, setAiVisibilityData] = useState(null);
+  const [failedCount, setFailedCount] = useState(0);
 
   useEffect(() => {
     async function loadAll() {
@@ -62,6 +63,7 @@ export default function GeoAeoOverview() {
       setEeatData(eeat);
       setSchemaData(schema);
       setAiVisibilityData(ai);
+      setFailedCount([geo, aeo, eeat, schema, ai].filter(d => !d).length);
       setLoading(false);
     }
     loadAll();
@@ -91,13 +93,21 @@ export default function GeoAeoOverview() {
 
   const rawPlatforms = aiVisibilityData?.platforms ?? aiVisibilityData?.llm_mentions ?? aiVisibilityData?.ai_platform_visibility ?? [];
   const platformList = !rawPlatforms || (typeof rawPlatforms === 'object' && !Array.isArray(rawPlatforms) && Object.keys(rawPlatforms).length === 0) ? [] : rawPlatforms;
-  const derivedPlatforms = !Array.isArray(platformList) || platformList.length === 0
-    ? [
-        { platform: 'ChatGPT', mentioned: (aiVisibilityData?.chatgpt_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.chatgpt_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.chatgpt_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
-        { platform: 'Gemini', mentioned: (aiVisibilityData?.gemini_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.gemini_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.gemini_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
-        { platform: 'Perplexity', mentioned: (aiVisibilityData?.perplexity_visibility ?? 0) >= 50, sentiment: (aiVisibilityData?.perplexity_visibility ?? 0) >= 70 ? 'positive' : (aiVisibilityData?.perplexity_visibility ?? 0) >= 40 ? 'neutral' : 'negative' },
-      ]
-    : (Array.isArray(platformList) ? platformList : Object.entries(platformList).map(([name, data]) => ({ platform: name, ...(typeof data === 'object' ? data : { mentioned: data }) })));
+  const scalarVisibilities = [
+    { platform: 'ChatGPT', score: aiVisibilityData?.chatgpt_visibility },
+    { platform: 'Gemini', score: aiVisibilityData?.gemini_visibility },
+    { platform: 'Perplexity', score: aiVisibilityData?.perplexity_visibility },
+  ].filter(p => p.score != null);
+  const derivedPlatforms = (Array.isArray(platformList) && platformList.length > 0)
+    ? platformList
+    : (!Array.isArray(platformList) && Object.keys(platformList).length > 0)
+      ? Object.entries(platformList).map(([name, data]) => ({ platform: name, ...(typeof data === 'object' ? data : { mentioned: data }) }))
+      : scalarVisibilities.map(p => ({
+          platform: p.platform,
+          mentioned: null,
+          readiness_score: p.score,
+          note: 'estimated from content signals',
+        }));
 
   const eeatSignals = eeatData?.signals ?? {};
   const signalCategories = [
@@ -138,6 +148,17 @@ export default function GeoAeoOverview() {
         <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>AI Search Visibility, Direct Answers & Structured Data</p>
       </div>
 
+      {failedCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 13, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px' }}>
+          <span style={{ color: '#b45309' }}>
+            {failedCount === 5
+              ? 'All GEO/AEO analyses failed to load — the backend may be waking up (cold start). Try again in a minute.'
+              : `${failedCount} of 5 sub-analyses failed to load. Sections below may be incomplete — this is a loading failure, not missing data.`}
+          </span>
+          <button className="btn btn-sm btn-secondary" onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
         <ScoreCard label="GEO Score" score={geoScore} color="#0891b2" icon={Globe} />
         <ScoreCard label="AEO Score" score={aeoScore} color="#7c3aed" icon={Bot} />
@@ -166,9 +187,17 @@ export default function GeoAeoOverview() {
                   const name = p.platform || p.name || p;
                   const mentioned = p.mentioned ?? p.is_mentioned ?? null;
                   const sentiment = p.sentiment ?? null;
+                  const readiness = p.readiness_score ?? p.score ?? null;
                   return (
                     <tr key={i} style={{ borderBottom: '1px solid var(--border-light, #f3f4f6)' }}>
-                      <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text, #111827)' }}>{name}</td>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text, #111827)' }}>
+                        {name}
+                        {readiness != null && (
+                          <span style={{ display: 'block', fontSize: 10, fontWeight: 500, color: 'var(--text-muted, #9ca3af)' }}>
+                            {readiness}/100 readiness (estimated from content signals)
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: '10px 12px' }}>
                         {mentioned !== null ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: mentioned ? '#22c55e' : '#ef4444', fontWeight: 500 }}>

@@ -52,7 +52,7 @@ export default function MobileSeo() {
   const score = data?.mobile_seo_score ?? 0;
   const slowPages = data?.slow_pages || [];
   const mobileIssues = data?.mobile_issues || [];
-  const dist = data?.speed_distribution || { fast_under_1s: data?.mobile_issues_count || 0, moderate_1s_3s: 0, slow_over_3s: data?.slow_pages?.length || 0 };
+  const dist = data?.speed_distribution || null;
   const recs = data?.recommendations || [];
 
   const getScoreColor = (s) => {
@@ -107,23 +107,36 @@ export default function MobileSeo() {
           <Gauge size={18} style={{ color: 'var(--accent)' }} />
           <h3>Speed Distribution</h3>
         </div>
-        <div className="grid-3" style={{ padding: '1rem' }}>
-          <div className="score-card">
-            <div className="label">Fast (&lt;1s)</div>
-            <div className="score" style={{ color: 'var(--green)' }}>{dist.fast_under_1s ?? 0}</div>
-            <div className="out-of">pages</div>
+        {dist ? (
+          <div className="grid-3" style={{ padding: '1rem' }}>
+            <div className="score-card">
+              <div className="label">Fast (&lt;1s)</div>
+              <div className="score" style={{ color: 'var(--green)' }}>{dist.fast_under_1s ?? 0}</div>
+              <div className="out-of">pages</div>
+            </div>
+            <div className="score-card">
+              <div className="label">Moderate (1-3s)</div>
+              <div className="score" style={{ color: 'var(--yellow)' }}>{dist.moderate_1s_3s ?? 0}</div>
+              <div className="out-of">pages</div>
+            </div>
+            <div className="score-card">
+              <div className="label">Slow (&gt;3s)</div>
+              <div className="score" style={{ color: 'var(--red)' }}>{dist.slow_over_3s ?? 0}</div>
+              <div className="out-of">pages</div>
+            </div>
           </div>
-          <div className="score-card">
-            <div className="label">Moderate (1-3s)</div>
-            <div className="score" style={{ color: 'var(--yellow)' }}>{dist.moderate_1s_3s ?? 0}</div>
-            <div className="out-of">pages</div>
+        ) : (
+          <div style={{ padding: '1rem', fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+            {slowPages.length > 0 ? (
+              <>
+                Per-band distribution wasn't captured in this crawl, but <strong>{slowPages.length} page{slowPages.length === 1 ? '' : 's'} took longer than 3 seconds</strong> to respond.
+                Mobile users on cellular connections experience roughly 2-3&times; slower loads than these server response times suggest — treat any page over ~1.5s as at-risk on mobile.
+              </>
+            ) : (
+              <>All crawled pages responded in under 3 seconds, which is a good baseline for mobile users. For real-user mobile speed data, connect PageSpeed Insights or CrUX.</>
+            )}
           </div>
-          <div className="score-card">
-            <div className="label">Slow (&gt;3s)</div>
-            <div className="score" style={{ color: 'var(--red)' }}>{dist.slow_over_3s ?? 0}</div>
-            <div className="out-of">pages</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {slowPages.length > 0 && (
@@ -164,7 +177,7 @@ export default function MobileSeo() {
             <div className="issue-item" key={idx}>
               <div className="issue-header">
                 <div className="issue-title">{issue.signal_name}</div>
-                <span className={`badge ${issue.severity === 'HIGH' ? 'badge-red' : 'badge-yellow'}`}>{issue.severity}</span>
+                <span className={`badge ${issue.severity === 'CRITICAL' ? 'badge-red' : issue.severity === 'HIGH' ? 'badge-red' : issue.severity === 'LOW' ? 'badge-blue' : 'badge-yellow'}`}>{issue.severity}</span>
               </div>
               {issue.page_url && <div className="issue-url">{issue.page_url}</div>}
               <div className="issue-desc">{issue.description}</div>
@@ -189,6 +202,16 @@ export default function MobileSeo() {
               <div className="issue-desc">{rec.impact}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {mobileIssues.length === 0 && slowPages.length === 0 && recs.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+          <CheckCircle size={32} style={{ color: 'var(--green)', marginBottom: 8 }} />
+          <h3 style={{ margin: '0 0 6px' }}>No mobile issues detected</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 420, margin: '0 auto' }}>
+            Every crawled page is responsive and responds quickly. Mobile visitors get the same content and speed as desktop users — nothing to fix here right now.
+          </p>
         </div>
       )}
     </div>

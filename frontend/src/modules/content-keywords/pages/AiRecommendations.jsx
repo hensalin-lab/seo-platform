@@ -40,10 +40,11 @@ export default function AiRecommendations() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('site-wide');
   const [pageLoading, setPageLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    api.getAuditPages(id, { limit: 100 }).then(d => { if (!cancelled) setPages(d.items || []); }).catch(() => {}).finally(() => { if (!cancelled) setLoading(false); });
+    api.getAuditPages(id, { limit: 100 }).then(d => { if (!cancelled) setPages(d.items || []); }).catch(err => { if (!cancelled) setLoadError(err.message || 'Failed to load audit pages.'); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [id]);
 
@@ -60,6 +61,13 @@ export default function AiRecommendations() {
   }, [id, selectedIdx, pages.length]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><div className="spinner" /><p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Loading pages...</p></div>;
+
+  if (loadError) return (
+    <div style={{ padding: 40, textAlign: 'center' }}>
+      <p style={{ color: 'var(--red)', fontWeight: 600 }}>{loadError}</p>
+      <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>Retry</button>
+    </div>
+  );
 
   const topFixes = globalData?.prioritized_fixes || [];
   const catScores = globalData?.category_scores || {};

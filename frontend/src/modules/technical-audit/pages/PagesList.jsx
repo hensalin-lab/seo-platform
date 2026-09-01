@@ -106,6 +106,9 @@ export default function PagesList() {
               <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Pages</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{filtered.length} of {pages.length}</span>
             </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+              Click any row to see that page's full issue list with fixes. Sort by "Issues" to find the weakest pages first.
+            </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
                 <Search size={14} style={{ position: 'absolute', left: 10, top: 8, color: '#94a3b8' }} />
@@ -250,7 +253,14 @@ export default function PagesList() {
               )}
 
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Issues ({detail.issues?.length || 0})</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                  Issues ({detail.issues?.length || 0})
+                  {(detail.issues || []).length > 0 && (
+                    <span style={{ textTransform: 'none', fontWeight: 500, letterSpacing: 0 }}>
+                      {' '}— {['CRITICAL', 'HIGH'].map(s => (detail.issues || []).filter(i => i.severity === s).length).reduce((a, b) => a + b, 0)} critical/high, {['MEDIUM', 'LOW'].map(s => (detail.issues || []).filter(i => i.severity === s).length).reduce((a, b) => a + b, 0)} medium/low
+                    </span>
+                  )}
+                </div>
                 {(detail.issues || []).length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No issues found for this page.</div>}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
                   {(detail.issues || []).map(i => (

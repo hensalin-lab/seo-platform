@@ -380,7 +380,7 @@ def analyze_blog(page, result):
             "signal_name": "Thin Blog Content",
             "description": f"Blog post has only {wc} words — too thin to rank",
             "impact": "Thin content rarely ranks; doesn't provide enough value for featured snippets",
-            "fix": "Expand to 1500+ words with comprehensive coverage, examples, and data"
+            "fix": "Add in-depth sections with real examples, data points, and expert insights specific to this topic"
         })
 
     # Related articles

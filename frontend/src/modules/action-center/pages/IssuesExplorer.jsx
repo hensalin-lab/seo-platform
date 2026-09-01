@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import { AlertTriangle, Search, X, ExternalLink, ArrowLeft, Sparkles, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Search, X, ExternalLink, ArrowLeft, Sparkles, RefreshCw, Wrench } from 'lucide-react';
 import { SEVERITY_COLORS } from '../../../components/ai/theme';
+import ApplyFixModal from '../components/ApplyFixModal';
 
 const SEVERITY_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 const CATEGORY_COLORS = { SEO: '#3b82f6', CONTENT: '#10b981', PERFORMANCE: '#8b5cf6', ACCESSIBILITY: '#f59e0b', SECURITY: '#ef4444', MOBILE: '#06b6d4', SOCIAL: '#ec4899', OTHER: '#64748b' };
@@ -22,6 +23,7 @@ export default function IssuesExplorer() {
   const [enhancing, setEnhancing] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [aiError, setAiError] = useState(null);
+  const [activeFix, setActiveFix] = useState(null);
   const PAGE_SIZE = 100;
 
   const loadIssues = useCallback(async () => {
@@ -207,8 +209,9 @@ export default function IssuesExplorer() {
                     <strong>Replace with:</strong> {issue.replace_with}
                   </div>
                 )}
-                {issue.page_url && (
-                  <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {issue.page_url && (
+                    <>
                     <a href={issue.page_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
                       <ExternalLink size={12} /> Open page
                     </a>
@@ -216,8 +219,13 @@ export default function IssuesExplorer() {
                       style={{ fontSize: 12, color: '#8b5cf6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
                       Full page analysis →
                     </button>
-                  </div>
-                )}
+                    </>
+                  )}
+                  <button onClick={() => setActiveFix(issue)}
+                    style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600 }}>
+                    <Wrench size={13} /> Apply Fix
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -234,6 +242,15 @@ export default function IssuesExplorer() {
           <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)' }}>{page + 1} / {totalPages}</span>
           <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: page >= totalPages - 1 ? '#f8fafc' : '#fff', color: page >= totalPages - 1 ? '#94a3b8' : '#334155', cursor: page >= totalPages - 1 ? 'default' : 'pointer', fontSize: 12 }}>Next →</button>
         </div>
+      )}
+
+      {activeFix && (
+        <ApplyFixModal
+          auditId={id}
+          issue={activeFix}
+          onClose={() => setActiveFix(null)}
+          onDismissed={(issueId) => loadIssues()}
+        />
       )}
     </div>
   );

@@ -153,6 +153,7 @@ export default function SeoHealth() {
                   <th>Check</th>
                   <th>Status</th>
                   <th>Score</th>
+                  <th>What to do</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,6 +176,11 @@ export default function SeoHealth() {
                         </div>
                         <span style={{ fontSize: '13px' }}>{check.score}%</span>
                       </div>
+                    </td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: 320 }}>
+                      {check.status === 'pass'
+                        ? 'Healthy — no action needed.'
+                        : (check.fix || check.recommendation || check.how_to_fix || `Improve this area to raise the score above ${check.score >= 60 ? '75' : '50'}% — open the related tab in the sidebar for step-by-step fixes.`)}
                     </td>
                   </tr>
                 ))}
@@ -219,8 +225,23 @@ export default function SeoHealth() {
               </div>
               {issue.page_url && <div className="issue-url">{issue.page_url}</div>}
               <div className="issue-desc">{issue.description}</div>
+              {(issue.fix || issue.recommendation) && (
+                <div style={{ fontSize: 12.5, color: 'var(--accent)', marginTop: 6, background: 'rgba(99,102,241,0.06)', padding: '8px 10px', borderRadius: 8, lineHeight: 1.5 }}>
+                  <strong>How to fix:</strong> {issue.fix || issue.recommendation}
+                </div>
+              )}
             </div>
           ))}
+        </div>
+      )}
+
+      {checks.length === 0 && topIssues.length === 0 && !error && (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem', marginTop: '1rem' }}>
+          <CheckCircle size={32} style={{ color: 'var(--green)', marginBottom: 8 }} />
+          <h3 style={{ margin: '0 0 6px' }}>All health checks passed</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 420, margin: '0 auto' }}>
+            Every category scored healthy in this audit — there are no failing checks or top issues to review right now.
+          </p>
         </div>
       )}
     </div>

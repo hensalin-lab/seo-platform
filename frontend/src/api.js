@@ -350,12 +350,19 @@ export const api = {
   getBrandMonitor: (id, brand = '') => request(`/audit/${id}/brand-monitor${brand ? `?brand=${encodeURIComponent(brand)}` : ''}`),
   getBrandMonitorHistory: (id) => request(`/audit/${id}/brand-monitor/history`),
 
+  // Closed-loop Apply Fix (Phase 4.5)
+  getApplyFix: (id, issueId) => request(`/audit/${id}/apply-fix/issue/${issueId}`),
+  dismissIssue: (id, issueId) => request(`/audit/${id}/apply-fix/issue/${issueId}/dismiss`, { method: 'POST' }),
+
   // Free keyless data (server-side, works for all users)
   freeAutocomplete: (q) => request(`/free/autocomplete?q=${encodeURIComponent(q)}`),
   freeSiteChecks: (url) => request(`/free/site-checks?url=${encodeURIComponent(url)}`),
   freeWhois: (url) => request(`/free/whois?url=${encodeURIComponent(url)}`),
   freeDns: (url) => request(`/free/dns?url=${encodeURIComponent(url)}`),
   freeSsl: (url) => request(`/free/ssl?url=${encodeURIComponent(url)}`),
+  freePageInspector: (url) => request(`/free/page-inspector?url=${encodeURIComponent(url)}`),
+  freeSchemaDetector: (url) => request(`/free/schema-detector?url=${encodeURIComponent(url)}`),
+  freeSitemapRobots: (url) => request(`/free/sitemap-robots?url=${encodeURIComponent(url)}`),
 
   // Client portal share links (Phase: enterprise)
   listShares: () => request('/shares'),

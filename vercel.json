@@ -1,7 +1,17 @@
 {
-  "framework": null,
+  "services": {
+    "backend": {
+      "root": "backend",
+      "entrypoint": "app.main:app"
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://zooming-smile-production-9693.up.railway.app/api/$1" },
-    { "source": "/((?!api/|favicon\\.png|favicon\\.ico|assets/).*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "backend"
+      }
+    }
   ]
 }

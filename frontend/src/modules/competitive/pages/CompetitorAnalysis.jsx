@@ -198,6 +198,20 @@ export default function CompetitorAnalysis() {
               {toImprove.map(([key, d]) => {
                 const Icon = DIMENSION_ICONS[key] || BarChart3
                 const target = Math.min(Math.max(d?.competitor ?? 0, 70) + 10, 100)
+                const deficit = (d?.competitor ?? 0) - (d?.mine ?? 0)
+                const k = (key || '').toLowerCase()
+                const advice =
+                  k.includes('content') || k.includes('depth')
+                    ? `Your pages are ${deficit > 0 ? `${Math.round(deficit)}% thinner` : 'comparable'} than theirs here — expand thin pages with the subtopics they cover that you don't, and add examples/data to existing sections rather than padding.`
+                    : k.includes('schema') || k.includes('structured')
+                      ? `They ship richer structured data (${d?.competitor ?? '?'} vs your ${d?.mine ?? '?'}). Add the missing JSON-LD types from the Schema tab — FAQ and HowTo are usually the fastest wins for AI answers.`
+                      : k.includes('speed') || k.includes('performance') || k.includes('core')
+                        ? `Their pages load measurably faster. Prioritize your largest LCP element and unused JavaScript — the Speed tab lists the exact resources to trim on each page.`
+                        : k.includes('meta') || k.includes('title') || k.includes('snippet')
+                          ? `Their titles/descriptions are stronger (${d?.competitor ?? '?'} vs ${d?.mine ?? '?'}). Rewrite meta tags to lead with the searcher's exact problem + your differentiator, within pixel limits.`
+                          : k.includes('authority') || k.includes('trust') || k.includes('eeat')
+                            ? `They signal more expertise/trust (${d?.competitor ?? '?'} vs ${d?.mine ?? '?'}). Add author bios, cite primary sources, and surface credentials — see the E-E-A-T tab for which pages lack them.`
+                            : `You trail ${deficit > 0 ? `${Math.round(deficit)} points` : 'slightly'} here — fix the related issues listed in the Issues section, then re-run this comparison to confirm movement.`
                 return (
                   <div key={key} style={{ padding: '12px 14px', background: 'var(--bg-white)', borderRadius: 8, border: '1px solid var(--border)', borderLeft: '4px solid #f59e0b' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -208,7 +222,7 @@ export default function CompetitorAnalysis() {
                       </span>
                     </div>
                     <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
-                      Target <strong style={{ color: '#d97706' }}>{target}</strong> — fix the related on-page issues for this dimension (see Issues), add the missing signals, and improve your content depth in this area.
+                      {advice} Aim for <strong style={{ color: '#d97706' }}>{target}</strong> on this dimension.
                     </div>
                   </div>
                 )
