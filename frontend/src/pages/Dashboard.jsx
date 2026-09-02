@@ -51,7 +51,9 @@ function ScoreTrendChart({ points }) {
 }
 
 function CategoryCard({ label, score, color, icon: Icon, onClick, delay = 0 }) {
-  const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B+' : score >= 60 ? 'B' : score >= 50 ? 'C' : 'D';
+  const hasScore = typeof score === 'number' && !Number.isNaN(score);
+  const grade = hasScore ? (score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B+' : score >= 60 ? 'B' : score >= 50 ? 'C' : 'D') : '—';
+  const barValue = hasScore ? score : 0;
   return (
     <div onClick={onClick} className="hover-lift animate-in" style={{ animationDelay: `${delay}ms`, background: 'var(--bg-white)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius)', padding: 16, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', position: 'relative', overflow: 'hidden' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.boxShadow = `0 8px 24px -4px ${color}30`; }}
@@ -63,11 +65,11 @@ function CategoryCard({ label, score, color, icon: Icon, onClick, delay = 0 }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Grade: {grade}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{hasScore ? `Grade: ${grade}` : 'Not measured yet'}</div>
         </div>
         <ChevronRight size={14} style={{ color: 'var(--text-dim)', transition: 'transform 0.2s' }} />
       </div>
-      <ScoreBar value={score || 0} color={color} />
+      <ScoreBar value={barValue} color={color} />
     </div>
   );
 }
@@ -581,8 +583,8 @@ export default function Dashboard() {
             <CategoryCard label="Technical SEO" score={displayAudit.technical_score} color="#4c6ef5" icon={Shield} onClick={() => navigate(`/audit/${displayAudit.audit_id}/seo?tab=enterprise`)} delay={60} />
             <CategoryCard label="AI Search Optimization" score={displayAudit.aeo_score} color="#f59f00" icon={Brain} onClick={() => navigate(`/audit/${displayAudit.audit_id}/geo-aeo?tab=ai-visibility`)} delay={120} />
             <CategoryCard label="Content Quality" score={displayAudit.content_score} color="#7950f2" icon={FileText} onClick={() => navigate(`/audit/${displayAudit.audit_id}/content-intel?tab=content`)} delay={180} />
-            <CategoryCard label="Internal Links" score={deepData?.internal_links_score || Math.round(70 + (displayAudit.total_pages || 0) * 0.15)} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${displayAudit.audit_id}/internal-links`)} delay={240} />
-            <CategoryCard label="Keyword Strategy" score={deepData?.keyword_score || Math.round(55 + (displayAudit.total_pages || 0) * 0.1)} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${displayAudit.audit_id}/keywords`)} delay={300} />
+            <CategoryCard label="Internal Links" score={deepData?.internal_links_score ?? null} color="#e64980" icon={Link2} onClick={() => navigate(`/audit/${displayAudit.audit_id}/internal-links`)} delay={240} />
+            <CategoryCard label="Keyword Strategy" score={deepData?.keyword_score ?? null} color="#20c997" icon={Target} onClick={() => navigate(`/audit/${displayAudit.audit_id}/keywords`)} delay={300} />
           </div>
 
           {/* DEEP DATA */}

@@ -282,9 +282,11 @@ async def get_audit_status(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/audit/{audit_id}")
-async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
+async def get_audit_detail(audit_id: str, offset: int = 0, limit: int = 200, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
-    cache_key = f"audit_detail:{audit_id}"
+    limit = min(max(limit, 1), 500)
+    offset = max(offset, 0)
+    cache_key = f"audit_detail:{audit_id}:{offset}:{limit}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
@@ -302,7 +304,7 @@ async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
                Page.word_count, Page.h1, Page.canonical, Page.links_internal,
                Page.links_external, Page.images, Page.schema_markup, Page.response_time_ms,
                Page.page_type)
-        .where(Page.audit_id == audit_id).limit(200)
+        .where(Page.audit_id == audit_id).order_by(Page.url.asc()).offset(offset).limit(limit)
     )
     pages = sorted(pages_result.all(), key=lambda p: p.url or "")
 
@@ -337,6 +339,8 @@ async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
             "response_time_ms": p.response_time_ms,
         } for p in pages],
         "total_pages": total_pages,
+        "pages_offset": offset,
+        "pages_limit": limit,
     }
     _cache_set(cache_key, resp)
     return resp
@@ -7042,6 +7046,31 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
     geo_score = scores.geo_score if scores else 0
     aeo_score_val = scores.aeo_score if scores else 0
 
+    page_total = len(pages) or 1
+    def _internal_links_score():
+        with_internal = 0
+        total_links = 0
+        for p in pages:
+            links = p.links_internal if isinstance(p.links_internal, list) else []
+            if links:
+                with_internal += 1
+            total_links += len(links)
+        avg_internal = total_links / page_total if pages else 0
+        return round(min(100, (with_internal / page_total) * 60 + min(avg_internal, 20) / 20 * 40), 1)
+
+    def _keyword_score():
+        with_title = 0
+        with_depth = 0
+        total_words = 0
+        for p in pages:
+            if (p.title or "").strip():
+                with_title += 1
+            if (p.word_count or 0) >= 150:
+                with_depth += 1
+            total_words += p.word_count or 0
+        avg_words = total_words / page_total if pages else 0
+        return round(min(100, (with_title / page_total) * 40 + (with_depth / page_total) * 40 + min(avg_words, 2000) / 2000 * 20), 1)
+
     resp = {
         "audit_id": audit_id,
         "website_url": audit.website_url,
@@ -7057,6 +7086,8 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
         "overall_score": scores.overall_score if scores else 0,
         "total_pages": len(pages),
         "total_issues": len(issues),
+        "internal_links_score": _internal_links_score(),
+        "keyword_score": _keyword_score(),
         "issue_summary": issue_counts,
         "page_type_distribution": page_type_dist,
         "recent_issues": recent_issues,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles, CloudDownload, MonitorSmartphone } from 'lucide-react';
@@ -20,7 +20,7 @@ function CoreWebVitalsPanel({ auditId }) {
   const [runningLocal, setRunningLocal] = useState(false);
   const [form, setForm] = useState({ url: '', lcp_ms: '', inp_ms: '', cls: '', fcp_ms: '', ttfb_ms: '', source: 'lighthouse' });
 
-  const loadCwv = async (force = false) => {
+  const loadCwv = useCallback(async (force = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -32,9 +32,9 @@ function CoreWebVitalsPanel({ auditId }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [auditId]);
 
-  useEffect(() => { loadCwv(); }, [auditId]);
+  useEffect(() => { loadCwv(); }, [loadCwv]);
 
   const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 

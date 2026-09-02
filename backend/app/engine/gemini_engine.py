@@ -262,9 +262,9 @@ Return ONLY valid JSON."""
                 {"title": "Optimize for AI Search", "description": "Add citation-ready content and structured data", "impact": "MEDIUM", "effort": "LOW", "category": "AEO", "specific_steps": ["Add definition paragraphs", "Create FAQ sections", "Implement FAQPage schema"]},
             ],
             "quick_wins": [
-                {"title": "Add Missing Meta Descriptions", "description": "Write compelling descriptions for all pages", "estimated_time": "30 minutes", "expected_improvement": "+5% CTR"},
-                {"title": "Fix Canonical Tags", "description": "Ensure all pages have proper canonical URLs", "estimated_time": "15 minutes", "expected_improvement": "Prevent duplicate content"},
-                {"title": "Add Schema Markup", "description": "Implement Organization and WebPage schemas", "estimated_time": "1 hour", "expected_improvement": "+10% rich snippet eligibility"},
+                {"title": "Add Missing Meta Descriptions", "description": "Write compelling descriptions for all pages", "estimated_time": "30 minutes", "expected_improvement": "Improved click-through rate from search results (estimate)"},
+                {"title": "Fix Canonical Tags", "description": "Ensure all pages have proper canonical URLs", "estimated_time": "15 minutes", "expected_improvement": "Prevent duplicate-content dilution (estimate)"},
+                {"title": "Add Schema Markup", "description": "Implement Organization and WebPage schemas", "estimated_time": "1 hour", "expected_improvement": "Rich-snippet eligibility where supported (estimate)"},
             ],
             "strategic_insights": [
                 f"Site scores {overall}/100 overall. {'Good foundation' if overall > 60 else 'Significant improvement needed'}.",

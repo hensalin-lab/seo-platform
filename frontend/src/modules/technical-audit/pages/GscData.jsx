@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Search, TrendingUp, BarChart3, Target, Zap, Globe, ExternalLink, AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
@@ -540,7 +540,7 @@ export default function GscData() {
   const [activeTab, setActiveTab] = useState('pages');
   const [settings, setSettings] = useState(null);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [overviewRes, keywordsRes, settingsRes] = await Promise.all([
@@ -556,12 +556,11 @@ export default function GscData() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [loadData]);
 
   if (loading) {
     return (
