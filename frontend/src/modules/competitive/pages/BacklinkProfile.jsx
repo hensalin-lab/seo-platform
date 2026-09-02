@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3, Info, FileText } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function BacklinkProfile() {
   const { id } = useParams();
@@ -65,6 +66,10 @@ export default function BacklinkProfile() {
   const anchors = data.anchor_text_distribution || [];
   const pageLinks = data.pages_with_most_outbound_links || data.pages_with_most_external_links || [];
   const note = data.note || '';
+  const hasLive = !!data.has_live_backlinks;
+  const source = hasLive ? 'measured' : 'crawler';
+  const sourceNote = data.backlink_note || '';
+  const pageTitle = hasLive ? 'Backlink Profile' : 'Outbound Link Intelligence';
 
   const getScoreColor = (s) => {
     if (s >= 80) return 'score-excellent';
@@ -76,42 +81,55 @@ export default function BacklinkProfile() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px', flexWrap: 'wrap' }}>
           <Link size={24} style={{ color: 'var(--accent)' }} />
-          <h1>Link Profile</h1>
+          <h1 style={{ display: 'inline' }}>{pageTitle}</h1>
+          <DataSourceBadge source={source} size="sm" />
         </div>
-        <p>Outbound links, linked domains, and anchor text measured from your crawled pages — external backlink data requires a third-party API (Ahrefs/Moz) and isn't included here.</p>
+        <p>{hasLive
+          ? 'Real inbound backlink data from DataForSEO — total backlinks, referring domains, anchor text and domain authority.'
+          : 'No backlink provider is connected. These results are derived from links discovered while crawling your website and do not represent your complete backlink profile. Connect DataForSEO, Moz or Ahrefs to see real inbound backlinks.'}</p>
         {note && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 12px', background: 'rgba(var(--accent-rgb, 99, 102, 241), 0.1)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
             <Info size={14} />
             <span>{note}</span>
           </div>
         )}
+        {sourceNote && sourceNote !== note && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 12px', background: '#713f12', borderRadius: '6px', fontSize: '13px', color: '#fef08a' }}>
+            <Info size={14} />
+            <span>{sourceNote}</span>
+          </div>
+        )}
       </div>
 
       <div className="score-grid">
         <div className="score-card">
-          <div className="label">Backlink Score</div>
+          <div className="label">Link Score</div>
           <div className={`score ${getScoreColor(score)}`}>{score}</div>
           <div className="out-of">out of 100</div>
+          <DataSourceBadge source={source} size="xs" style={{ marginBottom: 8 }} />
           <div className="bar">
             <div className="bar-fill" style={{ width: `${score}%`, background: 'var(--gradient)' }} />
           </div>
         </div>
         <div className="score-card">
-          <div className="label">Total Outbound Links</div>
+          <div className="label">{hasLive ? 'Total Backlinks' : 'Total Outbound Links'}</div>
           <div className="score" style={{ color: 'var(--accent)' }}>{data.outbound_link_count ?? data.total_backlinks ?? 0}</div>
-          <div className="out-of">external links</div>
+          <div className="out-of">{hasLive ? 'backlinks' : 'external links (crawl-derived)'}</div>
+          <DataSourceBadge source={source} size="xs" style={{ marginBottom: 8 }} />
         </div>
         <div className="score-card">
-          <div className="label">Linked Domains</div>
+          <div className="label">{hasLive ? 'Referring Domains' : 'Linked Domains'}</div>
           <div className="score" style={{ color: 'var(--green)' }}>{data.linked_domains ?? data.referring_domains ?? 0}</div>
-          <div className="out-of">unique domains</div>
+          <div className="out-of">{hasLive ? 'referring domains' : 'unique domains linked to (crawl-derived)'}</div>
+          <DataSourceBadge source={source} size="xs" style={{ marginBottom: 8 }} />
         </div>
         <div className="score-card">
           <div className="label">Dofollow / Nofollow</div>
           <div className="score" style={{ color: 'var(--accent)', fontSize: '18px' }}>{data.dofollow_count ?? 0} / {data.nofollow_count ?? 0}</div>
           <div className="out-of">link ratio</div>
+          <DataSourceBadge source={source} size="xs" style={{ marginBottom: 8 }} />
         </div>
       </div>
 

@@ -1,5 +1,7 @@
-import React from 'react';
-import { Search, AlertTriangle, RefreshCw, Database, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, AlertTriangle, RefreshCw, Database, ArrowRight, PlusCircle, Compass } from 'lucide-react';
+import { api } from '../api';
 
 const btnBase = {
   display: 'inline-flex', alignItems: 'center', gap: 7,
@@ -75,13 +77,43 @@ export function EmptyState({ icon: Icon = Search, title = 'No data available', d
 }
 
 export function ErrorState({ title = "Couldn't load this", message, onRetry, icon: Icon = AlertTriangle }) {
+  const navigate = useNavigate();
+  const [demoLoading, setDemoLoading] = useState(false);
+  const auditMissing = typeof message === 'string' && /audit/i.test(message) && /not found|404|doesn.?t exist|removed/i.test(message);
+
+  const createDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const res = await api.createDemo();
+      if (res?.audit_id) navigate(`/audit/${res.audit_id}/dashboard`);
+    } catch (e) {
+      setDemoLoading(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, textAlign: 'center' }}>
       <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(239,68,68,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
         <Icon size={26} color="#dc2626" />
       </div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text, #1a1d29)', marginBottom: 6 }}>{title}</div>
-      {message && <div style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)', maxWidth: 380, lineHeight: 1.55 }}>{message}</div>}
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text, #1a1d29)', marginBottom: 6 }}>{auditMissing ? 'Audit not found' : title}</div>
+      {auditMissing ? (
+        <div style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)', maxWidth: 420, lineHeight: 1.55 }}>
+          This audit belongs to another account or no longer exists, so you can't open it from this account. Create a new audit for your site, or load the sample demo audit to explore the tool.
+        </div>
+      ) : (
+        message && <div style={{ fontSize: 13, color: 'var(--text-muted, #8a8f9e)', maxWidth: 380, lineHeight: 1.55 }}>{message}</div>
+      )}
+      {auditMissing && (
+        <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={() => navigate('/new')} style={{ ...btnBase, background: 'var(--primary, #4c6ef5)', color: '#fff' }}>
+            <PlusCircle size={14} /> Create new audit
+          </button>
+          <button onClick={createDemo} disabled={demoLoading} style={{ ...btnBase, background: 'var(--bg-grey, #f1f3f5)', color: 'var(--text, #1a1d29)' }}>
+            <Compass size={14} /> {demoLoading ? 'Creating…' : 'Try demo audit'}
+          </button>
+        </div>
+      )}
       {onRetry && (
         <button onClick={onRetry} style={{ ...btnBase, background: 'var(--primary, #4c6ef5)', color: '#fff', marginTop: 18 }}>
           <RefreshCw size={14} /> Retry

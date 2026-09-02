@@ -70,7 +70,7 @@ function ChatGPTCitationPreview({ title, url, contentSnippet }) {
     <div style={{ border: '1px solid #e0e0e0', borderRadius: 12, padding: 16, background: 'var(--bg-white)', marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <MessageSquare size={12} style={{ color: '#10a37f' }} /> ChatGPT Citation Preview
-        <span style={{ fontSize: 9, color: '#999', marginLeft: 'auto', fontStyle: 'italic' }}>illustrative — simulated from your page content</span>
+        <span style={{ fontSize: 9, color: '#999', marginLeft: 'auto', fontStyle: 'italic' }}>illustrative — modeled from your page content, not a live SERP</span>
       </div>
       {contentSnippet ? (
         <div style={{ fontSize: 13, lineHeight: 1.6, color: '#333' }}>

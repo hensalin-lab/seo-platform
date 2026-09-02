@@ -181,13 +181,13 @@ async def capture_rankings(
                 source = provider_name
             except Exception as e:
                 logger.warning(f"SERP live check failed for '{kw}' via {provider_name}: {e}")
-                position = _estimate_position(kw, audit, pages)
+                position = None
                 page_url = ""
-                source = "estimated"
+                source = "unmeasured"
         else:
-            position = _estimate_position(kw, audit, pages)
+            position = None
             page_url = ""
-            source = "estimated"
+            source = "unmeasured"
 
         row = RankPosition(
             audit_id=audit_id,
@@ -212,7 +212,7 @@ async def capture_rankings(
         "audit_id": audit_id,
         "captured_at": now.isoformat(),
         "configured": live,
-        "mode": provider_name if live else "estimated",
+        "mode": provider_name if live else "unmeasured",
         "total": len(results),
         "rankings": results,
     }
@@ -305,7 +305,7 @@ async def auto_capture_rankings(audit_id: str):
                 for kw in keywords[:25]:
                     db.add(RankPosition(
                         audit_id=audit_id, keyword=_norm_keyword(kw),
-                        position=_estimate_position(kw, audit, pages), source="estimated", captured_at=now,
+                        position=None, source="unmeasured", captured_at=now,
                     ))
             await db.commit()
             logger.info(f"Ranking snapshot captured for audit {audit_id} ({len(keywords)} keywords)")

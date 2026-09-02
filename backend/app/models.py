@@ -954,6 +954,7 @@ class OAuthFlow(Base):
     __tablename__ = "oauth_flows"
     __table_args__ = (
         Index("ix_oauth_flows_state", "state"),
+        Index("ix_oauth_flows_user_id", "user_id"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey("users.id"))

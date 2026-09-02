@@ -9,13 +9,13 @@ export default function ScoreVelocityPredictor({ currentScore = 68, criticalCoun
     <div style={{ background: `linear-gradient(135deg, ${color}08, ${color}02)`, border: `1px solid ${color}20`, borderRadius: 12, padding: '16px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <TrendingUp size={18} color={color} />
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Score Velocity Prediction</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Score Velocity Estimate</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
             <span>Current: <strong style={{ color: 'var(--text)' }}>{currentScore}</strong></span>
-            <span>Projected: <strong style={{ color }}>{projected}</strong></span>
+            <span>Est. projected: <strong style={{ color }}>{projected}</strong></span>
             <span style={{ color: '#12b886', fontWeight: 600 }}>+{gain} pts</span>
           </div>
           <div style={{ position: 'relative', height: 10, borderRadius: 5, background: '#eef0f2', overflow: 'hidden' }}>

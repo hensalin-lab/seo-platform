@@ -106,6 +106,7 @@ class CrawlerEngine:
     def __init__(self):
         self.visited: set = set()
         self.pages: list[PageData] = []
+        self.crawl_diagnostics: list[str] = []
         self._semaphore = asyncio.Semaphore(settings.CRAWLER_CONCURRENCY)
         self._client: Optional[httpx.AsyncClient] = None
         self._robot_parsers: dict[str, RobotFileParser] = {}
@@ -270,6 +271,8 @@ class CrawlerEngine:
             return []
         if settings.CRAWLER_RESPECT_ROBOTS and not await self._robots_allowed(url):
             logger.debug(f"Skipping disallowed by robots.txt: {url}")
+            if len(self.crawl_diagnostics) < 10:
+                self.crawl_diagnostics.append(f"Blocked by robots.txt: {url}")
             return []
 
         async with self._semaphore:
@@ -285,6 +288,8 @@ class CrawlerEngine:
                 content_type = response.headers.get("content-type", "").lower()
                 if response.status_code < 400 and not any(ct in content_type for ct in HTML_CONTENT_TYPES):
                     logger.debug(f"Skipping non-HTML response {url} (Content-Type: {content_type})")
+                    if len(self.crawl_diagnostics) < 10:
+                        self.crawl_diagnostics.append(f"Non-HTML response ({content_type or 'no content-type'}): {url}")
                     return []
 
                 redirect_chain = []
@@ -437,12 +442,16 @@ class CrawlerEngine:
                 self.pages.append(page)
 
             except httpx.TimeoutException:
+                if len(self.crawl_diagnostics) < 10:
+                    self.crawl_diagnostics.append(f"Timed out: {url}")
                 page = PageData()
                 page.url = url
                 page.status_code = 0
                 self.pages.append(page)
             except Exception as e:
                 logger.warning(f"Crawl error {url}: {e}")
+                if len(self.crawl_diagnostics) < 10:
+                    self.crawl_diagnostics.append(f"{type(e).__name__}: {url} ({e})")
 
             return new_urls
 
@@ -507,3 +516,6 @@ class CrawlerEngine:
 
         logger.info(f"Crawl complete: {len(self.pages)} pages")
         return self.pages
+
+    def get_diagnostics(self) -> list[str]:
+        return list(self.crawl_diagnostics)

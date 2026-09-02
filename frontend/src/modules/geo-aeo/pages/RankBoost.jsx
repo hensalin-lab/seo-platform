@@ -162,7 +162,7 @@ export default function RankBoost() {
         <ThemeStatCard icon={Target} label="Current Score" value={data.current_score} color="#3b82f6" />
         <ThemeStatCard icon={AlertCircle} label="AEO/GEO Issues" value={data.aeo_geo_issues} color="#f59f00" />
         <ThemeStatCard icon={FileText} label="Opportunity Pages" value={data.pages?.length ?? 0} color="#12b886" />
-        <ThemeStatCard icon={TrendingUp} label="Projected Score" value={win?.projected_score ?? '-'} color="#7c3aed" />
+        <ThemeStatCard icon={TrendingUp} label="Est. Projected Score" value={win?.projected_score ?? '-'} color="#7c3aed" />
       </div>
 
       <div style={{ marginBottom: 8 }}>
@@ -179,7 +179,7 @@ export default function RankBoost() {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>Path to Rank #1</div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Fix {win.issues.total} issues (+{win.points_available} pts available) to go from {win.current_score} → ~{win.projected_score}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Fix {win.issues.total} issues (+{win.points_available} pts available) — modeled estimate {win.current_score} → ~{win.projected_score}</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -192,7 +192,7 @@ export default function RankBoost() {
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)' }}>{win.projected_score}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PROJECTED</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>EST. AFTER FIXES</div>
               </div>
             </div>
           </div>

@@ -208,5 +208,10 @@ async def test_rankings_capture_uses_keyless_provider():
         captured = await client.post(f"/api/audit/{audit_id}/rankings/capture", json={"keywords": ["seo audit", "backlinks"]}, headers=headers)
         assert captured.status_code == 200, captured.text
         body = captured.json()
-        assert body["mode"] in ("estimated", "keyless_serp")
+        assert body["mode"] in ("estimated", "keyless_serp", "unmeasured") or body["mode"].startswith("keyless")
         assert body["total"] >= 1
+        for r in body["rankings"]:
+            assert r["source"] != "dataforseo"
+            if not body["configured"]:
+                assert r["position"] is None, "Unkeyed capture must not fabricate a rank position"
+                assert r["source"] == "unmeasured"

@@ -283,6 +283,7 @@ async def get_audit_status(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/audit/{audit_id}")
 async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import func
     cache_key = f"audit_detail:{audit_id}"
     cached = _cache_get(cache_key)
     if cached:
@@ -304,6 +305,11 @@ async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
         .where(Page.audit_id == audit_id).limit(200)
     )
     pages = sorted(pages_result.all(), key=lambda p: p.url or "")
+
+    total_pages_result = await db.execute(
+        select(func.count()).select_from(Page).where(Page.audit_id == audit_id)
+    )
+    total_pages = total_pages_result.scalar() or 0
 
     resp = {
         "audit_id": audit.id, "website_url": audit.website_url, "competitor_url": audit.competitor_url,
@@ -330,7 +336,7 @@ async def get_audit_detail(audit_id: str, db: AsyncSession = Depends(get_db)):
             "schema_count": len(p.schema_markup or []) if isinstance(p.schema_markup, (list, dict)) else 0,
             "response_time_ms": p.response_time_ms,
         } for p in pages],
-        "total_pages": len(pages),
+        "total_pages": total_pages,
     }
     _cache_set(cache_key, resp)
     return resp
@@ -4120,6 +4126,11 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
         "outbound_link_profile": inbound.get("outbound_link_profile", {}),
         "backlink_source": inbound.get("source", "crawl-derived"),
         "backlink_note": inbound.get("note", ""),
+        "backlink_source_label": (
+            "Live \u2014 DataForSEO" if inbound.get("source") == "dataforseo"
+            else "Outbound link intelligence (crawl-derived)"
+        ),
+        "has_live_backlinks": inbound.get("source") == "dataforseo",
         "issues": [{"id": i.id, "page_url": i.page_url, "severity": i.severity, "signal_name": i.signal_name, "description": i.description, "fix": i.fix} for i in seo_issues[:20]],
         "signals": {k: v for k, v in (scores.signals if scores else {}).items() if isinstance(v, dict) and v.get("category") == "SEO"},
         "note": "Backlink data combines crawl-derived outbound link intelligence with DataForSEO inbound data when DATAFORSEO_LOGIN/PASSWORD are configured.",

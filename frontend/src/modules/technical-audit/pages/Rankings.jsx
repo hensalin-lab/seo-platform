@@ -54,14 +54,16 @@ function ChangeBadge({ change }) {
 
 function SourceBadge({ source }) {
   if (!source) return null;
-  const live = source === 'live';
+  const live = source === 'live' || source === 'serpapi' || source === 'dataforseo' || source === 'googleserp';
+  const unmeasured = source === 'unmeasured' || source === 'estimated';
+  const bg = live ? 'rgba(34,197,94,0.1)' : unmeasured ? 'rgba(107,114,128,0.14)' : 'rgba(245,158,11,0.12)';
+  const color = live ? '#16a34a' : unmeasured ? '#6b7280' : '#b45309';
+  const label = source === 'estimated' ? 'Estimated' : source === 'unmeasured' ? 'Not measured' : live ? 'Live' : source;
   return (
     <span style={{
       fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
-      background: live ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.12)',
-      color: live ? '#16a34a' : '#b45309',
-      letterSpacing: '0.03em',
-    }}>{live ? 'Live' : 'Estimated'}</span>
+      background: bg, color, letterSpacing: '0.03em', whiteSpace: 'nowrap',
+    }}>{label}</span>
   );
 }
 
@@ -161,7 +163,7 @@ export default function Rankings() {
             background: data?.mode === 'live' ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)',
             color: data?.mode === 'live' ? '#16a34a' : '#b45309',
           }}>
-            {data?.mode === 'live' ? <><Globe size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Live Google positions</> : <><Info size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Estimated positions</>}
+            {data?.mode === 'live' ? <><Globe size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Live Google positions</> : <><Info size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Positions not measured</>}
           </span>
           <button onClick={() => capture()} disabled={capturing} style={{
             display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px',
@@ -184,7 +186,7 @@ export default function Rankings() {
       {!data?.configured && (
         <div style={{ marginBottom: 18, fontSize: 12.5, color: 'var(--text-secondary, #6b7280)', display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1.5 }}>
           <Info size={13} style={{ flexShrink: 0 }} />
-          <span>Positions are estimated by the built-in engine from on-page signals. Press <b>Capture now</b>, or let the platform's <b>automatic tracker</b> refresh them periodically so your position-over-time trend grows on its own.</span>
+          <span>No SERP provider is connected, so real Google positions are <b>not measured</b> and show as "Not measured". Connect a provider (DataForSEO, SerpAPI, Google CSE) or press <b>Capture now</b> after connecting to record real positions.</span>
         </div>
       )}
 
@@ -223,7 +225,7 @@ export default function Rankings() {
         }}>
           <Target size={36} color="#9ca3af" style={{ marginBottom: 12 }} />
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: 'var(--text-primary, #111827)' }}>No rankings captured yet</div>
-          <div style={{ fontSize: 13, maxWidth: 460, margin: '0 auto 18px' }}>Press <b>Capture now</b> to record positions for keywords found in this audit, or add your own keywords above. After the first capture, the platform's <b>automatic tracker</b> refreshes positions on a period so your trend line builds up over time.</div>
+          <div style={{ fontSize: 13, maxWidth: 460, margin: '0 auto 18px' }}>Connect a SERP provider (DataForSEO, SerpAPI, Google CSE) to record real Google positions for keywords found in this audit, or add your own keywords above.</div>
           <button onClick={() => capture()} disabled={capturing} style={{
             padding: '10px 18px', border: 'none', borderRadius: 10, background: '#3b82f6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
           }}><RefreshCw size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Capture now</button>
@@ -248,11 +250,11 @@ export default function Rankings() {
                 <tr key={k.keyword} style={{ borderTop: '1px solid var(--border-color, #e5e7eb)' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary, #111827)' }}>{k.keyword}</td>
                   <td style={{ textAlign: 'center', padding: '12px 10px' }}>
-                    <span style={{
+                    <span title={k.latest_position == null ? 'Not measured — connect a SERP provider to see real Google position' : undefined} style={{
                       display: 'inline-block', minWidth: 44, padding: '5px 10px', borderRadius: 8,
                       background: positionBg(k.latest_position), color: positionColor(k.latest_position),
                       fontWeight: 700, fontSize: 14,
-                    }}>{k.latest_position ?? '—'}</span>
+                    }}>{k.latest_position ?? '–'}</span>
                   </td>
                   <td style={{ textAlign: 'center', padding: '12px 10px' }}><ChangeBadge change={k.change} /></td>
                   <td style={{ textAlign: 'center', padding: '12px 10px', color: 'var(--text-secondary, #6b7280)' }}>{k.first_position ?? '—'}</td>

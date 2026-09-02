@@ -173,8 +173,10 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email.strip().lower()))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(req.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user:
+        raise HTTPException(status_code=401, detail="No account found with this email address. Create an account first, then sign in.")
+    if not verify_password(req.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect password. Please try again, or use the sign-up page to create a fresh account.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 

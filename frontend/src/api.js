@@ -1,6 +1,7 @@
 const API_BASE = '/api';
 const REQUEST_TIMEOUT = 200000;
-const MAX_RETRIES = 1;
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1600;
 
 let _authToken = localStorage.getItem('token');
 
@@ -37,9 +38,16 @@ async function request(path, options = {}) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') throw new Error('Request timed out');
 
-    const isRetryable = options._retryCount < MAX_RETRIES && err.message?.startsWith('HTTP 5');
-    if (isRetryable) {
-      return request(path, { ...options, _retryCount: (options._retryCount || 0) + 1 });
+    const retryCount = options._retryCount || 0;
+    const retryable = retryCount < MAX_RETRIES && (
+      err.message?.startsWith('HTTP 5') ||
+      err.name === 'TypeError' ||
+      err.message === 'Failed to fetch' ||
+      err.message === 'Network Error'
+    );
+    if (retryable) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY));
+      return request(path, { ...options, _retryCount: retryCount + 1 });
     }
     throw err;
   }
