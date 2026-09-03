@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { BookOpen, AlertTriangle, CheckCircle, XCircle, Award } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 
 export default function ContentQuality() {
@@ -68,6 +69,7 @@ export default function ContentQuality() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <BookOpen size={24} style={{ color: 'var(--accent)' }} />
           <h1>Content Quality Score</h1>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
         <p>E-E-A-T signals, readability, content depth, and quality metrics</p>
       </div>

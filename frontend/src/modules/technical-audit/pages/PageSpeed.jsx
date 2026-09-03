@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Zap, CheckCircle, XCircle, Clock, AlertTriangle, Gauge, Timer, RefreshCw, Sparkles, CloudDownload, MonitorSmartphone } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function cwvStatus(value, thresholds) {
   if (value === null || value === undefined) return { label: 'Unknown', cls: 'badge-gray' };
@@ -433,6 +434,7 @@ export default function PageSpeed() {
             <h2 className="card-title">Page Speed & Core Web Vitals</h2>
             <p className="card-subtitle">{totalPages} pages analyzed</p>
           </div>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
       </div>
 

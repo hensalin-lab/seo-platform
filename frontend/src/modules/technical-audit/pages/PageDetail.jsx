@@ -11,6 +11,7 @@ import {
 import FixDetail from '../../../components/FixDetail';
 import GooglebotView from '../../../components/GooglebotView';
 import { EmptyState } from '../../../components/States';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const TAB_GROUPS = [
   { label: 'Google Sees', tabs: [
@@ -318,7 +319,10 @@ export default function PageDetail() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px' }}>
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Page Intelligence Deep Dive</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Page Intelligence Deep Dive
+            <DataSourceBadge source="crawler" size="xs" />
+          </h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Everything Google sees, what is missing, and exactly how to fix it - pro SEO level</p>
         </div>
 

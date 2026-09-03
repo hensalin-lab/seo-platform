@@ -4,6 +4,7 @@ import { api } from '../../../api';
 import { Image, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import FixDetail from '../../../components/FixDetail';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function ImageSeo() {
   const { id } = useParams();
@@ -70,6 +71,7 @@ export default function ImageSeo() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <Image size={24} style={{ color: 'var(--accent)' }} />
           <h1>Image SEO</h1>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
         <p>Alt text coverage, image optimization, and file format analysis</p>
       </div>

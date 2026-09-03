@@ -6,6 +6,7 @@ import {
   ArrowRight, Info, BarChart3
 } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const IMPACT_COLORS = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -249,7 +250,10 @@ export default function PageImprovements() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Page Improvements</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          Page Improvements
+          <DataSourceBadge source="crawler" size="xs" />
+        </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>Per-page fixes with role-based tasks and priority scoring.</p>
       </div>
 

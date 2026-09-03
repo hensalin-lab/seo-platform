@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FileText, AlertTriangle, CheckCircle, TrendingUp, Target, Zap, ArrowRight, Clock, Brain, BarChart3, Plus, ExternalLink, Search, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
 
@@ -186,7 +187,7 @@ export default function ContentOpportunities() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Content Opportunities</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>Content Opportunities <DataSourceBadge source="estimated" size="xs" /></h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>Every issue found on your content, with the exact page it affects and the exact fix.</p>
       </div>
 

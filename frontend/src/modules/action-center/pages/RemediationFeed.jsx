@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { ListChecks, AlertTriangle, CheckCircle, ChevronDown, Clock, Users, Code, FileText, Search, BarChart3, Settings, Target } from 'lucide-react';
 import { LoadingState, EmptyState } from '../../../components/States';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const ROLE_CONFIG = {
   DEVELOPER: { label: 'Developer Tasks', icon: Code, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
@@ -164,6 +165,7 @@ export default function RemediationFeed() {
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <ListChecks size={24} color="#3b82f6" /> Remediation Feed
+            <DataSourceBadge source="ai-generated" size="xs" />
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Role-grouped implementation tasks with detailed instructions</p>
         </div>

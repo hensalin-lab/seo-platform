@@ -4,6 +4,7 @@ import { Activity, BarChart3, History, Sparkles } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const EVENT_LABELS = {
   'audit.started': { label: 'Audit runs', color: '#8b5cf6' },
@@ -42,7 +43,9 @@ export default function UsageMetering() {
           badge={`${data.total_events ?? 0} events`}
           subtitle="Track platform consumption for capacity planning and future billing"
           actions={
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, padding: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <DataSourceBadge source="measured" size="xs" />
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, padding: 4 }}>
               {[7, 30, 90].map(d => (
                 <button
                   key={d}
@@ -52,6 +55,7 @@ export default function UsageMetering() {
                   {d}d
                 </button>
               ))}
+              </div>
             </div>
           }
         />

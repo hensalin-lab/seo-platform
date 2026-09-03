@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import { Heart, AlertTriangle, CheckCircle, XCircle, Shield, Zap } from 'lucide-react';
 
 export default function SeoHealth() {
@@ -92,6 +93,7 @@ export default function SeoHealth() {
             <div style={{ fontSize: '64px', fontWeight: '800', color: getGradeColor(grade), lineHeight: 1 }}>{grade}</div>
             <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text)', marginTop: '8px' }}>{score}/100</div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Overall Health</div>
+            <div style={{ marginTop: '8px' }}><DataSourceBadge source="crawler" size="xs" /></div>
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>

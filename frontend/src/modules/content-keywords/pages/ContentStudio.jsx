@@ -9,6 +9,7 @@ import {
   Search, ChevronLeft, ChevronRight, CalendarDays, Link2, Target, AlertTriangle,
 } from 'lucide-react';
 import PromptTestingLab from '../components/PromptTestingLab';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
@@ -693,6 +694,7 @@ export default function ContentStudio() {
           { icon: PenTool, t: 'Blog generation' },
         ]}
       />
+      <DataSourceBadge source="ai-generated" size="xs" />
 
       <ThemePillTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
 

@@ -22,6 +22,7 @@ import {
   Target,
   BarChart3,
 } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const scoreBar = (value, max = 100) => {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
@@ -376,6 +377,7 @@ export default function ContentIntelligence() {
           >
             <Eye size={26} color="#3b82f6" />
             Content Intelligence
+            <DataSourceBadge source="crawler" size="xs" />
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>
             Deep content analysis — gaps, quality scores, and actionable recommendations

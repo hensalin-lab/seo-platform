@@ -10,6 +10,7 @@ import {
   ListOrdered, Hash, AlignLeft, Quote, Video, Plus, FileText,
 } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 import GooglebotView from '../../../components/GooglebotView';
@@ -784,6 +785,7 @@ export default function ContentRewriter() {
             { icon: Brain, t: 'Predicted score improvements' },
           ]}
         />
+        <DataSourceBadge source="ai-generated" size="xs" />
 
         <div style={{ marginBottom: 12 }}>
           <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}

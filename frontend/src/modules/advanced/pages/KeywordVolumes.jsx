@@ -9,6 +9,7 @@ import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge,
   inputStyle, btnGhost,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function competitionColor(level) {
   const s = (level || '').toUpperCase();
@@ -60,6 +61,7 @@ export default function KeywordVolumes() {
         ]}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <DataSourceBadge source={data?.configured ? 'measured' : 'estimated'} size="xs" />
             <select value={limit} onChange={e => setLimit(Number(e.target.value))} style={{ ...inputStyle, width: 'auto', background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.4)', color: '#fff' }}>
               {[25, 50, 100, 200].map(n => <option key={n} value={n} style={{ color: '#1e293b' }}>{n} keywords</option>)}
             </select>

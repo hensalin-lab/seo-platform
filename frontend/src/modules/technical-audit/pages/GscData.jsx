@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Search, TrendingUp, BarChart3, Target, Zap, Globe, ExternalLink, AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const INTENT_BADGES = {
   INFORMATIONAL: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Informational' },
@@ -637,8 +638,9 @@ export default function GscData() {
 
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary, #111827)', margin: '0 0 4px' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary, #111827)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
           Google Search Console
+          <DataSourceBadge source="measured" size="xs" />
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>
           Real search performance data from the last 28 days

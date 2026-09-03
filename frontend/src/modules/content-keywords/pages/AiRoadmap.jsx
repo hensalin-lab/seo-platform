@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../../api';
 import { Map, ArrowLeft, Clock, AlertTriangle, Target, TrendingUp, Calendar } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 
 const phases = [
@@ -105,7 +106,7 @@ export default function AiRoadmap() {
     <div className="page-content">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1><Map size={22} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> SEO Roadmap</h1>
+          <h1><Map size={22} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 8 }} /> SEO Roadmap <DataSourceBadge source="formula" size="xs" /></h1>
           <p>Prioritized action plan to improve your SEO performance</p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)}>

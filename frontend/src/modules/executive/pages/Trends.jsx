@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import AnimatedNumber from '../../../components/AnimatedNumber';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, Gauge, AlertTriangle } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
@@ -141,6 +142,9 @@ export default function Trends() {
         ]}
       />
 
+      <div style={{ marginBottom: 8 }}>
+        <DataSourceBadge source="measured" size="xs" />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
         <ThemeStatCard icon={Gauge} label="Latest Overall" value={latestAudit.overall_score ?? '-'} color="#7c3aed" sub="/ 100" />
         <ThemeStatCard icon={BarChart3} label="Audits Tracked" value={audits.length} color="#3b82f6" />

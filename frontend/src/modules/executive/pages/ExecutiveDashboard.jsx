@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 import ScoreRing from '../../../components/ScoreRing';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function ScoreBadge({ label, score, icon: Icon }) {
   const pct = Math.min(100, Math.max(0, score || 0));
@@ -367,6 +368,7 @@ export default function ExecutiveDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, marginBottom: 28 }}>
         <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <ScoreRing score={overallScore} size={140} stroke={12} label="OVERALL" />
+          <div style={{ marginTop: 8 }}><DataSourceBadge source="estimated" size="xs" /></div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <ScoreBadge label="SEO Score" score={siteSummary.seo_score} icon={Search} />

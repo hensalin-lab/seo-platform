@@ -6,6 +6,7 @@ import {
   Eye, Database, ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   Download, FileText, Sparkles, Grid3x3, Settings2, Link2, ListChecks,
 } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const SCHEMA_TYPES = [
   'Article', 'LocalBusiness', 'Service', 'Product', 'FAQPage', 'BreadcrumbList',
@@ -901,7 +902,7 @@ export default function ProgrammaticSeo() {
               <Layers size={24} color="#8b5cf6" />
             </div>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Programmatic SEO</h1>
+              <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Programmatic SEO <DataSourceBadge source="formula" size="xs" /></h1>
               <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Build template-driven pages at scale</p>
             </div>
           </div>

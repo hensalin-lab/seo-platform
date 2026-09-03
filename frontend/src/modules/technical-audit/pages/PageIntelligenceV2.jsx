@@ -4,6 +4,7 @@ import { api } from '../../../api';
 import { Layers, CheckCircle, XCircle, AlertTriangle, Brain, Copy, Target, TrendingUp, ArrowRight, FileCode, Link2, User } from 'lucide-react';
 import { LoadingState, EmptyState } from '../../../components/States';
 import ScoreRing from '../../../components/ScoreRing';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (
@@ -75,11 +76,12 @@ export default function PageIntelligenceV2() {
 
   return (
     <div style={{ padding: '0 24px 40px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
         <select value={selectedIdx} onChange={e => setSelectedIdx(Number(e.target.value))}
           style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}>
           {pages.map((p, i) => <option key={i} value={i}>{p.url?.substring(0, 70)}</option>)}
         </select>
+        <DataSourceBadge source="crawler" size="xs" />
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>

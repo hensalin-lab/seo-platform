@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { MessageCircle, AlertTriangle, CheckCircle, XCircle, Zap, HelpCircle, ListChecks } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 
 export default function AeoAnalysis() {
@@ -91,6 +92,7 @@ export default function AeoAnalysis() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <MessageCircle size={24} style={{ color: 'var(--purple)' }} />
           <h1>AEO (Answer Engine Optimization)</h1>
+          <DataSourceBadge source="estimated" size="xs" />
         </div>
         <p>Optimization for AI-powered answer engines, featured snippets, and voice search</p>
       </div>

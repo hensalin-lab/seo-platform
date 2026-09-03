@@ -4,6 +4,7 @@ import { api } from '../../../api';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Lock, Globe } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import FixDetail from '../../../components/FixDetail';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function SecurityHeaders() {
   const { id } = useParams();
@@ -73,6 +74,7 @@ export default function SecurityHeaders() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <Shield size={24} style={{ color: 'var(--accent)' }} />
           <h1>Security Headers</h1>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
         <p>HTTPS status, HSTS, CSP, and security audit</p>
       </div>

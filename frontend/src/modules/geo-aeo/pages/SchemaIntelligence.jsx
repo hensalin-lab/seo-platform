@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { FileCode, CheckCircle, XCircle, AlertTriangle, Copy, Shield, Eye } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import { LoadingState, EmptyState } from '../../../components/States';
 import ScoreRing from '../../../components/ScoreRing';
@@ -70,6 +71,7 @@ export default function SchemaIntelligence() {
           {pages.map((p, i) => <option key={i} value={i}>{p.url?.substring(0, 70)}</option>)}
         </select>
       </div>
+      <DataSourceBadge source="crawler" size="xs" />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
         <Card title="Schema Score" icon={FileCode} color="#8b5cf6">

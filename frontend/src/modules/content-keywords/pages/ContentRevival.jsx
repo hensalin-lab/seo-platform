@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Clock, AlertTriangle, CheckCircle, TrendingUp, FileText, ExternalLink, Zap, Brain, Link2, RefreshCw, ChevronDown, ChevronUp, Lightbulb, ArrowRight, Wand2 } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
@@ -267,15 +268,16 @@ export default function ContentRevival() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <ThemeHero
-        icon={Wand2}
+        icon={Clock}
         title="Content Revival"
-        subtitle="Every thin, outdated, and orphan page — with specific actions to fix each one."
+        subtitle="Thin, outdated, and orphan pages with refresh recommendations"
         badges={[
+          { icon: Clock, t: 'Freshness audit' },
           { icon: FileText, t: 'Thin content' },
-          { icon: Clock, t: 'Outdated' },
-          { icon: Link2, t: 'Orphan pages' },
+          { icon: RefreshCw, t: 'Revival actions' },
         ]}
       />
+      <DataSourceBadge source="estimated" size="xs" />
 
       <div>
         <AiSuggestionStrip auditId={id} tool="content-revival" title="AI revival fixes" />

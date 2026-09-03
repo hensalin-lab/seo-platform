@@ -149,16 +149,24 @@ export const auditSections = [
     ],
   },
   {
-    label: '2. DIAGNOSE · TECHNICAL',
+    label: '2. DIAGNOSE',
     items: [
-      { suffix: '/seo', icon: 'Search', label: 'SEO Analysis', title: 'SEO Analysis', component: SeoHub },
-      { suffix: '/pages', icon: 'FileCode', label: 'Pages', title: 'Pages', component: PagesHub },
-      { suffix: '/page-detail', icon: 'Layers', label: 'Page Detail', title: 'Page Detail', component: PageDetailHub },
-      { suffix: '/schema', icon: 'Network', label: 'Schema', title: 'Schema', component: SchemaHub },
-      { suffix: '/speed', icon: 'Gauge', label: 'Speed & CWV', title: 'Speed & CWV', component: SpeedHub },
-      { suffix: '/internal-links', icon: 'Link2', label: 'Internal Links', title: 'Internal Links', component: InternalLinks },
-      { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO', title: 'Mobile SEO', component: MobileSeo },
-      { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots', title: 'Sitemap & Robots', component: SitemapRobots },
+      {
+        label: 'Technical',
+        icon: 'Search',
+        group: true,
+        children: [
+          { suffix: '/seo', icon: 'Search', label: 'SEO Analysis', title: 'SEO Analysis', component: SeoHub },
+          { suffix: '/pages', icon: 'FileCode', label: 'Pages', title: 'Pages', component: PagesHub },
+          { suffix: '/page-detail', icon: 'Layers', label: 'Page Detail', title: 'Page Detail', component: PageDetailHub },
+          { suffix: '/schema', icon: 'Network', label: 'Schema', title: 'Schema', component: SchemaHub },
+          { suffix: '/speed', icon: 'Gauge', label: 'Speed & CWV', title: 'Speed & CWV', component: SpeedHub },
+          { suffix: '/internal-links', icon: 'Link2', label: 'Internal Links', title: 'Internal Links', component: InternalLinks },
+          { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO', title: 'Mobile SEO', component: MobileSeo },
+          { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots', title: 'Sitemap & Robots', component: SitemapRobots },
+          { suffix: '/roadmap', icon: 'Flag', label: 'Roadmap', title: 'Roadmap', component: RoadmapHub },
+        ],
+      },
       {
         label: 'Crawlability & Indexation',
         icon: 'Globe',
@@ -172,38 +180,43 @@ export const auditSections = [
           { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency', title: 'JavaScript Dependency', component: JsDependency },
         ],
       },
-      { suffix: '/roadmap', icon: 'Flag', label: 'Roadmap', title: 'Roadmap', component: RoadmapHub },
+      {
+        label: 'GEO & AEO',
+        icon: 'Brain',
+        group: true,
+        children: [
+          { suffix: '/geo-aeo', icon: 'Brain', label: 'GEO & AEO Hub', title: 'GEO & AEO Hub', component: GeoAeoHubTabs },
+          { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access', title: 'AI Bot Access', component: AiBotIntelligence },
+          { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview', title: 'SERP & AI Preview', component: SerpPreview },
+          { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis', title: 'E-E-A-T Analysis', component: EeatAnalysis },
+          { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO', title: 'Social SEO', component: SocialSeo },
+          { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO', title: 'Local SEO', component: LocalSeo },
+        ],
+      },
+      {
+        label: 'Content & Keywords',
+        icon: 'Cpu',
+        group: true,
+        children: [
+          { suffix: '/content-intel', icon: 'Cpu', label: 'Content Intelligence', title: 'Content Intelligence', component: ContentIntelHub },
+          { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy', title: 'Keyword Strategy', component: KeywordHub },
+        ],
+      },
+      {
+        label: 'Competitive & Offsite',
+        icon: 'Users',
+        group: true,
+        children: [
+          { suffix: '/competitor', icon: 'Users', label: 'Competitor Analysis', title: 'Competitor Analysis', component: CompetitorAnalysis },
+          { suffix: '/backlinks', icon: 'Link2', label: 'Backlinks', title: 'Backlink Profile', component: BacklinkProfile },
+          { suffix: '/offsite-authority', icon: 'Award', label: 'Off-Site Authority', title: 'Off-Site Authority', component: OffsiteHub },
+          { suffix: '/citations', icon: 'MessageCircle', label: 'Citations', title: 'Citation Analysis', component: CitationAnalysis },
+        ],
+      },
     ],
   },
   {
-    label: '3. DIAGNOSE · GEO & AEO',
-    items: [
-      { suffix: '/geo-aeo', icon: 'Brain', label: 'GEO & AEO Hub', title: 'GEO & AEO Hub', component: GeoAeoHubTabs },
-      { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access', title: 'AI Bot Access', component: AiBotIntelligence },
-      { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview', title: 'SERP & AI Preview', component: SerpPreview },
-      { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis', title: 'E-E-A-T Analysis', component: EeatAnalysis },
-      { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO', title: 'Social SEO', component: SocialSeo },
-      { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO', title: 'Local SEO', component: LocalSeo },
-    ],
-  },
-  {
-    label: '4. DIAGNOSE · CONTENT & KEYWORDS',
-    items: [
-      { suffix: '/content-intel', icon: 'Cpu', label: 'Content Intelligence', title: 'Content Intelligence', component: ContentIntelHub },
-      { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy', title: 'Keyword Strategy', component: KeywordHub },
-    ],
-  },
-  {
-    label: '5. DIAGNOSE · COMPETITIVE & OFFSITE',
-    items: [
-      { suffix: '/competitor', icon: 'Users', label: 'Competitor Analysis', title: 'Competitor Analysis', component: CompetitorAnalysis },
-      { suffix: '/backlinks', icon: 'Link2', label: 'Backlinks', title: 'Backlink Profile', component: BacklinkProfile },
-      { suffix: '/offsite-authority', icon: 'Award', label: 'Off-Site Authority', title: 'Off-Site Authority', component: OffsiteHub },
-      { suffix: '/citations', icon: 'MessageCircle', label: 'Citations', title: 'Citation Analysis', component: CitationAnalysis },
-    ],
-  },
-  {
-    label: '6. FIX',
+    label: '3. FIX',
     items: [
       { suffix: '/action-hub', icon: 'ClipboardList', label: 'Action Hub', title: 'Action Hub', component: ActionHub },
       { suffix: '/issues', icon: 'AlertTriangle', label: 'Issue Remediation', title: 'Issue Remediation' },
@@ -212,17 +225,12 @@ export const auditSections = [
     ],
   },
   {
-    label: '7. CREATE',
+    label: '4. CREATE & TRACK',
     items: [
       { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio', title: 'Content Studio', component: ContentStudioHub },
       { suffix: '/blog-ai', icon: 'PenTool', label: 'Blog AI', title: 'Blog AI', component: BlogAi },
       { suffix: '/content-revival', icon: 'RefreshCw', label: 'Content Revival', title: 'Content Revival', component: ContentRevival },
       { suffix: '/chat', icon: 'MessageSquare', label: 'AI Chat', title: 'AI Chat', component: AiChat },
-    ],
-  },
-  {
-    label: '8. TRACK',
-    items: [
       { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: Rankings },
       { suffix: '/trends', icon: 'LineChart', label: 'Score Trends', title: 'Score Trends', component: AuditTrends },
       { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor', title: 'AI Overviews Monitor', component: AiOverviews },
@@ -231,7 +239,7 @@ export const auditSections = [
     ],
   },
   {
-    label: '9. SETTINGS',
+    label: '5. SETTINGS',
     items: [
       { path: '/settings', icon: 'Settings', label: 'Settings', title: 'Settings' },
     ],

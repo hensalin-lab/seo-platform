@@ -8,6 +8,7 @@ import {
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, severityColor,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function ScoreDelta({ current, previous }) {
   const delta = Math.round(((current || 0) - (previous || 0)) * 10) / 10;
@@ -112,9 +113,12 @@ export default function DriftDetection() {
           badge={data?.cached ? 'cached' : 'live'}
           subtitle={`${s.website_url || '—'} · comparing ${s.previous_audit_id || '—'} → ${s.current_audit_id || '—'}`}
           actions={
-            <button style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', background: 'transparent', color: 'var(--text)', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => load(true)} disabled={refreshing}>
-              <RefreshCw size={14} style={refreshing ? { animation: 'spin 0.8s linear infinite' } : {}} /> Recompute
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <DataSourceBadge source="estimated" size="xs" />
+              <button style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', background: 'transparent', color: 'var(--text)', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => load(true)} disabled={refreshing}>
+                <RefreshCw size={14} style={refreshing ? { animation: 'spin 0.8s linear infinite' } : {}} /> Recompute
+              </button>
+            </div>
           }
         />
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>{error}</div>}

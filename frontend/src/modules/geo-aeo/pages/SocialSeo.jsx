@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Share2, AlertTriangle, CheckCircle, XCircle, Globe, Hash } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
@@ -69,6 +70,7 @@ export default function SocialSeo() {
           { icon: Share2, t: 'Social sharing' },
         ]}
       />
+      <DataSourceBadge source="estimated" size="xs" />
 
       <div style={{ marginBottom: 20 }}>
         <AiSuggestionStrip auditId={id} tool="social" title="AI social meta fixes" />

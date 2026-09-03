@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
+import DataSourceBadge from '../../../components/DataSourceBadge'
 import { Users, TrendingUp, AlertTriangle, ArrowRight, BarChart3, Shield, BookOpen, Link2, Gauge, Award, Brain, ExternalLink, RefreshCw, Play, Loader, Star } from 'lucide-react'
 import { LoadingState } from '../../../components/States'
 
@@ -114,7 +115,7 @@ export default function CompetitorAnalysis() {
 
       {Object.keys(position).length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>Competitive Position</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>Competitive Position <DataSourceBadge source="modeled" size="xs" /></h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
             {Object.entries(position).map(([dim, val]) => {
               const Icon = DIMENSION_ICONS[dim] || BarChart3

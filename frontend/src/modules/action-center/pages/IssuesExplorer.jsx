@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { AlertTriangle, Search, X, ExternalLink, ArrowLeft, Sparkles, RefreshCw, Wrench } from 'lucide-react';
 import { SEVERITY_COLORS } from '../../../components/ai/theme';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import ApplyFixModal from '../components/ApplyFixModal';
 
 const SEVERITY_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -107,6 +108,7 @@ export default function IssuesExplorer() {
           <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}><ArrowLeft size={16} /></button>
           <AlertTriangle size={22} style={{ color: '#eab308' }} />
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Issue Remediation</h1>
+          <DataSourceBadge source="crawler" size="xs" />
           <button onClick={enhanceAll} disabled={enhancing || allIssues.length === 0}
             style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', cursor: enhancing ? 'default' : 'pointer', background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 600 }}>
             {enhancing ? <RefreshCw size={14} className="spin" /> : <Sparkles size={14} />}

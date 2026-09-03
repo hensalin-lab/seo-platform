@@ -5,6 +5,7 @@ import { Award, Link2, Shield, FileText, Cpu, Smartphone } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, StatCard, ProgressBar,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const FACTOR_META = {
   referring_domains: { label: 'Referring domains', color: '#8b5cf6' },
@@ -64,6 +65,7 @@ export default function DomainAuthority() {
           title="Domain Authority"
           badge={data.method}
           subtitle="Keyless heuristic combining link data, on-page quality, content depth, brand and performance signals"
+          actions={<DataSourceBadge source="modeled" size="xs" />}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { BarChart3, AlertTriangle, Sparkles, Globe, Gauge, Search, Settings, Bot, Eye, FileText } from 'lucide-react'
 import { api } from '../../../api'
+import DataSourceBadge from '../../../components/DataSourceBadge'
 import AIChatWidget from '../../../components/AIChatWidget'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import ThemeHero from '../../../components/ai/ThemeHero'
@@ -142,6 +143,9 @@ export default function AuditReport() {
 
       <AiSuggestionStrip auditId={id} tool="report" title="AI fixes" />
 
+      <div style={{ marginBottom: 8 }}>
+        <DataSourceBadge source="estimated" size="xs" />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         {[
           { label: 'Overall', value: scores.overall_score, icon: Gauge, color: '#7c3aed' },

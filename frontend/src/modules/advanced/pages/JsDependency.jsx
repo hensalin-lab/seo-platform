@@ -5,6 +5,7 @@ import { Cpu, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, ProgressBar, severityColor,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function JsDependency() {
   const { id } = useParams();
@@ -32,6 +33,7 @@ export default function JsDependency() {
           title="JavaScript Dependency"
           badge={data.risk_level}
           subtitle="How much of this site's content depends on client-side rendering"
+          actions={<DataSourceBadge source="crawler" size="xs" />}
         />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
           <StatCard icon={Cpu} label="Risk score" value={`${data.risk_score ?? 0}%`} color={levelColor} />

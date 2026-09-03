@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Code, CheckCircle, XCircle, Layers, AlertTriangle } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function SchemaAnalysis() {
   const { id } = useParams();
@@ -70,6 +71,7 @@ export default function SchemaAnalysis() {
             <h2 className="card-title">Schema Analysis</h2>
             <p className="card-subtitle">Structured data markup coverage and signals</p>
           </div>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { FileText, AlertTriangle, CheckCircle, XCircle, Shield } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function SitemapRobots() {
   const { id } = useParams();
@@ -65,6 +66,7 @@ export default function SitemapRobots() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <FileText size={24} style={{ color: 'var(--accent)' }} />
           <h1>Sitemap & Robots</h1>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
         <p>XML sitemap analysis, robots.txt validation, and indexation health</p>
       </div>

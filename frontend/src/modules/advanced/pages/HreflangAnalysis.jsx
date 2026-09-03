@@ -5,6 +5,7 @@ import { Globe, Languages, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, ProgressBar, severityColor,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function HreflangAnalysis() {
   const { id } = useParams();
@@ -43,6 +44,7 @@ export default function HreflangAnalysis() {
           title="Hreflang & International SEO"
           badge={data.cached ? 'cached' : 'live'}
           subtitle={`Detected on ${data.pages?.length || 0} pages · ${data.language_count || 0} languages`}
+          actions={<DataSourceBadge source="crawler" size="xs" />}
         />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
           <StatCard icon={Globe} label="Coverage" value={`${data.coverage ?? 0}%`} sub="pages with hreflang" color="#8b5cf6" />

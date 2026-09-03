@@ -5,6 +5,7 @@ import { Link2, ArrowRight, AlertTriangle, ShieldCheck } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, severityColor,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function RedirectAudit() {
   const { id } = useParams();
@@ -28,7 +29,7 @@ export default function RedirectAudit() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card>
-        <CardHeader icon={Link2} title="Redirect Analysis" subtitle="Redirect chains, soft redirects and HTTP→HTTPS detection captured during the crawl" />
+        <CardHeader icon={Link2} title="Redirect Analysis" subtitle="Redirect chains, soft redirects and HTTP→HTTPS detection captured during the crawl" actions={<DataSourceBadge source="crawler" size="xs" />} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
           <StatCard icon={Link2} label="Redirects" value={data.total_redirects ?? 0} color="#8b5cf6" />
           <StatCard icon={ArrowRight} label="Chains" value={data.chains ?? 0} sub="2+ hop redirects" color="#f97316" />

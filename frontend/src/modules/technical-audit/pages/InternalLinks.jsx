@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Link2, AlertTriangle, CheckCircle, XCircle, BarChart3, ExternalLink, Unlink, ChevronDown, ChevronRight, Lightbulb, Target, Globe, Search, ArrowRight, Layers, Anchor, Network, TrendingUp, Hash } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function LinkSuggestionCard({ suggestion }) {
   const priColors = { HIGH: '#059669', MEDIUM: '#d97706', LOW: '#64748b' };
@@ -200,7 +201,7 @@ export default function InternalLinks() {
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Link2 size={24} color="#3b82f6" /> Internal Link Intelligence
+            <Link2 size={24} color="#3b82f6" /> Internal Link Intelligence <DataSourceBadge source="crawler" size="xs" />
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Deep analysis of link architecture, anchor text quality, PageRank flow, and topic clusters</p>
         </div>

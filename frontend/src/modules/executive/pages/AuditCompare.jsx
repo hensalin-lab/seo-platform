@@ -5,6 +5,7 @@ import {
   TrendingDown, Minus, BarChart3, FileText, Layers, Target, Info, Sparkles
 } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 
@@ -123,8 +124,7 @@ export default function AuditCompare() {
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text, #111827)' }}>
                 {data.winner === 'TIE' ? "It's a Tie!" : `Audit ${data.winner} Wins`}
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary, #4b5563)' }}>
+              </div>              <div style={{ fontSize: 13, color: 'var(--text-secondary, #4b5563)' }}>
                 {data.audit_a.url} vs {data.audit_b.url}
               </div>
             </div>
@@ -167,6 +167,10 @@ export default function AuditCompare() {
           })()}
 
           {/* Score Comparison */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text, #111827)' }}>Score Comparison</span>
+            <DataSourceBadge source="estimated" size="xs" />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <div style={{ background: 'var(--bg-white, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 'var(--radius, 12px)', overflow: 'hidden' }}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border, #e5e7eb)', background: 'rgba(34,197,94,0.04)' }}>

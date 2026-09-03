@@ -4,6 +4,7 @@ import { api } from '../../../api';
 import { Smartphone, AlertTriangle, CheckCircle, XCircle, Gauge } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import FixDetail from '../../../components/FixDetail';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function MobileSeo() {
   const { id } = useParams();
@@ -68,6 +69,7 @@ export default function MobileSeo() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <Smartphone size={24} style={{ color: 'var(--accent)' }} />
           <h1>Mobile SEO</h1>
+          <DataSourceBadge source="crawler" size="xs" />
         </div>
         <p>Mobile-specific issues, mobile-first indexing readiness, and responsive design</p>
       </div>

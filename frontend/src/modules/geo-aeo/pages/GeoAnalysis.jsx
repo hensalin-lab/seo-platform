@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Globe, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Sparkles, Target, Info, Shield, Brain, FileText, Link2, Zap } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
 
@@ -218,7 +219,7 @@ export default function GeoAnalysis() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>GEO Analysis</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text, #111827)', margin: '0 0 4px' }}>GEO Analysis <DataSourceBadge source="estimated" size="xs" /></h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary, #6b7280)', margin: 0 }}>Generative Engine Optimization — what's missing for AI citation, with exact fixes per page.</p>
       </div>
 

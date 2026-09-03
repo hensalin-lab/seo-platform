@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { GitBranch, Clock, AlertTriangle, CheckCircle, ChevronDown, Target, Zap, ArrowRight, Calendar, BarChart3, Code, FileText, Search } from 'lucide-react';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import { LoadingState, EmptyState } from '../../../components/States';
 
 function PhaseCard({ phase, phaseIndex }) {
@@ -139,6 +140,7 @@ export default function SeoRoadmap() {
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <GitBranch size={24} color="#3b82f6" /> SEO Implementation Roadmap
+            <DataSourceBadge source="formula" size="xs" />
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>Prioritized implementation plan with timelines and milestones</p>
         </div>

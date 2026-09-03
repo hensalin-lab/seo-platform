@@ -7,6 +7,7 @@ import {
   Trophy, TrendingUp, Clock,
 } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 
@@ -157,6 +158,7 @@ export default function RankBoost() {
           </div>
         }
       />
+      <DataSourceBadge source="ai-generated" size="xs" />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         <ThemeStatCard icon={Target} label="Current Score" value={data.current_score} color="#3b82f6" />

@@ -8,6 +8,7 @@ import {
   Card, CardHeader, LoadingSpinner, EmptyState, StatCard, Badge, ProgressBar,
   inputStyle, labelStyle, btnPrimary, btnGhost,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const ACCENT = '#8b5cf6';
 
@@ -78,6 +79,7 @@ export default function BrandMonitor() {
           subtitle="Estimates how visible and citable your brand is across AI answer engines (AI Overviews, ChatGPT, Perplexity)"
           actions={
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <DataSourceBadge source="estimated" size="xs" />
               <input
                 value={brand}
                 onChange={e => setBrand(e.target.value)}

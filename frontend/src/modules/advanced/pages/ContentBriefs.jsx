@@ -5,6 +5,7 @@ import { FileText, ListChecks, Layers, TrendingUp } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, severityColor,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function ContentBriefs() {
   const { id } = useParams();
@@ -38,7 +39,7 @@ export default function ContentBriefs() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card>
-        <CardHeader icon={FileText} title="Content Briefs & Topic Clusters" subtitle="Keyless topic clustering of your keyword data with SEO-ready outlines" />
+        <CardHeader icon={FileText} title="Content Briefs & Topic Clusters" subtitle="Keyless topic clustering of your keyword data with SEO-ready outlines" actions={<DataSourceBadge source="ai-generated" size="xs" />} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
           <StatCard icon={Layers} label="Clusters" value={data.clusters?.length ?? 0} color="#8b5cf6" />
           <StatCard icon={FileText} label="Briefs" value={data.briefs?.length ?? 0} color="#3b82f6" />

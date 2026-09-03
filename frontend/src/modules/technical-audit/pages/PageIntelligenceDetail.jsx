@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const SCORE_COLORS = {
   excellent: '#059669',
@@ -365,6 +366,7 @@ export default function PageIntelligenceDetail() {
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Brain size={18} style={{ color: 'var(--accent)' }} /> Scores
           </h2>
+          <DataSourceBadge source="crawler" size="xs" />
           <span
             className={`badge ${overallScore >= 80 ? 'badge-green' : overallScore >= 60 ? 'badge-cyan' : overallScore >= 40 ? 'badge-yellow' : 'badge-red'}`}
             style={{ fontSize: 13, padding: '6px 16px' }}

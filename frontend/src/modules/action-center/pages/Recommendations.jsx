@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Lightbulb, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 export default function Recommendations() {
   const { id } = useParams();
@@ -29,7 +30,7 @@ export default function Recommendations() {
     <div>
       <div className="card" style={{marginBottom: 24}}>
         <div className="card-header">
-          <div className="card-title"><Lightbulb size={20} /> AI Recommendations</div>
+          <div className="card-title"><Lightbulb size={20} /> AI Recommendations <DataSourceBadge source="ai-generated" size="xs" /></div>
           <div className="card-subtitle">{data.length} recommendations generated</div>
         </div>
         <div style={{display: 'flex', gap: 4}}>

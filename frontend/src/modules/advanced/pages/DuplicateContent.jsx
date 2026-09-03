@@ -5,6 +5,7 @@ import { Copy, FileText, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 function DuplicateRow({ g }) {
   return (
@@ -55,7 +56,7 @@ export default function DuplicateContent() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card>
-        <CardHeader icon={Copy} title="Duplicate Content Detection" subtitle="Near-identical body hashes and repeated titles across crawled pages" />
+        <CardHeader icon={Copy} title="Duplicate Content Detection" subtitle="Near-identical body hashes and repeated titles across crawled pages" actions={<DataSourceBadge source="crawler" size="xs" />} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
           <StatCard icon={Copy} label="Groups" value={data.total_groups ?? 0} color="#f97316" />
           <StatCard icon={FileText} label="Affected pages" value={data.duplicate_pages ?? 0} sub="in 2+ URL groups" color="#8b5cf6" />

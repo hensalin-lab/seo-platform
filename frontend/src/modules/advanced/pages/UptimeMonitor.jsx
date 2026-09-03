@@ -6,6 +6,7 @@ import {
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, inputStyle, labelStyle, btnPrimary, btnGhost,
 } from './ui';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 
 const INTERVALS = [1, 5, 15, 30, 60];
 
@@ -109,9 +110,12 @@ export default function UptimeMonitor() {
           badge={`${targets.length} targets`}
           subtitle="Automated checks every interval, with downtime webhooks to your configured endpoints"
           actions={
-            <button style={btnPrimary} onClick={() => setShowForm(v => !v)}>
-              <Plus size={15} /> {showForm ? 'Close' : 'Add target'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <DataSourceBadge source="measured" size="xs" />
+              <button style={btnPrimary} onClick={() => setShowForm(v => !v)}>
+                <Plus size={15} /> {showForm ? 'Close' : 'Add target'}
+              </button>
+            </div>
           }
         />
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>{error}</div>}

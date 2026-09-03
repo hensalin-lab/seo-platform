@@ -6,6 +6,7 @@ import {
   BarChart3, FileText, Clock, Target, Zap, HelpCircle, Layers
 } from 'lucide-react';
 import { api } from '../../../api';
+import DataSourceBadge from '../../../components/DataSourceBadge';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
@@ -266,6 +267,7 @@ export default function BlogAi() {
           { icon: TrendingUp, t: 'Trend signals' },
         ]}
       />
+      <DataSourceBadge source="estimated" size="xs" />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         <ThemeStatCard icon={Lightbulb} label="Blog Ideas" value={s.total_blog_ideas || 0} color="#a855f7" />
