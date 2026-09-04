@@ -13,7 +13,7 @@ Endpoints:
 """
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/research", tags=["research"])
 @router.get("/keyword-difficulty")
 @limiter.limit("10/minute")
 async def keyword_difficulty(
+    request: Request,
     keyword: str = "",
     user: User = Depends(get_current_active_user),
 ):
@@ -42,6 +43,7 @@ async def keyword_difficulty(
 @router.get("/traffic-estimate")
 @limiter.limit("10/minute")
 async def traffic_estimate(
+    request: Request,
     domain: str = "",
     own: bool = False,
     property_url: str = "",
@@ -70,6 +72,7 @@ async def traffic_estimate(
 @router.get("/keyword-universe")
 @limiter.limit("10/minute")
 async def keyword_universe(
+    request: Request,
     domain: str = "",
     seed: str = "",
     max_keywords: int = 20,
@@ -85,6 +88,7 @@ async def keyword_universe(
 @router.get("/trust-flow/{domain}")
 @limiter.limit("10/minute")
 async def trust_flow(
+    request: Request,
     domain: str,
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -97,6 +101,7 @@ async def trust_flow(
 @router.get("/url-inspection")
 @limiter.limit("10/minute")
 async def url_inspection(
+    request: Request,
     url: str = "",
     property_url: str = "",
     user: User = Depends(get_current_active_user),

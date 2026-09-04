@@ -12,7 +12,7 @@ import logging
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select, func, desc, distinct
@@ -97,6 +97,7 @@ async def _run_refresh_background(domain: str):
 @router.post("/{domain}/refresh")
 @limiter.limit("5/minute")
 async def refresh_backlinks(
+    request: Request,
     domain: str,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_active_user),

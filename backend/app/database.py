@@ -1,4 +1,5 @@
 import os
+import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
@@ -38,6 +39,10 @@ async def init_db():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Run pending Alembic migrations (e.g. target_domain columns on backlinks).
+    await _run_pending_migrations()
+
     await migrate_sqlite_columns()
 
 
@@ -65,6 +70,31 @@ def _stamp_if_unversioned(conn):
     print("[init_db] database had no alembic_version; stamped at head")
 
 
+async def _run_pending_migrations():
+    """Run Alembic upgrade head to apply any pending migrations.
+
+    Uses the sync engine derived from the async DATABASE_URL so Alembic
+    operates against the correct database. Runs in a thread to avoid
+    clashing with the existing event loop (Alembic's env.py calls asyncio.run).
+    """
+    from alembic.config import Config
+    from alembic import command
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg = Config(os.path.join(here, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(here, "alembic"))
+    cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+    def _run():
+        command.upgrade(cfg, "head")
+
+    try:
+        await asyncio.to_thread(_run)
+        print("[init_db] Alembic migrations applied")
+    except Exception as exc:
+        print(f"[init_db] Alembic upgrade skipped/failed (non-fatal): {exc}")
+
+
 _SQLITE_ADD_COLUMNS = {
     "issues": {
         "why_it_matters": "TEXT",
@@ -82,6 +112,12 @@ _SQLITE_ADD_COLUMNS = {
         "delivery_count": "INTEGER DEFAULT 0",
         "last_delivery_status": "INTEGER",
         "last_delivery_error": "TEXT DEFAULT ''",
+    },
+    "backlinks": {
+        "target_domain": "TEXT DEFAULT ''",
+    },
+    "referring_domains": {
+        "target_domain": "TEXT DEFAULT ''",
     },
 }
 
