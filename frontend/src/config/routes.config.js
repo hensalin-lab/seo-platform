@@ -302,30 +302,36 @@ export const reportSidebarNav = [
     { suffix: '/competitor', icon: 'Users', label: 'Competitor Analysis' },
     { suffix: '/backlinks', icon: 'Link2', label: 'Backlinks' },
     { suffix: '/offsite-authority', icon: 'Award', label: 'Off-Site Authority' },
-  ], more: [
-    { suffix: '/schema', icon: 'Network', label: 'Schema' },
-    { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots' },
-    { suffix: '/roadmap', icon: 'Flag', label: 'Roadmap' },
-    { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO' },
-    { suffix: '/security-headers', icon: 'ShieldAlert', label: 'Security Headers' },
-    { suffix: '/image-seo', icon: 'Camera', label: 'Image SEO' },
-    { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang & i18n' },
-    { suffix: '/redirects', icon: 'ArrowRight', label: 'Redirects' },
-    { suffix: '/duplicates', icon: 'Copy', label: 'Duplicates' },
-    { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency' },
-    { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access' },
-    { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview' },
-    { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis' },
-    { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO' },
-    { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO' },
-    { suffix: '/citations', icon: 'MessageCircle', label: 'Citations' },
+  ], moreGroups: [
+    { label: 'Technical', items: [
+      { suffix: '/schema', icon: 'Network', label: 'Schema' },
+      { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots' },
+      { suffix: '/roadmap', icon: 'Flag', label: 'Roadmap' },
+      { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO' },
+      { suffix: '/security-headers', icon: 'ShieldAlert', label: 'Security Headers' },
+      { suffix: '/image-seo', icon: 'Camera', label: 'Image SEO' },
+      { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang & i18n' },
+      { suffix: '/redirects', icon: 'ArrowRight', label: 'Redirects' },
+      { suffix: '/duplicates', icon: 'Copy', label: 'Duplicates' },
+      { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency' },
+    ] },
+    { label: 'GEO & AEO', items: [
+      { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access' },
+      { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview' },
+      { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis' },
+      { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO' },
+      { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO' },
+      { suffix: '/citations', icon: 'MessageCircle', label: 'Citations' },
+    ] },
   ] },
   { section: '3. FIX', group: 'Fix', main: [
     { suffix: '/action-hub', icon: 'ClipboardList', label: 'Action Hub' },
     { suffix: '/issues', icon: 'AlertTriangle', label: 'Issue Remediation' },
     { suffix: '/rank-boost', icon: 'Star', label: 'Rank Boost' },
-  ], more: [
-    { suffix: '/content-rewrite', icon: 'Edit3', label: 'Content Rewriter' },
+  ], moreGroups: [
+    { label: 'More', items: [
+      { suffix: '/content-rewrite', icon: 'Edit3', label: 'Content Rewriter' },
+    ] },
   ] },
   { section: '4. CREATE & TRACK', group: 'Create & Track', main: [
     { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio' },
@@ -335,9 +341,11 @@ export const reportSidebarNav = [
     { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking' },
     { suffix: '/drift', icon: 'GitCompare', label: 'Drift & Changes' },
     { suffix: '/gsc', icon: 'Search', label: 'Google Search Console' },
-  ], more: [
-    { suffix: '/trends', icon: 'LineChart', label: 'Score Trends' },
-    { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor' },
+  ], moreGroups: [
+    { label: 'Tracking', items: [
+      { suffix: '/trends', icon: 'LineChart', label: 'Score Trends' },
+      { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor' },
+    ] },
   ] },
   { section: '5. TOOLS', group: 'Tools', main: [
     { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking' },
@@ -351,14 +359,16 @@ export const reportSidebarNav = [
     { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe' },
     { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow' },
     { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection' },
-  ], more: [
-    { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO' },
-    { path: '/live-editor', icon: 'Edit3', label: 'Live Editor' },
-    { path: '/uptime', icon: 'Activity', label: 'Uptime' },
-    { path: '/usage', icon: 'BarChart3', label: 'Usage' },
-    { path: '/api-reference', icon: 'Code2', label: 'API Reference' },
-    { path: '/free-tools', icon: 'Zap', label: 'Free Tools' },
-    { path: '/agents', icon: 'Bot', label: 'AI Agents & MCP' },
+  ], moreGroups: [
+    { label: 'Platform', items: [
+      { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO' },
+      { path: '/live-editor', icon: 'Edit3', label: 'Live Editor' },
+      { path: '/uptime', icon: 'Activity', label: 'Uptime' },
+      { path: '/usage', icon: 'BarChart3', label: 'Usage' },
+      { path: '/api-reference', icon: 'Code2', label: 'API Reference' },
+      { path: '/free-tools', icon: 'Zap', label: 'Free Tools' },
+      { path: '/agents', icon: 'Bot', label: 'AI Agents & MCP' },
+    ] },
   ] },
 ];
 

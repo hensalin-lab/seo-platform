@@ -24,6 +24,7 @@ export default function Layout({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [toolsOpen, setToolsOpen] = useState(true);
+  const [moreOpen, setMoreOpen] = useState({});
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   useEffect(() => {
@@ -46,12 +47,17 @@ export default function Layout({ children }) {
   const auditId = match ? match[1] : null;
   const isReport = !!auditId;
   const segment = isReport ? location.pathname.slice(location.pathname.lastIndexOf('/') + 1) : '';
+  const isAuthPage = ['/login', '/register'].includes(location.pathname);
 
   const title = getPageTitleForPath(location.pathname, isReport);
 
   const navItems = mainNav.filter(item => !item.adminOnly || isAdmin);
   const mainItems = navItems.filter(item => item.group !== 'tools');
   const toolItems = navItems.filter(item => item.group === 'tools');
+
+  if (isAuthPage) {
+    return <div className="auth-layout" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{children}</div>;
+  }
 
   return (
     <div className="layout">
@@ -117,20 +123,33 @@ export default function Layout({ children }) {
                   />
                 );
               })}
-              {group.more && group.more.length > 0 && (
-                <div className="sidebar-section-label" style={{ marginTop: 4, opacity: 0.55, fontSize: 10 }}>MORE</div>
-              )}
-              {group.more && group.more.map(item => {
-                const to = item.path ? item.path : `/audit/${auditId}${item.suffix}`;
+              {group.moreGroups && group.moreGroups.map(sub => {
+                const key = `${group.section}:${sub.label}`;
+                const open = moreOpen[key] !== false;
                 return (
-                  <SidebarLink
-                    key={item.path || item.suffix}
-                    to={to}
-                    icon={getIcon(item.icon)}
-                    label={item.label}
-                    active={item.path ? location.pathname === item.path : isActive(item.suffix, segment)}
-                    nested
-                  />
+                  <div key={key}>
+                    <button
+                      className="sidebar-link-group"
+                      onClick={() => setMoreOpen(s => ({ ...s, [key]: !open }))}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}
+                    >
+                      <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s', opacity: 0.6 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.75 }}>{sub.label}</span>
+                    </button>
+                    {open && sub.items.map(item => {
+                      const to = item.path ? item.path : `/audit/${auditId}${item.suffix}`;
+                      return (
+                        <SidebarLink
+                          key={item.path || item.suffix}
+                          to={to}
+                          icon={getIcon(item.icon)}
+                          label={item.label}
+                          active={item.path ? location.pathname === item.path : isActive(item.suffix, segment)}
+                          nested
+                        />
+                      );
+                    })}
+                  </div>
                 );
               })}
             </div>
