@@ -4897,7 +4897,7 @@ async def get_seo_health(audit_id: str, db: AsyncSession = Depends(get_db)):
 
     categories = {}
     for i in issues:
-        cat = i.category or "OTHER"
+        cat = (i.category or "OTHER").upper()
         categories[cat] = categories.get(cat, 0) + 1
 
     category_scores = {}

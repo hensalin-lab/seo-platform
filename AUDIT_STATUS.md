@@ -351,5 +351,76 @@ Pattern: Audit-routed pages use `const { id } = useParams()` + `deps: [id]`. For
 | GSC data | Endpoint exists but requires Google OAuth | Page renders |
 | GA4 data | Endpoint exists but requires GA4 auth | Page renders |
 | Rank tracking | Endpoint exists but depends on SERP API | Page renders |
-| SSL verification | `verify=False` hardcoded in crawler | N/A |
-| Robots.txt compliance | Not implemented in crawler | N/A |
+| SSL verification | Uses `settings.CRAWLER_VERIFY_SSL` | FIXED (B2) |
+| Robots.txt compliance | Respects robots.txt via `_robots_allowed` + `settings.CRAWLER_RESPECT_ROBOTS` | FIXED (B11) |
+
+---
+
+## Phase 5 — Endpoint Verification (live test 2026-09-04)
+
+Test audit id: `838914e1-05ed-4293-a0ba-7e3bd31e8f07` (https://example.com)
+
+### Results: 49/53 pass
+
+| Endpoint | Status | Notes |
+|---|---|---|
+| `/audit/{id}` | ✅ 200 | 12 keys |
+| `/audit/{id}/scores` | ✅ 200 | 7 keys |
+| `/audit/{id}/issues` | ✅ 200 | 4 keys |
+| `/audit/{id}/recommendations` | ✅ 200 | 4 keys |
+| `/audit/{id}/pages` | ✅ 200 | 4 keys |
+| `/audit/{id}/seo-analysis` | ✅ 200 | 3 keys |
+| `/audit/{id}/keywords` | ✅ 200 | 4 keys |
+| `/audit/{id}/roadmap` | ✅ 200 | 4 keys |
+| `/audit/{id}/content-analysis` | ✅ 200 | 5 keys |
+| `/audit/{id}/ai/summary` | ⏱ TIMEOUT | External AI API slow — expected |
+| `/audit/{id}/competitor` | ✅ 200 | 12 keys |
+| `/audit/{id}/internal-links` | ✅ 200 | 17 keys |
+| `/audit/{id}/page-speed` | ✅ 200 | 10 keys |
+| `/audit/{id}/schema-analysis` | ✅ 200 | 5 keys |
+| `/audit/{id}/canonicalization` | ✅ 200 | 4 keys |
+| `/audit/{id}/confidence` | ✅ 200 | 2 keys |
+| `/audit/{id}/eeat-analysis` | ✅ 200 | 3 keys |
+| `/audit/{id}/content-quality` | ✅ 200 | 18 keys |
+| `/audit/{id}/seo-health` | 🔧 FIXED | Duplicate JSON keys — normalized to `.upper()` |
+| `/audit/{id}/sitemap-robots` | ✅ 200 | 12 keys |
+| `/audit/{id}/security-headers` | ✅ 200 | 9 keys |
+| `/audit/{id}/social-seo` | ✅ 200 | 10 keys |
+| `/audit/{id}/page-experience` | ✅ 200 | 11 keys |
+| `/audit/{id}/mobile-seo` | ✅ 200 | 9 keys |
+| `/audit/{id}/image-seo` | ✅ 200 | 11 keys |
+| `/audit/{id}/local-seo` | ✅ 200 | 6 keys |
+| `/audit/{id}/gsc-overview` | ✅ 200 | 2 keys |
+| `/audit/{id}/backlink-profile` | ✅ 200 | 22 keys |
+| `/audit/{id}/drift` | ✅ 200 | 4 keys |
+| `/audit/{id}/hreflang` | ✅ 200 | 7 keys |
+| `/audit/{id}/redirects` | ✅ 200 | 6 keys |
+| `/audit/{id}/duplicates` | ✅ 200 | 5 keys |
+| `/audit/{id}/domain-authority` | ❌ 500 | Likely missing DB table — needs migration |
+| `/audit/{id}/keywords-enhanced` | ✅ 200 | 16 keys |
+| `/audit/{id}/keyword-research` | ✅ 200 | 17 keys |
+| `/audit/{id}/content-audit` | ✅ 200 | 6 keys |
+| `/audit/{id}/blog-ai` | ✅ 200 | 8 keys |
+| `/audit/{id}/page-improvements` | ✅ 200 | 4 keys |
+| `/audit/{id}/enterprise` | ✅ 200 | 8 keys |
+| `/audit/{id}/remediation-feed` | ✅ 200 | 5 keys |
+| `/audit/{id}/content-opportunities` | ✅ 200 | 4 keys |
+| `/audit/{id}/content-revival` | ✅ 200 | 7 keys |
+| `/audit/{id}/conversion-analysis` | ✅ 200 | 7 keys |
+| `/audit/{id}/diagnostics` | ✅ 200 | 3 keys |
+| `/audit/{id}/report-data` | ✅ 200 | 13 keys |
+| `/audit/{id}/ai-overviews` | ⏱ TIMEOUT | External AI API slow — expected |
+| `/audit/{id}/aeo-analysis` | ✅ 200 | 3 keys |
+| `/audit/{id}/geo-analysis` | ✅ 200 | 3 keys |
+| `/audit/{id}/ai-visibility` | ✅ 200 | 14 keys |
+| `/audit/{id}/action-studio` | ✅ 200 | 4 keys |
+| `/audit/{id}/rank-boost` | ✅ 200 | 9 keys |
+| `/audit/{id}/rankings` | ✅ 200 | 6 keys |
+| `/audit/{id}/brand-monitor` | ✅ 200 | 11 keys |
+
+### Bugs Found & Fixed
+- **seo-health**: Duplicate JSON keys (`CONTENT`/`Content`) — fixed by normalizing category to `.upper()`
+- **domain-authority**: 500 error — likely missing `domain_authority` table in production (needs Alembic migration)
+
+### Remaining Issues
+- `/ai/summary` and `/ai-overviews` timeouts: These call external AI APIs and can be slow; the frontend should handle this gracefully (loading states already exist).
