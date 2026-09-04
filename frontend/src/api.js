@@ -431,4 +431,8 @@ export const api = {
     request(`/backlinks/${encodeURIComponent(domain)}/toxic?threshold=${threshold}`),
   exportDisavow: (domain, threshold = 0.7) =>
     `${API_BASE}/backlinks/${encodeURIComponent(domain)}/toxic/export?threshold=${threshold}`,
+  refreshBacklinks: (domain) =>
+    request(`/backlinks/${encodeURIComponent(domain)}/refresh`, { method: 'POST' }),
+  getBacklinkGap: (domain, competitors) =>
+    request(`/backlink-gap/${encodeURIComponent(domain)}?competitors=${encodeURIComponent(competitors)}`),
 };

@@ -38,6 +38,7 @@ from app.api.keyword_gap import router as keyword_gap_router
 from app.api.content_editor import router as content_editor_router
 from app.api.ai_visibility_trend import router as ai_visibility_trend_router
 from app.api.backlink_explorer import router as backlink_explorer_router
+from app.api.backlink_gap import router as backlink_gap_router
 from app.api.admin import router as admin_router
 from app.api.activity import router as activity_router
 from app.api.alerts import router as alerts_router
@@ -79,6 +80,8 @@ async def lifespan(app: FastAPI):
     logger.info("Growth AI rank tracker worker started (daily)")
     ai_vis_task = asyncio.create_task(_ai_visibility_trend_worker())
     logger.info("AI visibility trend worker started (weekly)")
+    backlink_task = asyncio.create_task(_backlink_ingestion_worker())
+    logger.info("Backlink ingestion worker started (monthly)")
 
     # Drive the MCP session manager task group for /mcp (if enabled).
     mcp_session = _get_mcp_session()
@@ -95,6 +98,7 @@ async def lifespan(app: FastAPI):
     rank_task.cancel()
     growth_rank_task.cancel()
     ai_vis_task.cancel()
+    backlink_task.cancel()
     if _mcp_ctx is not None:
         try:
             await _mcp_ctx.__aexit__(None, None, None)
@@ -249,6 +253,17 @@ async def _ai_visibility_trend_worker():
         await asyncio.sleep(7 * 24 * 3600)  # weekly
 
 
+async def _backlink_ingestion_worker():
+    """Monthly worker: ingest backlinks for all tracked domains via Common Crawl."""
+    from app.engine.backlink_ingestion import scheduled_backlink_ingestion_worker
+    while True:
+        try:
+            await scheduled_backlink_ingestion_worker()
+        except Exception as e:
+            logger.warning(f"Backlink ingestion worker error (non-fatal): {e}")
+        await asyncio.sleep(30 * 24 * 3600)  # monthly
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -295,6 +310,7 @@ app.include_router(keyword_gap_router)
 app.include_router(content_editor_router)
 app.include_router(ai_visibility_trend_router)
 app.include_router(backlink_explorer_router)
+app.include_router(backlink_gap_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
 app.include_router(alerts_router)

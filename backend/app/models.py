@@ -611,9 +611,11 @@ class Backlink(Base):
         Index("ix_backlinks_audit_id", "audit_id"),
         Index("ix_backlinks_target", "target_url"),
         Index("ix_backlinks_source", "source_domain"),
+        Index("ix_backlinks_target_domain", "target_domain"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"))
+    target_domain = Column(String, default="")
     source_url = Column(String, default="")
     source_domain = Column(String, default="")
     target_url = Column(String, default="")
@@ -633,9 +635,11 @@ class ReferringDomain(Base):
         Index("ix_rd_audit_id", "audit_id"),
         Index("ix_rd_domain", "domain"),
         Index("ix_rd_audit_domain", "audit_id", "domain"),
+        Index("ix_rd_target_domain", "target_domain"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"))
+    target_domain = Column(String, default="")
     domain = Column(String, default="")
     link_count = Column(Integer, default=0)
     domain_authority = Column(Float, default=0.0)
@@ -1145,8 +1149,12 @@ class RankSnapshot(Base):
 
 
 class AIVisibilitySnapshot(Base):
-    """Weekly AI-visibility trend snapshot (Prompt 7). Tracks whether a domain
-    is cited by ChatGPT, Perplexity, and/or Google AI Overview over time."""
+    """Weekly AI-search readiness trend snapshot (Prompt 7). Tracks a domain's
+    AI-search readiness signals — llms.txt presence (AI crawlability), structured
+    data eligibility for AI Overviews, and any manually-logged AI citations.
+
+    Note: these are readiness/eligibility signals, not confirmed citations
+    (see _check_ai_citation in engine/ai_visibility_trend.py)."""
     __tablename__ = "ai_visibility_snapshots"
     __table_args__ = (
         Index("ix_ai_vis_snap_domain", "target_domain"),
@@ -1154,8 +1162,8 @@ class AIVisibilitySnapshot(Base):
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     target_domain = Column(String, nullable=False)
-    cited_by_chatgpt = Column(Boolean, default=False)
-    cited_by_perplexity = Column(Boolean, default=False)
-    cited_by_google_ai_overview = Column(Boolean, default=False)
+    ai_crawlable_llms_txt = Column(Boolean, default=False)
+    ai_overview_eligible_schema = Column(Boolean, default=False)
+    manually_logged_cited = Column(Boolean, default=False)
     queries_checked = Column(JSON, default=list)
     checked_at = Column(DateTime, default=_dt.datetime.utcnow)

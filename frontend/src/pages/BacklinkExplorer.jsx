@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { api } from '../api'
-import { Link2, Search, ExternalLink, Shield, ArrowUpDown } from 'lucide-react'
+import { Link2, Search, ExternalLink, Shield, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 export default function BacklinkExplorer() {
   const [domain, setDomain] = useState('')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
   const [page, setPage] = useState(0)
   const limit = 50
 
@@ -22,6 +24,18 @@ export default function BacklinkExplorer() {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (domain.trim()) { setPage(0); load(domain.trim(), 0) }
+  }
+
+  const handleRefresh = async () => {
+    if (!domain.trim()) return
+    setRefreshing(true); setToast('')
+    try {
+      const res = await api.refreshBacklinks(domain.trim())
+      setToast(res.message || 'Backlink ingestion started — check back in a few minutes.')
+      // Auto-reload data after 90 seconds to give ingestion time to run
+      setTimeout(() => { load(domain.trim(), 0) }, 90000)
+    } catch (e) { setToast('Failed to start refresh: ' + (e.message || 'Unknown error')) }
+    finally { setRefreshing(false) }
   }
 
   const handlePage = (newPage) => {
@@ -47,14 +61,39 @@ export default function BacklinkExplorer() {
         </form>
       </div>
 
+      {toast && (
+        <div style={{ maxWidth: 560, margin: '0 auto 16px', padding: '10px 16px', background: '#1E293B', border: '1px solid #334155', borderRadius: 8, fontSize: 12, color: '#22C55E', textAlign: 'center' }}>
+          {toast}
+        </div>
+      )}
+
       {loading && <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>Loading…</div>}
       {error && <div style={{ textAlign: 'center', padding: 14, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, color: '#DC2626', maxWidth: 500, margin: '0 auto', fontSize: 12 }}>{error}</div>}
 
       {!loading && data && (
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16, fontSize: 13 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, fontSize: 13, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: '#6B7280' }}>Total: <strong style={{ color: '#F9FAFB' }}>{data.total?.toLocaleString()}</strong></span>
-            {data.note && <span style={{ color: '#F59E0B', fontSize: 12 }}>{data.note}</span>}
+            {data.source === 'common_crawl' && (
+              <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: '#22C55E15', color: '#22C55E' }}>
+                Common Crawl
+              </span>
+            )}
+            {data.note && <span style={{ color: '#F59E0B', fontSize: 11 }}>{data.note}</span>}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                marginLeft: 'auto',
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', background: refreshing ? '#1F2937' : '#1F293B',
+                border: '1px solid #374151', borderRadius: 6, color: refreshing ? '#6B7280' : '#E5E7EB',
+                fontSize: 11, cursor: refreshing ? 'default' : 'pointer',
+              }}
+            >
+              <RefreshCw size={12} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+              {refreshing ? 'Refreshing…' : 'Refresh Backlinks'}
+            </button>
           </div>
 
           {data.backlinks?.length > 0 && (
@@ -115,6 +154,7 @@ export default function BacklinkExplorer() {
         <div style={{ textAlign: 'center', padding: 50, color: '#4B5563' }}>
           <Link2 size={48} style={{ opacity: 0.2, marginBottom: 12 }} />
           <p>Enter a domain above to explore its backlink profile</p>
+          <p style={{ fontSize: 11, color: '#6B7280', marginTop: 8 }}>Backlink data sourced from Common Crawl's public web archive, refreshed monthly.</p>
         </div>
       )}
     </div>

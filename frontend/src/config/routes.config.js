@@ -99,6 +99,7 @@ const LiveContentEditorPage = lazy(() => import('../pages/LiveContentEditor'));
 const BacklinkExplorerPage = lazy(() => import('../pages/BacklinkExplorer'));
 const ReferringDomainsPage = lazy(() => import('../pages/ReferringDomains'));
 const ToxicLinksPage = lazy(() => import('../pages/ToxicLinks'));
+const BacklinkGapPage = lazy(() => import('../pages/BacklinkGapAnalysis'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
 const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
@@ -145,6 +146,7 @@ export const mainNav = [
   { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer', title: 'Backlink Explorer', component: BacklinkExplorerPage },
   { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains', title: 'Referring Domains', component: ReferringDomainsPage },
   { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links', title: 'Toxic Links', component: ToxicLinksPage },
+  { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap', title: 'Backlink Gap Analysis', component: BacklinkGapPage },
   { path: '/live-editor', icon: 'Edit3', label: 'Live Editor', title: 'Live Content Editor', component: LiveContentEditorPage },
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },

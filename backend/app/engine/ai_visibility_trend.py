@@ -2,6 +2,14 @@
 AIVisibilitySnapshot rows over time.
 
 Designed to be called weekly by the scheduler loop in main.py.
+
+The stored fields are AI-search READINESS signals, not confirmed citations:
+  - ai_crawlable_llms_txt: does the domain publish /llms.txt (GPTBot-accessible)?
+  - ai_overview_eligible_schema: does the domain have structured data (JSON-LD
+    / FAQ) that makes it eligible to appear in AI Overviews?
+  - manually_logged_cited: set by the user after checking ChatGPT/Perplexity/AI
+    Overview by hand for their brand query (there is no free reliable
+    programmatic citation-checking API, so we do not fake one).
 """
 import asyncio
 import logging
@@ -15,53 +23,32 @@ logger = logging.getLogger(__name__)
 
 
 async def _check_ai_citation(domain: str) -> dict:
-    """Check if a domain is cited by ChatGPT, Perplexity, and/or Google AI Overview.
+    """Check a domain's AI-search readiness signals.
 
-    Uses a lightweight probe: checks if the domain appears in AI search results
-    for its own brand name. Returns {cited_by_chatgpt, cited_by_perplexity,
-    cited_by_google_ai_overview, queries_checked}.
+    Returns {ai_crawlable_llms_txt, ai_overview_eligible_schema,
+    manually_logged_cited, queries_checked}. These are honestly-labeled
+    eligibility/crawlability signals, not confirmed citations.
     """
     import httpx
 
-    brand_query = domain.replace(".com", "").replace(".io", "").replace(".co", "")
-    brand_query = brand_query.replace("-", " ").strip()
-    results = {
-        "cited_by_chatgpt": False,
-        "cited_by_perplexity": False,
-        "cited_by_google_ai_overview": False,
-        "queries_checked": [],
-    }
+    queries_checked = []
 
-    # Check Perplexity (free, no API key)
-    try:
-        async with httpx.AsyncClient(timeout=12.0) as client:
-            resp = await client.get(
-                "https://www.perplexity.ai/api/query",
-                params={"q": f"what is {brand_query}", "source": "web"},
-                headers={"User-Agent": "Mozilla/5.0"},
-            )
-            if resp.status_code == 200:
-                text = resp.text.lower()
-                if domain.lower() in text:
-                    results["cited_by_perplexity"] = True
-                results["queries_checked"].append({"query": f"what is {brand_query}", "source": "perplexity"})
-    except Exception as e:
-        logger.debug(f"Perplexity check failed for {domain}: {e}")
-
-    # Check if domain has llms.txt (proxy for AI crawlability)
+    # Check if domain has llms.txt (AI crawlability signal for GPTBot/ClaudeBot)
+    ai_crawlable_llms_txt = False
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
                 f"https://{domain}/llms.txt",
                 headers={"User-Agent": "GPTBot/1.0"},
             )
-            if resp.status_code == 200 and len(resp.text) > 50:
-                results["cited_by_chatgpt"] = True  # llms.txt present = AI-friendly
-                results["queries_checked"].append({"query": "/llms.txt", "source": "gptbot"})
+            if resp.status_code == 200 and len(resp.text) > 20:
+                ai_crawlable_llms_txt = True
+                queries_checked.append({"query": "/llms.txt", "source": "gptbot"})
     except Exception:
         pass
 
-    # Google AI Overview check (lightweight: check for structured data signals)
+    # Check for structured data that makes a page eligible for AI Overviews
+    ai_overview_eligible_schema = False
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(
@@ -73,16 +60,21 @@ async def _check_ai_citation(domain: str) -> dict:
                 has_schema = "application/ld+json" in html
                 has_faq = '"faqpage"' in html or '"question"' in html
                 if has_schema or has_faq:
-                    results["cited_by_google_ai_overview"] = True
-                    results["queries_checked"].append({"query": "schema/faq check", "source": "google_ai_overview"})
+                    ai_overview_eligible_schema = True
+                    queries_checked.append({"query": "schema/faq check", "source": "google_ai_overview"})
     except Exception:
         pass
 
-    return results
+    return {
+        "ai_crawlable_llms_txt": ai_crawlable_llms_txt,
+        "ai_overview_eligible_schema": ai_overview_eligible_schema,
+        "manually_logged_cited": False,
+        "queries_checked": queries_checked,
+    }
 
 
 async def check_all_domains_ai_visibility():
-    """Run AI visibility checks for all tracked domains and store snapshots."""
+    """Run AI-search readiness checks for all tracked domains and store snapshots."""
     async with async_session() as db:
         domains = (await db.execute(
             select(TrackedDomain)
@@ -112,7 +104,7 @@ async def check_all_domains_ai_visibility():
 
 async def scheduled_ai_visibility_worker():
     """Weekly worker for AI visibility trend tracking."""
-    logger.info("[ai-visibility] Starting weekly AI visibility check…")
+    logger.info("[ai-visibility] Starting weekly AI-search readiness check…")
     result = await check_all_domains_ai_visibility()
     logger.info(f"[ai-visibility] Complete: {result}")
     return result
