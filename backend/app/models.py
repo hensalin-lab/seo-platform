@@ -1076,3 +1076,86 @@ class AiCitationRecord(Base):
     provider = Column(String, default="keyless")
     details = Column(JSON, default=dict)
     created_at = Column(DateTime, default=_dt.datetime.utcnow)
+
+
+# ── Growth AI Engine: domain tracking foundation ─────────────────────────────
+
+
+class DeviceEnum(str, enum.Enum):
+    DESKTOP = "desktop"
+    MOBILE = "mobile"
+
+
+class TrackedDomain(Base):
+    """Anchor table: a domain being tracked across all Growth AI modules.
+
+    All new modules (rank tracking, backlinks, domain overview, etc.) key off
+    ``target_domain`` rather than audit_id, so cross-module queries work without
+    duplicating a domain resolver."""
+    __tablename__ = "tracked_domains"
+    __table_args__ = (
+        Index("ix_tracked_domains_domain", "domain", unique=True),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    domain = Column(String, nullable=False)
+    is_own_domain = Column(Boolean, default=False)
+    added_at = Column(DateTime, default=_dt.datetime.utcnow)
+    keywords = relationship("TrackedKeyword", back_populates="tracked_domain",
+                            cascade="all, delete-orphan")
+
+
+class TrackedKeyword(Base):
+    """A keyword being tracked for a domain. Backed by either GSC (own domains)
+    or DataForSEO SERP API (competitor domains)."""
+    __tablename__ = "tracked_keywords"
+    __table_args__ = (
+        Index("ix_tracked_kw_domain_id", "target_domain_id"),
+        Index("ix_tracked_kw_keyword", "keyword"),
+        Index("ix_tracked_kw_domain_keyword", "target_domain_id", "keyword"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    target_domain_id = Column(String, ForeignKey("tracked_domains.id"),
+                              nullable=False, index=True)
+    keyword = Column(String, nullable=False)
+    device = Column(String, default=DeviceEnum.DESKTOP.value)
+    location = Column(String, default="us")
+    added_at = Column(DateTime, default=_dt.datetime.utcnow)
+    tracked_domain = relationship("TrackedDomain", back_populates="keywords")
+    snapshots = relationship("RankSnapshot", back_populates="tracked_keyword",
+                             cascade="all, delete-orphan")
+
+
+class RankSnapshot(Base):
+    """One position check for a TrackedKeyword. A new row is appended each
+    time the rank-tracking engine runs (daily by default)."""
+    __tablename__ = "rank_snapshots"
+    __table_args__ = (
+        Index("ix_rank_snap_kw_id", "tracked_keyword_id"),
+        Index("ix_rank_snap_checked_at", "checked_at"),
+        Index("ix_rank_snap_kw_checked", "tracked_keyword_id", "checked_at"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    tracked_keyword_id = Column(String, ForeignKey("tracked_keywords.id"),
+                                nullable=False, index=True)
+    position = Column(Integer, nullable=True)
+    serp_features = Column(JSON, default=dict)
+    top_3_urls = Column(JSON, default=list)
+    checked_at = Column(DateTime, default=_dt.datetime.utcnow)
+    tracked_keyword = relationship("TrackedKeyword", back_populates="snapshots")
+
+
+class AIVisibilitySnapshot(Base):
+    """Weekly AI-visibility trend snapshot (Prompt 7). Tracks whether a domain
+    is cited by ChatGPT, Perplexity, and/or Google AI Overview over time."""
+    __tablename__ = "ai_visibility_snapshots"
+    __table_args__ = (
+        Index("ix_ai_vis_snap_domain", "target_domain"),
+        Index("ix_ai_vis_snap_checked", "checked_at"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    target_domain = Column(String, nullable=False)
+    cited_by_chatgpt = Column(Boolean, default=False)
+    cited_by_perplexity = Column(Boolean, default=False)
+    cited_by_google_ai_overview = Column(Boolean, default=False)
+    queries_checked = Column(JSON, default=list)
+    checked_at = Column(DateTime, default=_dt.datetime.utcnow)
