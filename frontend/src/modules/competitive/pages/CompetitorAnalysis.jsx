@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import DataSourceBadge from '../../../components/DataSourceBadge'
@@ -28,14 +28,14 @@ export default function CompetitorAnalysis() {
   const [compUrl, setCompUrl] = useState('')
   const [analyzeError, setAnalyzeError] = useState('')
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true)
     Promise.all([
       api.getCompetitorData(id).catch(() => null),
       api.request(`/audit/${id}/competitor-deep/0`).catch(() => null),
     ]).then(([b, d]) => { setBasic(b); setDeep(d); }).finally(() => setLoading(false))
-  }
-  useEffect(() => { load() }, [id])
+  }, [id])
+  useEffect(() => { load() }, [load])
 
   const runAnalyze = async () => {
     setAnalyzing(true); setAnalyzeError('')

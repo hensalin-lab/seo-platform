@@ -123,8 +123,8 @@ export default function AiVisibility() {
     api.request(`/audit/${id}/ai-overviews`).then(setAoData).catch(() => setAoData(null));
   }, [id]);
 
-  const issues = data?.issues || [];
-  const signals = data?.signals || {};
+  const issues = React.useMemo(() => data?.issues || [], [data]);
+  const signals = React.useMemo(() => data?.signals || {}, [data]);
 
   const filteredIssues = severityFilter === 'ALL' ? issues : issues.filter(i => (i.severity || '').toUpperCase() === severityFilter);
 

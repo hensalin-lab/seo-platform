@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (token) api.setToken(token);
-  }, []);
+  }, [token]);
 
   const login = useCallback(async (email, password) => {
     setLoading(true);

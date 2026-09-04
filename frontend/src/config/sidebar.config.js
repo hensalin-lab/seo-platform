@@ -20,7 +20,6 @@ export const NAV_CONTEXTS = [
 export const OVERVIEW_ITEMS = [
   { path: '/trends', icon: 'LineChart', label: 'Score Trends' },
   { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking' },
-  { path: '/audit-ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor', auditSuffix: '/ai-overviews' },
   { path: '/uptime', icon: 'Activity', label: 'Uptime' },
 ];
 
@@ -89,7 +88,7 @@ export const AUDIT_GROUPS = [
     items: [
       { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy' },
       { suffix: '/competitor', icon: 'Users', label: 'Competitor Analysis' },
-      { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking (this audit)' },
+      { suffix: '/rankings', icon: 'TrendingUp', label: 'Rankings (audit)' },
     ],
   },
   {

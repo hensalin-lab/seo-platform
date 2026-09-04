@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Sparkles, AlertTriangle, MapPin, FileText, CheckCircle2, Circle,
@@ -82,7 +82,7 @@ export default function ActionStudio() {
   const [pushing, setPushing] = useState(false);
   const [generating, setGenerating] = useState({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -93,9 +93,9 @@ export default function ActionStudio() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     let cancelled = false;

@@ -53,6 +53,28 @@ async function request(path, options = {}) {
   }
 }
 
+async function downloadBlob(path, filename, errorMsg) {
+  const url = `${API_BASE}${path}`;
+  const headers = {};
+  if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+  const res = await fetch(url, { headers });
+  if (res.status === 401 && path !== '/auth/login') {
+    _authToken = null;
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+  if (!res.ok) throw new Error(errorMsg);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
+}
+
 export const api = {
   health: () => request('/health'),
 
@@ -155,45 +177,9 @@ export const api = {
   getToolSuggestions: (id, { tool = 'all', category = '', limit = 5, regenerate = false } = {}) => request(`/audit/${id}/ai/tool-suggestions`, { method: 'POST', body: JSON.stringify({ tool, category, limit, regenerate }) }),
   cancelAudit: (id) => request(`/audit/${id}/cancel`, { method: 'POST' }),
   rerunAudit: (id) => request(`/audit/${id}/rerun`, { method: 'POST' }),
-  exportCsv: async (id, type = 'issues') => {
-    const url = `${API_BASE}/audit/${id}/export/csv?type=${type}`;
-    const headers = {};
-    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error('Export failed');
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `audit-${id}-${type}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  },
-  exportExcel: async (id, type = 'full') => {
-    const url = `${API_BASE}/audit/${id}/export/excel?type=${type}`;
-    const headers = {};
-    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error('Excel export failed');
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `seo-report-${id}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  },
-  exportHtml: async (id) => {
-    const url = `${API_BASE}/audit/${id}/export/html`;
-    const headers = {};
-    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error('HTML export failed');
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `seo-report-${id}.html`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  },
+  exportCsv: (id, type = 'issues') => downloadBlob(`/audit/${id}/export/csv?type=${type}`, `audit-${id}-${type}.csv`, 'Export failed'),
+  exportExcel: (id, type = 'full') => downloadBlob(`/audit/${id}/export/excel?type=${type}`, `seo-report-${id}.xlsx`, 'Excel export failed'),
+  exportHtml: (id) => downloadBlob(`/audit/${id}/export/html`, `seo-report-${id}.html`, 'HTML export failed'),
 
   // Auth
   register: (email, username, password) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, username, password }) }),

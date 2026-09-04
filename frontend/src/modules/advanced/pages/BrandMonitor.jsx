@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import {
@@ -40,7 +40,7 @@ export default function BrandMonitor() {
   const [error, setError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       const hist = await api.getBrandMonitorHistory(id);
       setHistory(hist.records || []);
@@ -48,7 +48,7 @@ export default function BrandMonitor() {
     } catch {
       setHistoryError('Scan history could not be loaded.');
     }
-  };
+  }, [id]);
 
   const scan = async (override) => {
     setScanning(true);
@@ -65,7 +65,7 @@ export default function BrandMonitor() {
     }
   };
 
-  useEffect(() => { loadHistory(); }, [id]);
+  useEffect(() => { loadHistory(); }, [loadHistory]);
 
   if (loading) return <LoadingSpinner message="Scanning AI-citation signals…" />;
 

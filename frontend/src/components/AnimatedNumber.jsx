@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 
 export default function AnimatedNumber({ value, duration = 1200, prefix = '', suffix = '', decimals = 0, className = '' }) {
   const [display, setDisplay] = useState(0);
-  const startRef = useRef(null);
+  const startRef = useRef(0);
   const rafRef = useRef(null);
 
   useEffect(() => {
     const target = Number(value) || 0;
-    const start = display;
+    const start = startRef.current;
     const startTime = performance.now();
 
     function animate(now) {
@@ -16,6 +16,7 @@ export default function AnimatedNumber({ value, duration = 1200, prefix = '', su
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = start + (target - start) * eased;
       setDisplay(current);
+      startRef.current = current;
       if (progress < 1) rafRef.current = requestAnimationFrame(animate);
     }
 

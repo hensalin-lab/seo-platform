@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Bot, Zap, AlertTriangle, CheckCircle, Info, RefreshCw, ExternalLink, Sparkles, Target, MessageSquare, BarChart3, Award, Link2, MapPin, Users, ShieldCheck, Braces, Quote, LayoutGrid } from 'lucide-react';
 import { api } from '../../../api';
@@ -127,15 +127,15 @@ export default function AiOverviews() {
   const [suggestions, setSuggestions] = useState(null);
   const [playbookOpen, setPlaybookOpen] = useState(0);
 
-  const load = (silent) => {
+  const load = useCallback((silent) => {
     if (silent) setRefreshing(true); else setLoading(true);
     api.request(`/audit/${id}/ai-overviews`)
       .then(d => { setData(d); })
       .catch(() => setData({ configured: false, message: 'Failed to reach the live AI Overviews check. Backend may be offline.' }))
       .finally(() => { setLoading(false); setRefreshing(false); });
-  };
+  }, [id]);
 
-  useEffect(() => { load(false); }, [id]);
+  useEffect(() => { load(false); }, [load]);
 
   useEffect(() => {
     let alive = true;

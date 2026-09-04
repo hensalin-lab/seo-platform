@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 AI_TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
 
 def _timeout(read: float) -> httpx.Timeout:
-    return httpx.Timeout(connect=5.0, read=read, write=10.0, pool=5.0)
+    return httpx.Timeout(connect=10.0, read=read, write=10.0, pool=5.0)
 
 
 class AIEngine:
@@ -117,7 +117,7 @@ class AIEngine:
             "options": {"temperature": 0.3, "num_predict": 8192},
             "format": "json",
         }
-        data = await self._call("ollama", url, payload, retries=1, timeout=_timeout(settings.OLLAMA_TIMEOUT))
+        data = await self._call("ollama", url, payload, retries=2, timeout=_timeout(settings.OLLAMA_TIMEOUT))
         if data and "message" in data:
             try:
                 return json.loads(data["message"]["content"])
@@ -135,7 +135,7 @@ class AIEngine:
             "keep_alive": "30m",
             "options": {"temperature": 0.4, "num_predict": 4096},
         }
-        data = await self._call("ollama", url, payload, retries=1, timeout=_timeout(settings.OLLAMA_TIMEOUT))
+        data = await self._call("ollama", url, payload, retries=2, timeout=_timeout(settings.OLLAMA_TIMEOUT))
         if data and "message" in data:
             try:
                 return data["message"]["content"]
@@ -152,7 +152,7 @@ class AIEngine:
             "max_tokens": 8192,
             "stream": False,
         }
-        data = await self._call("lmstudio", url, payload, retries=1, timeout=_timeout(min(settings.LMSTUDIO_TIMEOUT, 45)))
+        data = await self._call("lmstudio", url, payload, retries=2, timeout=_timeout(min(settings.LMSTUDIO_TIMEOUT, 45)))
         if data and "choices" in data:
             try:
                 return json.loads(data["choices"][0]["message"]["content"])
@@ -169,7 +169,7 @@ class AIEngine:
             "max_tokens": 4096,
             "stream": False,
         }
-        data = await self._call("lmstudio", url, payload, retries=1, timeout=_timeout(min(settings.LMSTUDIO_TIMEOUT, 45)))
+        data = await self._call("lmstudio", url, payload, retries=2, timeout=_timeout(min(settings.LMSTUDIO_TIMEOUT, 45)))
         if data and "choices" in data:
             try:
                 return data["choices"][0]["message"]["content"]
@@ -260,7 +260,7 @@ class AIEngine:
             "max_tokens": 8192,
         }
         headers = {"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}", "HTTP-Referer": "https://seo-platform.app"}
-        data = await self._call("openrouter", url, payload, retries=1, headers=headers)
+        data = await self._call("openrouter", url, payload, retries=2, headers=headers)
         if data and "choices" in data:
             try:
                 return json.loads(data["choices"][0]["message"]["content"])
@@ -279,7 +279,7 @@ class AIEngine:
             "max_tokens": 4096,
         }
         headers = {"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}", "HTTP-Referer": "https://seo-platform.app"}
-        data = await self._call("openrouter", url, payload, retries=1, headers=headers)
+        data = await self._call("openrouter", url, payload, retries=2, headers=headers)
         if data and "choices" in data:
             try:
                 return data["choices"][0]["message"]["content"]
@@ -338,7 +338,7 @@ class AIEngine:
             "max_tokens": 8192,
         }
         headers = {"Authorization": f"Bearer {api_key}"}
-        data = await self._call(name, url, payload, retries=1, headers=headers, timeout=timeout)
+        data = await self._call(name, url, payload, retries=2, headers=headers, timeout=timeout)
         if data and "choices" in data:
             try:
                 content = data["choices"][0]["message"]["content"]

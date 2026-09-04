@@ -74,6 +74,7 @@ router = APIRouter(prefix="/api", tags=["status"])
 # In-memory cache for expensive endpoint results
 _endpoint_cache = {}
 _CACHE_TTL = 3600  # 1 hour
+_CACHE_MAX_SIZE = 500  # max entries before evicting oldest
 _live_refresh_tasks = {}  # audit_id -> background live-refresh task
 
 
@@ -203,6 +204,10 @@ def _cache_get(key):
 
 def _cache_set(key, data):
     import time
+    if len(_endpoint_cache) >= _CACHE_MAX_SIZE:
+        oldest_keys = sorted(_endpoint_cache, key=lambda k: _endpoint_cache[k]["ts"])[:_CACHE_MAX_SIZE // 4]
+        for k in oldest_keys:
+            del _endpoint_cache[k]
     _endpoint_cache[key] = {"data": data, "ts": time.time()}
 
 def _cache_clear(audit_id=None):
@@ -284,9 +289,9 @@ async def get_audit_status(audit_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/audit/{audit_id}")
-async def get_audit_detail(audit_id: str, offset: int = 0, limit: int = 200, db: AsyncSession = Depends(get_db)):
+async def get_audit_detail(audit_id: str, offset: int = 0, limit: int = 250, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
-    limit = min(max(limit, 1), 500)
+    limit = min(max(limit, 1), 1000)
     offset = max(offset, 0)
     cache_key = f"audit_detail:{audit_id}:{offset}:{limit}"
     cached = _cache_get(cache_key)

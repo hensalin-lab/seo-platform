@@ -13,9 +13,9 @@ export default function TabbedPage({ tabs, defaultTab, hero, extra, style }) {
   const [local, setLocal] = useState(urlValid ? urlTab : fallback);
 
   useEffect(() => {
-    if (urlValid) setLocal(urlTab);
+    if (urlValid && tabs.some(t => t.key === urlTab)) setLocal(urlTab);
     else setLocal(fallback);
-  }, [urlTab, fallback]);
+  }, [urlTab, fallback, urlValid, tabs]);
 
   const pick = (key) => {
     setLocal(key);

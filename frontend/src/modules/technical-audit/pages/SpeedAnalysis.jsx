@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, Monitor, Zap, Clock, Image, FileCode, Globe, Info, RefreshCw, MonitorSmartphone, Accessibility, ShieldCheck, Search } from 'lucide-react'
@@ -147,6 +147,7 @@ export default function SpeedAnalysis() {
   const [cwvSource, setCwvSource] = useState(null)
   const [cwvPerf, setCwvPerf] = useState(null)
   const [categoryScores, setCategoryScores] = useState({})
+  const runLocalRef = useRef(null)
 
   const loadCwv = useCallback(async (force = false) => {
     try {
@@ -180,7 +181,7 @@ export default function SpeedAnalysis() {
       }
       if (Object.keys(catScores).length === 0 && !AUTO_RUN_ATTEMPTED.has(id)) {
         AUTO_RUN_ATTEMPTED.add(id)
-        runLocal()
+        runLocalRef.current && runLocalRef.current()
       }
     } catch (err) {
       setCwvError(err.message || 'Failed to load Core Web Vitals')
@@ -204,6 +205,8 @@ export default function SpeedAnalysis() {
       setRunningLocal(false)
     }
   }
+
+  runLocalRef.current = runLocal
 
   useEffect(() => {
     Promise.all([

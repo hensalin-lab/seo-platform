@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../../components/Toast';
 import { api } from '../../../api';
 import { User, Lock, Key, Webhook, Calendar, Palette, Save, Trash2, Plus, Eye, EyeOff, Cpu, RefreshCw, CheckCircle2, XCircle, Mail, Send, Globe, ExternalLink, Link2, Loader2, Activity, MessageSquare, BarChart } from 'lucide-react';
@@ -143,12 +143,12 @@ function ApiKeysTab({ addToast }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try { const res = await api.listApiKeys(); setKeys(res?.items ?? res ?? []); } catch (e) { addToast(e.message, 'error'); }
     setLoading(false);
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const create = async () => {
     try {
@@ -199,7 +199,7 @@ function AiProvidersTab({ addToast }) {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.request('/ai/providers-status');
@@ -209,9 +209,9 @@ function AiProvidersTab({ addToast }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const statusColor = (status) =>
     status === 'ok' ? '#22c55e' : status === 'error' ? '#ef4444' : '#6b7280';
@@ -283,13 +283,13 @@ function WebhooksTab({ addToast }) {  const [hooks, setHooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [emailStatus, setEmailStatus] = useState(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try { const res = await api.listWebhooks(); setHooks(res?.items ?? res ?? []); } catch (e) { addToast(e.message, 'error'); }
     try { setEmailStatus(await api.getEmailStatus()); } catch (e) { /* non-critical */ }
     setLoading(false);
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const create = async () => {
     try {
@@ -380,16 +380,16 @@ function DigestTab({ addToast }) {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const s = await api.getDigestStatus();
       setStatus(s);
       setEnabled(s.preference?.enabled ?? true);
       setFrequency(s.preference?.frequency ?? 'weekly');
     } catch (e) { addToast(e.message, 'error'); }
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     setSaving(true);
@@ -462,7 +462,7 @@ function SlackTab({ addToast }) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const s = await api.getSlackSettings();
       setSettings(s);
@@ -474,9 +474,9 @@ function SlackTab({ addToast }) {
         notify_digest: s.notify_digest ?? true,
       });
     } catch (e) { addToast(e.message, 'error'); }
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     setSaving(true);
@@ -565,12 +565,12 @@ function ScheduledTab({ addToast }) {
   const [freq, setFreq] = useState('weekly');
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try { const res = await api.listScheduled(); setItems(res?.items ?? res ?? []); } catch (e) { addToast(e.message, 'error'); }
     setLoading(false);
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const create = async () => {
     try {
@@ -621,12 +621,12 @@ function WhiteLabelTab({ addToast }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try { const data = await api.getWhiteLabel(); setSettings(data); } catch (e) { addToast(e.message, 'error'); }
     setLoading(false);
-  };
+  }, [addToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     setSaving(true);
@@ -699,7 +699,7 @@ function GoogleTab({ addToast }) {
   const [ga4Loading, setGa4Loading] = useState(false);
   const [ga4Error, setGa4Error] = useState('');
 
-  const loadAccounts = async () => {
+  const loadAccounts = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.googleAccounts();
@@ -711,9 +711,9 @@ function GoogleTab({ addToast }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
-  useEffect(() => { loadAccounts(); }, []);
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
 
   const connect = async () => {
     setConnecting(true);
@@ -921,7 +921,7 @@ function ActivityTab({ addToast }) {
       setLoading(false);
     };
     load();
-  }, []);
+  }, [addToast]);
 
   if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Loading activity...</p>;
 

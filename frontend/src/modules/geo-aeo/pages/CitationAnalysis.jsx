@@ -144,8 +144,8 @@ export default function CitationAnalysis() {
     api.getAIVisibility(id).then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, [id]);
 
-  const issues = data?.issues || [];
-  const signals = data?.signals || {};
+  const issues = React.useMemo(() => data?.issues || [], [data]);
+  const signals = React.useMemo(() => data?.signals || {}, [data]);
 
   const filteredIssues = severityFilter === 'ALL' ? issues : issues.filter(i => (i.severity || '').toUpperCase() === severityFilter);
 

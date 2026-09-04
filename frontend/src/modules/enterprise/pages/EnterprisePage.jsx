@@ -74,8 +74,8 @@ export default function EnterprisePage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const basicPages = basicData?.pages || [];
-  const entPages = entData?.page_results || [];
+  const basicPages = React.useMemo(() => basicData?.pages || [], [basicData]);
+  const entPages = React.useMemo(() => entData?.page_results || [], [entData]);
 
   const merged = useMemo(() => {
     if (entPages.length > 0) {

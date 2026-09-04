@@ -699,7 +699,7 @@ export default function KeywordOpportunities() {
       case 'gsc': return enhanced?.gsc_keywords || [];
       default: return allKeywords;
     }
-  }, [activeTab, allKeywords, enhanced]);
+  }, [activeTab, allKeywords, enhanced, research]);
 
   const summary = research?.summary || {};
 

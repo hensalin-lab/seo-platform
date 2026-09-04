@@ -117,7 +117,7 @@ export default function ContentOpportunities() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const issues = data?.issues || [];
+  const issues = React.useMemo(() => data?.issues || [], [data]);
 
   const issuesByPage = useMemo(() => {
     const map = {};

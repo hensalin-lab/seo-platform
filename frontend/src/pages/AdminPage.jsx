@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
@@ -57,25 +57,25 @@ export default function AdminPage() {
     if (!isAdmin) navigate('/history', { replace: true })
   }, [isAdmin, navigate])
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try { setStats(await api.getAdminStats()) } catch (e) { addToast(e.message, 'error') }
-  }
+  }, [addToast])
 
-  const loadUsers = async (search = '', off = 0) => {
+  const loadUsers = useCallback(async (search = '', off = 0) => {
     try {
       const res = await api.listAdminUsers({ q: search, limit: 20, offset: off })
       setUsers(res.items || [])
       setUserTotal(res.total || 0)
     } catch (e) { addToast(e.message, 'error') }
-  }
+  }, [addToast])
 
-  const loadActivity = async (off = 0) => {
+  const loadActivity = useCallback(async (off = 0) => {
     try {
       const res = await api.getAdminActivity({ limit: 30, offset: off })
       setActivity(res.items || [])
       setActivityTotal(res.total || 0)
     } catch (e) { addToast(e.message, 'error') }
-  }
+  }, [addToast])
 
   useEffect(() => {
     if (!isAdmin) return
@@ -85,7 +85,7 @@ export default function AdminPage() {
       setLoading(false)
     }
     init()
-  }, [isAdmin])
+  }, [isAdmin, loadStats, loadUsers, loadActivity])
 
   const updateUser = async (id, data) => {
     try {

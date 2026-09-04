@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../../../api';
 import {
@@ -62,7 +62,7 @@ export default function DriftDetection() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async (silent = false) => {
+  const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     setError(null);
@@ -75,9 +75,9 @@ export default function DriftDetection() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   if (loading) return <LoadingSpinner message="Comparing audits…" />;
 

@@ -141,8 +141,8 @@ export default function GeoAnalysis() {
     loadGeo();
   }, [id]);
 
-  const issues = data?.issues || [];
-  const signals = data?.signals || {};
+  const issues = React.useMemo(() => data?.issues || [], [data]);
+  const signals = React.useMemo(() => data?.signals || {}, [data]);
 
   const filteredIssues = severityFilter === 'ALL' ? issues : issues.filter(i => (i.severity || '').toUpperCase() === severityFilter);
 

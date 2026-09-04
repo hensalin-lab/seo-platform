@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import {
@@ -102,7 +102,7 @@ export default function ExecutiveDashboard() {
     cwvData: null,
   });
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -129,9 +129,9 @@ export default function ExecutiveDashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
-  useEffect(() => { if (id) loadData(); }, [id]);
+  useEffect(() => { if (id) loadData(); }, [loadData, id]);
 
   async function handleExport() {
     const { reportData, healthData, geoData, aeoData, aiVisibilityData, cwvData } = data;

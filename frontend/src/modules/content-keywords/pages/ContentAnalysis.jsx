@@ -97,7 +97,6 @@ function IssueGroup({ group }) {
 }
 
 function ContentIssues({ issues }) {
-  if (!issues?.length) return <div className="empty-state"><h3>No content issues</h3><p>No content or on-page issues were detected for this site.</p></div>
   const groups = useMemo(() => {
     const byKey = new Map()
     for (const issue of issues) {
@@ -112,6 +111,7 @@ function ContentIssues({ issues }) {
       return ((w[a.severity] ?? 9) - (w[b.severity] ?? 9)) || (b.pages.length - a.pages.length)
     })
   }, [issues])
+  if (!issues?.length) return <div className="empty-state"><h3>No content issues</h3><p>No content or on-page issues were detected for this site.</p></div>
   return (
     <div className="card">
       <div className="card-header"><h2>Content Issues</h2><span className="badge badge-red">{issues.length}</span></div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Award, Link2, Shield, FileText, Cpu, Smartphone } from 'lucide-react';
@@ -38,15 +38,15 @@ export default function DomainAuthority() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     setError(null);
     api.getDomainAuthority(id).then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
-  };
+  }, [id]);
 
   useEffect(() => {
     load();
-  }, [id]);
+  }, [load]);
 
   if (loading) return <LoadingSpinner message="Computing domain authority…" />;
 

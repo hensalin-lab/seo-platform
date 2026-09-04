@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { BarChart3, Search, TrendingUp, RefreshCw, DollarSign, Tag } from 'lucide-react';
@@ -27,7 +27,7 @@ export default function KeywordVolumes() {
   const [limit, setLimit] = useState(50);
   const [sort, setSort] = useState('volume');
 
-  const load = async (l) => {
+  const load = useCallback(async (l) => {
     setLoading(true);
     setError(null);
     try {
@@ -38,9 +38,9 @@ export default function KeywordVolumes() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { load(limit); }, [id, limit]);
+  useEffect(() => { load(limit); }, [load, limit]);
 
   if (loading) return <LoadingSpinner message="Estimating keyword volumes…" />;
   if (error) return <EmptyState icon={BarChart3} title="Volume lookup failed" message={error} />;

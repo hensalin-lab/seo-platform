@@ -182,7 +182,7 @@ function TemplateEditor({ template, onSave, onCancel, onDelete }) {
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Template name is required.'); return; }
-    let schemaFields = {};
+    let schemaFields;
     try {
       schemaFields = form.schema_fields.trim() ? JSON.parse(form.schema_fields) : {};
     } catch {
