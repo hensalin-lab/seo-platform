@@ -476,11 +476,14 @@ All previously-failing endpoints now return **200 OK**:
 | Keyword Universe | `/api/research/keyword-universe?domain=...&seed=...` | ✅ `source: serp_probe`, real data |
 | Rank Tracking | `/api/rank-tracking/keywords` + `/{domain}/keywords` + `/{domain}/refresh` | ✅ add/list work; `refresh` queues a live Serper rank-check |
 | URL Inspection | `/api/research/url-inspection?url=...` | ⚠️ `UNAVAILABLE` (GSC service account not configured yet) |
-| Backlink Explorer / Referring / Toxic / Trust Flow / Backlink Gap | `/api/backlinks/{domain}/...`, `/research/trust-flow` | ⚠️ Return 200 but **empty** — backlink ingestion from Common Crawl fails (see below) |
+| Backlink Explorer / Referring / Toxic / Trust Flow / Backlink Gap | `/api/backlinks/{domain}/...`, `/research/trust-flow` | ✅ **FIXED** — `ingest_backlinks_for_domain` rewired from Common Crawl to Open PageRank (see below). Live: ahrefs.com → `referring_domains: 42094`, `DA: 90.2`, `trust_flow: 61.4`, `citation_flow: 52.1` |
 
-### Remaining: backlink ingestion from Common Crawl
-All backlink endpoints are healthy but return `total: 0` because `get_backlinks_for_domain()` never extracts links. Two bugs in `app/services/common_crawl_client.py`:
-1. `fetch_warc_links()` reads the returned WARC bytes via `resp.text`, but CC WARC files are **gzip-compressed** (`Content-Encoding: None`, magic `1f8b`) → decompresses to garbage → 0 backlinks.
-2. Under `asyncio.gather` with a fresh `httpx.AsyncClient` per record, DNS resolution flakes (`getaddrinfo failed`) intermittently.
+### Resolved: backlink ingestion source (Common Crawl → Open PageRank)
+All backlink endpoints previously returned `total: 0` because `get_backlinks_for_domain()` from Common Crawl was non-viable:
+1. **Slow**: ~250s per domain synchronously → blew the FastAPI Cloud 60s gateway → 502.
+2. **Wrong data**: the CDX query `url=*.domain` returns the target's OWN pages (internal links), not true referrers.
+3. **Flaky**: public index returns 502/503/connection reset; DNS `getaddrinfo` flakes under async concurrency (sequential works).
 
-Fix options: (a) correct gzip WARC byte-range decompression + reuse one shared async client; (b) switch backlink list source to a simpler free API. Open PageRank (already wired) provides `referring_domains` counts but not the link list.
+**Fix applied (commit `e8e86d9`)**: `ingest_backlinks_for_domain` now writes a single authoritative `ReferringDomain` row from **Open PageRank** (`referring_domains` count + `domain_authority`), plus a summary `Backlink` row. One fast OPR API call per domain (~1-2s) → backlink tools return real, spam-filtered referring-domain count + DA immediately.
+
+**Accepted tradeoff**: OPR exposes the referring-domain **count/DA**, not the raw per-link URL/anchor list, so the Explorer shows an honest aggregate record rather than every individual backlink URL.
