@@ -85,25 +85,18 @@ async def _get_domain_authority(domain: str) -> tuple[float, float]:
     """Get domain authority + spam score from Open PageRank (free).
     Returns (da, spam_score) tuple. Falls back to (0.0, 0.0) if unavailable."""
     try:
-        import httpx
-        from app.config import settings
-
-        api_key = getattr(settings, "OPEN_PAGERANK_API_KEY", "") or ""
-        headers = {"API-OPR": api_key} if api_key else {}
-
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                "https://openpagerank.com/api/v1.0/getPageRank",
-                params={"domains[]": domain},
-                headers=headers,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                rows = data.get("response") or []
-                if rows:
-                    da = float(rows[0].get("domain_authority", 0))
-                    spam = float(rows[0].get("spam_score", 0))
-                    return (da, spam)
+        from app.engine.open_page_rank_client import get_domain_authority
+        info = await get_domain_authority(domain)
+        da = float(info.get("domain_authority", 0))
+        # Open PageRank has no spam score; approximate via rank gap (large
+        # page_rank with low referring-domains is unusual, not a spam metric,
+        # so we return 0 unless low authority).
+        spam = 0.0
+        if da <= 5:
+            spam = 40.0
+        elif da <= 15:
+            spam = 15.0
+        return (da, spam)
     except Exception as e:
         logger.debug(f"Open PageRank failed for {domain}: {e}")
     return (0.0, 0.0)

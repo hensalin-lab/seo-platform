@@ -470,40 +470,28 @@ class MozBacklinkProvider(BacklinkProvider):
 # Open PageRank (free backlink index) implementation
 # ---------------------------------------------------------------------------
 
-OPEN_PAGERANK_API = "https://openpagerank.com/api/v1.0/getPageRank"
+OPEN_PAGERANK_API = "https://openpagerank.keywordseverywhere.com/v1/domains/bulk"
 
 
 class OpenPageRankBacklinkProvider(BacklinkProvider):
-    """Free PageRank / domain authority from openpagerank.com (free API key)."""
+    """Free PageRank / domain authority from Open PageRank (free API key)."""
 
     def __init__(self, cfg: dict):
         self.cfg = cfg
 
-    def _headers(self) -> dict:
-        return {"API-OPR": self.cfg.get("api_key", "")}
-
     async def summary(self, target: str) -> dict:
         host = (urlparse(target).hostname or target).lstrip("www.")
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(
-                OPEN_PAGERANK_API,
-                params={"domains[]": host},
-                headers=self._headers(),
-            )
-            if resp.status_code != 200:
-                raise RuntimeError(f"Open PageRank {resp.status_code}: {resp.text[:300]}")
-            data = resp.json()
-        rows = data.get("response") or []
-        if not rows:
+        from app.engine.open_page_rank_client import get_domain_authority
+        info = await get_domain_authority(host, self.cfg.get("api_key", ""))
+        if not info.get("domain_authority") and not info.get("page_rank"):
             return {"source": "pagerank", "note": "no result for this domain"}
-        r = rows[0]
         return {
-            "domain_authority": r.get("domain_authority", 0),
-            "page_rank": r.get("page_rank_decimal") or r.get("page_rank_integer", 0),
-            "rank": r.get("rank", 0),
-            "spam_score": r.get("spam_score", 0),
+            "domain_authority": info.get("domain_authority", 0),
+            "page_rank": info.get("page_rank", 0),
+            "rank": info.get("rank", 0),
+            "spam_score": 0,
             "backlinks_count": 0,
-            "referring_domains": 0,
+            "referring_domains": info.get("referring_domains", 0),
             "source": "pagerank",
             "note": "Free PageRank index from Open PageRank — limited to PageRank/DA, not full backlink counts.",
         }

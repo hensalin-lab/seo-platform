@@ -12,7 +12,6 @@ import asyncio
 import logging
 
 from app.services.ddg_serp_client import DDGSerpClient
-from app.services.common_crawl_client import get_backlinks_for_domain
 
 logger = logging.getLogger(__name__)
 
@@ -80,18 +79,29 @@ def _difficulty_from_results(results: list, referring_strength: dict) -> dict:
 
 
 async def _referring_strength_cache(domains: list, max_new: int = 5) -> dict:
-    """Fetch referring-domain counts for up to `max_new` uncached domains."""
-    # Authority is approximated by the count of referring domains (from Common
-    # Crawl, cached monthly). We batch and reuse for all requested domains.
-    strength = {}
-    for host in domains[:max_new]:
+    """Fetch domain-authority strength (0-100) for up to `max_new` domains.
+
+    Uses a single fast Open PageRank batch request (real, spam-filtered DA).
+    This endpoint must stay fast — it runs synchronously inside a keyword
+    request, so we deliberately avoid live Common Crawl lookups here (those
+    are handled by the background ingestion worker instead).
+    """
+    hosts = [h for h in domains[:max_new] if h]
+    if not hosts:
+        return {}
+
+    strength = {h: 0 for h in hosts}
+    from app.engine.open_page_rank_client import opr_batch
+    from app.config import settings as _settings
+    opr_key = getattr(_settings, "OPEN_PAGERANK_API_KEY", "") or ""
+    if opr_key:
         try:
-            backlinks = await get_backlinks_for_domain(host, max_index_pages=1)
-            strength[host] = min(100, len({b["source_domain"] for b in backlinks if b.get("source_domain")}))
+            opr = await opr_batch(hosts, opr_key)
+            for dom, info in opr.items():
+                if info.get("domain_authority"):
+                    strength[dom] = int(round(min(100, info["domain_authority"])))
         except Exception as e:
-            logger.debug(f"Referring strength lookup failed for {host}: {e}")
-            strength[host] = 0
-        await asyncio.sleep(2)
+            logger.debug(f"Open PageRank strength lookup failed: {e}")
     return strength
 
 

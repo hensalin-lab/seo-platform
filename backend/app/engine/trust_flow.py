@@ -105,23 +105,13 @@ async def compute_trust_citation_flow(db: AsyncSession, domain: str) -> dict:
     opr_key = getattr(settings, "OPEN_PAGERANK_API_KEY", "") or ""
     if opr_key:
         try:
-            import httpx
+            from app.engine.open_page_rank_client import opr_batch
             domain_list = [rd.domain for rd in domains[:50]]
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(
-                    "https://openpagerank.com/api/v1.0/getPageRank",
-                    params={"domains[]": domain_list},
-                    headers={"API-OPR": opr_key},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for row in data.get("response") or []:
-                        dom = row.get("domain", "").lstrip("www.")
-                        da = row.get("domain_authority", 0)
-                        if da:
-                            for rd in domains:
-                                if rd.domain.lstrip("www.") == dom:
-                                    rd.domain_authority = da
+            opr = await opr_batch(domain_list, opr_key)
+            for rd in domains:
+                info = opr.get(rd.domain.lstrip("www.").lower())
+                if info and info.get("domain_authority"):
+                    rd.domain_authority = info["domain_authority"]
         except Exception as e:
             logger.debug(f"Open PageRank enhancement failed: {e}")
 
