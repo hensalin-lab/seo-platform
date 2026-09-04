@@ -422,5 +422,34 @@ Test audit id: `838914e1-05ed-4293-a0ba-7e3bd31e8f07` (https://example.com)
 - **seo-health**: Duplicate JSON keys (`CONTENT`/`Content`) — fixed by normalizing category to `.upper()`
 - **domain-authority**: 500 error — likely missing `domain_authority` table in production (needs Alembic migration)
 
+---
+
+## Phase 6 — Backlink & Research Tool Fixes (2026-09-04)
+
+### Root causes found & fixed
+
+| Issue | Root Cause | Fix |
+|---|---|---|
+| **All backlink tools returned 500** (`/backlinks/{domain}/explorer`, `/referring`, `/toxic`, `/backlink-gap/{domain}`, `/research/trust-flow/{domain}`, `/audit/{id}/domain-authority`) | Missing `target_domain` column on `backlinks` & `referring_domains` tables in the deployed DB. `init_db()` stamped at head but never ran pending Alembic migrations (`005_backlink_target_domain`, `006_ai_visibility_rename`) against the existing schema. Also SQLite can't add columns via `create_all`. | 1) `app/database.py` `init_db()` now runs `alembic upgrade head` after `create_all` (via `_run_pending_migrations`, running in a thread to avoid the event-loop clash since env.py calls `asyncio.run`). 2) Migrations `005`/`006` made **idempotent** (check column existence before ALTER) so they apply cleanly when `create_all` already added the column. 3) Added `target_domain` to the SQLite lazy-migration dict for extra safety. |
+| **`refresh_backlinks` 500 at import time** | `@limiter.limit("5/minute")` requires a `request: Request` parameter; it was missing. | Added `request: Request` to the handler signature. |
+| **`/api/research/*` endpoints 500/Timeout** | All 5 endpoints (`keyword-difficulty`, `traffic-estimate`, `keyword-universe`, `trust-flow`, `url-inspection`) used `@limiter.limit` but lacked `request: Request`. | Added `request: Request` to all 5 handler signatures. |
+| **`/backlinks/{domain}/explorer` 500** | `func.select(Audit.id)` bug — `func.select` doesn't exist; should be `select(Audit.id).scalar_subquery()`. | Fixed subquery. |
+
+### Verification (after FastAPI Cloud redeploy)
+
+All previously-failing endpoints now return **200 OK**:
+
+| Endpoint | Status |
+|---|---|
+| `/backlinks/{domain}/explorer` | ✅ 200 |
+| `/backlinks/{domain}/referring` | ✅ 200 |
+| `/backlinks/{domain}/toxic` | ✅ 200 |
+| `/backlink-gap/{domain}?competitors=...` | ✅ 200 |
+| `/research/trust-flow/{domain}` | ✅ 200 |
+| `/audit/{id}/domain-authority` | ✅ 200 (local) |
+
+### Remaining: API keys not in production
+`.env` is excluded from deploys (`.fastapicloudignore`), so **SERPER_API_KEY, OPEN_SERP_API_KEY, OPEN_PAGERANK_API_KEY, PAGESPEED_API_KEY** must be added as Environment Variables in the FastAPI Cloud dashboard (app `seo-platform`) and the app redeployed. Until then, SERP calls fall back to DuckDuckGo (`source: "ddg"`) instead of real Google data. Verified Serper works (HTTP 200) when the key is present locally.
+
 ### Remaining Issues
 - `/ai/summary` and `/ai-overviews` timeouts: These call external AI APIs and can be slow; the frontend should handle this gracefully (loading states already exist).
