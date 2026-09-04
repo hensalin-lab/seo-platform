@@ -5,7 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, outerjoin, func, update
 from sqlalchemy.orm import selectinload
-from slowapi import Limiter
+
+from app.config import settings
+from app.rate_limit import limiter
 
 from app.database import get_db
 from app.models import (
@@ -89,6 +91,7 @@ def _generate_fallback_recommendations(issues, website_url):
 
 
 @router.post("/audit/start", response_model=AuditStartResponse)
+@limiter.limit(settings.RATE_LIMIT_AUDIT)
 async def start_audit(request: Request, req: AuditRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     user_id = getattr(request.state, "user_id", None)
     audit = Audit(
@@ -1099,12 +1102,22 @@ async def run_audit_task(audit_id: str):
                     from app.engine.competitor_discovery import discover_competitors
                     first_page = pages[0] if pages else None
                     keyword = getattr(first_page, 'title', '') or domain or ""
-                    discovered = await discover_competitors(website_url, keyword.split(" -")[0] if " -" in keyword else keyword)
-                    comp_discovery_info = discovered
-                    competitor_urls = [c["url"] for c in discovered.get("competitors", [])[:3]]
-                    if competitor_urls:
-                        logger.info(f"Discovered {len(competitor_urls)} competitors from {discovered.get('source', 'unknown')}")
-                        comp_discovery_info["competitor_count"] = len(competitor_urls)
+                    src_user_id = getattr(audit, "user_id", None)
+                    from app.engine.spend_guard import check_provider_budget, record_provider_usage
+                    try:
+                        await check_provider_budget(db, src_user_id, "serpapi", cost=1)
+                    except Exception as e:
+                        logger.warning(f"Competitor discovery skipped (budget): {e}")
+                        comp_discovery_info = {"source": "budget_exceeded", "note": str(e)[:200]}
+                    else:
+                        discovered = await discover_competitors(website_url, keyword.split(" -")[0] if " -" in keyword else keyword)
+                        await record_provider_usage(db, src_user_id, "serpapi", cost=1,
+                                                    details={"site": website_url, "capability": "competitor_discovery"})
+                        comp_discovery_info = discovered
+                        competitor_urls = [c["url"] for c in discovered.get("competitors", [])[:3]]
+                        if competitor_urls:
+                            logger.info(f"Discovered {len(competitor_urls)} competitors from {discovered.get('source', 'unknown')}")
+                            comp_discovery_info["competitor_count"] = len(competitor_urls)
                 except Exception as e:
                     logger.warning(f"Competitor discovery failed: {e}")
 

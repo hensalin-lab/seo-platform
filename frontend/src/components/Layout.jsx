@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommandPalette from './CommandPalette';
-import { Search, Plus, ChevronRight, Moon, Sun, LogIn, LogOut } from 'lucide-react';
-import { mainNav, auditSections, getIcon, getPageTitleForPath } from '../config/routes.config';
+import { Search, Plus, Moon, Sun, LogIn, LogOut } from 'lucide-react';
+import { mainNav, reportSidebarNav, getIcon, getPageTitleForPath } from '../config/routes.config';
 
 function SidebarLink({ to, icon: Icon, label, active, nested }) {
   return (
@@ -22,8 +22,6 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState({});
-  const [openGroups, setOpenGroups] = useState({});
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
@@ -72,66 +70,33 @@ export default function Layout({ children }) {
               ))}
             </div>
           )}
-          {isReport && auditSections.map(section => {
-            const sectionKey = section.label;
-            const hasActiveItem = section.items.some(item =>
-              item.group
-                ? item.children.some(c => isActive(c.suffix, segment))
-                : isActive(item.suffix, segment)
-            );
-            const isCollapsed = collapsedSections[sectionKey] && !hasActiveItem;
-            return (
-              <div className="sidebar-section" key={sectionKey}>
-                <button
-                  onClick={() => setCollapsedSections(s => ({ ...s, [sectionKey]: !s[sectionKey] }))}
-                  className="sidebar-section-label"
-                  title={isCollapsed ? 'Expand section' : 'Collapse section'}
-                >
-                  <span>{section.label}</span>
-                  <ChevronRight size={12} style={{ transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)', transition: 'transform 0.15s', opacity: 0.6 }} />
-                </button>
-                {!isCollapsed && section.items.map(item => {
-                  if (item.group) {
-                    const open = openGroups[item.label] ?? item.children.some(c => isActive(c.suffix, segment));
-                    const GroupIcon = getIcon(item.icon);
-                    return (
-                      <div key={item.label}>
-                        <button
-                          onClick={() => setOpenGroups(g => ({ ...g, [item.label]: !open }))}
-                          className={`sidebar-link-group ${item.children.some(c => isActive(c.suffix, segment)) ? 'active' : ''}`}
-                          title={open ? 'Collapse group' : 'Expand group'}
-                        >
-                          <GroupIcon size={15} />
-                          <span>{item.label}</span>
-                          <ChevronRight size={12} style={{ marginLeft: 'auto', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', opacity: 0.6 }} />
-                        </button>
-                        {open && item.children.map(child => (
-                          <SidebarLink
-                            key={child.suffix}
-                            to={`/audit/${auditId}${child.suffix}`}
-                            icon={getIcon(child.icon)}
-                            label={child.label}
-                            active={isActive(child.suffix, segment)}
-                            nested
-                          />
-                        ))}
-                      </div>
-                    );
-                  }
-                  const to = item.path || `/audit/${auditId}${item.suffix}`;
-                  return (
-                    <SidebarLink
-                      key={item.suffix || item.path}
-                      to={to}
-                      icon={getIcon(item.icon)}
-                      label={item.label}
-                      active={item.suffix ? isActive(item.suffix, segment) : location.pathname === item.path}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
+          {isReport && reportSidebarNav.map(group => (
+            <div className="sidebar-section" key={group.section}>
+              <div className="sidebar-section-label">{group.section}</div>
+              {group.main.map(item => (
+                <SidebarLink
+                  key={item.suffix}
+                  to={`/audit/${auditId}${item.suffix}`}
+                  icon={getIcon(item.icon)}
+                  label={item.label}
+                  active={isActive(item.suffix, segment)}
+                />
+              ))}
+              {group.more && group.more.length > 0 && (
+                <div className="sidebar-section-label" style={{ marginTop: 4, opacity: 0.55, fontSize: 10 }}>MORE</div>
+              )}
+              {group.more && group.more.map(item => (
+                <SidebarLink
+                  key={item.suffix}
+                  to={`/audit/${auditId}${item.suffix}`}
+                  icon={getIcon(item.icon)}
+                  label={item.label}
+                  active={isActive(item.suffix, segment)}
+                  nested
+                />
+              ))}
+            </div>
+          ))}
         </nav>
         <div className="sidebar-footer">
           {isAuthenticated && user ? (

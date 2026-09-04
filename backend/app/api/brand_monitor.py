@@ -5,11 +5,13 @@ import logging
 import datetime as _dt
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
+from app.rate_limit import limiter
 from app.models import Audit, Page, AiCitationRecord, User
 from app.api.auth import get_current_active_user
 from app.engine.providers import (
@@ -43,7 +45,9 @@ def _derive_brand(website_url: str, pages) -> str:
 
 
 @router.get("/audit/{audit_id}/brand-monitor")
+@limiter.limit(settings.RATE_LIMIT_BRAND_MONITOR)
 async def get_brand_monitor(
+    request: Request,
     audit_id: str,
     brand: str = Query("", description="Optional brand name override"),
     user: User = Depends(get_current_active_user),
@@ -62,10 +66,23 @@ async def get_brand_monitor(
     if resolved["provider"].startswith("keyless"):
         provider = KeylessCitationProvider()
     else:
+        # Guard the paid AI-citation provider call against the daily budget.
+        from app.engine.spend_guard import ProviderBudgetExceeded, check_provider_budget, record_provider_usage
+        try:
+            await check_provider_budget(db, user.id, resolved["provider"], cost=1)
+        except ProviderBudgetExceeded as e:
+            raise HTTPException(status_code=429, detail=str(e))
         provider = build_provider("ai_citations", resolved["provider"], effective_config(resolved["provider"], user_config))
 
     try:
         result = await provider.analyze(brand_name, site_data)
+        if not resolved["provider"].startswith("keyless"):
+            from app.engine.spend_guard import record_provider_usage
+            try:
+                await record_provider_usage(db, user.id, resolved["provider"], cost=1,
+                                            details={"brand": brand_name, "capability": "ai_citations"})
+            except Exception:
+                pass
     except Exception as e:
         logger.warning(f"AI citation provider {resolved['provider']} failed: {e}")
         provider = KeylessCitationProvider()

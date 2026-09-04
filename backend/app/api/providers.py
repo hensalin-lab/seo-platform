@@ -3,13 +3,15 @@ data providers. Per-user keys are stored in ProviderSetting and override
 environment variables. Keyless fallbacks are always available."""
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
+from app.rate_limit import limiter
 from app.models import ProviderSetting, User
 from app.api.auth import get_current_active_user
 from app.engine.providers import (
@@ -106,8 +108,21 @@ async def delete_provider(name: str, user: User = Depends(get_current_active_use
 
 
 @router.post("/{name}/test")
-async def test(name: str, req: ProviderTestRequest, user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_PROVIDER_TEST)
+async def test(
+    request: Request,
+    name: str,
+    req: ProviderTestRequest,
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
     _known(name)
+    # Guard the credential-test (which hits the live paid API) against spend caps.
+    from app.engine.spend_guard import ProviderBudgetExceeded, check_provider_budget, record_provider_usage
+    try:
+        await check_provider_budget(db, user.id, name, cost=1)
+    except ProviderBudgetExceeded as e:
+        raise HTTPException(status_code=429, detail=str(e))
     user_config = await get_user_provider_config(db, user.id)
     test_config = user_config.get(name)
     if req.config is not None:
@@ -115,6 +130,8 @@ async def test(name: str, req: ProviderTestRequest, user: User = Depends(get_cur
         merged.update({k: v for k, v in req.config.items() if v not in (None, "")})
         test_config = merged
     result = await test_provider(name, test_config, req.capability)
+    await record_provider_usage(db, user.id, name, cost=1,
+                                details={"action": "test", "capability": req.capability})
     return {"provider": name, **result}
 
 

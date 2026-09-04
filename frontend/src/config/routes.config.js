@@ -105,6 +105,9 @@ const ContentIntelHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m
 const KeywordHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.KeywordHub })));
 const OffsiteHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.OffsiteHub })));
 const ContentStudioHub = lazy(() => import('../pages/hubs/GeoContentHubs').then(m => ({ default: m.ContentStudioHub })));
+const DiagnoseHub = lazy(() => import('../pages/hubs/DiagnoseHub'));
+const FixHub = lazy(() => import('../pages/hubs/FixHub'));
+const CreateTrackHub = lazy(() => import('../pages/hubs/CreateTrackHub'));
 
 export const ICON_MAP = {
   LayoutDashboard, Plus, FileText, BarChart3, Search, Link2, Gauge, BookOpen,
@@ -150,7 +153,10 @@ export const auditSections = [
   },
   {
     label: '2. DIAGNOSE',
+    hub: '/diagnose',
+    hubIcon: 'AlertTriangle',
     items: [
+      { suffix: '/diagnose', icon: 'AlertTriangle', label: 'Diagnose', title: 'Diagnose', component: DiagnoseHub },
       {
         label: 'Technical',
         icon: 'Search',
@@ -217,7 +223,10 @@ export const auditSections = [
   },
   {
     label: '3. FIX',
+    hub: '/fix',
+    hubIcon: 'ClipboardList',
     items: [
+      { suffix: '/fix', icon: 'ClipboardList', label: 'Fix', title: 'Fix', component: FixHub },
       { suffix: '/action-hub', icon: 'ClipboardList', label: 'Action Hub', title: 'Action Hub', component: ActionHub },
       { suffix: '/issues', icon: 'AlertTriangle', label: 'Issue Remediation', title: 'Issue Remediation' },
       { suffix: '/rank-boost', icon: 'Star', label: 'Rank Boost', title: 'Rank Boost', component: RankBoost },
@@ -226,7 +235,10 @@ export const auditSections = [
   },
   {
     label: '4. CREATE & TRACK',
+    hub: '/create-track',
+    hubIcon: 'Lightbulb',
     items: [
+      { suffix: '/create-track', icon: 'Lightbulb', label: 'Create & Track', title: 'Create & Track', component: CreateTrackHub },
       { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio', title: 'Content Studio', component: ContentStudioHub },
       { suffix: '/blog-ai', icon: 'PenTool', label: 'Blog AI', title: 'Blog AI', component: BlogAi },
       { suffix: '/content-revival', icon: 'RefreshCw', label: 'Content Revival', title: 'Content Revival', component: ContentRevival },
@@ -245,6 +257,70 @@ export const auditSections = [
     ],
   },
 ];
+
+export const reportSidebarNav = [
+  { section: '1. OVERVIEW', group: 'Overview', main: [
+    { suffix: '/dashboard', icon: 'LayoutDashboard', label: 'Dashboard' },
+    { suffix: '/report', icon: 'FileSearch', label: 'Audit Report' },
+    { suffix: '/compare', icon: 'GitCompare', label: 'Audit Compare' },
+  ] },
+  { section: '2. DIAGNOSE', group: 'Diagnose', main: [
+    { suffix: '/seo', icon: 'Search', label: 'SEO Analysis' },
+    { suffix: '/pages', icon: 'FileCode', label: 'Pages' },
+    { suffix: '/page-detail', icon: 'Layers', label: 'Page Detail' },
+    { suffix: '/speed', icon: 'Gauge', label: 'Speed & CWV' },
+    { suffix: '/internal-links', icon: 'Link2', label: 'Internal Links' },
+    { suffix: '/geo-aeo', icon: 'Brain', label: 'GEO & AEO Hub' },
+    { suffix: '/content-intel', icon: 'Cpu', label: 'Content Intelligence' },
+    { suffix: '/keywords', icon: 'Key', label: 'Keyword Strategy' },
+    { suffix: '/competitor', icon: 'Users', label: 'Competitor Analysis' },
+    { suffix: '/backlinks', icon: 'Link2', label: 'Backlinks' },
+    { suffix: '/offsite-authority', icon: 'Award', label: 'Off-Site Authority' },
+  ], more: [
+    { suffix: '/schema', icon: 'Network', label: 'Schema' },
+    { suffix: '/sitemap-robots', icon: 'Globe', label: 'Sitemap & Robots' },
+    { suffix: '/roadmap', icon: 'Flag', label: 'Roadmap' },
+    { suffix: '/mobile-seo', icon: 'Smartphone', label: 'Mobile SEO' },
+    { suffix: '/security-headers', icon: 'ShieldAlert', label: 'Security Headers' },
+    { suffix: '/image-seo', icon: 'Camera', label: 'Image SEO' },
+    { suffix: '/hreflang', icon: 'Languages', label: 'Hreflang & i18n' },
+    { suffix: '/redirects', icon: 'ArrowRight', label: 'Redirects' },
+    { suffix: '/duplicates', icon: 'Copy', label: 'Duplicates' },
+    { suffix: '/js-dependency', icon: 'Cpu', label: 'JS Dependency' },
+    { suffix: '/ai-bots', icon: 'Bot', label: 'AI Bot Access' },
+    { suffix: '/serp-preview', icon: 'Eye', label: 'SERP & AI Preview' },
+    { suffix: '/eeat', icon: 'Award', label: 'E-E-A-T Analysis' },
+    { suffix: '/social-seo', icon: 'Megaphone', label: 'Social SEO' },
+    { suffix: '/local-seo', icon: 'MapPin', label: 'Local SEO' },
+    { suffix: '/citations', icon: 'MessageCircle', label: 'Citations' },
+  ] },
+  { section: '3. FIX', group: 'Fix', main: [
+    { suffix: '/action-hub', icon: 'ClipboardList', label: 'Action Hub' },
+    { suffix: '/issues', icon: 'AlertTriangle', label: 'Issue Remediation' },
+    { suffix: '/rank-boost', icon: 'Star', label: 'Rank Boost' },
+  ], more: [
+    { suffix: '/content-rewrite', icon: 'Edit3', label: 'Content Rewriter' },
+  ] },
+  { section: '4. CREATE & TRACK', group: 'Create & Track', main: [
+    { suffix: '/content-studio', icon: 'BookOpen', label: 'Content Studio' },
+    { suffix: '/blog-ai', icon: 'PenTool', label: 'Blog AI' },
+    { suffix: '/content-revival', icon: 'RefreshCw', label: 'Content Revival' },
+    { suffix: '/chat', icon: 'MessageSquare', label: 'AI Chat' },
+    { suffix: '/rankings', icon: 'TrendingUp', label: 'Rank Tracking' },
+    { suffix: '/drift', icon: 'GitCompare', label: 'Drift & Changes' },
+    { suffix: '/gsc', icon: 'Search', label: 'Google Search Console' },
+  ], more: [
+    { suffix: '/trends', icon: 'LineChart', label: 'Score Trends' },
+    { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor' },
+  ] },
+];
+
+export const auditSectionNav = auditSections.map(section => ({
+  label: section.label,
+  hub: section.hub || null,
+  hubIcon: section.hubIcon || null,
+  items: section.items,
+}));
 
 export const auditRedirects = [
   { suffix: '/recommendations', to: '/action-hub' },

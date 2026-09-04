@@ -4,11 +4,13 @@ content briefs, usage metering, and demo data."""
 import logging
 import re
 import datetime as _dt
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
+from app.rate_limit import limiter
 from app.models import (
     Audit, AuditScore, Page, Backlink, ReferringDomain, CoreWebVitals,
     KeywordData, KeywordRecord, ContentData, DriftReport, HreflangAnalysis, RedirectRecord,
@@ -294,7 +296,9 @@ async def public_api_info(user: User = Depends(get_current_active_user)):
 # ---------------------------------------------------------------------------
 
 @router.get("/audit/{audit_id}/keyword-volumes")
+@limiter.limit(settings.RATE_LIMIT_KEYWORD_VOLUME)
 async def get_keyword_volumes(
+    request: Request,
     audit_id: str,
     limit: int = Query(50, ge=1, le=200),
     user: User = Depends(get_current_active_user),
@@ -359,11 +363,29 @@ async def get_keyword_volumes(
 
     volumes = []
     for kw in entries[:limit]:
+        # Guard paid provider calls against the per-user daily budget.
+        if not resolved["provider"].startswith("keyless"):
+            from app.engine.spend_guard import check_provider_budget, record_provider_usage
+            try:
+                await check_provider_budget(db, user.id, resolved["provider"], cost=1)
+            except Exception as e:
+                volumes.append({
+                    "keyword": kw, "volume": 0, "cpc": 0, "competition": "N/A",
+                    "source": "budget_exceeded", "note": str(e)[:200],
+                })
+                continue
         try:
             v = await provider.get_volume(kw)
         except Exception as e:
             logger.warning(f"Keyword volume failed for {kw!r}: {e}")
             v = {"keyword": kw, "volume": 0, "cpc": 0, "competition": "N/A", "source": "error", "note": str(e)[:200]}
+        if not resolved["provider"].startswith("keyless"):
+            from app.engine.spend_guard import record_provider_usage
+            try:
+                await record_provider_usage(db, user.id, resolved["provider"], cost=1,
+                                            details={"keyword": kw, "capability": "keyword_volume"})
+            except Exception:
+                pass
         volumes.append(v)
 
     return {

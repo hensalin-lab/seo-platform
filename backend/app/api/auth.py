@@ -8,6 +8,8 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 
 from app.database import get_db
+from app.config import settings
+from app.rate_limit import limiter
 from app.models import User, APIKey
 from app.auth import hash_password, verify_password, create_access_token, decode_access_token
 logger = logging.getLogger(__name__)
@@ -146,7 +148,8 @@ def _user_dict(user: User) -> dict:
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_REGISTER)
+async def register(request: Request, req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(User).where((User.email == req.email) | (User.username == req.username)))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email or username already registered")

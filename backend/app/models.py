@@ -1,9 +1,59 @@
 import datetime as _dt
+import gzip as _gzip
 import uuid as _uuid
+import zlib as _zlib
 from sqlalchemy import Column, String, Float, Integer, Text, DateTime, ForeignKey, JSON, Boolean, Index
+from sqlalchemy.types import TypeDecorator, LargeBinary
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
+
+
+class CompressedText(TypeDecorator):
+    """Stores TEXT using zlib/gzip compression at the DB boundary.
+
+    The value is transparently compressed on bind (write) and decompressed on
+    result (read), so all existing call sites that read ``page.html_raw`` keep
+    receiving raw uncompressed HTML with no code changes. Compression is skipped
+    for empty/None values to keep those as plain SQL NULL / empty strings.
+    """
+
+    impl = LargeBinary
+    cache_ok = False
+
+    def load_dialect_impl(self, dialect):
+        # Both SQLite (BLOB) and Postgres (BYTEA) map LargeBinary, so this type
+        # works unchanged across the migration to Postgres.
+        return dialect.type_descriptor(_zlib_type_for(dialect))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            text = value.decode("utf-8", errors="replace")
+        else:
+            text = str(value)
+        if not text:
+            return b""
+        return _gzip.compress(text.encode("utf-8"), compresslevel=9)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if value == b"":
+            return ""
+        return _gzip.decompress(value).decode("utf-8", errors="replace")
+
+
+def _zlib_type_for(dialect):
+    from sqlalchemy.dialects.postgresql import BYTEA
+    from sqlalchemy import LargeBinary as _LB
+    try:
+        if "postgres" in dialect.name:
+            return BYTEA()
+    except Exception:
+        pass
+    return _LB()
 
 
 def generate_uuid():

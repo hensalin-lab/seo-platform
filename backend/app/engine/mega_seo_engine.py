@@ -127,6 +127,11 @@ class MegaSEOEngine:
         signals += self._core_web_vitals_signals(resp_ms, html, images)
         signals += self._mobile_first_signals(html, resp_ms)
         signals += self._technical_integrity_signals(html, status, url, robots_meta, is_indexable)
+        signals += self._page_engagement_signals(wc, title, desc, images, links_int)
+        signals += self._international_seo_signals(html, url)
+        signals += self._competitor_signals(wc, title, desc)
+        signals += self._progressive_web_signals(html)
+        signals += self._amp_signals(html)
 
         seen_ids: set[str] = set()
         deduped: list[dict] = []
@@ -896,6 +901,11 @@ class MegaSEOEngine:
                 "This page is text-only with no images or internal links. Poor user experience.",
                 "Users expect rich content — text, images, navigation, related content. Plain text pages have high bounce rates.",
                 "Add relevant images, internal links to related content, and navigation elements.", "Lower bounce rate", "Easy"))
+        else:
+            sigs.append(self._s("UX010", "Good User Experience Signals", "user_experience", "pass", "LOW",
+                "Page has sufficient content, images, and navigation links.",
+                "Good UX signals correlate with lower bounce rates and higher engagement.",
+                "", "", ""))
 
         depth = crawl_depth or 0
         if depth > 5:
@@ -903,13 +913,20 @@ class MegaSEOEngine:
                 f"This page is {depth} clicks from the homepage. Pages deep in the architecture get less crawl attention.",
                 "Google prioritizes pages closer to the homepage. Deep pages are crawled less frequently.",
                 "Add this page to your main navigation or link to it from high-authority pages.", "Improved crawl frequency", "Medium"))
+        else:
+            sigs.append(self._s("UX011", "Accessible Crawl Depth", "user_experience", "pass", "LOW",
+                f"Page is {depth} clicks from homepage — within optimal range.",
+                "Pages within 3 clicks of the homepage get crawled most frequently.",
+                "", "", ""))
         return sigs
 
     def _ai_search_signals(self, text, schema, wc, headings):
         sigs = []
         text_lower = (text or "").lower()
+        has_all = True
 
         if wc < 500:
+            has_all = False
             sigs.append(self._s("AI001", "Content Too Short for AI Citation", "ai_search_readiness", "fail", "HIGH",
                 "AI search engines (ChatGPT, Perplexity, Google AI) prefer content with 800+ words for citation.",
                 "AI engines look for comprehensive, authoritative answers. Short content rarely gets cited because it lacks depth and evidence.",
@@ -939,10 +956,16 @@ class MegaSEOEngine:
         schema_list = _safe_list(schema)
         has_faq = any(s.get("@type") == "FAQPage" for s in schema_list if isinstance(s, dict))
         if not has_faq and wc > 1000:
+            has_all = False
             sigs.append(self._s("AI005", "No FAQ Schema for AI", "ai_search_readiness", "warn", "MEDIUM",
                 "No FAQPage schema markup detected.",
                 "FAQ schema directly feeds Google's AI Overviews and People Also Ask. It's the most direct way to appear in AI-generated answers.",
                 "Add FAQPage schema with questions and answers from your content.", "Direct path to AI Overview inclusion", "Medium"))
+        if has_all and wc >= 500:
+            sigs.append(self._s("AI010", "Strong AI Search Readiness", "ai_search_readiness", "pass", "LOW",
+                "Content meets all AI citation criteria: sufficient length, definitions, data, lists, and structure.",
+                "Well-structured content with data and clear definitions is 3x more likely to be cited by AI search engines.",
+                "", "", ""))
         return sigs
 
     def _entity_signals(self, text, words, schema):
@@ -989,6 +1012,10 @@ class MegaSEOEngine:
                 "Your content mentions local terms but lacks LocalBusiness schema.",
                 "LocalBusiness schema helps you appear in Google Maps and local search results.",
                 "Add LocalBusiness schema with name, address, phone, hours, and geo coordinates.", "Google Maps visibility", "Medium"))
+        else:
+            sigs.append(self._s("LS010", "Local SEO Check Complete", "local_seo", "pass", "LOW",
+                "Local SEO signals checked. No issues found for this page.",
+                "Local SEO is only critical for businesses with physical locations.", "", "", ""))
         return sigs
 
     def _video_signals(self, html, text):
@@ -1000,6 +1027,10 @@ class MegaSEOEngine:
                 "Your content mentions videos but doesn't embed any.",
                 "Embedded videos increase time-on-page, a user engagement signal. Video also gets special SERP features.",
                 "Embed relevant videos or create video content for this page.", "Improved engagement", "Hard"))
+        else:
+            sigs.append(self._s("V010", "Video SEO Check Complete", "video_seo", "pass", "LOW",
+                "Video SEO signals checked. No issues found for this page.",
+                "Video content can boost engagement and SERP visibility when relevant.", "", "", ""))
         return sigs
 
     def _social_signals(self, og, tc, schema):
@@ -1846,6 +1877,119 @@ class MegaSEOEngine:
                 "HTTPS page loads HTTP resources. This triggers mixed content warnings.",
                 "Mixed content degrades security and can block resource loading in modern browsers.",
                 "Update all internal resource URLs to use HTTPS.", "", "Easy"))
+        return sigs
+
+    def _page_engagement_signals(self, wc, title, desc, images, links_int):
+        sigs = []
+        title_len = len(title or "")
+        desc_len = len(desc or "")
+        issues = []
+        if title_len < 30:
+            issues.append("Title too short for good CTR")
+        elif title_len > 60:
+            issues.append("Title may be truncated in SERPs")
+        if desc_len < 70:
+            issues.append("Meta description too short to attract clicks")
+        elif desc_len > 160:
+            issues.append("Meta description may be truncated")
+        if not images:
+            issues.append("No images reduce visual appeal and dwell time")
+        if not links_int:
+            issues.append("No internal links — users can't navigate deeper")
+        if issues:
+            sigs.append(self._s("PE001", "Page Engagement Risks", "page_engagement", "warn", "MEDIUM",
+                f"{len(issues)} engagement risk(s) detected: {'; '.join(issues)}",
+                "CTR, dwell time, and bounce rate are indirect ranking signals. Poor engagement reduces rankings.",
+                "Optimize title (50-60 chars), meta description (120-155 chars), add images and internal links.", "Higher CTR and dwell time", "Easy"))
+        else:
+            sigs.append(self._s("PE010", "Strong Page Engagement Signals", "page_engagement", "pass", "LOW",
+                "Title, description, images, and internal links are all well-optimized for engagement.",
+                "Good engagement signals correlate with better rankings.", "", "", ""))
+        return sigs
+
+    def _international_seo_signals(self, html, url):
+        sigs = []
+        has_hreflang = bool(re.search(r'hreflang', html or "", re.I))
+        has_lang = bool(re.search(r'<html[^>]+lang=', html or "", re.I))
+        if not has_hreflang and not has_lang:
+            sigs.append(self._s("INT001", "No International SEO Signals", "international_seo", "warn", "LOW",
+                "No hreflang tags or lang attribute detected.",
+                "Hreflang and lang attributes help search engines serve the right language/region version.",
+                "Add lang attribute to <html> tag. For multi-language sites, add hreflang tags.", "Better international targeting", "Easy"))
+        else:
+            sigs.append(self._s("INT010", "International SEO Check Complete", "international_seo", "pass", "LOW",
+                "International SEO signals checked. Page has appropriate language targeting.",
+                "Proper language targeting helps search engines serve the right content to users.", "", "", ""))
+        return sigs
+
+    def _competitor_signals(self, wc, title, meta_desc):
+        sigs = []
+        if wc and wc < 300:
+            sigs.append(self._s("CB001", "Content Too Short vs Competitors", "competitor_benchmarking", "warn", "MEDIUM",
+                f"This page has only {wc} words. Top-ranking competitors typically have 1500+ words.",
+                "Content depth is a strong ranking signal. Thin content rarely outranks comprehensive competitor pages.",
+                "Expand content to 1500+ words with unique insights, data, and examples.", "Competitive ranking advantage", "Hard"))
+        else:
+            sigs.append(self._s("CB010", "Content Depth Check Complete", "competitor_benchmarking", "pass", "LOW",
+                f"Content length ({wc} words) is within competitive range.",
+                "Content depth is measured against typical top-ranking competitor pages.", "", "", ""))
+        return sigs
+
+    def _visual_content_signals(self, images, text, html, wc):
+        sigs = []
+        img_count = len(images or [])
+        alt_count = sum(1 for i in (images or []) if isinstance(i, dict) and (i.get("alt") or "").strip())
+        if img_count == 0 and wc > 500:
+            sigs.append(self._s("VIS001", "No Visual Content", "visual_content", "warn", "MEDIUM",
+                "This page has no images despite having significant text content.",
+                "Visual content increases engagement, dwell time, and can rank in image search.",
+                "Add relevant images, diagrams, or infographics to support the content.", "Higher engagement and image search visibility", "Medium"))
+        elif img_count > 0 and alt_count < img_count * 0.5:
+            sigs.append(self._s("VIS002", "Many Images Missing Alt Text", "visual_content", "warn", "LOW",
+                f"{img_count - alt_count} of {img_count} images lack descriptive alt text.",
+                "Alt text helps with accessibility, image SEO, and provides context to search engines.",
+                "Add descriptive alt text to all meaningful images.", "Image search rankings + accessibility", "Easy"))
+        else:
+            sigs.append(self._s("VIS010", "Visual Content Check Complete", "visual_content", "pass", "LOW",
+                f"Visual content checked: {img_count} images found.",
+                "Good visual content supports engagement and SEO.", "", "", ""))
+        return sigs
+
+    def _progressive_web_signals(self, html):
+        sigs = []
+        has_manifest = bool(re.search(r'manifest\.json|web-app-manifest|apple-touch-icon', html or "", re.I))
+        has_sw = bool(re.search(r'service.worker|serviceWorker|navigator\.serviceWorker', html or "", re.I))
+        has_prerender = bool(re.search(r'prerender|prefetch|preconnect', html or "", re.I))
+        if not has_manifest and not has_sw:
+            sigs.append(self._s("PWA001", "No Progressive Web App Signals", "progressive_web", "warn", "LOW",
+                "No PWA manifest or service worker detected.",
+                "PWA features improve mobile experience, offline access, and can boost Core Web Vitals scores.",
+                "Add a web app manifest and consider implementing a service worker for caching.", "Better mobile experience", "Hard"))
+        else:
+            sigs.append(self._s("PWA010", "PWA Signals Detected", "progressive_web", "pass", "LOW",
+                "Progressive Web App features detected on this page.",
+                "PWA features enhance mobile user experience and performance.", "", "", ""))
+        return sigs
+
+    def _amp_signals(self, html):
+        sigs = []
+        has_amp = bool(re.search(r'amphtml|amp\.js|amp-custom', html or "", re.I))
+        is_amp = bool(re.search(r'<html[^>]+amp', html or "", re.I))
+        if is_amp:
+            has_boilerplate = bool(re.search(r'amp-boilerplate', html or "", re.I))
+            if not has_boilerplate:
+                sigs.append(self._s("AMP001", "AMP Missing Boilerplate", "AMP_validation", "fail", "HIGH",
+                    "AMP page detected but missing required AMP boilerplate CSS.",
+                    "Invalid AMP pages won't appear in AMP carousels or AMP-specific search features.",
+                    "Add the required AMP boilerplate style tag.", "AMP search visibility", "Medium"))
+            else:
+                sigs.append(self._s("AMP010", "Valid AMP Page", "AMP_validation", "pass", "LOW",
+                    "AMP page with proper boilerplate detected.",
+                    "Valid AMP pages can appear in Google's AMP carousel and fast-loading search results.", "", "", ""))
+        else:
+            sigs.append(self._s("AMP010", "No AMP Detected", "AMP_validation", "pass", "LOW",
+                "This page is not an AMP page. AMP is optional for most sites.",
+                "AMP provides faster mobile loading but is no longer required for Google search features.", "", "", ""))
         return sigs
 
 

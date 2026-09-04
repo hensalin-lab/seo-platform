@@ -5,13 +5,14 @@ from typing import List, Optional
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.rate_limit import limiter
 from app.models import Audit, RankPosition, KeywordData, KeywordRecord, User
 from app.api.auth import get_current_active_user
 
@@ -145,7 +146,9 @@ class CaptureRequest(BaseModel):
 
 
 @router.post("/audit/{audit_id}/rankings/capture")
+@limiter.limit(settings.RATE_LIMIT_SERP)
 async def capture_rankings(
+    request: Request,
     audit_id: str,
     req: CaptureRequest,
     user: User = Depends(get_current_active_user),
@@ -170,20 +173,32 @@ async def capture_rankings(
     for kw in keywords:
         prev = await _latest_for(db, audit_id, kw)
         if live:
+            # Guard the paid live-SERP call against the daily budget.
+            from app.engine.spend_guard import check_provider_budget, record_provider_usage
             try:
-                if provider_name == "serpapi":
-                    async with httpx.AsyncClient(timeout=30) as client:
-                        live_result = await provider.live_position(kw, host, client=client)
-                else:
-                    live_result = await provider.live_position(kw, host, pages=pages, audit=audit)
-                position = live_result["position"]
-                page_url = live_result.get("page_url", "")
-                source = provider_name
+                await check_provider_budget(db, user.id, provider_name, cost=1)
             except Exception as e:
-                logger.warning(f"SERP live check failed for '{kw}' via {provider_name}: {e}")
+                logger.warning(f"SERP budget block for '{kw}' via {provider_name}: {e}")
                 position = None
                 page_url = ""
-                source = "unmeasured"
+                source = "budget_exceeded"
+            else:
+                try:
+                    if provider_name == "serpapi":
+                        async with httpx.AsyncClient(timeout=30) as client:
+                            live_result = await provider.live_position(kw, host, client=client)
+                    else:
+                        live_result = await provider.live_position(kw, host, pages=pages, audit=audit)
+                    await record_provider_usage(db, user.id, provider_name, cost=1,
+                                                details={"keyword": kw, "capability": "serp_ranks"})
+                    position = live_result["position"]
+                    page_url = live_result.get("page_url", "")
+                    source = provider_name
+                except Exception as e:
+                    logger.warning(f"SERP live check failed for '{kw}' via {provider_name}: {e}")
+                    position = None
+                    page_url = ""
+                    source = "unmeasured"
         else:
             position = None
             page_url = ""
@@ -286,14 +301,19 @@ async def auto_capture_rankings(audit_id: str):
             pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
             now = _dt.datetime.utcnow()
             provider, provider_name, configured = await _serp_provider(None, db)
+            uid = getattr(audit, "user_id", None)
             if configured:
+                from app.engine.spend_guard import check_provider_budget, record_provider_usage
                 for kw in keywords[:10]:
                     try:
+                        await check_provider_budget(db, uid, provider_name, cost=1)
                         if provider_name == "serpapi":
                             async with httpx.AsyncClient(timeout=30) as client:
                                 live_result = await provider.live_position(kw, host, client=client)
                         else:
                             live_result = await provider.live_position(kw, host, pages=pages, audit=audit)
+                        await record_provider_usage(db, uid, provider_name, cost=1,
+                                                    details={"keyword": kw, "capability": "serp_ranks", "auto": True})
                         db.add(RankPosition(
                             audit_id=audit_id, keyword=_norm_keyword(kw),
                             position=live_result["position"], page_url=live_result.get("page_url", ""),

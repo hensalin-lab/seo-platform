@@ -12,11 +12,21 @@ from starlette.testclient import TestClient
 
 from app.engine.mcp_server import _build_mcp_server, get_mcp_app
 from app.main import app
+from app.config import settings
 
 _MCP_HEADERS = {
     "Content-Type": "application/json",
     "Accept": "application/json, text/event-stream",
 }
+
+
+def _auth_headers():
+    """When MCP_API_KEY is configured, requests to /api/mcp must present it."""
+    h = dict(_MCP_HEADERS)
+    key = getattr(settings, "MCP_API_KEY", "")
+    if key:
+        h["X-API-Key"] = key
+    return h
 
 
 @pytest.fixture(scope="module")
@@ -37,11 +47,11 @@ def _mcp_session(client):
             "clientInfo": {"name": "pytest", "version": "1.0"},
         },
     }
-    r = client.post("/api/mcp", json=init, headers=_MCP_HEADERS)
+    r = client.post("/api/mcp", json=init, headers=_auth_headers())
     assert r.status_code == 200
     sid = r.headers.get("mcp-session-id")
     assert sid, "MCP session id must be issued"
-    h2 = dict(_MCP_HEADERS)
+    h2 = _auth_headers()
     h2["mcp-session-id"] = sid
     client.post("/api/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=h2)
     return h2

@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
+from app.config import settings
+from app.rate_limit import limiter
 from app.api.auth import optional_current_user
 from app.models import (
     Audit, Page, Issue, Recommendation, CompetitorData,
@@ -730,8 +732,21 @@ async def get_audit_issues(audit_id: str, category: str = None, severity: str = 
     if page_urls:
         pages_res = await db.execute(select(Page).where(Page.audit_id == audit_id, Page.url.in_(page_urls)))
         pages = {p.url: p for p in pages_res.scalars().all()}
+    items = []
+    for i in rows:
+        try:
+            items.append(_serialize_issue(i, pages.get(i.page_url)))
+        except Exception as e:
+            logger.warning(f"issues: skipping row {getattr(i, 'id', '?')} for audit {audit_id}: {e}")
+            items.append({
+                "id": getattr(i, "id", ""), "page_url": getattr(i, "page_url", ""),
+                "category": getattr(i, "category", ""), "severity": getattr(i, "severity", ""),
+                "signal_name": getattr(i, "signal_name", ""), "description": getattr(i, "description", ""),
+                "impact": getattr(i, "impact", ""), "fix": getattr(i, "fix", ""),
+                "_serialize_error": str(e),
+            })
     return {
-        "items": [_serialize_issue(i, pages.get(i.page_url)) for i in rows],
+        "items": items,
         "total": total, "offset": offset, "limit": limit,
     }
 
@@ -927,18 +942,33 @@ async def get_audit_pages(audit_id: str, offset: int = 0, limit: int = 50, db: A
     deduped = all_pages
     total = len(deduped)
     paged = deduped[offset:offset + limit]
+    items = []
+    for p in paged:
+        try:
+            items.append({
+                "id": p.id, "url": p.url, "status_code": p.status_code,
+                "title": p.title, "meta_description": p.meta_description,
+                "canonical": p.canonical, "h1": p.h1, "word_count": p.word_count,
+                "response_time_ms": p.response_time_ms, "schema_markup": p.schema_markup,
+                "links_internal_count": len(p.links_internal or []) if p.links_internal else 0,
+                "links_external_count": len(p.links_external or []) if p.links_external else 0,
+                "images_count": len(p.images or []) if p.images else 0,
+                "page_type": p.page_type or "UNKNOWN",
+                "context_issues_count": len(p.context_issues or []) if p.context_issues else 0,
+            })
+        except Exception as e:
+            logger.warning(f"pages: skipping row {getattr(p, 'id', '?')} for audit {audit_id}: {e}")
+            items.append({
+                "id": getattr(p, "id", ""), "url": str(getattr(p, "url", "") or ""),
+                "title": "",
+                "meta_description": "", "canonical": "", "h1": "",
+                "word_count": 0, "response_time_ms": 0, "schema_markup": [],
+                "links_internal_count": 0, "links_external_count": 0,
+                "images_count": 0, "page_type": "UNKNOWN", "context_issues_count": 0,
+                "_serialize_error": str(e),
+            })
     return {
-        "items": [{
-            "id": p.id, "url": p.url, "status_code": p.status_code,
-            "title": p.title, "meta_description": p.meta_description,
-            "canonical": p.canonical, "h1": p.h1, "word_count": p.word_count,
-            "response_time_ms": p.response_time_ms, "schema_markup": p.schema_markup,
-            "links_internal_count": len(p.links_internal or []),
-            "links_external_count": len(p.links_external or []),
-            "images_count": len(p.images or []),
-            "page_type": p.page_type or "UNKNOWN",
-            "context_issues_count": len(p.context_issues or []),
-        } for p in paged],
+        "items": items,
         "total": total, "offset": offset, "limit": limit,
     }
 
@@ -4049,7 +4079,8 @@ async def get_gsc_keywords(audit_id: str, days: int = 28, user: User = Depends(o
 
 
 @router.get("/audit/{audit_id}/backlink-profile")
-async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_BACKLINKS)
+async def get_backlink_profile(request: Request, audit_id: str, db: AsyncSession = Depends(get_db)):
     pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
     pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
     scores_result = await db.execute(select(AuditScore).where(AuditScore.audit_id == audit_id))
@@ -4097,11 +4128,20 @@ async def get_backlink_profile(audit_id: str, db: AsyncSession = Depends(get_db)
     analyzer = BacklinkAnalyzer()
     inbound = {}
     if audit and audit.website_url:
+        uid = getattr(audit, "user_id", None)
+        from app.engine.spend_guard import check_provider_budget, record_provider_usage
         try:
-            inbound = await analyzer.analyze(audit.website_url, all_outbound)
+            await check_provider_budget(db, uid, "dataforseo", cost=1)
         except Exception as e:
-            logger.warning(f"Backlink analysis failed: {e}")
-            inbound = {"note": f"Backlink analysis error: {e}"}
+            inbound = {"note": f"Backlink analysis skipped (daily budget). {e}"}
+        else:
+            try:
+                inbound = await analyzer.analyze(audit.website_url, all_outbound)
+                await record_provider_usage(db, uid, "dataforseo", cost=1,
+                                            details={"site": audit.website_url, "capability": "backlinks"})
+            except Exception as e:
+                logger.warning(f"Backlink analysis failed: {e}")
+                inbound = {"note": f"Backlink analysis error: {e}"}
 
     return {
         "backlink_score": outbound_score,
@@ -7016,7 +7056,12 @@ async def get_dashboard_deep(audit_id: str, db: AsyncSession = Depends(get_db)):
         return page_scores, ai_scores, content_scores
 
     try:
-        page_scores, ai_scores, content_scores = await asyncio.to_thread(_compute_scores)
+        page_scores, ai_scores, content_scores = await asyncio.wait_for(
+            asyncio.to_thread(_compute_scores), timeout=20.0
+        )
+    except asyncio.TimeoutError:
+        log.warning("dashboard-deep score computation timed out for audit %s; returning degraded scores", audit_id)
+        page_scores, ai_scores, content_scores = [], [], []
     except Exception:
         log.exception("Score computation failed")
         page_scores, ai_scores, content_scores = [], [], []
@@ -7538,15 +7583,30 @@ async def get_mega_analysis_by_url(audit_id: str, url: str, db: AsyncSession = D
 
     engine = MegaSEOEngine()
     try:
-        result = engine.analyze(page, all_pages=pages)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(engine.analyze, page, all_pages=pages), timeout=30.0
+        )
     except Exception as e:
-        logger.exception(f"mega-analysis by-url failed: {e}")
-        result = {"signals": [], "all_signals": [], "issues": [], "error": str(e)}
+        logger.warning(f"mega-analysis by-url failed: {e}")
+        result = {
+            "overall_score": 0,
+            "signals_checked": 0,
+            "signals_passing": 0,
+            "signals_warning": 0,
+            "signals_failing": 0,
+            "category_scores": {c: 0 for c in engine.CATEGORIES},
+            "all_signals": [],
+            "issues": [],
+            "top_fixes": [],
+        }
     result["page_url"] = page.url
     result["page_title"] = page.title
     result["word_count"] = page.word_count or 0
-    from app.engine.canonical_scorer import attach_canonical
-    result = attach_canonical(result, page)
+    try:
+        from app.engine.canonical_scorer import attach_canonical
+        result = attach_canonical(result, page)
+    except Exception as e:
+        logger.warning(f"mega-analysis by-url canonical attach failed: {e}")
     _cache_set(cache_key, result)
     return result
 
@@ -7566,15 +7626,42 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
 
     page = pages[page_idx]
     engine = MegaSEOEngine()
-    result = await asyncio.to_thread(engine.analyze, page, all_pages=pages)
+
+    def _empty_result():
+        return {
+            "overall_score": 0,
+            "signals_checked": 0,
+            "signals_passing": 0,
+            "signals_warning": 0,
+            "signals_failing": 0,
+            "category_scores": {c: 0 for c in engine.CATEGORIES},
+            "all_signals": [],
+            "issues": [],
+            "top_fixes": [],
+        }
+
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(engine.analyze, page, all_pages=pages), timeout=30.0
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Mega-analysis engine timed out for page idx %s of audit %s", page_idx, audit_id)
+        result = _empty_result()
+    except Exception as e:
+        logger.warning(f"Mega-analysis engine failed for page idx %s of audit %s: {e}", page_idx, audit_id)
+        result = _empty_result()
 
     result["page_url"] = page.url
     result["page_title"] = page.title
     result["word_count"] = page.word_count or 0
 
-    from app.engine.report_linter import lint_report
-    linter_errors = await asyncio.to_thread(lint_report, result)
-    result["linter_errors"] = [{"check": e.check_name, "detail": e.detail} for e in linter_errors]
+    try:
+        from app.engine.report_linter import lint_report
+        linter_errors = await asyncio.to_thread(lint_report, result)
+        result["linter_errors"] = [{"check": e.check_name, "detail": e.detail} for e in linter_errors]
+    except Exception as e:
+        logger.warning(f"Mega-analysis lint failed for %s: {e}", getattr(page, 'url', '?'))
+        result["linter_errors"] = []
 
     try:
         from app.engine.dual_ai import dual_ai_analyze_seo, dual_ai_search_optimization, has_healthy_provider
@@ -7586,14 +7673,21 @@ async def get_mega_analysis(audit_id: str, page_idx: int, db: AsyncSession = Dep
                 dual_ai_search_optimization(page.url, page.title or "", current_content, signals),
             )
             tasks = [asyncio.create_task(c) for c in coros]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            result["ai_seo_analysis"] = results[0] if _ai_meaningful(results[0]) else {}
-            result["ai_search"] = results[1] if _ai_meaningful(results[1]) else {}
+            ai_results = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True), timeout=25.0
+            )
+            result["ai_seo_analysis"] = ai_results[0] if _ai_meaningful(ai_results[0]) else {}
+            result["ai_search"] = ai_results[1] if _ai_meaningful(ai_results[1]) else {}
+    except asyncio.TimeoutError:
+        logger.warning("Mega-analysis AI enrichment timed out for %s; returning rule-based analysis", getattr(page, 'url', '?'))
     except Exception as e:
         logger.warning(f"Mega-analysis AI enrichment failed for {getattr(page, 'url', '?')}: {e}")
 
-    from app.engine.canonical_scorer import attach_canonical
-    result = attach_canonical(result, page)
+    try:
+        from app.engine.canonical_scorer import attach_canonical
+        result = attach_canonical(result, page)
+    except Exception as e:
+        logger.warning(f"Mega-analysis canonical attach failed for {getattr(page, 'url', '?')}: {e}")
 
     _cache_set(cache_key, result)
     return result
@@ -8196,7 +8290,8 @@ async def get_page_intelligence_v2(audit_id: str, page_idx: int, db: AsyncSessio
 
 
 @router.get("/audit/{audit_id}/page-speed-live")
-async def get_page_speed_live(audit_id: str, url: str = "", strategy: str = "mobile", db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_PAGESPEED)
+async def get_page_speed_live(request: Request, audit_id: str, url: str = "", strategy: str = "mobile", db: AsyncSession = Depends(get_db)):
     from app.engine.pagespeed_engine import PageSpeedEngine
     result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = result.scalar_one_or_none()
@@ -8207,6 +8302,9 @@ async def get_page_speed_live(audit_id: str, url: str = "", strategy: str = "mob
     cached = _cache_get(cache_key)
     if cached:
         return cached
+    uid = getattr(audit, "user_id", None)
+    from app.engine.spend_guard import check_provider_budget
+    await check_provider_budget(db, uid, "pagespeed", cost=1)
     engine = PageSpeedEngine()
     data = await engine.analyze(target_url, strategy)
     _cache_set(cache_key, data)
@@ -8214,7 +8312,8 @@ async def get_page_speed_live(audit_id: str, url: str = "", strategy: str = "mob
 
 
 @router.get("/audit/{audit_id}/core-web-vitals")
-async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_PAGESPEED)
+async def get_core_web_vitals(request: Request, audit_id: str, url: str = "", refresh: int = 0, db: AsyncSession = Depends(get_db)):
     from app.engine.pagespeed_engine import PageSpeedEngine
     result = await db.execute(select(Audit).where(Audit.id == audit_id))
     audit = result.scalar_one_or_none()
@@ -8252,18 +8351,28 @@ async def get_core_web_vitals(audit_id: str, url: str = "", refresh: int = 0, db
                 }),
             }
 
+    uid = getattr(audit, "user_id", None)
     engine = PageSpeedEngine()
     try:
-        data = await engine.analyze(target_url, "mobile")
-        assessment = data.get("core_web_vitals", {}).get("_assessment", {})
-        field = data.get("field_data", {})
-        lab = data.get("core_web_vitals", {})
+        from app.engine.spend_guard import ProviderBudgetExceeded, check_provider_budget
+        try:
+            await check_provider_budget(db, uid, "pagespeed", cost=1)
+        except ProviderBudgetExceeded:
+            logger.warning(f"PageSpeed budget exhausted for audit {audit_id}")
+            data, assessment, field, lab = {}, {}, {}, {}
+            lcp_ms = cls = inp_ms = fcp_ms = ttfb_ms = None
+            source = "budget"
+        else:
+            data = await engine.analyze(target_url, "mobile")
+            assessment = data.get("core_web_vitals", {}).get("_assessment", {})
+            field = data.get("field_data", {})
+            lab = data.get("core_web_vitals", {})
 
-        lcp_ms = (field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value")
-        cls = (field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value")
-        inp_ms = (field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value")
-        fcp_ms = (field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value")
-        ttfb_ms = (field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value")
+            lcp_ms = (field.get("largest_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("largest-contentful-paint") or {}).get("numeric_value")
+            cls = (field.get("cumulative_layout_shift") or {}).get("p75") if field.get("_available") else (lab.get("cumulative-layout-shift") or {}).get("numeric_value")
+            inp_ms = (field.get("interaction_to_next_paint") or {}).get("p75") if field.get("_available") else (lab.get("interaction-to-next-paint") or {}).get("numeric_value")
+            fcp_ms = (field.get("first_contentful_paint") or {}).get("p75") if field.get("_available") else (lab.get("first-contentful-paint") or {}).get("numeric_value")
+            ttfb_ms = (field.get("time_to_first_byte") or {}).get("p75") if field.get("_available") else (lab.get("time-to-first-byte") or {}).get("numeric_value")
     except Exception as e:
         logger.warning(f"PSI CWV fetch failed for {target_url}: {e}")
         data, assessment, field, lab = {}, {}, {}, {}

@@ -29,3 +29,6 @@ backend/.fastapicloud/
 .idea/
 .vscode/
 *.swp
+
+.vercel
+.env*

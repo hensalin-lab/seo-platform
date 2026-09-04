@@ -1,12 +1,18 @@
 import re
 import logging
+import hmac
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.auth import decode_access_token
+from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_eq(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
 
 PUBLIC_PATHS = {
     "/",
@@ -77,6 +83,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method
 
+        if path.startswith("/api/mcp") and getattr(settings, "MCP_API_KEY", ""):
+            if method not in PUBLIC_METHODS:
+                if not self._valid_mcp_key(request, settings.MCP_API_KEY):
+                    return JSONResponse(status_code=401, content={"detail": "Invalid MCP API key"})
+
         if _is_public(path, method):
             return await call_next(request)
 
@@ -94,6 +105,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     return JSONResponse(status_code=403, content={"detail": "Access denied"})
 
         return await call_next(request)
+
+    @staticmethod
+    def _valid_mcp_key(request: Request, expected: str) -> bool:
+        supplied = request.headers.get("X-API-Key")
+        if supplied:
+            return _safe_eq(supplied, expected)
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return _safe_eq(auth.split(" ", 1)[1], expected)
+        return False
 
     @staticmethod
     async def _check_audit_owner(audit_id: str, user_id: str) -> bool | None:

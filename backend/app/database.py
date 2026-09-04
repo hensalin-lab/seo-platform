@@ -1,3 +1,4 @@
+import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
@@ -24,20 +25,44 @@ async def get_db():
 
 
 async def init_db():
-    from app.models import (
-        Audit, Page, Issue, AuditScore, Recommendation,
-        CompetitorData, AuditHistory, PageAnalysisRecord,
-        KeywordRecord, RoadmapRecord, ChatMessage,
-        RoadmapItem, KeywordData, ContentData, AIVisibilityData,
-        User, APIKey, Session, Webhook, ScheduledAudit, WhiteLabelSettings,
-        Backlink, ReferringDomain, CoreWebVitals, FixAction, DigestPreference,
-        RankPosition, ProgrammaticTemplate, ProgrammaticEntry, ProgrammaticPage,
-        GoogleAccount, OAuthFlow, AuditShareLink, ActivityLog, SlackPreference,
-        AuditSnapshot,
-    )
+    from app import models as _models  # noqa: F401  (register ALL tables on Base.metadata)
+
+    async with engine.begin() as conn:
+        # If no alembic_version table exists, this database predates Alembic
+        # management. Stamp it at head so a later `alembic upgrade` is a no-op
+        # instead of trying to replay hand-written baselines onto an existing
+        # schema. Alembic stays non-authoritative (compat fallback): create_all
+        # and migrate_sqlite_columns still run below to keep the runtime schema
+        # and versioned state in sync regardless of how tables were created.
+        await conn.run_sync(_stamp_if_unversioned)
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await migrate_sqlite_columns()
+
+
+def _stamp_if_unversioned(conn):
+    """Stamp a pre-Alembic database at head, if it has no alembic_version table.
+
+    Uses the live connection so a DATABASE_URL override is honoured rather than
+    alembic.ini's default sqlite URL. Idempotent: only stamps the first run.
+    """
+    from sqlalchemy import inspect
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from alembic.runtime.migration import MigrationContext
+
+    if "alembic_version" in inspect(conn).get_table_names():
+        return
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg = Config(os.path.join(here, "alembic.ini"))
+    # script_location in alembic.ini is relative ("alembic"); make it absolute so
+    # stamping works regardless of the process cwd (pytest runs from repo root).
+    cfg.set_main_option("script_location", os.path.join(here, "alembic"))
+    script = ScriptDirectory.from_config(cfg)
+    MigrationContext.configure(conn).stamp(script, "head")
+    print("[init_db] database had no alembic_version; stamped at head")
 
 
 _SQLITE_ADD_COLUMNS = {

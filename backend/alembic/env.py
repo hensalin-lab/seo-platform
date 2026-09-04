@@ -8,7 +8,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.database import Base
-from app.models import (
+# Import every model so Base.metadata reflects the full schema for
+# create_all-based reconciliation migrations (e.g. 003_model_metadata_sync).
+from app import models as _models  # noqa: F401  (registers all tables on Base.metadata)
+from app.models import (  # noqa: F401 (keep explicit import for clarity/tooling)
     Audit, Page, Issue, AuditScore, Recommendation,
     CompetitorData, AuditHistory, PageAnalysisRecord,
     KeywordRecord, RoadmapRecord, ChatMessage,

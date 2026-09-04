@@ -162,6 +162,32 @@ class Settings(BaseSettings):
 
     INDEXNOW_KEY: str = ""
 
+    # ---- Provider spend budgets ----
+    # Per-user-per-day budgets for paid third-party providers. A value of 0
+    # disables the provider (hard block); -1 means unlimited (no cap). These
+    # guard against runaway spend when users bring their own paid API keys.
+    PROVIDER_DAILY_BUDGET_DATAFORSEO: int = 200
+    PROVIDER_DAILY_BUDGET_MOZ: int = 100
+    PROVIDER_DAILY_BUDGET_PAGERANK: int = 100
+    PROVIDER_DAILY_BUDGET_SERPAPI: int = 100
+    PROVIDER_DAILY_BUDGET_PAGESPEED: int = 200
+    PROVIDER_DAILY_BUDGET_CITATIONS: int = 100
+
+    # Default daily budget if a provider has no explicit setting above.
+    PROVIDER_DEFAULT_DAILY_BUDGET: int = 200
+
+    # Per-endpoint request throttles (slowapi). Kept in config so operators can
+    # tune without code changes.
+    RATE_LIMIT_AUDIT: str = "10/minute"
+    RATE_LIMIT_KEYWORD_VOLUME: str = "30/minute"
+    RATE_LIMIT_SERP: str = "30/minute"
+    RATE_LIMIT_BACKLINKS: str = "10/minute"
+    RATE_LIMIT_PAGESPEED: str = "10/minute"
+    RATE_LIMIT_BRAND_MONITOR: str = "10/minute"
+    RATE_LIMIT_PROVIDER_TEST: str = "10/minute"
+    RATE_LIMIT_REGISTER: str = "10/hour"
+    RATE_LIMIT_AI_ANALYSIS: str = "20/minute"
+
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -170,6 +196,10 @@ class Settings(BaseSettings):
     APP_URL: str = "https://datavi-rankiq-seo-tools1.vercel.app"
 
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
+
+    # When set, requests to /api/mcp must present this value via the
+    # X-API-Key header (or Authorization: Bearer). Empty = MCP stays open.
+    MCP_API_KEY: str = ""
 
     LOG_LEVEL: str = "INFO"
 
