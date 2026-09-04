@@ -453,3 +453,34 @@ All previously-failing endpoints now return **200 OK**:
 
 ### Remaining Issues
 - `/ai/summary` and `/ai-overviews` timeouts: These call external AI APIs and can be slow; the frontend should handle this gracefully (loading states already exist).
+
+---
+
+## Phase 7 — Live Data Verification & Provider Fixes (2026-09-04)
+
+### Root causes found & fixed
+
+| Issue | Root Cause | Fix |
+|---|---|---|
+| **SERPER/OPENSERP/PAGESPEED showed `configured: False` despite keys in dashboard** | `_ENV_CONFIG` in `app/engine/providers.py` only mapped `pagerank`, `serpapi`, etc. — it never had `serper`/`openserp`/`pagespeed` entries, so `is_configured()` and `/api/providers` always returned False even with valid env keys. | Added `serper`, `openserp`, `pagespeed` entries to `_ENV_CONFIG` mapping to `settings.SERPER_API_KEY` etc. |
+| **All Open PageRank calls failed with "Invalid API key" (403)** | Code called the legacy `openpagerank.com/api/v1.0/getPageRank` endpoint with an `API-OPR` header. The `opr_live_*` key belongs to the **current** Keywords Everywhere Open PageRank API (`openpagerank.keywordseverywhere.com/v1/domains/bulk`, `Authorization: Bearer opr_live_*`), which rejects the key on the legacy endpoint. Affected: keyword-difficulty, trust-flow, backlink-ingestion, providers. | New shared module `app/engine/open_page_rank_client.py` (`opr_batch()` / `get_domain_authority()`) hitting the correct `/v1/domains/bulk` endpoint. All 4 consumers rewired. |
+| **Keyword Difficulty timed out / returned 502** | `_referring_strength_cache` did live **Common Crawl** WARC lookups (up to 5 domains, each many seconds) synchronously inside the request → blew past the FastAPI Cloud gateway timeout → 502. | Replaced with a single fast Open PageRank batch request (real DA). Removed slow live-CC lookups from the request path. KD now ~1.6s, `source: serper`, real DA values. |
+
+### Verification (live, FastAPI Cloud)
+
+| Tool | Endpoint | Status |
+|---|---|---|
+| Provider config | `/api/providers` | ✅ serper/openserp/pagerank/pagespeed all `configured: True` |
+| Keyword Difficulty | `/api/research/keyword-difficulty?keyword=...` | ✅ `source: serper`, real Google SERP, ~1.6s, real OPR DA (`difficulty: 61.9`, `top10_da_avg: 54.2`) |
+| Traffic Estimator | `/api/research/traffic-estimate?domain=...` | ✅ `source: serp_estimate`, real data |
+| Keyword Universe | `/api/research/keyword-universe?domain=...&seed=...` | ✅ `source: serp_probe`, real data |
+| Rank Tracking | `/api/rank-tracking/keywords` + `/{domain}/keywords` + `/{domain}/refresh` | ✅ add/list work; `refresh` queues a live Serper rank-check |
+| URL Inspection | `/api/research/url-inspection?url=...` | ⚠️ `UNAVAILABLE` (GSC service account not configured yet) |
+| Backlink Explorer / Referring / Toxic / Trust Flow / Backlink Gap | `/api/backlinks/{domain}/...`, `/research/trust-flow` | ⚠️ Return 200 but **empty** — backlink ingestion from Common Crawl fails (see below) |
+
+### Remaining: backlink ingestion from Common Crawl
+All backlink endpoints are healthy but return `total: 0` because `get_backlinks_for_domain()` never extracts links. Two bugs in `app/services/common_crawl_client.py`:
+1. `fetch_warc_links()` reads the returned WARC bytes via `resp.text`, but CC WARC files are **gzip-compressed** (`Content-Encoding: None`, magic `1f8b`) → decompresses to garbage → 0 backlinks.
+2. Under `asyncio.gather` with a fresh `httpx.AsyncClient` per record, DNS resolution flakes (`getaddrinfo failed`) intermittently.
+
+Fix options: (a) correct gzip WARC byte-range decompression + reuse one shared async client; (b) switch backlink list source to a simpler free API. Open PageRank (already wired) provides `referring_domains` counts but not the link list.
