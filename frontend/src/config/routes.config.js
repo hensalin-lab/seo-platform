@@ -100,6 +100,11 @@ const BacklinkExplorerPage = lazy(() => import('../pages/BacklinkExplorer'));
 const ReferringDomainsPage = lazy(() => import('../pages/ReferringDomains'));
 const ToxicLinksPage = lazy(() => import('../pages/ToxicLinks'));
 const BacklinkGapPage = lazy(() => import('../pages/BacklinkGapAnalysis'));
+const KeywordDifficultyPage = lazy(() => import('../pages/KeywordDifficulty'));
+const TrafficEstimatorPage = lazy(() => import('../pages/TrafficEstimator'));
+const KeywordUniversePage = lazy(() => import('../pages/KeywordUniverse'));
+const TrustFlowPage = lazy(() => import('../pages/TrustFlow'));
+const UrlInspectionPage = lazy(() => import('../pages/UrlInspection'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
 const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
@@ -147,6 +152,11 @@ export const mainNav = [
   { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains', title: 'Referring Domains', component: ReferringDomainsPage },
   { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links', title: 'Toxic Links', component: ToxicLinksPage },
   { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap', title: 'Backlink Gap Analysis', component: BacklinkGapPage },
+  { path: '/keyword-difficulty', icon: 'Gauge', label: 'Keyword Difficulty', title: 'Keyword Difficulty', component: KeywordDifficultyPage },
+  { path: '/traffic-estimator', icon: 'TrendingUp', label: 'Traffic Estimator', title: 'Organic Traffic Estimator', component: TrafficEstimatorPage },
+  { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe', title: 'Keyword Universe Discovery', component: KeywordUniversePage },
+  { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow', title: 'Trust Flow / Citation Flow', component: TrustFlowPage },
+  { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection', title: 'URL Inspection', component: UrlInspectionPage },
   { path: '/live-editor', icon: 'Edit3', label: 'Live Editor', title: 'Live Content Editor', component: LiveContentEditorPage },
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },

@@ -435,4 +435,16 @@ export const api = {
     request(`/backlinks/${encodeURIComponent(domain)}/refresh`, { method: 'POST' }),
   getBacklinkGap: (domain, competitors) =>
     request(`/backlink-gap/${encodeURIComponent(domain)}?competitors=${encodeURIComponent(competitors)}`),
+
+  // ── Growth Research (Ahrefs/Moz/Majestic-class capabilities) ──────────
+  getKeywordDifficulty: (keyword) =>
+    request(`/research/keyword-difficulty?keyword=${encodeURIComponent(keyword)}`),
+  getTrafficEstimate: (domain, own = false, property_url = '') =>
+    request(`/research/traffic-estimate?domain=${encodeURIComponent(domain)}&own=${own}&property_url=${encodeURIComponent(property_url)}`),
+  getKeywordUniverse: (domain, seed, max_keywords = 20) =>
+    request(`/research/keyword-universe?domain=${encodeURIComponent(domain)}&seed=${encodeURIComponent(seed)}&max_keywords=${max_keywords}`),
+  getTrustFlow: (domain) =>
+    request(`/research/trust-flow/${encodeURIComponent(domain)}`),
+  getUrlInspection: (url, property_url = '') =>
+    request(`/research/url-inspection?url=${encodeURIComponent(url)}&property_url=${encodeURIComponent(property_url)}`),
 };
