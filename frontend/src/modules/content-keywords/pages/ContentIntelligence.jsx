@@ -22,7 +22,7 @@ import {
   Target,
   BarChart3,
 } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const scoreBar = (value, max = 100) => {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));

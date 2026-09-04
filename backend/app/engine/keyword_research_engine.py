@@ -1,12 +1,12 @@
-"""Keyword research engine — DDG-SERP-based keyword difficulty, SERP overview,
-and keyword-universe discovery. All free, self-hosted, no API key.
+"""Keyword research engine — SERP-based keyword difficulty, SERP overview,
+and keyword-universe discovery. All free, no API key required for basic usage.
+
+Uses multi-source SERP client (Serper → OpenSerp → DuckDuckGo) for real
+Google rankings when API keys are configured. Falls back to DDG HTML scraper.
 
 Keyword Difficulty (0-100): a real competitive difficulty estimate computed by
-analyzing the actual DuckDuckGo SERP for the keyword — the strength (referring-
-domain authority) of the domains ranking in the top 10 determines the score.
-This replaces a naive content-frequency heuristic with search-competition-aware
-analysis. DDG rankings correlate with Google's but aren't identical, and the
-score is an estimate — it is honestly labeled as such.
+analyzing the actual SERP for the keyword — the strength (referring-domain
+authority) of the domains ranking in the top 10 determines the score.
 """
 import asyncio
 import logging
@@ -131,7 +131,7 @@ class KeywordDifficultyEngine:
                 }
                 for i, r in enumerate(results[:10])
             ],
-            "source": "ddg_serp",
+            "source": serp.get("source", "ddg"),
         }
 
 
@@ -207,8 +207,8 @@ async def discover_keyword_universe(
         "keyword_count": len(keywords),
         "keywords": keywords,
         "found_pages": found_pages[:6],
-        "source": "ddg_probe",
-        "note": "Keywords discovered by probing the competitor's ranking pages + related-query expansion. Approximate — use GSC/Providers for precise data.",
+        "source": "serp_probe",
+        "note": "Keywords discovered by probing the competitor's ranking pages + related-query expansion. Uses real SERP data when Serper/OpenSerp API keys are configured.",
     }
 
 

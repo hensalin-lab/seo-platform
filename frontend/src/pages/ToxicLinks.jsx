@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { ShieldAlert, Search, Download, ExternalLink } from 'lucide-react'
 
 export default function ToxicLinks() {
@@ -31,6 +32,7 @@ export default function ToxicLinks() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <ShieldAlert size={26} style={{ color: '#EF4444' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Toxic Links</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>Identify harmful backlinks and export a Google disavow file</p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>

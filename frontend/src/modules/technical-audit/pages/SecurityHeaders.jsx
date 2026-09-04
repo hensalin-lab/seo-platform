@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Lock, Globe } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import FixDetail from '../../../components/FixDetail';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function SecurityHeaders() {
   const { id } = useParams();

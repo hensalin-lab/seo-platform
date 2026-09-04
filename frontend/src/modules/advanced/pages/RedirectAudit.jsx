@@ -5,7 +5,7 @@ import { Link2, ArrowRight, AlertTriangle, ShieldCheck } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, severityColor,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function RedirectAudit() {
   const { id } = useParams();

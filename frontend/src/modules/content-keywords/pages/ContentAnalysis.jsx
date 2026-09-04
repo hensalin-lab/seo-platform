@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
-import DataSourceBadge from '../../../components/DataSourceBadge'
+import { DataSourceBadge } from '../../../components/DataSourceBadge'
 import { BookOpen, FileText, AlertTriangle, CheckCircle, ArrowRight, Image, Link2, FileSearch } from 'lucide-react'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import ThemeHero from '../../../components/ai/ThemeHero'

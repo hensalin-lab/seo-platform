@@ -11,7 +11,7 @@ import {
 import FixDetail from '../../../components/FixDetail';
 import GooglebotView from '../../../components/GooglebotView';
 import { EmptyState } from '../../../components/States';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const TAB_GROUPS = [
   { label: 'Google Sees', tabs: [

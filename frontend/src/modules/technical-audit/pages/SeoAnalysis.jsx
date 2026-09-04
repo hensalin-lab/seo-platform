@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import { Search, ChevronDown, AlertTriangle, CheckCircle, Code, Target, BarChart3, Globe, Brain, RefreshCw, Filter } from 'lucide-react';
 import ScoreRing from '../../../components/ScoreRing';

@@ -5,7 +5,7 @@ import {
   TrendingDown, Minus, BarChart3, FileText, Layers, Target, Info, Sparkles
 } from 'lucide-react';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 

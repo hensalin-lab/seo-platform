@@ -156,6 +156,8 @@ class Settings(BaseSettings):
     SE_RANKING_TOKEN: str = ""
     PROFOUND_API_KEY: str = ""
     OPEN_PAGERANK_API_KEY: str = ""
+    OPEN_SERP_API_KEY: str = ""
+    SERPER_API_KEY: str = ""
 
     GSC_SERVICE_ACCOUNT_JSON: str = ""
     GSC_PROPERTY_URL: str = ""

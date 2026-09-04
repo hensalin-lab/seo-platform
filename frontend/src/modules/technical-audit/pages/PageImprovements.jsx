@@ -6,7 +6,7 @@ import {
   ArrowRight, Info, BarChart3
 } from 'lucide-react';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const IMPACT_COLORS = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },

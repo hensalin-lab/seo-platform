@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { Network, Search, Info, ArrowUp, ArrowDown, Minus } from 'lucide-react'
 
 const TYPE_LABEL = {
@@ -53,6 +54,7 @@ export default function BacklinkGapAnalysis() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <Network size={26} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Backlink Gap Analysis</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 20px', fontSize: 13 }}>
           Find referring domains that link to your competitors but not to you

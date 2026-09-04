@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { FileCode, CheckCircle, XCircle, AlertTriangle, Copy, Shield, Eye } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import { LoadingState, EmptyState } from '../../../components/States';
 import ScoreRing from '../../../components/ScoreRing';

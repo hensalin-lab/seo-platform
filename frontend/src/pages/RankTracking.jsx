@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { TrendingUp, Plus, Trash2, RefreshCw, Download, Monitor, Smartphone, ArrowUp, ArrowDown, Minus, Search, BarChart2 } from 'lucide-react'
 
 const DEVICE_ICONS = { desktop: Monitor, mobile: Smartphone }
@@ -95,6 +96,7 @@ export default function RankTracking() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <TrendingUp size={28} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Rank Tracking</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 20px', fontSize: 14 }}>Track keyword positions over time for any domain</p>
         <form onSubmit={handleSubmitDomain} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto' }}>

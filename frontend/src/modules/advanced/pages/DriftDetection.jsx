@@ -8,7 +8,7 @@ import {
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, severityColor,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 function ScoreDelta({ current, previous }) {
   const delta = Math.round(((current || 0) - (previous || 0)) * 10) / 10;

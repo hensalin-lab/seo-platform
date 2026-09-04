@@ -6,7 +6,7 @@ import {
   BarChart3, FileText, Clock, Target, Zap, HelpCircle, Layers
 } from 'lucide-react';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';

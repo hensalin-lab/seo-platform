@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { Smartphone, AlertTriangle, CheckCircle, XCircle, Gauge } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import FixDetail from '../../../components/FixDetail';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function MobileSeo() {
   const { id } = useParams();

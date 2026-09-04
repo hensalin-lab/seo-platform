@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FileText, AlertTriangle, CheckCircle, TrendingUp, Target, Zap, ArrowRight, Clock, Brain, BarChart3, Plus, ExternalLink, Search, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
 

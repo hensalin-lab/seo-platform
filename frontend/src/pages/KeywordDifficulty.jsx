@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { Gauge, Search, ExternalLink, Info } from 'lucide-react'
 
 function DifficultyGauge({ score }) {
@@ -51,6 +52,7 @@ export default function KeywordDifficulty() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <Gauge size={26} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Keyword Difficulty</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>
           Real competitive difficulty (0–100) from SERP analysis of the ranking domains

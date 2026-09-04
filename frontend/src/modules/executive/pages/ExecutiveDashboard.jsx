@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 import ScoreRing from '../../../components/ScoreRing';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 function ScoreBadge({ label, score, icon: Icon }) {
   const pct = Math.min(100, Math.max(0, score || 0));

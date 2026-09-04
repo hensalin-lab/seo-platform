@@ -108,6 +108,36 @@ PROVIDER_CATALOG = [
         "free": True,
     },
     {
+        "name": "serper",
+        "label": "Serper (free tier)",
+        "capabilities": ["serp_ranks"],
+        "env_keys": ["SERPER_API_KEY"],
+        "config_fields": [{"key": "api_key", "label": "Serper API key", "secret": True}],
+        "docs": "https://serper.dev",
+        "scaffold": False,
+        "free": True,
+    },
+    {
+        "name": "openserp",
+        "label": "OpenSerp (free)",
+        "capabilities": ["serp_ranks"],
+        "env_keys": ["OPEN_SERP_API_KEY"],
+        "config_fields": [{"key": "api_key", "label": "OpenSerp API key", "secret": True}],
+        "docs": "https://openserp.com",
+        "scaffold": False,
+        "free": True,
+    },
+    {
+        "name": "pagespeed",
+        "label": "PageSpeed Insights (free)",
+        "capabilities": ["pagespeed"],
+        "env_keys": ["PAGESPEED_API_KEY"],
+        "config_fields": [{"key": "api_key", "label": "Google API key", "secret": True}],
+        "docs": "https://developers.google.com/speed/docs/insights/v5/get-started",
+        "scaffold": False,
+        "free": True,
+    },
+    {
         "name": "gsc",
         "label": "Google Search Console",
         "capabilities": ["gsc"],
@@ -223,10 +253,11 @@ def resolve_for_capability(capability: str, user_config: dict | None = None) -> 
     `user_config` is the full {provider: config} dict from get_user_provider_config."""
     order = {
         "keyword_volume": ["dataforseo", "se_ranking", "keyless_volume"],
-        "serp_ranks": ["google_cse", "serpapi", "dataforseo", "keyless_serp"],
+        "serp_ranks": ["serper", "openserp", "google_cse", "serpapi", "dataforseo", "keyless_serp"],
         "backlinks": ["dataforseo", "moz", "pagerank", "keyless_backlinks"],
         "ai_citations": ["llm_citations", "profound", "se_ranking", "dataforseo", "keyless_citations"],
         "gsc": ["gsc", "keyless_gsc"],
+        "pagespeed": ["pagespeed"],
     }
     for name in order.get(capability, []):
         if name.startswith("keyless"):
@@ -979,6 +1010,115 @@ class GoogleCseSerpProvider(SerpRankProvider):
             return {"ok": False, "message": str(e)}
 
 
+# ---------------------------------------------------------------------------
+# Serper implementation (free 2500 queries one-time, then pay-per-use)
+# ---------------------------------------------------------------------------
+
+class SerperSerpProvider(SerpRankProvider):
+    """SERP ranks via serper.dev — fast Google SERP API."""
+
+    API = "https://google.serper.dev/search"
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+
+    async def live_position(self, keyword: str, host: str, **ctx) -> dict:
+        headers = {"X-API-KEY": self.cfg.get("api_key", ""), "Content-Type": "application/json"}
+        payload = {"q": keyword, "num": 100, "gl": "us", "hl": "en"}
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(self.API, json=payload, headers=headers)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"Serper {resp.status_code}: {resp.text[:300]}")
+                data = resp.json()
+        except Exception as e:
+            logger.debug(f"Serper API failed: {e}")
+            return {"position": None, "page_url": "", "source": "serper", "error": str(e)}
+        for i, item in enumerate(data.get("organic") or []):
+            link = (item.get("link") or "") or ""
+            link_host = (urlparse(link).hostname or "").lower().lstrip("www.")
+            if link_host and link_host == host.lower().lstrip("www."):
+                return {"position": i + 1, "page_url": link, "source": "serper"}
+        return {"position": None, "page_url": "", "source": "serper"}
+
+    async def test(self) -> dict:
+        try:
+            await self.live_position("seo audit", "seo-platform.example")
+            return {"ok": True, "message": "Serper API key valid"}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# OpenSerp implementation (free, unlimited)
+# ---------------------------------------------------------------------------
+
+class OpenSerpProvider(SerpRankProvider):
+    """Free SERP ranks via openserp.com — no key required for basic usage."""
+
+    API = "https://api.openserp.com/api/v1/search"
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+
+    async def live_position(self, keyword: str, host: str, **ctx) -> dict:
+        headers = {}
+        api_key = self.cfg.get("api_key", "")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        params = {"q": keyword, "gl": "us", "hl": "en", "num": 100}
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(self.API, params=params, headers=headers)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"OpenSerp {resp.status_code}: {resp.text[:300]}")
+                data = resp.json()
+        except Exception as e:
+            logger.debug(f"OpenSerp API failed: {e}")
+            return {"position": None, "page_url": "", "source": "openserp", "error": str(e)}
+        for i, item in enumerate(data.get("results") or data.get("organic") or []):
+            link = (item.get("url") or item.get("link") or "") or ""
+            link_host = (urlparse(link).hostname or "").lower().lstrip("www.")
+            if link_host and link_host == host.lower().lstrip("www."):
+                return {"position": i + 1, "page_url": link, "source": "openserp"}
+        return {"position": None, "page_url": "", "source": "openserp"}
+
+    async def test(self) -> dict:
+        try:
+            await self.live_position("seo audit", "seo-platform.example")
+            return {"ok": True, "message": "OpenSerp API key valid"}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# PageSpeed Insights implementation
+# ---------------------------------------------------------------------------
+
+class PagespeedInsightsProvider:
+    """Free PageSpeed Insights via Google PSI API (25k queries/day)."""
+
+    API = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+
+    async def analyze(self, url: str, strategy: str = "mobile") -> dict:
+        params = {"url": url, "strategy": strategy, "key": self.cfg.get("api_key", "")}
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(self.API, params=params)
+            if resp.status_code != 200:
+                raise RuntimeError(f"PSI {resp.status_code}: {resp.text[:300]}")
+            return resp.json()
+
+    async def test(self) -> dict:
+        try:
+            await self.analyze("https://example.com")
+            return {"ok": True, "message": "PageSpeed Insights API key valid"}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+
 GEMINI_GEN_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 
@@ -1290,8 +1430,14 @@ def build_provider(capability: str, provider: str, cfg: dict):
             return DataForSEOCitationProvider(cfg)
     if provider == "serpapi":
         return SerpApiRankProvider(cfg)
+    if provider == "serper":
+        return SerperSerpProvider(cfg)
+    if provider == "openserp":
+        return OpenSerpProvider(cfg)
     if provider == "google_cse":
         return GoogleCseSerpProvider(cfg)
+    if provider == "pagespeed":
+        return PagespeedInsightsProvider(cfg)
     if provider == "llm_citations":
         return LlmCitationProvider(cfg)
     if provider == "moz":

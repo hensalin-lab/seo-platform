@@ -53,7 +53,9 @@ async def check_all_tracked_keywords():
             try:
                 if domain.is_own_domain and gsc_client.available:
                     # Own domain → use GSC (real position data, free)
-                    pos_float = await gsc_client.get_average_position(
+                    # Wrap sync GSC call in asyncio.to_thread to avoid blocking event loop
+                    pos_float = await asyncio.to_thread(
+                        gsc_client.get_average_position,
                         f"https://{domain.domain}", kw.keyword
                     )
                     if pos_float is not None:

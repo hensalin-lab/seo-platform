@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Share2, AlertTriangle, CheckCircle, XCircle, Globe, Hash } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Link, AlertTriangle, CheckCircle, XCircle, Globe, BarChart3, Info, FileText } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function BacklinkProfile() {
   const { id } = useParams();

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { GitCompare, Search, ArrowRight, ArrowUp, ArrowDown, Minus, Info, TrendingUp } from 'lucide-react'
 
 const GAP_COLOR = (gap) => {
@@ -71,6 +72,7 @@ export default function KeywordGap() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <GitCompare size={26} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Keyword Gap Analysis</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 20px', fontSize: 13 }}>
           Compare tracked keywords between your domain and a competitor

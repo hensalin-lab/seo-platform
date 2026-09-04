@@ -104,10 +104,10 @@ async def estimate_domain_traffic(
         "domain": domain,
         "estimated_monthly_visits": round(total_estimated_visits),
         "is_estimate": True,
-        "note": "Estimated from DDG SERP visibility × estimated keyword volume. Use connected GSC for exact own-domain traffic.",
+        "note": "Estimated from SERP visibility × estimated keyword volume. Uses real Google SERP data when Serper/OpenSerp API keys are configured. Use connected GSC for exact own-domain traffic.",
         "channels": {"organic": round(total_estimated_visits)},
         "keywords_analyzed": keyword_rows[:20],
-        "source": "ddg_estimate",
+        "source": "serp_estimate",
     }
 
 

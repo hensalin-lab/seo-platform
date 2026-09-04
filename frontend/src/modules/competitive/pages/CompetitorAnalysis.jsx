@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
-import DataSourceBadge from '../../../components/DataSourceBadge'
+import { DataSourceBadge } from '../../../components/DataSourceBadge'
 import { Users, TrendingUp, AlertTriangle, ArrowRight, BarChart3, Shield, BookOpen, Link2, Gauge, Award, Brain, ExternalLink, RefreshCw, Play, Loader, Star } from 'lucide-react'
 import { LoadingState } from '../../../components/States'
 

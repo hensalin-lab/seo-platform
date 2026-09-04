@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { FileText, AlertTriangle, CheckCircle, XCircle, Shield } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function SitemapRobots() {
   const { id } = useParams();

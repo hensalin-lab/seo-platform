@@ -1,13 +1,16 @@
-"""Self-hosted DuckDuckGo SERP scraper for competitor rank tracking.
+"""Multi-source SERP client — tries premium free APIs first (Serper, OpenSerp),
+falls back to DuckDuckGo HTML scraper. All sources are free.
 
-Scrapes https://html.duckduckgo.com/html/?q=<keyword> to find a domain's
-position in the results and return the top-3 URLs. No API key needed.
+Priority order:
+1. Serper (serper.dev) — real Google SERP, fast, 2500 free queries
+2. OpenSerp (openserp.com) — free Google SERP alternative
+3. DuckDuckGo HTML scraper — unlimited, self-hosted fallback
 
 Caveats (stated honestly):
-- DuckDuckGo rankings correlate with Google's but aren't identical.
-- HTML scraping WILL occasionally break if DuckDuckGo changes markup —
-  failures are logged loudly, never silently swallowed.
-- Self-throttled: minimum 4s between requests, rotates User-Agent strings.
+- Serper/OpenSerp return real Google rankings — most accurate
+- DDG rankings correlate with Google's but aren't identical
+- HTML scraping WILL occasionally break if DDG changes markup
+- Self-throttled: minimum 4s between DDG requests, rotates User-Agent strings
 """
 import asyncio
 import logging
@@ -82,25 +85,110 @@ def _parse_ddg_results(html: str) -> list[dict]:
 
 
 class DDGSerpClient:
-    """Free, self-hosted DuckDuckGo SERP scraper for position tracking."""
+    """Multi-source SERP client: Serper → OpenSerp → DuckDuckGo fallback."""
 
     BASE_URL = "https://html.duckduckgo.com/html/"
 
-    async def get_serp(self, keyword: str,
-                       target_domain: Optional[str] = None) -> dict:
-        """Scrape DuckDuckGo for *keyword* and return results.
+    async def _try_serper(self, keyword: str, target_domain: str | None = None) -> dict | None:
+        """Try Serper API (real Google SERP, free 2500 queries)."""
+        from app.config import settings
+        api_key = getattr(settings, "SERPER_API_KEY", "") or ""
+        if not api_key:
+            return None
+        headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
+        payload = {"q": keyword, "num": 100, "gl": "us", "hl": "en"}
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.post("https://google.serper.dev/search", json=payload, headers=headers)
+                if resp.status_code != 200:
+                    logger.debug(f"[Serper] HTTP {resp.status_code}")
+                    return None
+                data = resp.json()
+        except Exception as e:
+            logger.debug(f"[Serper] Failed: {e}")
+            return None
 
-        Returns:
-            {
-                "position": int|None,       # target_domain's position (1-indexed)
-                "top_3_urls": [str, ...],   # first 3 result URLs
-                "all_results": [{url, title, snippet}, ...],
-                "serp_features": {...},     # always False — DDG doesn't expose these
-            }
+        results = []
+        for item in data.get("organic") or []:
+            results.append({
+                "url": item.get("link", ""),
+                "title": item.get("title", ""),
+                "snippet": item.get("snippet", ""),
+            })
+        if not results:
+            return None
 
-        If target_domain is None, position is None (used by content editor for
-        top-3 URL fetching only).
-        """
+        position = None
+        if target_domain:
+            target = target_domain.lower().lstrip("www.")
+            for i, r in enumerate(results):
+                if target in _host_of(r["url"]):
+                    position = i + 1
+                    break
+
+        return {
+            "position": position,
+            "top_3_urls": [r["url"] for r in results[:3]],
+            "all_results": results[:20],
+            "serp_features": {
+                "featured_snippet": bool(data.get("knowledgeGraph")),
+                "people_also_ask": bool(data.get("relatedSearches")),
+                "ai_overview": False,
+            },
+            "source": "serper",
+        }
+
+    async def _try_openserp(self, keyword: str, target_domain: str | None = None) -> dict | None:
+        """Try OpenSerp API (free Google SERP alternative)."""
+        from app.config import settings
+        api_key = getattr(settings, "OPEN_SERP_API_KEY", "") or ""
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        params = {"q": keyword, "gl": "us", "hl": "en", "num": 100}
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.get("https://api.openserp.com/api/v1/search", params=params, headers=headers)
+                if resp.status_code != 200:
+                    logger.debug(f"[OpenSerp] HTTP {resp.status_code}")
+                    return None
+                data = resp.json()
+        except Exception as e:
+            logger.debug(f"[OpenSerp] Failed: {e}")
+            return None
+
+        results = []
+        for item in data.get("results") or data.get("organic") or []:
+            results.append({
+                "url": item.get("url") or item.get("link", ""),
+                "title": item.get("title", ""),
+                "snippet": item.get("snippet") or item.get("description", ""),
+            })
+        if not results:
+            return None
+
+        position = None
+        if target_domain:
+            target = target_domain.lower().lstrip("www.")
+            for i, r in enumerate(results):
+                if target in _host_of(r["url"]):
+                    position = i + 1
+                    break
+
+        return {
+            "position": position,
+            "top_3_urls": [r["url"] for r in results[:3]],
+            "all_results": results[:20],
+            "serp_features": {
+                "featured_snippet": False,
+                "people_also_ask": False,
+                "ai_overview": False,
+            },
+            "source": "openserp",
+        }
+
+    async def _try_ddg(self, keyword: str, target_domain: str | None = None) -> dict:
+        """DuckDuckGo HTML scraper fallback (unlimited, self-hosted)."""
         await _throttle()
 
         params = {"q": keyword, "kl": "us-en"}
@@ -132,13 +220,12 @@ class DDGSerpClient:
             return {"error": "No results parsed (DDG markup may have changed)",
                     "position": None, "top_3_urls": [], "all_results": []}
 
-        # Find target domain position
         position = None
         if target_domain:
             target = target_domain.lower().lstrip("www.")
             for i, r in enumerate(results):
                 if target in _host_of(r["url"]):
-                    position = i + 1  # 1-indexed
+                    position = i + 1
                     break
 
         top_3 = [r["url"] for r in results[:3]]
@@ -152,4 +239,31 @@ class DDGSerpClient:
                 "people_also_ask": False,
                 "ai_overview": False,
             },
+            "source": "ddg",
         }
+
+    async def get_serp(self, keyword: str,
+                       target_domain: Optional[str] = None) -> dict:
+        """Get SERP results with automatic fallback: Serper → OpenSerp → DDG.
+
+        Returns the same shape regardless of source:
+            {
+                "position": int|None,
+                "top_3_urls": [str, ...],
+                "all_results": [{url, title, snippet}, ...],
+                "serp_features": {...},
+                "source": "serper"|"openserp"|"ddg",
+            }
+        """
+        # Try Serper first (real Google, fast)
+        result = await self._try_serper(keyword, target_domain)
+        if result and not result.get("error"):
+            return result
+
+        # Try OpenSerp second (free alternative)
+        result = await self._try_openserp(keyword, target_domain)
+        if result and not result.get("error"):
+            return result
+
+        # Fallback to DDG (unlimited, self-hosted)
+        return await self._try_ddg(keyword, target_domain)

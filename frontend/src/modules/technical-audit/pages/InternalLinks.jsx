@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Link2, AlertTriangle, CheckCircle, XCircle, BarChart3, ExternalLink, Unlink, ChevronDown, ChevronRight, Lightbulb, Target, Globe, Search, ArrowRight, Layers, Anchor, Network, TrendingUp, Hash } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 function LinkSuggestionCard({ suggestion }) {
   const priColors = { HIGH: '#059669', MEDIUM: '#d97706', LOW: '#64748b' };

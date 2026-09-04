@@ -6,7 +6,7 @@ import {
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, inputStyle, labelStyle, btnPrimary, btnGhost,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const INTERVALS = [1, 5, 15, 30, 60];
 

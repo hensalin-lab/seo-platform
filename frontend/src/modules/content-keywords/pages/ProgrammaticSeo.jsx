@@ -6,7 +6,7 @@ import {
   Eye, Database, ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   Download, FileText, Sparkles, Grid3x3, Settings2, Link2, ListChecks,
 } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const SCHEMA_TYPES = [
   'Article', 'LocalBusiness', 'Service', 'Product', 'FAQPage', 'BreadcrumbList',

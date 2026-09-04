@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Bot, Sparkles, AlertTriangle, CheckCircle, ExternalLink, ChevronDown, ChevronUp, Zap, Target, Info, Shield, Brain, FileText, Link2, Quote } from 'lucide-react';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
 

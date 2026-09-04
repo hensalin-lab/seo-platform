@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Search, TrendingUp, BarChart3, Target, Zap, Globe, ExternalLink, AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const INTENT_BADGES = {
   INFORMATIONAL: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Informational' },

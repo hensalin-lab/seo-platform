@@ -42,9 +42,15 @@ def _toxicity_score(
     anchor_text: str,
     anchor_counts: Counter,
     total_from_domain: int,
+    spam_score: float = 0.0,
 ) -> float:
-    """Compute a 0.0–1.0 toxic score for a single backlink."""
+    """Compute a 0.0–1.0 toxic score for a single backlink.
+    Incorporates real Open PageRank spam score when available."""
     score = 0.0
+
+    # Open PageRank spam score (real signal, 0-1 scale)
+    if spam_score > 0:
+        score += spam_score * 0.4
 
     # TLD check
     for tld in SPAMMY_TLDS:
@@ -75,9 +81,9 @@ def _toxicity_score(
     return min(score, 1.0)
 
 
-async def _get_domain_authority(domain: str) -> float:
-    """Get domain authority from Open PageRank (free, no key required for basic).
-    Falls back to 0 if unavailable."""
+async def _get_domain_authority(domain: str) -> tuple[float, float]:
+    """Get domain authority + spam score from Open PageRank (free).
+    Returns (da, spam_score) tuple. Falls back to (0.0, 0.0) if unavailable."""
     try:
         import httpx
         from app.config import settings
@@ -95,10 +101,12 @@ async def _get_domain_authority(domain: str) -> float:
                 data = resp.json()
                 rows = data.get("response") or []
                 if rows:
-                    return float(rows[0].get("domain_authority", 0))
+                    da = float(rows[0].get("domain_authority", 0))
+                    spam = float(rows[0].get("spam_score", 0))
+                    return (da, spam)
     except Exception as e:
         logger.debug(f"Open PageRank failed for {domain}: {e}")
-    return 0.0
+    return (0.0, 0.0)
 
 
 async def ingest_backlinks_for_domain(
@@ -144,6 +152,7 @@ async def ingest_backlinks_for_domain(
     # 3. Get domain authority for top referring domains (cap at 100 to stay free-tier safe)
     referring_domains_list = list(domain_links.keys())[:100]
     da_scores: dict[str, float] = {}
+    spam_scores: dict[str, float] = {}
 
     # Fetch DA in batches of 10 with delay
     for i in range(0, len(referring_domains_list), 10):
@@ -151,7 +160,15 @@ async def ingest_backlinks_for_domain(
         tasks = [_get_domain_authority(d) for d in batch]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for d, result in zip(batch, results):
-            da_scores[d] = float(result) if isinstance(result, (int, float)) else 0.0
+            if isinstance(result, tuple):
+                da_scores[d] = result[0]
+                spam_scores[d] = result[1]
+            elif isinstance(result, (int, float)):
+                da_scores[d] = float(result)
+                spam_scores[d] = 0.0
+            else:
+                da_scores[d] = 0.0
+                spam_scores[d] = 0.0
         if i + 10 < len(referring_domains_list):
             await asyncio.sleep(1.0)
 
@@ -210,6 +227,7 @@ async def ingest_backlinks_for_domain(
             toxic = _toxicity_score(
                 source_domain, da, link["anchor_text"],
                 anchor_counter, total_from_domain,
+                spam_score=spam_scores.get(source_domain, 0.0),
             )
 
             bl_result = await db.execute(

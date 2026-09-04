@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { TrendingUp, Search, Info, BarChart3 } from 'lucide-react'
 
 export default function TrafficEstimator() {
@@ -27,6 +28,7 @@ export default function TrafficEstimator() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <TrendingUp size={26} style={{ color: '#10B981' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Organic Traffic Estimator</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>
           Estimate monthly organic visits — real GSC data for your domains, DDG-based estimate for any domain

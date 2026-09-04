@@ -5,7 +5,7 @@ import { FileText, ListChecks, Layers, TrendingUp } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, severityColor,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function ContentBriefs() {
   const { id } = useParams();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
-import DataSourceBadge from '../components/DataSourceBadge';
+import { DataSourceBadge } from '../components/DataSourceBadge';
 import AnimatedNumber from '../components/AnimatedNumber';
 import ScoreRing from '../components/ScoreRing';
 import { BarChart3, TrendingUp, Zap, Brain, ArrowRight, AlertTriangle, CheckCircle, FileText, Shield, Image, Link2, Search, ChevronRight, Target, Sparkles, Wand2, ArrowUpRight, ArrowDownRight, ShieldCheck, Download, Globe } from 'lucide-react';

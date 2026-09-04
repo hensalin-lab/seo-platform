@@ -19,12 +19,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import User
 from app.api.auth import get_current_active_user
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/research", tags=["research"])
 
 
 @router.get("/keyword-difficulty")
+@limiter.limit("10/minute")
 async def keyword_difficulty(
     keyword: str = "",
     user: User = Depends(get_current_active_user),
@@ -38,6 +40,7 @@ async def keyword_difficulty(
 
 
 @router.get("/traffic-estimate")
+@limiter.limit("10/minute")
 async def traffic_estimate(
     domain: str = "",
     own: bool = False,
@@ -65,6 +68,7 @@ async def traffic_estimate(
 
 
 @router.get("/keyword-universe")
+@limiter.limit("10/minute")
 async def keyword_universe(
     domain: str = "",
     seed: str = "",
@@ -79,6 +83,7 @@ async def keyword_universe(
 
 
 @router.get("/trust-flow/{domain}")
+@limiter.limit("10/minute")
 async def trust_flow(
     domain: str,
     user: User = Depends(get_current_active_user),
@@ -90,6 +95,7 @@ async def trust_flow(
 
 
 @router.get("/url-inspection")
+@limiter.limit("10/minute")
 async def url_inspection(
     url: str = "",
     property_url: str = "",

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import AnimatedNumber from '../../../components/AnimatedNumber';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import { TrendingUp, TrendingDown, Minus, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, Gauge, AlertTriangle } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';

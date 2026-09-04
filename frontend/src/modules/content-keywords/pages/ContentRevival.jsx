@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { Clock, AlertTriangle, CheckCircle, TrendingUp, FileText, ExternalLink, Zap, Brain, Link2, RefreshCw, ChevronDown, ChevronUp, Lightbulb, ArrowRight, Wand2 } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';

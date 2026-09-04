@@ -8,9 +8,8 @@ Citation Flow (0-100): raw link popularity — based on the raw number of
 referring domains and total backlinks (influence/popularity regardless of
 quality), not derated by toxic/low-quality links.
 
-Derived from the Backlink/ReferringDomain rows populated by the Common Crawl
-ingestion pipeline. Honestly labeled: this approximates Majestic's model using
-available DA + toxic-score signals — it is a heuristic, not Majestic's data.
+Enhanced with real Open PageRank DA values when the API key is configured.
+Without a key, falls back to heuristic DA from Common Crawl ingestion.
 """
 import logging
 import math
@@ -84,7 +83,8 @@ def _trust_from_referring_domains(domains: list) -> dict:
 
 
 async def compute_trust_citation_flow(db: AsyncSession, domain: str) -> dict:
-    """Compute Trust/Citation Flow for a domain from ReferringDomain rows."""
+    """Compute Trust/Citation Flow for a domain from ReferringDomain rows.
+    Enhances DA values with real Open PageRank data when API key is configured."""
     domain = domain.lower().strip().lstrip("www.")
 
     result = await db.execute(
@@ -100,8 +100,33 @@ async def compute_trust_citation_flow(db: AsyncSession, domain: str) -> dict:
             "source": "common_crawl",
         }
 
+    # Enhance DA values with real Open PageRank data when available
+    from app.config import settings
+    opr_key = getattr(settings, "OPEN_PAGERANK_API_KEY", "") or ""
+    if opr_key:
+        try:
+            import httpx
+            domain_list = [rd.domain for rd in domains[:50]]
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    "https://openpagerank.com/api/v1.0/getPageRank",
+                    params={"domains[]": domain_list},
+                    headers={"API-OPR": opr_key},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for row in data.get("response") or []:
+                        dom = row.get("domain", "").lstrip("www.")
+                        da = row.get("domain_authority", 0)
+                        if da:
+                            for rd in domains:
+                                if rd.domain.lstrip("www.") == dom:
+                                    rd.domain_authority = da
+        except Exception as e:
+            logger.debug(f"Open PageRank enhancement failed: {e}")
+
     tfcf = _trust_from_referring_domains(domains)
     tfcf["domain"] = domain
-    tfcf["source"] = "common_crawl"
-    tfcf["note"] = "Trust/Citation Flow vs Majestic — derived from Common Crawl referring-domain authority and toxic scores. Estimates, not Majestic data."
+    tfcf["source"] = "common_crawl + open_pagerank" if opr_key else "common_crawl"
+    tfcf["note"] = "Trust/Citation Flow vs Majestic — derived from referring-domain authority. Enhanced with real Open PageRank DA when configured."
     return tfcf

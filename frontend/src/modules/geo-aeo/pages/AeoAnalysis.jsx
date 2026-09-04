@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { MessageCircle, AlertTriangle, CheckCircle, XCircle, Zap, HelpCircle, ListChecks } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 
 export default function AeoAnalysis() {

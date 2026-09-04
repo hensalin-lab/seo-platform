@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { Image, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import FixDetail from '../../../components/FixDetail';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function ImageSeo() {
   const { id } = useParams();

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const SCORE_COLORS = {
   excellent: '#059669',

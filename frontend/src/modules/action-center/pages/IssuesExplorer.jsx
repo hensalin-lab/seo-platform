@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { AlertTriangle, Search, X, ExternalLink, ArrowLeft, Sparkles, RefreshCw, Wrench } from 'lucide-react';
 import { SEVERITY_COLORS } from '../../../components/ai/theme';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import ApplyFixModal from '../components/ApplyFixModal';
 
 const SEVERITY_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };

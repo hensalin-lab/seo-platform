@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { GitBranch, Clock, AlertTriangle, CheckCircle, ChevronDown, Target, Zap, ArrowRight, Calendar, BarChart3, Code, FileText, Search } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import { LoadingState, EmptyState } from '../../../components/States';
 
 function PhaseCard({ phase, phaseIndex }) {

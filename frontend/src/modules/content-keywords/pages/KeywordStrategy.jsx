@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
-import DataSourceBadge from '../../../components/DataSourceBadge'
+import { DataSourceBadge } from '../../../components/DataSourceBadge'
 import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown, Sparkles, Brain, ArrowRight, Clock, RefreshCw, Wand2 } from 'lucide-react'
 import ThemeHero from '../../../components/ai/ThemeHero'
 import ThemeStatCard from '../../../components/ai/ThemeStatCard'

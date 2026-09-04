@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { Link2, Search, ExternalLink, Shield, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 export default function BacklinkExplorer() {
@@ -49,6 +50,7 @@ export default function BacklinkExplorer() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <Link2 size={26} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Backlink Explorer</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>View all backlinks pointing to a domain</p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, maxWidth: 480, margin: '0 auto' }}>

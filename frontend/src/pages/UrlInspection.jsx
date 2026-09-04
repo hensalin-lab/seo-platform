@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { FileSearch, Search, Info, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 export default function UrlInspection() {
@@ -34,6 +35,7 @@ export default function UrlInspection() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <FileSearch size={26} style={{ color: '#3B82F6' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>URL Inspection</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>
           Live indexing status via Google Search Console URL Inspection API

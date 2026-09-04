@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../../api';
 import { Map, ArrowLeft, Clock, AlertTriangle, Target, TrendingUp, Calendar } from 'lucide-react';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 
 const phases = [

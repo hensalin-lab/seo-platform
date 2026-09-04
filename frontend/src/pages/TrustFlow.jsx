@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { Search, Info, Layers } from 'lucide-react'
 
 function FlowBar({ label, value, color, desc }) {
@@ -40,6 +41,7 @@ export default function TrustFlow() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <Layers size={26} style={{ color: '#F59E0B' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Trust Flow / Citation Flow</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>
           Majestic-style two-metric link quality — trust vs raw link popularity

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
 import { FileSearch, Search, Info, Target } from 'lucide-react'
 
 export default function KeywordUniverse() {
@@ -26,6 +27,7 @@ export default function KeywordUniverse() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <FileSearch size={26} style={{ color: '#8B5CF6' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Keyword Universe Discovery</h1>
+          <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>
           Discover what keywords a competitor organically ranks for — beyond manual tracking

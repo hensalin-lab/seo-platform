@@ -5,7 +5,7 @@ import { Copy, FileText, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 function DuplicateRow({ g }) {
   return (

@@ -5,7 +5,7 @@ import { Globe, Languages, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard, ProgressBar, severityColor,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 export default function HreflangAnalysis() {
   const { id } = useParams();

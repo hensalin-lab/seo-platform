@@ -9,7 +9,7 @@ import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge,
   inputStyle, btnGhost,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 function competitionColor(level) {
   const s = (level || '').toUpperCase();

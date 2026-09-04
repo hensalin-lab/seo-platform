@@ -10,7 +10,7 @@ import {
   ListOrdered, Hash, AlignLeft, Quote, Video, Plus, FileText,
 } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 import GooglebotView from '../../../components/GooglebotView';

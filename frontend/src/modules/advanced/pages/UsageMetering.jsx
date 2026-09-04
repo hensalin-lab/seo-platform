@@ -4,7 +4,7 @@ import { Activity, BarChart3, History, Sparkles } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, Badge, StatCard,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const EVENT_LABELS = {
   'audit.started': { label: 'Audit runs', color: '#8b5cf6' },

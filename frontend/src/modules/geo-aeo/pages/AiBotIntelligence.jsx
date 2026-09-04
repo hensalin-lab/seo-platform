@@ -5,7 +5,7 @@ import { Bot, CheckCircle, XCircle, AlertTriangle, Shield, FileText, Globe, Exte
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import FixDetail from '../../../components/FixDetail';
 import { LoadingState, EmptyState } from '../../../components/States';
 

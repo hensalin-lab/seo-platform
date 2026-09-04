@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { Layers, CheckCircle, XCircle, AlertTriangle, Brain, Copy, Target, TrendingUp, ArrowRight, FileCode, Link2, User } from 'lucide-react';
 import { LoadingState, EmptyState } from '../../../components/States';
 import ScoreRing from '../../../components/ScoreRing';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 function Card({ title, icon: Icon, children, color = '#3b82f6' }) {
   return (

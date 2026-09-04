@@ -7,7 +7,7 @@ import {
   Trophy, TrendingUp, Clock,
 } from 'lucide-react';
 import ThemeHero from '../../../components/ai/ThemeHero';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 

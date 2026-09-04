@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
 import { ListChecks, AlertTriangle, CheckCircle, ChevronDown, Clock, Users, Code, FileText, Search, BarChart3, Settings, Target } from 'lucide-react';
 import { LoadingState, EmptyState } from '../../../components/States';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const ROLE_CONFIG = {
   DEVELOPER: { label: 'Developer Tasks', icon: Code, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },

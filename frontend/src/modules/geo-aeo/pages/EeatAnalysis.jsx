@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import { Shield, CheckCircle, XCircle, Award, BookOpen, Users, Star, AlertTriangle, Target, Search } from 'lucide-react';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ThemeHero from '../../../components/ai/ThemeHero';

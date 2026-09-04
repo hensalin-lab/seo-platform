@@ -8,7 +8,7 @@ import {
   Card, CardHeader, LoadingSpinner, EmptyState, StatCard, Badge, ProgressBar,
   inputStyle, labelStyle, btnPrimary, btnGhost,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const ACCENT = '#8b5cf6';
 

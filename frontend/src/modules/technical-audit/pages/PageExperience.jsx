@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../api';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import { Activity, AlertTriangle, CheckCircle, XCircle, Gauge, Zap } from 'lucide-react';
 import FixDetail from '../../../components/FixDetail';
 

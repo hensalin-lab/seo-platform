@@ -5,7 +5,7 @@ import { Award, Link2, Shield, FileText, Cpu, Smartphone } from 'lucide-react';
 import {
   Card, CardHeader, LoadingSpinner, EmptyState, StatCard, ProgressBar,
 } from './ui';
-import DataSourceBadge from '../../../components/DataSourceBadge';
+import { DataSourceBadge } from '../../../components/DataSourceBadge';
 
 const FACTOR_META = {
   referring_domains: { label: 'Referring domains', color: '#8b5cf6' },

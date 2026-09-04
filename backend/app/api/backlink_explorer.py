@@ -21,6 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Backlink, ReferringDomain, Audit, User
 from app.api.auth import get_current_active_user
+from app.rate_limit import limiter
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/backlinks", tags=["backlinks"])
@@ -93,6 +95,7 @@ async def _run_refresh_background(domain: str):
 
 
 @router.post("/{domain}/refresh")
+@limiter.limit("5/minute")
 async def refresh_backlinks(
     domain: str,
     background_tasks: BackgroundTasks,
