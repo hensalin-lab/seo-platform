@@ -415,4 +415,10 @@ export const api = {
 
   // ── Growth AI: Domain Overview ─────────────────────────────────────────
   getDomainOverview: (domain) => request(`/domain-overview/${encodeURIComponent(domain)}`),
+
+  // ── Growth AI: Keyword Gap ────────────────────────────────────────────
+  getKeywordGap: (domain, competitor) => request(`/keyword-gap/${encodeURIComponent(domain)}/${encodeURIComponent(competitor)}`),
+
+  // ── Growth AI: AI Visibility Trend ────────────────────────────────────
+  getAiVisibilityTrend: (domain) => request(`/ai-visibility-trend/${encodeURIComponent(domain)}`),
 };

@@ -34,6 +34,9 @@ from app.api.google_integrations import router as google_integrations_router
 from app.api.shares import router as shares_router
 from app.api.rank_tracking import router as rank_tracking_router
 from app.api.domain_overview import router as domain_overview_router
+from app.api.keyword_gap import router as keyword_gap_router
+from app.api.content_editor import router as content_editor_router
+from app.api.ai_visibility_trend import router as ai_visibility_trend_router
 from app.api.admin import router as admin_router
 from app.api.activity import router as activity_router
 from app.api.alerts import router as alerts_router
@@ -73,6 +76,8 @@ async def lifespan(app: FastAPI):
     logger.info("SERP rank tracker worker started")
     growth_rank_task = asyncio.create_task(_growth_ai_rank_tracker_worker())
     logger.info("Growth AI rank tracker worker started (daily)")
+    ai_vis_task = asyncio.create_task(_ai_visibility_trend_worker())
+    logger.info("AI visibility trend worker started (weekly)")
 
     # Drive the MCP session manager task group for /mcp (if enabled).
     mcp_session = _get_mcp_session()
@@ -88,6 +93,7 @@ async def lifespan(app: FastAPI):
     uptime_task.cancel()
     rank_task.cancel()
     growth_rank_task.cancel()
+    ai_vis_task.cancel()
     if _mcp_ctx is not None:
         try:
             await _mcp_ctx.__aexit__(None, None, None)
@@ -231,6 +237,17 @@ async def _growth_ai_rank_tracker_worker():
         await asyncio.sleep(24 * 3600)
 
 
+async def _ai_visibility_trend_worker():
+    """Weekly worker for AI visibility trend tracking (checks all tracked domains)."""
+    from app.engine.ai_visibility_trend import scheduled_ai_visibility_worker
+    while True:
+        try:
+            await scheduled_ai_visibility_worker()
+        except Exception as e:
+            logger.warning(f"AI visibility trend worker error (non-fatal): {e}")
+        await asyncio.sleep(7 * 24 * 3600)  # weekly
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -273,6 +290,9 @@ app.include_router(google_integrations_router)
 app.include_router(shares_router)
 app.include_router(rank_tracking_router)
 app.include_router(domain_overview_router)
+app.include_router(keyword_gap_router)
+app.include_router(content_editor_router)
+app.include_router(ai_visibility_trend_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
 app.include_router(alerts_router)

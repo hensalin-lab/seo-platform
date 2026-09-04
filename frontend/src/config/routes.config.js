@@ -94,6 +94,8 @@ const McpAgents = lazy(() => import('../modules/advanced/pages/McpAgents'));
 const AdminPage = lazy(() => import('../pages/AdminPage'));
 const RankTrackingPage = lazy(() => import('../pages/RankTracking'));
 const DomainOverviewPage = lazy(() => import('../pages/DomainOverview'));
+const KeywordGapPage = lazy(() => import('../pages/KeywordGap'));
+const LiveContentEditorPage = lazy(() => import('../pages/LiveContentEditor'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
 const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
@@ -136,6 +138,8 @@ export const mainNav = [
   { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO', title: 'Programmatic SEO', component: ProgrammaticSeo },
   { path: '/workspaces', icon: 'FolderOpen', label: 'Workspaces', title: 'Client Workspaces', component: Workspaces },
   { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: RankTrackingPage },
+  { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap', title: 'Keyword Gap Analysis', component: KeywordGapPage },
+  { path: '/live-editor', icon: 'Edit3', label: 'Live Editor', title: 'Live Content Editor', component: LiveContentEditorPage },
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },
   { path: '/api-reference', icon: 'Code2', label: 'API Reference', title: 'API Reference', component: ApiReference },
