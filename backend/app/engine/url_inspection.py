@@ -12,17 +12,22 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def _get_gsc_service():
-    """Build a searchconsole service from the configured service account."""
+def _get_gsc_service(service_account_json: str = ""):
+    """Build a searchconsole service from the configured service account.
+
+    Accepts an optional per-user service-account JSON (the preferred, stored
+    credential); falls back to the global env setting, then a local file.
+    """
     import json
     import os
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
     try:
-        if settings.GSC_SERVICE_ACCOUNT_JSON:
+        sa_json = service_account_json or settings.GSC_SERVICE_ACCOUNT_JSON or ""
+        if sa_json:
             credentials = service_account.Credentials.from_service_account_info(
-                json.loads(settings.GSC_SERVICE_ACCOUNT_JSON),
+                json.loads(sa_json),
                 scopes=["https://www.googleapis.com/auth/webmasters.readonly"],
             )
         else:
@@ -41,13 +46,13 @@ def _get_gsc_service():
         return None
 
 
-def url_inspection_lookup(property_url: str, url_to_inspect: str) -> dict:
+def url_inspection_lookup(property_url: str, url_to_inspect: str, service_account_json: str = "") -> dict:
     """Run a live URL Inspection for a single URL against GSC.
 
     Returns indexing status (e.g. 'INDEXED', 'NOT_FOUND', 'NEEDS_ATTENTION')
     plus coverage-level detail when available.
     """
-    service = _get_gsc_service()
+    service = _get_gsc_service(service_account_json)
     if not service:
         return {
             "status": "UNAVAILABLE",

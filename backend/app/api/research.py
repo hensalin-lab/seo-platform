@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User
+from app.config import settings
 from app.api.auth import get_current_active_user
 from app.rate_limit import limiter
 
@@ -105,9 +106,49 @@ async def url_inspection(
     url: str = "",
     property_url: str = "",
     user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Run a live GSC URL Inspection for a single URL."""
     from app.engine.url_inspection import url_inspection_lookup
+    from app.engine.gsc_engine import GSCEngine
+    from app.models import GSCSettings, ProviderSetting
+    from sqlalchemy import select
+
     if not url.strip():
         return {"note": "Provide a URL to inspect.", "status": None}
-    return url_inspection_lookup(property_url or url.split("/")[0], url.strip())
+
+    # Resolve the user's stored GSC service-account JSON (per-user first, then
+    # global env/file), mirroring status._gsc_for_user so the metric never reads
+    # stale "not configured" when a credential is actually saved.
+    sa_json = ""
+    matched_property = property_url or url.split("/")[0]
+
+    try:
+        prow = (await db.execute(select(ProviderSetting).where(
+            ProviderSetting.user_id == user.id, ProviderSetting.provider == "gsc"
+        ))).scalar_one_or_none()
+        if prow and prow.is_active:
+            cfg = prow.config or {}
+            if cfg.get("service_account_json"):
+                sa_json = cfg["service_account_json"]
+                matched_property = cfg.get("property_url") or matched_property
+            elif cfg.get("oauth_access_token") or cfg.get("oauth_refresh_token"):
+                return {
+                    "url": url.strip(),
+                    "status": "UNAVAILABLE",
+                    "note": "URL Inspection requires the service-account (non-OAuth) credential. Connect a service account in Settings.",
+                }
+        if not sa_json:
+            gs = (await db.execute(select(GSCSettings).where(
+                GSCSettings.user_id == user.id
+            ))).scalar_one_or_none()
+            if gs and gs.service_account_json:
+                sa_json = gs.service_account_json
+                matched_property = gs.property_url or matched_property
+    except Exception as e:
+        logger.warning(f"URL Inspection: resolving GSC credential failed: {e}")
+
+    if not sa_json:
+        sa_json = settings.GSC_SERVICE_ACCOUNT_JSON or ""
+
+    return url_inspection_lookup(matched_property, url.strip(), sa_json)
