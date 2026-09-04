@@ -339,6 +339,27 @@ export const reportSidebarNav = [
     { suffix: '/trends', icon: 'LineChart', label: 'Score Trends' },
     { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor' },
   ] },
+  { section: '5. TOOLS', group: 'Tools', main: [
+    { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking' },
+    { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap' },
+    { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer' },
+    { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains' },
+    { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links' },
+    { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap' },
+    { path: '/keyword-difficulty', icon: 'Gauge', label: 'Keyword Difficulty' },
+    { path: '/traffic-estimator', icon: 'TrendingUp', label: 'Traffic Estimator' },
+    { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe' },
+    { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow' },
+    { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection' },
+  ], more: [
+    { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO' },
+    { path: '/live-editor', icon: 'Edit3', label: 'Live Editor' },
+    { path: '/uptime', icon: 'Activity', label: 'Uptime' },
+    { path: '/usage', icon: 'BarChart3', label: 'Usage' },
+    { path: '/api-reference', icon: 'Code2', label: 'API Reference' },
+    { path: '/free-tools', icon: 'Zap', label: 'Free Tools' },
+    { path: '/agents', icon: 'Bot', label: 'AI Agents & MCP' },
+  ] },
 ];
 
 export const auditSectionNav = auditSections.map(section => ({

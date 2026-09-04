@@ -73,28 +73,34 @@ export default function Layout({ children }) {
           {isReport && reportSidebarNav.map(group => (
             <div className="sidebar-section" key={group.section}>
               <div className="sidebar-section-label">{group.section}</div>
-              {group.main.map(item => (
-                <SidebarLink
-                  key={item.suffix}
-                  to={`/audit/${auditId}${item.suffix}`}
-                  icon={getIcon(item.icon)}
-                  label={item.label}
-                  active={isActive(item.suffix, segment)}
-                />
-              ))}
+              {group.main.map(item => {
+                const to = item.path ? item.path : `/audit/${auditId}${item.suffix}`;
+                return (
+                  <SidebarLink
+                    key={item.path || item.suffix}
+                    to={to}
+                    icon={getIcon(item.icon)}
+                    label={item.label}
+                    active={item.path ? location.pathname === item.path : isActive(item.suffix, segment)}
+                  />
+                );
+              })}
               {group.more && group.more.length > 0 && (
                 <div className="sidebar-section-label" style={{ marginTop: 4, opacity: 0.55, fontSize: 10 }}>MORE</div>
               )}
-              {group.more && group.more.map(item => (
-                <SidebarLink
-                  key={item.suffix}
-                  to={`/audit/${auditId}${item.suffix}`}
-                  icon={getIcon(item.icon)}
-                  label={item.label}
-                  active={isActive(item.suffix, segment)}
-                  nested
-                />
-              ))}
+              {group.more && group.more.map(item => {
+                const to = item.path ? item.path : `/audit/${auditId}${item.suffix}`;
+                return (
+                  <SidebarLink
+                    key={item.path || item.suffix}
+                    to={to}
+                    icon={getIcon(item.icon)}
+                    label={item.label}
+                    active={item.path ? location.pathname === item.path : isActive(item.suffix, segment)}
+                    nested
+                  />
+                );
+              })}
             </div>
           ))}
         </nav>
