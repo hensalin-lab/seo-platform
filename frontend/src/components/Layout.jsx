@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommandPalette from './CommandPalette';
-import { Search, Plus, Moon, Sun, LogIn, LogOut } from 'lucide-react';
+import { Search, Plus, Moon, Sun, LogIn, LogOut, ChevronDown, Wrench } from 'lucide-react';
 import { mainNav, reportSidebarNav, getIcon, getPageTitleForPath } from '../config/routes.config';
 
 function SidebarLink({ to, icon: Icon, label, active, nested }) {
@@ -23,6 +23,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const [toolsOpen, setToolsOpen] = useState(true);
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   useEffect(() => {
@@ -48,6 +49,10 @@ export default function Layout({ children }) {
 
   const title = getPageTitleForPath(location.pathname, isReport);
 
+  const navItems = mainNav.filter(item => !item.adminOnly || isAdmin);
+  const mainItems = navItems.filter(item => item.group !== 'tools');
+  const toolItems = navItems.filter(item => item.group === 'tools');
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -57,18 +62,45 @@ export default function Layout({ children }) {
         </Link>
         <nav className="sidebar-nav">
           {!isReport && (
-            <div className="sidebar-section">
-              <div className="sidebar-section-label">MAIN</div>
-              {mainNav.filter(item => !item.adminOnly || isAdmin).map(item => (
-                <SidebarLink
-                  key={item.path}
-                  to={item.path}
-                  icon={getIcon(item.icon)}
-                  label={item.label}
-                  active={location.pathname === item.path}
-                />
-              ))}
-            </div>
+            <>
+              <div className="sidebar-section">
+                <div className="sidebar-section-label">MAIN</div>
+                {mainItems.map(item => (
+                  <SidebarLink
+                    key={item.path}
+                    to={item.path}
+                    icon={getIcon(item.icon)}
+                    label={item.label}
+                    active={location.pathname === item.path}
+                  />
+                ))}
+              </div>
+              {toolItems.length > 0 && (
+                <div className="sidebar-section">
+                  <button
+                    className={`sidebar-link-group ${toolsOpen ? 'active' : ''}`}
+                    onClick={() => setToolsOpen(o => !o)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Wrench size={16} />
+                      Tools
+                    </span>
+                    <ChevronDown size={14} style={{ transform: toolsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.18s' }} />
+                  </button>
+                  {toolsOpen && toolItems.map(item => (
+                    <SidebarLink
+                      key={item.path}
+                      to={item.path}
+                      icon={getIcon(item.icon)}
+                      label={item.label}
+                      active={location.pathname === item.path}
+                      nested
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
           {isReport && reportSidebarNav.map(group => (
             <div className="sidebar-section" key={group.section}>
