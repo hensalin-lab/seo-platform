@@ -32,6 +32,8 @@ from app.api.apply_fix import router as apply_fix_router
 from app.api.free_data import router as free_data_router
 from app.api.google_integrations import router as google_integrations_router
 from app.api.shares import router as shares_router
+from app.api.rank_tracking import router as rank_tracking_router
+from app.api.domain_overview import router as domain_overview_router
 from app.api.admin import router as admin_router
 from app.api.activity import router as activity_router
 from app.api.alerts import router as alerts_router
@@ -69,6 +71,8 @@ async def lifespan(app: FastAPI):
     logger.info("Uptime monitor worker started")
     rank_task = asyncio.create_task(_rank_tracker_worker())
     logger.info("SERP rank tracker worker started")
+    growth_rank_task = asyncio.create_task(_growth_ai_rank_tracker_worker())
+    logger.info("Growth AI rank tracker worker started (daily)")
 
     # Drive the MCP session manager task group for /mcp (if enabled).
     mcp_session = _get_mcp_session()
@@ -83,6 +87,7 @@ async def lifespan(app: FastAPI):
     digest_task.cancel()
     uptime_task.cancel()
     rank_task.cancel()
+    growth_rank_task.cancel()
     if _mcp_ctx is not None:
         try:
             await _mcp_ctx.__aexit__(None, None, None)
@@ -214,6 +219,18 @@ async def _rank_tracker_worker():
         await asyncio.sleep(6 * 3600)
 
 
+async def _growth_ai_rank_tracker_worker():
+    """Daily worker for the Growth AI Engine's TrackedKeyword-based rank tracking.
+    Runs check_all_tracked_keywords() from rank_tracking_engine once per day."""
+    from app.engine.rank_tracking_engine import scheduled_rank_tracking_worker
+    while True:
+        try:
+            await scheduled_rank_tracking_worker()
+        except Exception as e:
+            logger.warning(f"Growth AI rank tracker worker error (non-fatal): {e}")
+        await asyncio.sleep(24 * 3600)
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -254,6 +271,8 @@ app.include_router(apply_fix_router)
 app.include_router(free_data_router)
 app.include_router(google_integrations_router)
 app.include_router(shares_router)
+app.include_router(rank_tracking_router)
+app.include_router(domain_overview_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
 app.include_router(alerts_router)

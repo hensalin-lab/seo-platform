@@ -92,6 +92,8 @@ const BrandMonitor = lazy(() => import('../modules/advanced/pages/BrandMonitor')
 const FreeTools = lazy(() => import('../modules/advanced/pages/FreeTools'));
 const McpAgents = lazy(() => import('../modules/advanced/pages/McpAgents'));
 const AdminPage = lazy(() => import('../pages/AdminPage'));
+const RankTrackingPage = lazy(() => import('../pages/RankTracking'));
+const DomainOverviewPage = lazy(() => import('../pages/DomainOverview'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
 const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
@@ -126,12 +128,14 @@ export function getIcon(name) {
 }
 
 export const mainNav = [
+  { path: '/domain-overview', icon: 'Globe', label: 'Domain Overview', title: 'Domain Overview', component: DomainOverviewPage },
   { path: '/new', icon: 'Plus', label: 'New Audit', title: 'New Audit', component: NewAudit },
   { path: '/history', icon: 'FileText', label: 'History', title: 'Audit History', component: History },
   { path: '/portfolio', icon: 'FolderOpen', label: 'Portfolio', title: 'Portfolio Dashboard', component: PortfolioDashboard },
   { path: '/trends', icon: 'TrendingUp', label: 'Trends', title: 'Trends', component: Trends },
   { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO', title: 'Programmatic SEO', component: ProgrammaticSeo },
   { path: '/workspaces', icon: 'FolderOpen', label: 'Workspaces', title: 'Client Workspaces', component: Workspaces },
+  { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: RankTrackingPage },
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },
   { path: '/api-reference', icon: 'Code2', label: 'API Reference', title: 'API Reference', component: ApiReference },

@@ -403,4 +403,16 @@ export const api = {
 
   request,
   setToken,
+
+  // ── Growth AI: Rank Tracking ───────────────────────────────────────────
+  addTrackedKeyword: (domain, keyword, device = 'desktop', location = 'us') =>
+    request('/rank-tracking/keywords', { method: 'POST', body: JSON.stringify({ domain, keyword, device, location }) }),
+  listTrackedKeywords: (domain) => request(`/rank-tracking/${encodeURIComponent(domain)}/keywords`),
+  keywordHistory: (domain, id) => request(`/rank-tracking/${encodeURIComponent(domain)}/keywords/${id}/history`),
+  deleteTrackedKeyword: (id) => request(`/rank-tracking/keywords/${id}`, { method: 'DELETE' }),
+  refreshRankTracking: (domain) => request(`/rank-tracking/${encodeURIComponent(domain)}/refresh`, { method: 'POST' }),
+  exportRankTrackingCsv: (domain) => `${API_BASE}/rank-tracking/${encodeURIComponent(domain)}/export/csv`,
+
+  // ── Growth AI: Domain Overview ─────────────────────────────────────────
+  getDomainOverview: (domain) => request(`/domain-overview/${encodeURIComponent(domain)}`),
 };
