@@ -183,6 +183,9 @@ _ENV_CONFIG = {
     "profound": {"api_key": settings.PROFOUND_API_KEY},
     "se_ranking": {"token": settings.SE_RANKING_TOKEN},
     "pagerank": {"api_key": settings.OPEN_PAGERANK_API_KEY},
+    "serper": {"api_key": settings.SERPER_API_KEY},
+    "openserp": {"api_key": settings.OPEN_SERP_API_KEY},
+    "pagespeed": {"api_key": settings.PAGESPEED_API_KEY},
     "gsc": {"service_account_json": "", "property_url": ""},
 }
 
