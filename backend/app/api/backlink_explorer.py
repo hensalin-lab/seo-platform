@@ -128,7 +128,7 @@ async def backlink_explorer(domain: str,
 
     total = (await db.execute(
         select(func.count(Backlink.id)).where(
-            (Backlink.target_domain == d) | (Backlink.audit_id == (func.select(Audit.id).where(Audit.website_url.ilike(f"%{d}%")).correlate(None).scalar_subquery()))
+            (Backlink.target_domain == d) | (Backlink.audit_id == select(Audit.id).where(Audit.website_url.ilike(f"%{d}%")).correlate(None).scalar_subquery())
         )
     )).scalar() or 0
 
