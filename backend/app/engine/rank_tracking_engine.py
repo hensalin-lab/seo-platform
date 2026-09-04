@@ -1,6 +1,6 @@
 """Rank tracking engine — loops all TrackedKeywords, queries the right
-data source (GSC for own domains, DataForSEO for competitors), and writes
-a new RankSnapshot per keyword each run.
+data source (GSC for own domains, DuckDuckGo scraper for competitors),
+and writes a new RankSnapshot each run.
 
 Designed to be called once per day via the scheduler loop in ``main.py``.
 """
@@ -14,28 +14,10 @@ from app.database import async_session
 from app.models import (
     TrackedDomain, TrackedKeyword, RankSnapshot, User,
 )
-from app.services.dataforseo_client import DataForSEOClient
+from app.services.ddg_serp_client import DDGSerpClient
 from app.services.gsc_rank_client import GSCRankClient
-from app.engine.spend_guard import check_provider_budget
 
 logger = logging.getLogger(__name__)
-
-# Map TrackedKeyword.location string → DataForSEO location_code (US default)
-_LOCATION_MAP = {"us": "2840", "uk": "2826", "ca": "2124", "au": "2036"}
-
-
-async def _check_budget(user_id: Optional[str], provider: str) -> bool:
-    try:
-        async with async_session() as db:
-            return await check_provider_budget(db, user_id, provider)
-    except Exception:
-        return True  # fail-open if budget check fails
-
-
-async def _get_user_for_domain(db, domain: TrackedDomain) -> Optional[str]:
-    """Return user_id for the domain owner (for budget check)."""
-    # TrackedDomain isn't FK-linked to User; caller passes user_id or None
-    return getattr(domain, "_user_id", None)
 
 
 async def check_all_tracked_keywords():
@@ -43,7 +25,7 @@ async def check_all_tracked_keywords():
     from app.models import DeviceEnum
 
     gsc_client = GSCRankClient()
-    dfs_client = DataForSEOClient()
+    ddg_client = DDGSerpClient()
 
     async with async_session() as db:
         result = await db.execute(
@@ -70,21 +52,29 @@ async def check_all_tracked_keywords():
 
             try:
                 if domain.is_own_domain and gsc_client.available:
+                    # Own domain → use GSC (real position data, free)
                     pos_float = await gsc_client.get_average_position(
                         f"https://{domain.domain}", kw.keyword
                     )
                     if pos_float is not None:
                         position = int(round(pos_float))
 
-                elif dfs_client.available:
-                    serp_data = await dfs_client.get_serp(
+                else:
+                    # Competitor domain → use DuckDuckGo scraper (free, approx)
+                    serp_data = await ddg_client.get_serp(
                         keyword=kw.keyword,
-                        location=_LOCATION_MAP.get(kw.location, "2840"),
+                        target_domain=domain.domain,
                     )
                     if not serp_data.get("error"):
                         position = serp_data.get("position")
                         serp_features = serp_data.get("serp_features", {})
                         top_3_urls = serp_data.get("top_3_urls", [])
+                    else:
+                        logger.info(
+                            f"[rank-tracking] DDG returned error for "
+                            f"'{kw.keyword}' on {domain.domain}: "
+                            f"{serp_data.get('error')}"
+                        )
 
                 snapshot = RankSnapshot(
                     tracked_keyword_id=kw.id,

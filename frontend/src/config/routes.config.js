@@ -96,6 +96,9 @@ const RankTrackingPage = lazy(() => import('../pages/RankTracking'));
 const DomainOverviewPage = lazy(() => import('../pages/DomainOverview'));
 const KeywordGapPage = lazy(() => import('../pages/KeywordGap'));
 const LiveContentEditorPage = lazy(() => import('../pages/LiveContentEditor'));
+const BacklinkExplorerPage = lazy(() => import('../pages/BacklinkExplorer'));
+const ReferringDomainsPage = lazy(() => import('../pages/ReferringDomains'));
+const ToxicLinksPage = lazy(() => import('../pages/ToxicLinks'));
 
 const DashboardHub = lazy(() => import('../pages/hubs/DashboardHub'));
 const ActionHub = lazy(() => import('../pages/hubs/ActionHub'));
@@ -139,6 +142,9 @@ export const mainNav = [
   { path: '/workspaces', icon: 'FolderOpen', label: 'Workspaces', title: 'Client Workspaces', component: Workspaces },
   { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: RankTrackingPage },
   { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap', title: 'Keyword Gap Analysis', component: KeywordGapPage },
+  { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer', title: 'Backlink Explorer', component: BacklinkExplorerPage },
+  { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains', title: 'Referring Domains', component: ReferringDomainsPage },
+  { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links', title: 'Toxic Links', component: ToxicLinksPage },
   { path: '/live-editor', icon: 'Edit3', label: 'Live Editor', title: 'Live Content Editor', component: LiveContentEditorPage },
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering },

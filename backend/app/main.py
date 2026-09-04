@@ -37,6 +37,7 @@ from app.api.domain_overview import router as domain_overview_router
 from app.api.keyword_gap import router as keyword_gap_router
 from app.api.content_editor import router as content_editor_router
 from app.api.ai_visibility_trend import router as ai_visibility_trend_router
+from app.api.backlink_explorer import router as backlink_explorer_router
 from app.api.admin import router as admin_router
 from app.api.activity import router as activity_router
 from app.api.alerts import router as alerts_router
@@ -293,6 +294,7 @@ app.include_router(domain_overview_router)
 app.include_router(keyword_gap_router)
 app.include_router(content_editor_router)
 app.include_router(ai_visibility_trend_router)
+app.include_router(backlink_explorer_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
 app.include_router(alerts_router)

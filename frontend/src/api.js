@@ -421,4 +421,14 @@ export const api = {
 
   // ── Growth AI: AI Visibility Trend ────────────────────────────────────
   getAiVisibilityTrend: (domain) => request(`/ai-visibility-trend/${encodeURIComponent(domain)}`),
+
+  // ── Growth AI: Backlink Explorer ──────────────────────────────────────
+  getBacklinkExplorer: (domain, limit = 100, offset = 0) =>
+    request(`/backlinks/${encodeURIComponent(domain)}/explorer?limit=${limit}&offset=${offset}`),
+  getReferringDomains: (domain) =>
+    request(`/backlinks/${encodeURIComponent(domain)}/referring`),
+  getToxicLinks: (domain, threshold = 0.7) =>
+    request(`/backlinks/${encodeURIComponent(domain)}/toxic?threshold=${threshold}`),
+  exportDisavow: (domain, threshold = 0.7) =>
+    `${API_BASE}/backlinks/${encodeURIComponent(domain)}/toxic/export?threshold=${threshold}`,
 };

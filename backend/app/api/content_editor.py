@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import User
 from app.api.auth import get_current_active_user
-from app.services.dataforseo_client import DataForSEOClient
+from app.services.ddg_serp_client import DDGSerpClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/content-editor", tags=["content-editor"])
@@ -109,7 +109,7 @@ async def score_content(body: ScoreBody,
     """Score a draft against current top-3 ranking pages for target_keyword.
 
     Steps:
-    1. Fetch top-3 URLs from DataForSEO for the keyword
+    1. Fetch top-3 URLs from DuckDuckGo for the keyword (free, no API key)
     2. Crawl each competitor page
     3. Score both draft and each competitor page
     4. Return comparison data
@@ -119,14 +119,13 @@ async def score_content(body: ScoreBody,
     if not body.content.strip():
         raise HTTPException(400, "content is required")
 
-    # 1. Get top 3 URLs from SERP
-    dfs = DataForSEOClient()
+    # 1. Get top 3 URLs from SERP (DuckDuckGo — free, no API key)
+    ddg = DDGSerpClient()
     competitor_data = []
     top_urls = []
 
-    if dfs.available:
-        serp = await dfs.get_serp(body.target_keyword)
-        top_urls = serp.get("top_3_urls", [])[:3]
+    serp = await ddg.get_serp(body.target_keyword)
+    top_urls = serp.get("top_3_urls", [])[:3]
 
     # 2. Fetch and score competitor pages
     for url in top_urls:
