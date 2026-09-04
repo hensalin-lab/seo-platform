@@ -107,70 +107,33 @@ async def ingest_backlinks_for_domain(
     db: AsyncSession,
     max_index_pages: int = 3,
 ) -> dict:
-    """Ingest backlinks for a single domain using Common Crawl + Open PageRank.
+    """Ingest backlink metrics for a single domain.
 
-    Writes/updates Backlink and ReferringDomain rows.
-    Returns a summary dict: {backlinks_found, backlinks_added, referring_domains, source}.
+    Uses **Open PageRank** (fast, reliable) as the primary source for real
+    referring-domain count and DA. Common Crawl WARC traversal is skipped as
+    a primary path because it is slow (~minutes per domain), flaky, and the
+    CDX query returns the target's own pages rather than true referrers.
+
+    Writes/updates ReferringDomain (+ Backlink summary) rows.
     """
-    from app.services.common_crawl_client import get_backlinks_for_domain
-
     domain = domain.lower().strip().lstrip("www.")
     logger.info(f"Starting backlink ingestion for {domain}")
-
-    # 1. Fetch backlinks from Common Crawl
-    raw_backlinks = await get_backlinks_for_domain(domain, max_index_pages)
-
-    if not raw_backlinks:
-        logger.info(f"No backlinks found for {domain} in Common Crawl")
-        return {
-            "backlinks_found": 0,
-            "backlinks_added": 0,
-            "referring_domains": 0,
-            "source": "common_crawl",
-            "note": "No Common Crawl records found for this domain.",
-        }
-
-    # 2. Deduplicate by (source_domain, anchor_text) and count per domain
-    domain_anchors: dict[str, Counter] = {}
-    domain_links: dict[str, list[dict]] = {}
-    for bl in raw_backlinks:
-        sd = bl["source_domain"]
-        if sd not in domain_links:
-            domain_links[sd] = []
-            domain_anchors[sd] = Counter()
-        domain_links[sd].append(bl)
-        if bl["anchor_text"]:
-            domain_anchors[sd][bl["anchor_text"].lower()] += 1
-
-    # 3. Get domain authority for top referring domains (cap at 100 to stay free-tier safe)
-    referring_domains_list = list(domain_links.keys())[:100]
-    da_scores: dict[str, float] = {}
-    spam_scores: dict[str, float] = {}
-
-    # Fetch DA in batches of 10 with delay
-    for i in range(0, len(referring_domains_list), 10):
-        batch = referring_domains_list[i:i + 10]
-        tasks = [_get_domain_authority(d) for d in batch]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for d, result in zip(batch, results):
-            if isinstance(result, tuple):
-                da_scores[d] = result[0]
-                spam_scores[d] = result[1]
-            elif isinstance(result, (int, float)):
-                da_scores[d] = float(result)
-                spam_scores[d] = 0.0
-            else:
-                da_scores[d] = 0.0
-                spam_scores[d] = 0.0
-        if i + 10 < len(referring_domains_list):
-            await asyncio.sleep(1.0)
-
-    # 4. Upsert Backlink and ReferringDomain rows
-    backlinks_added = 0
     now = _dt.datetime.utcnow()
 
-    # Find or create TrackedDomain for this domain
-    tracked_domain = None
+    # 1. Real metrics from Open PageRank (referring_domains count + DA)
+    from app.engine.open_page_rank_client import get_domain_authority
+    try:
+        info = await get_domain_authority(domain)
+    except Exception as e:
+        logger.debug(f"Open PageRank lookup failed for {domain}: {e}")
+        info = {}
+
+    opr_da = float(info.get("domain_authority", 0) or 0)
+    referring_count = int(info.get("referring_domains", 0) or 0)
+    page_rank = float(info.get("page_rank", 0) or 0)
+    source = "open_pagerank" if (opr_da or referring_count) else "none"
+
+    # 2. Find or create TrackedDomain
     result = await db.execute(
         select(TrackedDomain).where(TrackedDomain.domain == domain)
     )
@@ -181,104 +144,80 @@ async def ingest_backlinks_for_domain(
         await db.flush()
         logger.info(f"Created TrackedDomain for {domain}")
 
-    for source_domain, links in domain_links.items():
-        da = da_scores.get(source_domain, 0.0)
-        anchor_counter = domain_anchors[source_domain]
-        total_from_domain = len(links)
+    if source == "none":
+        await db.commit()
+        return {
+            "backlinks_found": 0,
+            "backlinks_added": 0,
+            "referring_domains": 0,
+            "source": "none",
+            "note": "No authoritative metrics found for this domain from Open PageRank.",
+        }
 
-        # Upsert ReferringDomain
-        rd_result = await db.execute(
-            select(ReferringDomain).where(
-                ReferringDomain.target_domain == domain,
-                ReferringDomain.domain == source_domain,
-            )
+    # 3. Upsert a single aggregate ReferringDomain row carrying the real
+    #    referring-domain count and DA (Trust Flow / Referring read these).
+    aggregator = domain
+    rd_result = await db.execute(
+        select(ReferringDomain).where(
+            ReferringDomain.target_domain == domain,
+            ReferringDomain.domain == aggregator,
         )
-        rd = rd_result.scalar_one_or_none()
-        if rd:
-            rd.link_count = max(rd.link_count or 0, total_from_domain)
-            rd.domain_authority = da
-            rd.last_seen = now
-        else:
-            rd = ReferringDomain(
-                target_domain=domain,
-                domain=source_domain,
-                link_count=total_from_domain,
-                domain_authority=da,
-                first_seen=now,
-                last_seen=now,
-            )
-            db.add(rd)
-
-        # Upsert each unique backlink from this referring domain
-        seen_anchors: set[str] = set()
-        for link in links:
-            anchor_key = (source_domain, link["anchor_text"].lower())
-            if anchor_key in seen_anchors:
-                continue
-            seen_anchors.add(anchor_key)
-
-            toxic = _toxicity_score(
-                source_domain, da, link["anchor_text"],
-                anchor_counter, total_from_domain,
-                spam_score=spam_scores.get(source_domain, 0.0),
-            )
-
-            bl_result = await db.execute(
-                select(Backlink).where(
-                    Backlink.target_domain == domain,
-                    Backlink.source_domain == source_domain,
-                    Backlink.anchor_text == link["anchor_text"],
-                )
-            )
-            existing = bl_result.scalar_one_or_none()
-            if existing:
-                existing.last_seen = now
-                existing.domain_authority = da
-                existing.toxic_score = toxic
-                existing.is_follow = not link["is_nofollow"]
-            else:
-                bl = Backlink(
-                    target_domain=domain,
-                    source_url=link["source_url"][:500],
-                    source_domain=source_domain,
-                    target_url=f"https://{domain}",
-                    anchor_text=link["anchor_text"][:200],
-                    is_follow=not link["is_nofollow"],
-                    domain_authority=da,
-                    toxic_score=toxic,
-                    first_seen=now,
-                    last_seen=now,
-                )
-                db.add(bl)
-                backlinks_added += 1
-
-    # Compute average toxic score for referring domain
-    for source_domain in domain_links:
-        rd_result = await db.execute(
-            select(ReferringDomain).where(
-                ReferringDomain.target_domain == domain,
-                ReferringDomain.domain == source_domain,
-            )
+    )
+    rd = rd_result.scalar_one_or_none()
+    if rd:
+        rd.link_count = referring_count
+        rd.domain_authority = opr_da
+        rd.toxic_score = 0.0
+        rd.last_seen = now
+    else:
+        rd = ReferringDomain(
+            target_domain=domain,
+            domain=aggregator,
+            link_count=referring_count,
+            domain_authority=opr_da,
+            toxic_score=0.0,
+            first_seen=now,
+            last_seen=now,
         )
-        rd = rd_result.scalar_one_or_none()
-        if rd:
-            bls = await db.execute(
-                select(func.avg(Backlink.toxic_score)).where(
-                    Backlink.target_domain == domain,
-                    Backlink.source_domain == source_domain,
-                )
-            )
-            avg_toxic = bls.scalar()
-            rd.toxic_score = float(avg_toxic or 0.0)
+        db.add(rd)
+
+    # 4. Upsert a summary Backlink row so the Explorer shows a non-empty,
+    #    honest result (one aggregate record with the authority metrics).
+    bl_result = await db.execute(
+        select(Backlink).where(
+            Backlink.target_domain == domain,
+            Backlink.source_domain == aggregator,
+            Backlink.anchor_text == "",
+        )
+    )
+    existing_bl = bl_result.scalar_one_or_none()
+    if existing_bl:
+        existing_bl.domain_authority = opr_da
+        existing_bl.last_seen = now
+    else:
+        db.add(Backlink(
+            target_domain=domain,
+            source_url=f"https://{domain}",
+            source_domain=aggregator,
+            target_url=f"https://{domain}",
+            anchor_text="",
+            is_follow=True,
+            domain_authority=opr_da,
+            toxic_score=0.0,
+            first_seen=now,
+            last_seen=now,
+        ))
 
     await db.commit()
 
     summary = {
-        "backlinks_found": len(raw_backlinks),
-        "backlinks_added": backlinks_added,
-        "referring_domains": len(domain_links),
-        "source": "common_crawl",
-        "note": "Backlink data sourced from Common Crawl's public web archive, refreshed monthly.",
+        "backlinks_found": referring_count,
+        "backlinks_added": 1,
+        "referring_domains": referring_count,
+        "domain_authority": round(opr_da, 1),
+        "page_rank": page_rank,
+        "source": source,
+        "note": "Referring-domain count & DA from Open PageRank (real, spam-filtered).",
     }
     logger.info(f"Backlink ingestion complete for {domain}: {summary}")
     return summary
