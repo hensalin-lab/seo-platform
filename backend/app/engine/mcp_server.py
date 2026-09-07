@@ -28,6 +28,7 @@ except Exception as e:  # pragma: no cover
 from app.engine.providers import (
     get_user_provider_config,
     resolve_for_capability,
+    effective_config,
 )
 
 from app.database import async_session
@@ -49,12 +50,13 @@ async def _user_provider_config(user_id: str | None = None) -> dict:
 
 
 def _provider_cfg(provider: str, user_config: dict) -> dict:
-    """Extract one provider's flat config from the full {provider: config} dict."""
+    """Extract one provider's flat config from the full {provider: config} dict,
+    merged over the env-based defaults via effective_config."""
     if isinstance(user_config, dict):
-        cfg = user_config.get(provider)
-        if isinstance(cfg, dict):
-            return cfg
-    return {}
+        flat = user_config.get(provider)
+        if isinstance(flat, dict):
+            return effective_config(provider, flat)
+    return effective_config(provider, {})
 
 
 # ---------------------------------------------------------------------------
