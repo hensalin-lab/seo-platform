@@ -9,7 +9,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, Query
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -91,20 +91,43 @@ def _generate_seed_keywords(domain: str) -> list[str]:
     return seeds[:10]
 
 
+@router.get("")
+async def keyword_gap_query(domain: str = Query("", description="Your domain (URL or bare)"),
+                            competitor: str = Query("", description="Competitor domain (URL or bare)"),
+                            user: User = Depends(get_current_active_user),
+                            db: AsyncSession = Depends(get_db)):
+    """Compare tracked keywords between two domains (query-param version).
+    Accepts full URLs or bare domains."""
+    from app.engine.domain_utils import normalize_domain
+    d1 = normalize_domain(domain)
+    d2 = normalize_domain(competitor)
+    if not d1 or not d2:
+        return {"detail": "Provide both domain and competitor."}
+    return await _keyword_gap_inner(d1, d2, user, db)
+
+
 @router.get("/{domain}/{competitor}")
 async def keyword_gap(domain: str, competitor: str,
                       background_tasks: BackgroundTasks,
                       user: User = Depends(get_current_active_user),
                       db: AsyncSession = Depends(get_db)):
-    """Compare tracked keywords between two domains.
+    """Compare tracked keywords between two domains (path version).
 
     Returns:
       - your_only: keywords you rank for but competitor doesn't
       - competitor_only: keywords competitor ranks for but you don't
       - both_rank: keywords both rank for, with position comparison
     """
-    d1 = domain.lower().strip()
-    d2 = competitor.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d1 = normalize_domain(domain)
+    d2 = normalize_domain(competitor)
+    if not d1 or not d2:
+        return {"detail": "Provide both domain and competitor."}
+    return await _keyword_gap_inner(d1, d2, user, db)
+
+
+async def _keyword_gap_inner(d1: str, d2: str, user, db):
+    """Shared gap logic. d1/d2 are already normalized bare domains."""
 
     td1 = (await db.execute(
         select(TrackedDomain).where(TrackedDomain.domain == d1)

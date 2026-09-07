@@ -90,8 +90,9 @@ async def backlink_gap(
       - overlap: domains linking to both you and at least one competitor
       - combined: flattened view for the table
     """
-    d1 = domain.lower().strip()
-    comp_list = [c.lower().strip() for c in (competitors or "").split(",") if c.strip()][:3]
+    from app.engine.domain_utils import normalize_domain
+    d1 = normalize_domain(domain)
+    comp_list = [normalize_domain(c) for c in (competitors or "").split(",") if c.strip()][:3]
 
     if not d1:
         return {"note": "Missing target domain.", "combined": []}

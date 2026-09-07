@@ -56,6 +56,7 @@ async def traffic_estimate(
     Otherwise estimates from DDG SERP visibility.
     """
     from app.engine.traffic_engine import estimate_domain_traffic, gsc_traffic
+    from app.engine.domain_utils import normalize_domain
     if not domain.strip():
         return {"note": "Provide a domain.", "estimated_monthly_visits": None}
 
@@ -67,7 +68,7 @@ async def traffic_estimate(
         except Exception as e:
             logger.debug(f"GSC traffic failed, falling back to estimate: {e}")
 
-    return await estimate_domain_traffic(domain.strip())
+    return await estimate_domain_traffic(normalize_domain(domain))
 
 
 @router.get("/keyword-universe")
@@ -81,9 +82,10 @@ async def keyword_universe(
 ):
     """Discover the organic keyword universe for a competitor domain."""
     from app.engine.keyword_research_engine import discover_keyword_universe
+    from app.engine.domain_utils import normalize_domain
     if not domain.strip() or not seed.strip():
         return {"note": "Provide both a domain and a seed keyword.", "keywords": []}
-    return await discover_keyword_universe(domain.strip(), seed.strip(), max_keywords)
+    return await discover_keyword_universe(normalize_domain(domain), seed.strip(), max_keywords)
 
 
 @router.get("/trust-flow/{domain}")
@@ -96,7 +98,8 @@ async def trust_flow(
 ):
     """Compute Trust Flow / Citation Flow (Majestic-style) for a domain."""
     from app.engine.trust_flow import compute_trust_citation_flow
-    return await compute_trust_citation_flow(db, domain)
+    from app.engine.domain_utils import normalize_domain
+    return await compute_trust_citation_flow(db, normalize_domain(domain))
 
 
 @router.get("/url-inspection")

@@ -1,4 +1,12 @@
 const API_BASE = '/api';
+
+const toDomain = (value) => {
+  if (!value) return ''
+  try {
+    const s = String(value).trim()
+    return s.replace(/^[a-z]+:\/\//i, '').split('/')[0].split('?')[0].split('#')[0].replace(/^www\./i, '').toLowerCase()
+  } catch { return String(value).trim() }
+}
 const REQUEST_TIMEOUT = 200000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 1600;
@@ -392,45 +400,45 @@ export const api = {
 
   // ── Growth AI: Rank Tracking ───────────────────────────────────────────
   addTrackedKeyword: (domain, keyword, device = 'desktop', location = 'us') =>
-    request('/rank-tracking/keywords', { method: 'POST', body: JSON.stringify({ domain, keyword, device, location }) }),
-  listTrackedKeywords: (domain) => request(`/rank-tracking/${encodeURIComponent(domain)}/keywords`),
-  keywordHistory: (domain, id) => request(`/rank-tracking/${encodeURIComponent(domain)}/keywords/${id}/history`),
+    request('/rank-tracking/keywords', { method: 'POST', body: JSON.stringify({ domain: toDomain(domain), keyword, device, location }) }),
+  listTrackedKeywords: (domain) => request(`/rank-tracking/${encodeURIComponent(toDomain(domain))}/keywords`),
+  keywordHistory: (domain, id) => request(`/rank-tracking/${encodeURIComponent(toDomain(domain))}/keywords/${id}/history`),
   deleteTrackedKeyword: (id) => request(`/rank-tracking/keywords/${id}`, { method: 'DELETE' }),
-  refreshRankTracking: (domain) => request(`/rank-tracking/${encodeURIComponent(domain)}/refresh`, { method: 'POST' }),
-  exportRankTrackingCsv: (domain) => `${API_BASE}/rank-tracking/${encodeURIComponent(domain)}/export/csv`,
+  refreshRankTracking: (domain) => request(`/rank-tracking/${encodeURIComponent(toDomain(domain))}/refresh`, { method: 'POST' }),
+  exportRankTrackingCsv: (domain) => `${API_BASE}/rank-tracking/${encodeURIComponent(toDomain(domain))}/export/csv`,
 
   // ── Growth AI: Domain Overview ─────────────────────────────────────────
-  getDomainOverview: (domain) => request(`/domain-overview/${encodeURIComponent(domain)}`),
+  getDomainOverview: (domain) => request(`/domain-overview/${encodeURIComponent(toDomain(domain))}`),
 
   // ── Growth AI: Keyword Gap ────────────────────────────────────────────
-  getKeywordGap: (domain, competitor) => request(`/keyword-gap/${encodeURIComponent(domain)}/${encodeURIComponent(competitor)}`),
+  getKeywordGap: (domain, competitor) => request(`/keyword-gap?domain=${encodeURIComponent(toDomain(domain))}&competitor=${encodeURIComponent(toDomain(competitor))}`),
 
   // ── Growth AI: AI Visibility Trend ────────────────────────────────────
-  getAiVisibilityTrend: (domain) => request(`/ai-visibility-trend/${encodeURIComponent(domain)}`),
+  getAiVisibilityTrend: (domain) => request(`/ai-visibility-trend/${encodeURIComponent(toDomain(domain))}`),
 
   // ── Growth AI: Backlink Explorer ──────────────────────────────────────
   getBacklinkExplorer: (domain, limit = 100, offset = 0) =>
-    request(`/backlinks/${encodeURIComponent(domain)}/explorer?limit=${limit}&offset=${offset}`),
+    request(`/backlinks/${encodeURIComponent(toDomain(domain))}/explorer?limit=${limit}&offset=${offset}`),
   getReferringDomains: (domain) =>
-    request(`/backlinks/${encodeURIComponent(domain)}/referring`),
+    request(`/backlinks/${encodeURIComponent(toDomain(domain))}/referring`),
   getToxicLinks: (domain, threshold = 0.7) =>
-    request(`/backlinks/${encodeURIComponent(domain)}/toxic?threshold=${threshold}`),
+    request(`/backlinks/${encodeURIComponent(toDomain(domain))}/toxic?threshold=${threshold}`),
   exportDisavow: (domain, threshold = 0.7) =>
-    `${API_BASE}/backlinks/${encodeURIComponent(domain)}/toxic/export?threshold=${threshold}`,
+    `${API_BASE}/backlinks/${encodeURIComponent(toDomain(domain))}/toxic/export?threshold=${threshold}`,
   refreshBacklinks: (domain) =>
-    request(`/backlinks/${encodeURIComponent(domain)}/refresh`, { method: 'POST' }),
+    request(`/backlinks/${encodeURIComponent(toDomain(domain))}/refresh`, { method: 'POST' }),
   getBacklinkGap: (domain, competitors) =>
-    request(`/backlink-gap/${encodeURIComponent(domain)}?competitors=${encodeURIComponent(competitors)}`),
+    request(`/backlink-gap/${encodeURIComponent(toDomain(domain))}?competitors=${encodeURIComponent(competitors)}`),
 
   // ── Growth Research (Ahrefs/Moz/Majestic-class capabilities) ──────────
   getKeywordDifficulty: (keyword) =>
     request(`/research/keyword-difficulty?keyword=${encodeURIComponent(keyword)}`),
   getTrafficEstimate: (domain, own = false, property_url = '') =>
-    request(`/research/traffic-estimate?domain=${encodeURIComponent(domain)}&own=${own}&property_url=${encodeURIComponent(property_url)}`),
+    request(`/research/traffic-estimate?domain=${encodeURIComponent(toDomain(domain))}&own=${own}&property_url=${encodeURIComponent(property_url)}`),
   getKeywordUniverse: (domain, seed, max_keywords = 20) =>
-    request(`/research/keyword-universe?domain=${encodeURIComponent(domain)}&seed=${encodeURIComponent(seed)}&max_keywords=${max_keywords}`),
+    request(`/research/keyword-universe?domain=${encodeURIComponent(toDomain(domain))}&seed=${encodeURIComponent(seed)}&max_keywords=${max_keywords}`),
   getTrustFlow: (domain) =>
-    request(`/research/trust-flow/${encodeURIComponent(domain)}`),
+    request(`/research/trust-flow/${encodeURIComponent(toDomain(domain))}`),
   getUrlInspection: (url, property_url = '') =>
     request(`/research/url-inspection?url=${encodeURIComponent(url)}&property_url=${encodeURIComponent(property_url)}`),
 };

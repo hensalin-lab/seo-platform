@@ -26,7 +26,8 @@ async def ai_visibility_trend(domain: str,
                               user: User = Depends(get_current_active_user),
                               db: AsyncSession = Depends(get_db)):
     """Return AI-search readiness snapshots over time for a domain."""
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
     snapshots = (await db.execute(
         select(AIVisibilitySnapshot)
         .where(AIVisibilitySnapshot.target_domain == d)

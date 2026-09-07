@@ -42,7 +42,8 @@ async def get_domain_overview(domain: str,
     with CTA fields indicating what hasn't been run yet. It does NOT trigger
     any crawl or analysis — it is purely read-side.
     """
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
 
     # ── Last audit score ──────────────────────────────────────────────────
     last_audit = (await db.execute(

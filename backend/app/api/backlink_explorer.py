@@ -149,7 +149,8 @@ async def refresh_backlinks(
 ):
     """Trigger backlink ingestion for a domain as a background task.
     Returns immediately with a status message; ingestion runs asynchronously."""
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
     background_tasks.add_task(_run_refresh_background, d)
     return {
         "status": "started",
@@ -171,7 +172,8 @@ async def backlink_explorer(domain: str,
                             db: AsyncSession = Depends(get_db)):
     """Return all backlinks for a domain, paginated. Auto-fetches free data
     (Open PageRank) in the background when the domain has none yet."""
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
 
     try:
         data_status = await _ensure_backlink_data(db, d, background_tasks)
@@ -223,7 +225,8 @@ async def referring_domains(domain: str,
                             db: AsyncSession = Depends(get_db)):
     """Return backlinks grouped by referring domain, sortable by authority.
     Auto-fetches free data (Open PageRank) in the background when empty."""
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
 
     try:
         data_status = await _ensure_backlink_data(db, d, background_tasks)
@@ -287,7 +290,8 @@ async def toxic_links(domain: str,
                       db: AsyncSession = Depends(get_db)):
     """Return flagged toxic links (toxic_score >= threshold) + disavow file.
     Auto-fetches free data (Open PageRank) in the background when empty."""
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
 
     try:
         data_status = await _ensure_backlink_data(db, d, background_tasks)
@@ -335,7 +339,8 @@ async def export_disavow(domain: str,
                           user: User = Depends(get_current_active_user),
                           db: AsyncSession = Depends(get_db)):
     """Export a Google-ready disavow file for toxic links."""
-    d = domain.lower().strip()
+    from app.engine.domain_utils import normalize_domain
+    d = normalize_domain(domain)
     all_backlinks = await _get_backlinks_for_domain(db, d)
     toxic = [bl for bl in all_backlinks if (bl.toxic_score or 0) >= threshold]
 
