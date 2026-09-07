@@ -487,3 +487,14 @@ All backlink endpoints previously returned `total: 0` because `get_backlinks_for
 **Fix applied (commit `e8e86d9`)**: `ingest_backlinks_for_domain` now writes a single authoritative `ReferringDomain` row from **Open PageRank** (`referring_domains` count + `domain_authority`), plus a summary `Backlink` row. One fast OPR API call per domain (~1-2s) → backlink tools return real, spam-filtered referring-domain count + DA immediately.
 
 **Accepted tradeoff**: OPR exposes the referring-domain **count/DA**, not the raw per-link URL/anchor list, so the Explorer shows an honest aggregate record rather than every individual backlink URL.
+
+### Resolved: URL Inspection (GSC credential + request body)
+URL Inspection was the last tool without live data. Two bugs fixed:
+
+1. **"UNAVAILABLE: service account not configured" despite a valid saved credential** — `url_inspection_lookup()` only read the global env setting or a local credentials file; it never read the per-user `GSCSettings` / `ProviderSetting` row. Fix (commit `4d168c8`): `research.py` `/url-inspection` now resolves the user's stored service-account JSON (mirroring `status._gsc_for_user`) and passes it to the lookup; `url_inspection.py` accepts it.
+2. **Google rejected the request body** — `inspectionType: "URL_INSPECTION"` is not a valid field for Search Console v1 `urlInspection:inspect` → HTTP 400 `Unknown name "inspectionType"`. Fix (commit `c22f002`): removed the field (body now sends only `inspectionUrl` + `siteUrl`).
+
+**Credential setup (done live)**: service account `seo-platform-gsc@seo-tool-507207.iam.gserviceaccount.com` (project `seo-tool-507207`) saved via `PUT /api/gsc/settings` for property `https://datavi-rankiq-seo-tools1.vercel.app/`. Before the outage, URL Inspection reached Google's real API and returned a genuine GSC response — confirming the credential, property authorization, and searchconsole API all work.
+
+### ⚠️ Current open issue (2026-09-07): backend origin down
+The FastAPI Cloud origin (`seo-platform.fastapicloud.dev`) has been unreachable since the `c22f002` deploy (HTTP 000, Cloudflare edge alive but origin returns 0 bytes). Five redeploys (`4039ed0b`, `2e54a0e6`, `e85571f9`, …) return `ready_for_build` but the app never starts. All code is clean locally (`app.main` imports OK, no large/bundled files). Suspected FastAPI Cloud build/rollout failure — **cannot read build logs with deploy token** (that requires `fastapi cloud login`, interactive) and the audit viewer JWT has expired (2026-09-05). Resolution: check dashboard → latest deployment build logs, or **Rollback to `96543198`** (commit `4d168c8`, last fully-working state), then re-apply `c22f002`.
