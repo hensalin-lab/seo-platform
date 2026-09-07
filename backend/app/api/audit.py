@@ -884,8 +884,15 @@ async def run_audit_task(audit_id: str):
                     raise
 
             drain_task = asyncio.create_task(_drain_progress())
+            crawl_deadline = settings.CRAWLER_CRAWL_TIMEOUT + 60
             try:
-                pages = await crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress)
+                pages = await asyncio.wait_for(
+                    crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress),
+                    timeout=crawl_deadline,
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Crawler stalled after {crawl_deadline}s; failing audit {audit_id}")
+                pages = []
             except Exception as e:
                 logger.error(f"Crawler failed: {e}")
                 pages = []
