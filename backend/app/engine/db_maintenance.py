@@ -108,6 +108,37 @@ async def _swap_compact(db_path: str, engine) -> str:
     return f"swapped {old_size} -> {new_size} bytes (freed {old_size - new_size})"
 
 
+async def recover_orphaned_audits(max_minutes: int = 45) -> list[str]:
+    """Marks audits stuck in a non-terminal state for longer than `max_minutes`
+    as FAILED. Covers the case where an audit task hangs inside a still-live
+    process (no boot ever runs, so the boot-time recovery never fires).
+    Returns the ids that were failed."""
+    from sqlalchemy import text
+    from app.database import engine
+
+    cutoff = _dt.datetime.utcnow() - _dt.timedelta(minutes=max_minutes)
+    ids: list[str] = []
+    try:
+        async with engine.connect() as conn:
+            res = await conn.execute(
+                text(
+                    "UPDATE audits SET status='FAILED', "
+                    "error_message='Audit timed out after running too long; please re-run', "
+                    "completed_at=:now "
+                    "WHERE status NOT IN ('COMPLETED','FAILED') AND created_at < :cutoff "
+                    "RETURNING id"
+                ),
+                {"now": _dt.datetime.utcnow(), "cutoff": cutoff},
+            )
+            ids = [row[0] for row in res.fetchall()]
+            await conn.commit()
+        if ids:
+            logger.warning(f"Orphan recovery: timed out {len(ids)} stale audits: {ids}")
+    except Exception as e:
+        logger.warning(f"Orphan recovery failed (non-fatal): {e}")
+    return ids
+
+
 async def run_startup_maintenance() -> dict:
     """Runs on every boot. Recovers audits killed by a restart and reclaims disk
     space that raw page HTML consumed. Uses a single connection so PRAGMA settings

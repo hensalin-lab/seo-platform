@@ -27,6 +27,11 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/backlinks", tags=["backlinks"])
 
+# In-memory throttle so an empty dataset doesn't trigger Open PageRank
+# ingestion on every request. Tracked as {domain: last_trigger_ts}.
+_AUTO_REFRESH_WINDOW = 15 * 60  # seconds
+_last_auto_refresh: dict[str, float] = {}
+
 
 def _domain_of_audit_url(url: str) -> str:
     """Extract domain from audit website_url for matching."""
@@ -79,6 +84,41 @@ async def _get_backlinks_for_domain(db: AsyncSession, domain: str) -> list:
     return []
 
 
+async def _domain_has_data(db: AsyncSession, domain: str) -> bool:
+    """True if the domain already has backlink rows from any source."""
+    if await _get_backlinks_for_domain(db, domain):
+        return True
+    result = await db.execute(
+        select(ReferringDomain).where(ReferringDomain.target_domain == domain).limit(1)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+def _should_auto_refresh(domain: str) -> bool:
+    """Throttle check: allow an auto-refresh once per window per domain."""
+    import time
+    now = time.time()
+    last = _last_auto_refresh.get(domain, 0.0)
+    if now - last < _AUTO_REFRESH_WINDOW:
+        return False
+    _last_auto_refresh[domain] = now
+    return True
+
+
+async def _ensure_backlink_data(db, domain: str, background_tasks: BackgroundTasks) -> str:
+    """Ensure a domain has backlink data, kicking off free ingestion in the
+    background when it doesn't (throttled). Returns:
+      "ready"     — data already present
+      "fetching"  — ingestion just scheduled
+      "pending"   — ingestion recently scheduled, still in progress window"""
+    if await _domain_has_data(db, domain):
+        return "ready"
+    if not _should_auto_refresh(domain):
+        return "pending"
+    background_tasks.add_task(_run_refresh_background, domain.lower().strip())
+    return "fetching"
+
+
 # ── Refresh backlinks (trigger ingestion) ────────────────────────────────────
 
 async def _run_refresh_background(domain: str):
@@ -121,10 +161,14 @@ async def refresh_backlinks(
 async def backlink_explorer(domain: str,
                             limit: int = 100,
                             offset: int = 0,
+                            background_tasks: BackgroundTasks = None,
                             user: User = Depends(get_current_active_user),
                             db: AsyncSession = Depends(get_db)):
-    """Return all backlinks for a domain, paginated."""
+    """Return all backlinks for a domain, paginated. Auto-fetches free data
+    (Open PageRank) in the background when the domain has none yet."""
     d = domain.lower().strip()
+
+    data_status = await _ensure_backlink_data(db, d, background_tasks)
 
     total = (await db.execute(
         select(func.count(Backlink.id)).where(
@@ -141,6 +185,7 @@ async def backlink_explorer(domain: str,
         "domain": d,
         "total": len(backlinks),
         "source": source_label,
+        "data_status": data_status,
         "note": "Backlink data sourced from Common Crawl's public web archive." if source_label == "common_crawl" else None,
         "backlinks": [
             {
@@ -164,10 +209,14 @@ async def backlink_explorer(domain: str,
 
 @router.get("/{domain}/referring")
 async def referring_domains(domain: str,
+                            background_tasks: BackgroundTasks = None,
                             user: User = Depends(get_current_active_user),
                             db: AsyncSession = Depends(get_db)):
-    """Return backlinks grouped by referring domain, sortable by authority."""
+    """Return backlinks grouped by referring domain, sortable by authority.
+    Auto-fetches free data (Open PageRank) in the background when empty."""
     d = domain.lower().strip()
+
+    data_status = await _ensure_backlink_data(db, d, background_tasks)
 
     # Prefer target_domain
     result = await db.execute(
@@ -194,6 +243,7 @@ async def referring_domains(domain: str,
         "domain": d,
         "total": len(domains),
         "source": source_label,
+        "data_status": data_status,
         "note": "Backlink data sourced from Common Crawl's public web archive." if source_label == "common_crawl" else None,
         "domains": [
             {
@@ -215,10 +265,15 @@ async def referring_domains(domain: str,
 @router.get("/{domain}/toxic")
 async def toxic_links(domain: str,
                       threshold: float = 0.7,
+                      background_tasks: BackgroundTasks = None,
                       user: User = Depends(get_current_active_user),
                       db: AsyncSession = Depends(get_db)):
-    """Return flagged toxic links (toxic_score >= threshold) + disavow file."""
+    """Return flagged toxic links (toxic_score >= threshold) + disavow file.
+    Auto-fetches free data (Open PageRank) in the background when empty."""
     d = domain.lower().strip()
+
+    data_status = await _ensure_backlink_data(db, d, background_tasks)
+
     all_backlinks = await _get_backlinks_for_domain(db, d)
 
     toxic = [
@@ -231,6 +286,7 @@ async def toxic_links(domain: str,
     return {
         "domain": d,
         "threshold": threshold,
+        "data_status": data_status,
         "total_backlinks": len(all_backlinks),
         "toxic_count": len(toxic),
         "toxic_links": [

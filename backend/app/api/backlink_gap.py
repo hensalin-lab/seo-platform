@@ -7,7 +7,7 @@ GET /api/backlink-gap/{domain}?competitors=domain1,domain2,domain3
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/backlink-gap", tags=["backlink-gap"])
 
 
+# Mirror of the explorer's throttle so gap doesn't hammer Open PageRank.
+_AUTO_REFRESH_WINDOW = 15 * 60  # seconds
+_last_auto_refresh: dict[str, float] = {}
+
+
+def _should_auto_refresh(domain: str) -> bool:
+    import time
+    now = time.time()
+    last = _last_auto_refresh.get(domain, 0.0)
+    if now - last < _AUTO_REFRESH_WINDOW:
+        return False
+    _last_auto_refresh[domain] = now
+    return True
+
+
 async def _get_referring_domains(db: AsyncSession, domain: str) -> set:
     """Return the set of referring domains for a target domain."""
     d = domain.lower().strip()
@@ -28,10 +43,38 @@ async def _get_referring_domains(db: AsyncSession, domain: str) -> set:
     return {row[0] for row in result.all()}
 
 
+async def _ingest_background(domain: str):
+    from app.database import async_session
+    from app.engine.backlink_ingestion import ingest_backlinks_for_domain
+    try:
+        async with async_session() as db:
+            await ingest_backlinks_for_domain(domain, db)
+    except Exception as e:
+        logger.error(f"Auto backlink ingestion failed for {domain}: {e}")
+
+
+async def _ensure_data(db: AsyncSession, domains: list[str], background_tasks: BackgroundTasks) -> dict:
+    """For each domain with no referring-domains rows, schedule free Open
+    PageRank ingestion in the background (throttled per domain). Returns a
+    map of which domains need to be re-checked after ingestion."""
+    needing = {}
+    for d in domains:
+        if not d:
+            continue
+        existing = await _get_referring_domains(db, d)
+        if existing:
+            continue
+        needing[d] = True
+        if _should_auto_refresh(d):
+            background_tasks.add_task(_ingest_background, d.lower().strip())
+    return needing
+
+
 @router.get("/{domain}")
 async def backlink_gap(
     domain: str,
     competitors: str = Query(..., description="Comma-separated competitor domains, up to 3"),
+    background_tasks: BackgroundTasks = None,
     user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -48,6 +91,9 @@ async def backlink_gap(
 
     if not d1:
         return {"note": "Missing target domain.", "combined": []}
+
+    # Auto-fetch free data (Open PageRank) for any domain with no rows yet.
+    needing = await _ensure_data(db, [d1] + comp_list, background_tasks)
 
     your_domains = await _get_referring_domains(db, d1)
 
@@ -91,6 +137,10 @@ async def backlink_gap(
     return {
         "domain": d1,
         "competitors": comp_list,
+        "data_status": {
+            "pending": sorted(needing.keys()),
+            "message": "Backlink data is being fetched for: " + ", ".join(sorted(needing.keys())) if needing else None,
+        },
         "your_referring_domains_count": len(your_domains),
         "competitors_referring_domains_count": {c: len(comp_domains[c]) for c in comp_list},
         "link_that_to_competitor": link_that_to_competitor,

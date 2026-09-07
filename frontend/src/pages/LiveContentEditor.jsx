@@ -5,7 +5,7 @@ import { Edit3, Target, BarChart2, AlertCircle, CheckCircle, XCircle, Loader2 } 
 function ScoreBar({ score, max = 100, color = '#6366F1' }) {
   const pct = Math.min(100, Math.max(0, (score / max) * 100))
   return (
-    <div style={{ background: '#1F2937', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+    <div style={{ background: '#E5E9F2', borderRadius: 4, height: 8, overflow: 'hidden' }}>
       <div style={{
         width: `${pct}%`, height: '100%', background: color, borderRadius: 4,
         transition: 'width 0.3s ease',
@@ -52,7 +52,7 @@ export default function LiveContentEditor() {
   const competitors = result?.competitors || []
 
   return (
-    <div style={{ padding: '24px 24px 40px', background: '#080B18', minHeight: '100vh', color: '#E5E7EB' }}>
+    <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <Edit3 size={24} style={{ color: '#6366F1' }} />
@@ -61,14 +61,14 @@ export default function LiveContentEditor() {
 
       {/* Keyword input */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 12, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 6 }}>Target Keyword</label>
+        <label style={{ fontSize: 12, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 6 }}>Target Keyword</label>
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="e.g. best project management tools"
           style={{
-            width: '100%', maxWidth: 500, padding: '9px 12px', background: '#111827',
-            border: '1px solid #374151', borderRadius: 8, color: '#F9FAFB', fontSize: 14,
+            width: '100%', maxWidth: 500, padding: '9px 12px', background: '#FFFFFF',
+            border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A', fontSize: 14,
             outline: 'none',
           }}
         />
@@ -78,21 +78,21 @@ export default function LiveContentEditor() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, minHeight: 400 }}>
         {/* Left: editor */}
         <div>
-          <label style={{ fontSize: 12, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 6 }}>Your Draft (HTML or plain text)</label>
+          <label style={{ fontSize: 12, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 6 }}>Your Draft (HTML or plain text)</label>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Paste or write your content here…"
+            placeholder="Paste or write your content hereâ€¦"
             style={{
-              width: '100%', minHeight: 400, padding: 14, background: '#111827',
-              border: '1px solid #1F2937', borderRadius: 8, color: '#F9FAFB',
+              width: '100%', minHeight: 400, padding: 14, background: '#FFFFFF',
+              border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A',
               fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none',
               lineHeight: 1.6, boxSizing: 'border-box',
             }}
           />
-          <div style={{ marginTop: 6, fontSize: 11, color: '#4B5563' }}>
+          <div style={{ marginTop: 6, fontSize: 11, color: '#8B93A7' }}>
             {content.trim().split(/\s+/).filter(Boolean).length} words
-            {loading && <span style={{ marginLeft: 8, color: '#6366F1' }}><Loader2 size={11} style={{ animation: 'spin 1s linear infinite', verticalAlign: 'middle' }} /> Scoring…</span>}
+            {loading && <span style={{ marginLeft: 8, color: '#6366F1' }}><Loader2 size={11} style={{ animation: 'spin 1s linear infinite', verticalAlign: 'middle' }} /> Scoringâ€¦</span>}
           </div>
         </div>
 
@@ -100,34 +100,34 @@ export default function LiveContentEditor() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Draft score */}
           <div style={{
-            background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: 16,
+            background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,
           }}>
-            <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Your Draft</div>
+            <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Your Draft</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 32, fontWeight: 700, color: draft?.score >= 60 ? '#22C55E' : draft?.score >= 40 ? '#F59E0B' : '#EF4444' }}>
-                {draft?.score ?? '—'}
+                {draft?.score ?? 'â€”'}
               </span>
-              <span style={{ fontSize: 13, color: '#6B7280' }}>/100</span>
+              <span style={{ fontSize: 13, color: '#475569' }}>/100</span>
             </div>
             <ScoreBar score={draft?.score || 0} color={draft?.score >= 60 ? '#22C55E' : draft?.score >= 40 ? '#F59E0B' : '#EF4444'} />
-            <div style={{ marginTop: 10, fontSize: 12, color: '#9CA3AF' }}>
-              {draft?.word_count?.toLocaleString() || 0} words · {draft?.heading_count || 0} headings · {draft?.entity_count || 0} entities
+            <div style={{ marginTop: 10, fontSize: 12, color: '#64748B' }}>
+              {draft?.word_count?.toLocaleString() || 0} words Â· {draft?.heading_count || 0} headings Â· {draft?.entity_count || 0} entities
             </div>
           </div>
 
           {/* Competitor average */}
           <div style={{
-            background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: 16,
+            background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,
           }}>
-            <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Competitor Average</div>
+            <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Competitor Average</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 32, fontWeight: 700, color: '#F59E0B' }}>
-                {avg?.score ?? '—'}
+                {avg?.score ?? 'â€”'}
               </span>
-              <span style={{ fontSize: 13, color: '#6B7280' }}>/100</span>
+              <span style={{ fontSize: 13, color: '#475569' }}>/100</span>
             </div>
             <ScoreBar score={avg?.score || 0} color="#F59E0B" />
-            <div style={{ marginTop: 10, fontSize: 12, color: '#9CA3AF' }}>
+            <div style={{ marginTop: 10, fontSize: 12, color: '#64748B' }}>
               {avg?.word_count?.toLocaleString() || 0} avg words
             </div>
           </div>
@@ -135,14 +135,14 @@ export default function LiveContentEditor() {
           {/* Gaps */}
           {gaps && (
             <div style={{
-              background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: 16,
+              background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,
             }}>
-              <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>Gaps vs Top 3</div>
+              <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>Gaps vs Top 3</div>
 
               {/* Word count gap */}
               <div style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: '#9CA3AF' }}>Word count gap</span>
+                  <span style={{ color: '#64748B' }}>Word count gap</span>
                   <span style={{ fontWeight: 600, color: (gaps.word_count_vs_competitors || 0) > 0 ? '#EF4444' : '#22C55E' }}>
                     {gaps.word_count_vs_competitors > 0 ? '+' : ''}{gaps.word_count_vs_competitors || 0}
                   </span>
@@ -152,7 +152,7 @@ export default function LiveContentEditor() {
               {/* Missing headings */}
               {gaps.missing_headings?.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>Missing Headings</div>
+                  <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, marginBottom: 4 }}>Missing Headings</div>
                   {gaps.missing_headings.slice(0, 5).map((h, i) => (
                     <div key={i} style={{ fontSize: 11, color: '#F59E0B', padding: '2px 0' }}>+ {h}</div>
                   ))}
@@ -162,7 +162,7 @@ export default function LiveContentEditor() {
               {/* Missing entities */}
               {gaps.missing_entities?.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>Missing Key Terms</div>
+                  <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, marginBottom: 4 }}>Missing Key Terms</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {gaps.missing_entities.slice(0, 10).map((e, i) => (
                       <span key={i} style={{
@@ -177,8 +177,8 @@ export default function LiveContentEditor() {
               )}
 
               {/* Score gap */}
-              <div style={{ marginTop: 10, padding: '8px 10px', background: '#1F2937', borderRadius: 6, fontSize: 12 }}>
-                <span style={{ color: '#6B7280' }}>Score gap: </span>
+              <div style={{ marginTop: 10, padding: '8px 10px', background: '#E5E9F2', borderRadius: 6, fontSize: 12 }}>
+                <span style={{ color: '#475569' }}>Score gap: </span>
                 <span style={{
                   fontWeight: 700,
                   color: (gaps.score_gap || 0) > 0 ? '#EF4444' : '#22C55E',
@@ -192,14 +192,14 @@ export default function LiveContentEditor() {
           {/* Competitor pages */}
           {competitors.length > 0 && (
             <div style={{
-              background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: 16,
+              background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,
             }}>
-              <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>Top 3 Pages</div>
+              <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>Top 3 Pages</div>
               {competitors.map((c, i) => (
-                <div key={i} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: i < competitors.length - 1 ? '1px solid #1F2937' : 'none' }}>
+                <div key={i} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: i < competitors.length - 1 ? '1px solid #DAE0EA' : 'none' }}>
                   <div style={{ fontSize: 11, color: '#6366F1', wordBreak: 'break-all', marginBottom: 2 }}>{c.url}</div>
-                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#9CA3AF' }}>
-                    <span style={{ fontWeight: 600, color: '#E5E7EB' }}>{c.score}/100</span>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#64748B' }}>
+                    <span style={{ fontWeight: 600, color: '#0F172A' }}>{c.score}/100</span>
                     <span>{c.word_count} words</span>
                     <span>{c.heading_count} headings</span>
                   </div>

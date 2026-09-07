@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CommandPalette from './CommandPalette';
 import {
-  Search, Plus, Moon, Sun, LogIn, LogOut, Menu, X,
+  Search, Plus, LogIn, LogOut, Menu, X,
   ChevronDown, ChevronRight, Wrench
 } from 'lucide-react';
 import { getPageTitleForPath, getIcon } from '../config/routes.config';
@@ -54,7 +54,6 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [activeContext, setActiveContext] = useState(() => resolveContext(location.pathname));
   const [groupCollapse, setGroupCollapse] = useState(() => loadCollapseState());
   const [search, setSearch] = useState('');
@@ -65,11 +64,11 @@ export default function Layout({ children }) {
   const searchRef = useRef(null);
   const panelRef = useRef(null);
 
-  // ── Theme ────────────────────────────────────────────────────────────
+  // ── Theme: light-only (dark theme removed) ───────────────────────────
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
+  }, []);
 
   // ── Cmd+K ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -236,13 +235,6 @@ export default function Layout({ children }) {
               <LogIn size={18} />
             </Link>
           )}
-          <button
-            className="sidebar-rail-btn"
-            onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
         </div>
       </div>
 

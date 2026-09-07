@@ -6,31 +6,31 @@ import { GitCompare, Search, ArrowRight, ArrowUp, ArrowDown, Minus, Info, Trendi
 const GAP_COLOR = (gap) => {
   if (gap > 0) return '#22C55E'  // you rank higher (lower number = better)
   if (gap < 0) return '#EF4444'
-  return '#6B7280'
+  return '#475569'
 }
 
 function GapRow({ keyword, yourPos, compPos, gap, device }) {
   return (
-    <tr style={{ borderBottom: '1px solid #1F2937' }}>
-      <td style={{ padding: '10px 14px', color: '#F9FAFB', fontWeight: 500 }}>{keyword}</td>
+    <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
+      <td style={{ padding: '10px 14px', color: '#0F172A', fontWeight: 500 }}>{keyword}</td>
       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
         <span style={{
           display: 'inline-block', minWidth: 28, textAlign: 'center',
           padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 13,
-          background: yourPos <= 10 ? '#22C55E15' : '#1F2937',
-          color: yourPos <= 10 ? '#22C55E' : '#E5E7EB',
+          background: yourPos <= 10 ? '#22C55E15' : '#E5E9F2',
+          color: yourPos <= 10 ? '#22C55E' : '#475569',
         }}>
-          {yourPos || '—'}
+          {yourPos || 'â€”'}
         </span>
       </td>
       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
         <span style={{
           display: 'inline-block', minWidth: 28, textAlign: 'center',
           padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 13,
-          background: compPos <= 10 ? '#F59E0B15' : '#1F2937',
-          color: compPos <= 10 ? '#F59E0B' : '#E5E7EB',
+          background: compPos <= 10 ? '#F59E0B15' : '#E5E9F2',
+          color: compPos <= 10 ? '#F59E0B' : '#475569',
         }}>
-          {compPos || '—'}
+          {compPos || 'â€”'}
         </span>
       </td>
       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -66,7 +66,7 @@ export default function KeywordGap() {
   const theirsOnly = data?.competitor_only || []
 
   return (
-    <div style={{ padding: '24px 24px 40px', background: '#080B18', minHeight: '100vh', color: '#E5E7EB' }}>
+    <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
@@ -74,7 +74,7 @@ export default function KeywordGap() {
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Keyword Gap Analysis</h1>
           <DataSourceBadge source={data?.source} />
         </div>
-        <p style={{ color: '#9CA3AF', margin: '0 0 20px', fontSize: 13 }}>
+        <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 13 }}>
           Compare tracked keywords between your domain and a competitor
         </p>
         <form onSubmit={handleAnalyze} style={{ display: 'flex', gap: 8, maxWidth: 600, margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -83,18 +83,18 @@ export default function KeywordGap() {
             onChange={(e) => setDomain(e.target.value)}
             placeholder="your-domain.com"
             style={{
-              width: 200, padding: '9px 12px', background: '#111827', border: '1px solid #374151',
-              borderRadius: 8, color: '#F9FAFB', fontSize: 13, outline: 'none',
+              width: 200, padding: '9px 12px', background: '#FFFFFF', border: '1px solid #DAE0EA',
+              borderRadius: 8, color: '#0F172A', fontSize: 13, outline: 'none',
             }}
           />
-          <span style={{ color: '#6B7280', alignSelf: 'center', fontSize: 13 }}>vs</span>
+          <span style={{ color: '#475569', alignSelf: 'center', fontSize: 13 }}>vs</span>
           <input
             value={competitor}
             onChange={(e) => setCompetitor(e.target.value)}
             placeholder="competitor.com"
             style={{
-              width: 200, padding: '9px 12px', background: '#111827', border: '1px solid #374151',
-              borderRadius: 8, color: '#F9FAFB', fontSize: 13, outline: 'none',
+              width: 200, padding: '9px 12px', background: '#FFFFFF', border: '1px solid #DAE0EA',
+              borderRadius: 8, color: '#0F172A', fontSize: 13, outline: 'none',
             }}
           />
           <button type="submit" style={{
@@ -108,12 +108,12 @@ export default function KeywordGap() {
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: 50, color: '#9CA3AF' }}>
+        <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>
           <div style={{
-            width: 32, height: 32, border: '3px solid #374151', borderTopColor: '#6366F1',
+            width: 32, height: 32, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
           }} />
-          Analyzing keyword gap…
+          Analyzing keyword gapâ€¦
         </div>
       )}
 
@@ -124,10 +124,10 @@ export default function KeywordGap() {
       )}
 
       {!loading && !data && !error && (
-        <div style={{ textAlign: 'center', padding: 50, color: '#4B5563' }}>
+        <div style={{ textAlign: 'center', padding: 50, color: '#8B93A7' }}>
           <GitCompare size={48} style={{ opacity: 0.2, marginBottom: 12 }} />
           <p>Enter two domains above to compare their tracked keywords</p>
-          <p style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: '#475569', marginTop: 8 }}>
             <Info size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
             Both domains need tracked keywords under Rank Tracking to compare
           </p>
@@ -145,9 +145,9 @@ export default function KeywordGap() {
               { label: 'Your Advantage', value: data.summary?.your_only_count || 0, color: '#8B5CF6' },
               { label: 'Competitor Advantage', value: data.summary?.competitor_only_count || 0, color: '#EF4444' },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
+              <div key={label} style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -165,8 +165,8 @@ export default function KeywordGap() {
                 style={{
                   padding: '7px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
                   fontSize: 12, fontWeight: 600,
-                  background: tab === key ? '#6366F1' : '#1F2937',
-                  color: tab === key ? '#fff' : '#9CA3AF',
+                  background: tab === key ? '#6366F1' : '#E5E9F2',
+                  color: tab === key ? '#fff' : '#64748B',
                 }}
               >
                 {label}
@@ -175,18 +175,18 @@ export default function KeywordGap() {
           </div>
 
           {/* Table */}
-          <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
             {tab === 'both' && (
               bothRank.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: '#6B7280' }}>
+                <div style={{ padding: 30, textAlign: 'center', color: '#475569' }}>
                   No keywords tracked by both domains yet
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1F2937' }}>
+                    <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
                       {['Keyword', `Your Position`, `Competitor Position`, 'Gap'].map(h => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -201,28 +201,28 @@ export default function KeywordGap() {
 
             {tab === 'yours' && (
               yoursOnly.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: '#6B7280' }}>
+                <div style={{ padding: 30, textAlign: 'center', color: '#475569' }}>
                   No keywords where you rank but competitor doesn't
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1F2937' }}>
+                    <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
                       {['Keyword', 'Your Position', 'Device'].map(h => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {yoursOnly.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1F2937' }}>
-                        <td style={{ padding: '10px 14px', color: '#F9FAFB', fontWeight: 500 }}>{r.keyword}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid #DAE0EA' }}>
+                        <td style={{ padding: '10px 14px', color: '#0F172A', fontWeight: 500 }}>{r.keyword}</td>
                         <td style={{ padding: '10px 14px' }}>
                           <span style={{ display: 'inline-block', minWidth: 28, textAlign: 'center', padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 13, background: '#22C55E15', color: '#22C55E' }}>
                             {r.position}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#6B7280', fontSize: 12 }}>{r.device || 'desktop'}</td>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>{r.device || 'desktop'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -232,28 +232,28 @@ export default function KeywordGap() {
 
             {tab === 'theirs' && (
               theirsOnly.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: '#6B7280' }}>
+                <div style={{ padding: 30, textAlign: 'center', color: '#475569' }}>
                   No keywords where competitor ranks but you don't
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1F2937' }}>
+                    <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
                       {['Keyword', 'Competitor Position', 'Device'].map(h => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {theirsOnly.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1F2937' }}>
-                        <td style={{ padding: '10px 14px', color: '#F9FAFB', fontWeight: 500 }}>{r.keyword}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid #DAE0EA' }}>
+                        <td style={{ padding: '10px 14px', color: '#0F172A', fontWeight: 500 }}>{r.keyword}</td>
                         <td style={{ padding: '10px 14px' }}>
                           <span style={{ display: 'inline-block', minWidth: 28, textAlign: 'center', padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 13, background: '#F59E0B15', color: '#F59E0B' }}>
                             {r.position}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#6B7280', fontSize: 12 }}>{r.device || 'desktop'}</td>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>{r.device || 'desktop'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -264,8 +264,8 @@ export default function KeywordGap() {
 
           {data.note && (
             <div style={{
-              marginTop: 14, padding: '10px 14px', background: '#1E293B', border: '1px solid #334155',
-              borderRadius: 6, fontSize: 12, color: '#94A3B8', display: 'flex', gap: 8,
+              marginTop: 14, padding: '10px 14px', background: '#F1F4F9', border: '1px solid #334155',
+              borderRadius: 6, fontSize: 12, color: '#64748B', display: 'flex', gap: 8,
             }}>
               <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               {data.note}

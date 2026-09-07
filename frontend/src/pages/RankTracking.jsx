@@ -5,19 +5,19 @@ import { TrendingUp, Plus, Trash2, RefreshCw, Download, Monitor, Smartphone, Arr
 
 const DEVICE_ICONS = { desktop: Monitor, mobile: Smartphone }
 const POSITION_COLOR = (pos) => {
-  if (!pos) return '#6B7280'
+  if (!pos) return '#475569'
   if (pos <= 3) return '#22C55E'
   if (pos <= 10) return '#F59E0B'
   if (pos <= 20) return '#F97316'
   return '#EF4444'
 }
 const DELTA_COLOR = (delta) => {
-  if (delta === '—' || delta === '=') return '#6B7280'
+  if (delta === 'â€”' || delta === '=') return '#475569'
   if (delta.startsWith('+')) return '#EF4444'
   return '#22C55E'
 }
 const DELTA_ICON = (delta) => {
-  if (delta === '—' || delta === '=') return <Minus size={13} />
+  if (delta === 'â€”' || delta === '=') return <Minus size={13} />
   return delta.startsWith('+') ? <ArrowUp size={13} /> : <ArrowDown size={13} />
 }
 
@@ -87,10 +87,10 @@ export default function RankTracking() {
 
   const avgPos = keywords.length
     ? (keywords.reduce((s, k) => s + (k.position || 0), 0) / keywords.length).toFixed(1)
-    : '—'
+    : 'â€”'
 
   return (
-    <div style={{ padding: '24px 24px 40px', background: '#080B18', minHeight: '100vh', color: '#E5E7EB' }}>
+    <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
       {/* Domain Input Hero */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
@@ -98,17 +98,17 @@ export default function RankTracking() {
           <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Rank Tracking</h1>
           <DataSourceBadge source={data?.source} />
         </div>
-        <p style={{ color: '#9CA3AF', margin: '0 0 20px', fontSize: 14 }}>Track keyword positions over time for any domain</p>
+        <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 14 }}>Track keyword positions over time for any domain</p>
         <form onSubmit={handleSubmitDomain} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto' }}>
           <div style={{ flex: 1, position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
             <input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               placeholder="example.com"
               style={{
-                width: '100%', padding: '10px 12px 10px 36px', background: '#111827', border: '1px solid #374151',
-                borderRadius: 8, color: '#F9FAFB', fontSize: 14, boxSizing: 'border-box', outline: 'none',
+                width: '100%', padding: '10px 12px 10px 36px', background: '#FFFFFF', border: '1px solid #DAE0EA',
+                borderRadius: 8, color: '#0F172A', fontSize: 14, boxSizing: 'border-box', outline: 'none',
               }}
             />
           </div>
@@ -125,19 +125,19 @@ export default function RankTracking() {
       </div>
 
       {!loadedDomain && !loading && (
-        <div style={{ textAlign: 'center', color: '#6B7280', padding: 60 }}>
+        <div style={{ textAlign: 'center', color: '#475569', padding: 60 }}>
           <BarChart2 size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
           <p>Enter a domain above to start tracking keyword positions</p>
         </div>
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: 60, color: '#9CA3AF' }}>
+        <div style={{ textAlign: 'center', padding: 60, color: '#64748B' }}>
           <div style={{
-            width: 32, height: 32, border: '3px solid #374151', borderTopColor: '#6366F1',
+            width: 32, height: 32, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
           }} />
-          Loading keywords…
+          Loading keywordsâ€¦
         </div>
       )}
 
@@ -152,11 +152,11 @@ export default function RankTracking() {
               { label: 'Top 10', value: keywords.filter(k => k.position && k.position <= 10).length },
             ].map(({ label, value }) => (
               <div key={label} style={{
-                background: '#111827', border: '1px solid #1F2937', borderRadius: 8,
+                background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8,
                 padding: '12px 14px', textAlign: 'center',
               }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#F9FAFB' }}>{value}</div>
-                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#0F172A' }}>{value}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -178,8 +178,8 @@ export default function RankTracking() {
               disabled={refreshing}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-                background: '#1F2937', border: '1px solid #374151', borderRadius: 6,
-                color: '#E5E7EB', fontSize: 13, cursor: refreshing ? 'wait' : 'pointer',
+                background: '#E5E9F2', border: '1px solid #DAE0EA', borderRadius: 6,
+                color: '#0F172A', fontSize: 13, cursor: refreshing ? 'wait' : 'pointer',
               }}
             >
               <RefreshCw size={14} className={refreshing ? 'spin' : ''} /> Refresh all
@@ -190,8 +190,8 @@ export default function RankTracking() {
               rel="noopener noreferrer"
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-                background: '#1F2937', border: '1px solid #374151', borderRadius: 6,
-                color: '#E5E7EB', fontSize: 13, textDecoration: 'none',
+                background: '#E5E9F2', border: '1px solid #DAE0EA', borderRadius: 6,
+                color: '#0F172A', fontSize: 13, textDecoration: 'none',
               }}
             >
               <Download size={14} /> Export CSV
@@ -201,19 +201,19 @@ export default function RankTracking() {
           {/* Add keyword form */}
           {addOpen && (
             <div style={{
-              background: '#111827', border: '1px solid #374151', borderRadius: 8,
+              background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8,
               padding: 16, marginBottom: 16, maxWidth: 500,
             }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 <input
                   value={newKw}
                   onChange={(e) => setNewKw(e.target.value)}
-                  placeholder="Enter keyword…"
+                  placeholder="Enter keywordâ€¦"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                   style={{
-                    flex: 1, padding: '8px 10px', background: '#1F2937', border: '1px solid #374151',
-                    borderRadius: 6, color: '#F9FAFB', fontSize: 13, outline: 'none',
+                    flex: 1, padding: '8px 10px', background: '#E5E9F2', border: '1px solid #DAE0EA',
+                    borderRadius: 6, color: '#0F172A', fontSize: 13, outline: 'none',
                   }}
                 />
               </div>
@@ -222,8 +222,8 @@ export default function RankTracking() {
                   value={newDevice}
                   onChange={(e) => setNewDevice(e.target.value)}
                   style={{
-                    padding: '6px 10px', background: '#1F2937', border: '1px solid #374151',
-                    borderRadius: 6, color: '#E5E7EB', fontSize: 12,
+                    padding: '6px 10px', background: '#E5E9F2', border: '1px solid #DAE0EA',
+                    borderRadius: 6, color: '#0F172A', fontSize: 12,
                   }}
                 >
                   <option value="desktop">Desktop</option>
@@ -233,8 +233,8 @@ export default function RankTracking() {
                   value={newLocation}
                   onChange={(e) => setNewLocation(e.target.value)}
                   style={{
-                    padding: '6px 10px', background: '#1F2937', border: '1px solid #374151',
-                    borderRadius: 6, color: '#E5E7EB', fontSize: 12,
+                    padding: '6px 10px', background: '#E5E9F2', border: '1px solid #DAE0EA',
+                    borderRadius: 6, color: '#0F172A', fontSize: 12,
                   }}
                 >
                   <option value="us">United States</option>
@@ -251,13 +251,13 @@ export default function RankTracking() {
                     opacity: adding || !newKw.trim() ? 0.5 : 1,
                   }}
                 >
-                  {adding ? 'Adding…' : 'Add'}
+                  {adding ? 'Addingâ€¦' : 'Add'}
                 </button>
                 <button
                   onClick={() => { setAddOpen(false); setNewKw('') }}
                   style={{
-                    padding: '8px 12px', background: 'transparent', border: '1px solid #374151',
-                    borderRadius: 6, color: '#9CA3AF', fontSize: 13, cursor: 'pointer',
+                    padding: '8px 12px', background: 'transparent', border: '1px solid #DAE0EA',
+                    borderRadius: 6, color: '#64748B', fontSize: 13, cursor: 'pointer',
                   }}
                 >
                   Cancel
@@ -269,20 +269,20 @@ export default function RankTracking() {
 
           {/* Keywords table */}
           {keywords.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#6B7280' }}>
+            <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
               <p>No keywords tracked yet. Click <strong>"Add keyword"</strong> to start.</p>
             </div>
           ) : (
             <div style={{
-              background: '#111827', border: '1px solid #1F2937', borderRadius: 8,
+              background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8,
               overflow: 'hidden',
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1F2937' }}>
-                    {['Keyword', 'Device', 'Position', 'Δ', 'SERP Features', 'Last Checked', ''].map(h => (
+                  <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
+                    {['Keyword', 'Device', 'Position', 'Î”', 'SERP Features', 'Last Checked', ''].map(h => (
                       <th key={h} style={{
-                        padding: '10px 14px', textAlign: 'left', color: '#6B7280',
+                        padding: '10px 14px', textAlign: 'left', color: '#475569',
                         fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
                       }}>{h}</th>
                     ))}
@@ -292,21 +292,21 @@ export default function RankTracking() {
                   {keywords.map((kw) => {
                     const DevIcon = DEVICE_ICONS[kw.device] || Monitor
                     return (
-                      <tr key={kw.id} style={{ borderBottom: '1px solid #1F2937' }}>
-                        <td style={{ padding: '10px 14px', color: '#F9FAFB', fontWeight: 500 }}>
+                      <tr key={kw.id} style={{ borderBottom: '1px solid #DAE0EA' }}>
+                        <td style={{ padding: '10px 14px', color: '#0F172A', fontWeight: 500 }}>
                           {kw.keyword}
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#9CA3AF' }}>
+                        <td style={{ padding: '10px 14px', color: '#64748B' }}>
                           <DevIcon size={14} />
                         </td>
                         <td style={{ padding: '10px 14px' }}>
                           <span style={{
                             display: 'inline-block', minWidth: 28, textAlign: 'center',
                             padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 14,
-                            background: kw.position ? `${POSITION_COLOR(kw.position)}15` : '#1F2937',
+                            background: kw.position ? `${POSITION_COLOR(kw.position)}15` : '#E5E9F2',
                             color: POSITION_COLOR(kw.position),
                           }}>
-                            {kw.position || '—'}
+                            {kw.position || 'â€”'}
                           </span>
                         </td>
                         <td style={{ padding: '10px 14px', color: DELTA_COLOR(kw.delta), fontWeight: 600, fontSize: 12 }}>
@@ -316,7 +316,7 @@ export default function RankTracking() {
                         </td>
                         <td style={{ padding: '10px 14px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                           {kw.serp_features?.featured_snippet && (
-                            <span style={{ padding: '1px 6px', background: '#6366F110', color: '#818CF8', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>Featured</span>
+                            <span style={{ padding: '1px 6px', background: '#6366F110', color: '#6366F1', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>Featured</span>
                           )}
                           {kw.serp_features?.people_also_ask && (
                             <span style={{ padding: '1px 6px', background: '#F59E0B10', color: '#FBBF24', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>PAA</span>
@@ -325,10 +325,10 @@ export default function RankTracking() {
                             <span style={{ padding: '1px 6px', background: '#22C55E10', color: '#4ADE80', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>AI Overview</span>
                           )}
                           {!kw.serp_features?.featured_snippet && !kw.serp_features?.people_also_ask && !kw.serp_features?.ai_overview && (
-                            <span style={{ color: '#4B5563', fontSize: 11 }}>—</span>
+                            <span style={{ color: '#8B93A7', fontSize: 11 }}>â€”</span>
                           )}
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#6B7280', fontSize: 12 }}>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
                           {kw.checked_at ? new Date(kw.checked_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never'}
                         </td>
                         <td style={{ padding: '10px 14px', display: 'flex', gap: 4 }}>
@@ -358,7 +358,7 @@ export default function RankTracking() {
           {/* History panel */}
           {historyKw && (
             <div style={{
-              marginTop: 20, background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: 16,
+              marginTop: 20, background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
@@ -366,15 +366,15 @@ export default function RankTracking() {
                 </h3>
                 <button
                   onClick={() => { setHistoryKw(null); setHistory([]) }}
-                  style={{ background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: 13 }}
+                  style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 13 }}
                 >
-                  ✕ Close
+                  âœ• Close
                 </button>
               </div>
               {historyLoading ? (
-                <div style={{ color: '#6B7280', padding: 20, textAlign: 'center' }}>Loading…</div>
+                <div style={{ color: '#475569', padding: 20, textAlign: 'center' }}>Loadingâ€¦</div>
               ) : history.length === 0 ? (
-                <div style={{ color: '#6B7280', padding: 20, textAlign: 'center' }}>No history yet</div>
+                <div style={{ color: '#475569', padding: 20, textAlign: 'center' }}>No history yet</div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, padding: '12px 0' }}>
                   {history.slice().reverse().map((snap, i) => {
@@ -387,9 +387,9 @@ export default function RankTracking() {
                             height: barH, background: POSITION_COLOR(pos), borderRadius: '3px 3px 0 0',
                             minWidth: 8, maxWidth: 28, margin: '0 auto', opacity: 0.8,
                           }}
-                          title={`${pos} — ${snap.checked_at ? new Date(snap.checked_at).toLocaleDateString() : ''}`}
+                          title={`${pos} â€” ${snap.checked_at ? new Date(snap.checked_at).toLocaleDateString() : ''}`}
                         />
-                        <div style={{ fontSize: 10, color: '#6B7280', marginTop: 4 }}>{pos}</div>
+                        <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>{pos}</div>
                       </div>
                     )
                   })}

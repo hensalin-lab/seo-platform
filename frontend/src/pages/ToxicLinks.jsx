@@ -27,22 +27,22 @@ export default function ToxicLinks() {
   }
 
   return (
-    <div style={{ padding: '24px 24px 40px', background: '#080B18', minHeight: '100vh', color: '#E5E7EB' }}>
+    <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <ShieldAlert size={26} style={{ color: '#EF4444' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Toxic Links</h1>
           <DataSourceBadge source={data?.source} />
         </div>
-        <p style={{ color: '#9CA3AF', margin: '0 0 18px', fontSize: 13 }}>Identify harmful backlinks and export a Google disavow file</p>
+        <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>Identify harmful backlinks and export a Google disavow file</p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>
           <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
             <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="example.com"
-              style={{ width: '100%', padding: '9px 12px 9px 34px', background: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#F9FAFB', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+              style={{ width: '100%', padding: '9px 12px 9px 34px', background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
           </div>
           <select value={threshold} onChange={(e) => setThreshold(parseFloat(e.target.value))}
-            style={{ padding: '9px 10px', background: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 12 }}>
+            style={{ padding: '9px 10px', background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A', fontSize: 12 }}>
             <option value={0.5}>Threshold: 0.5+</option>
             <option value={0.7}>Threshold: 0.7+</option>
             <option value={0.9}>Threshold: 0.9+</option>
@@ -51,7 +51,7 @@ export default function ToxicLinks() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>Scanning for toxic links…</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Scanning for toxic linksâ€¦</div>}
       {error && <div style={{ textAlign: 'center', padding: 14, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, color: '#DC2626', maxWidth: 500, margin: '0 auto', fontSize: 12 }}>{error}</div>}
 
       {!loading && data && (
@@ -63,9 +63,9 @@ export default function ToxicLinks() {
               { label: 'Toxic Links', value: data.toxic_count, color: '#EF4444' },
               { label: 'Toxic %', value: data.total_backlinks ? `${((data.toxic_count / data.total_backlinks) * 100).toFixed(1)}%` : '0%', color: '#F59E0B' },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
+              <div key={label} style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -85,32 +85,32 @@ export default function ToxicLinks() {
 
           {/* Toxic links table */}
           {data.toxic_links?.length > 0 ? (
-            <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1F2937' }}>
+                  <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
                     {['Source Domain', 'Source URL', 'Anchor', 'DA', 'Toxic Score'].map(h => (
-                      <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#6B7280', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
+                      <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#475569', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {data.toxic_links.map((bl, i) => (
-                    <tr key={bl.id || i} style={{ borderBottom: '1px solid #1F2937', background: i % 2 === 0 ? 'transparent' : '#0D1117' }}>
+                    <tr key={bl.id || i} style={{ borderBottom: '1px solid #DAE0EA', background: i % 2 === 0 ? 'transparent' : '#EEF1F6' }}>
                       <td style={{ padding: '8px 12px', color: '#EF4444', fontWeight: 500, fontSize: 12 }}>{bl.source_domain}</td>
                       <td style={{ padding: '8px 12px', maxWidth: 200 }}>
                         <a href={bl.source_url} target="_blank" rel="noopener noreferrer" style={{ color: '#6366F1', textDecoration: 'none', wordBreak: 'break-all', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}>
-                          {bl.source_url?.slice(0, 35)}… <ExternalLink size={10} />
+                          {bl.source_url?.slice(0, 35)}â€¦ <ExternalLink size={10} />
                         </a>
                       </td>
-                      <td style={{ padding: '8px 12px', color: '#D1D5DB', fontSize: 11, wordBreak: 'break-all' }}>{bl.anchor_text || '—'}</td>
-                      <td style={{ padding: '8px 12px', color: '#9CA3AF' }}>{bl.domain_authority || '—'}</td>
+                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11, wordBreak: 'break-all' }}>{bl.anchor_text || 'â€”'}</td>
+                      <td style={{ padding: '8px 12px', color: '#64748B' }}>{bl.domain_authority || 'â€”'}</td>
                       <td style={{ padding: '8px 12px' }}>
                         <span style={{
                           display: 'inline-block', minWidth: 36, textAlign: 'center', padding: '2px 8px',
                           borderRadius: 4, fontWeight: 700, fontSize: 12,
                           background: bl.toxic_score >= 0.9 ? '#EF444420' : bl.toxic_score >= 0.7 ? '#F59E0B20' : '#6B728020',
-                          color: bl.toxic_score >= 0.9 ? '#EF4444' : bl.toxic_score >= 0.7 ? '#F59E0B' : '#9CA3AF',
+                          color: bl.toxic_score >= 0.9 ? '#EF4444' : bl.toxic_score >= 0.7 ? '#F59E0B' : '#64748B',
                         }}>
                           {bl.toxic_score?.toFixed(2)}
                         </span>
@@ -121,16 +121,16 @@ export default function ToxicLinks() {
               </table>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: 40, color: '#6B7280' }}>
+            <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
               {data.note || 'No toxic links found at this threshold'}
             </div>
           )}
 
           {/* Disavow preview */}
           {data.disavow_lines?.length > 0 && (
-            <div style={{ marginTop: 20, background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: 16 }}>
-              <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: '#E5E7EB' }}>Disavow File Preview</h3>
-              <pre style={{ background: '#0D1117', padding: 12, borderRadius: 6, fontSize: 11, color: '#9CA3AF', overflow: 'auto', maxHeight: 200, margin: 0 }}>
+            <div style={{ marginTop: 20, background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16 }}>
+              <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: '#0F172A' }}>Disavow File Preview</h3>
+              <pre style={{ background: '#EEF1F6', padding: 12, borderRadius: 6, fontSize: 11, color: '#64748B', overflow: 'auto', maxHeight: 200, margin: 0 }}>
                 {`# Disavow file for ${domain}\n# Toxic threshold: ${threshold}\n# Total: ${data.disavow_lines.length} domains\n\n`}{data.disavow_lines.join('\n')}
               </pre>
             </div>
@@ -139,7 +139,7 @@ export default function ToxicLinks() {
       )}
 
       {!loading && !data && (
-        <div style={{ textAlign: 'center', padding: 50, color: '#4B5563' }}>
+        <div style={{ textAlign: 'center', padding: 50, color: '#8B93A7' }}>
           <ShieldAlert size={48} style={{ opacity: 0.2, marginBottom: 12 }} />
           <p>Enter a domain above to scan for toxic backlinks</p>
         </div>

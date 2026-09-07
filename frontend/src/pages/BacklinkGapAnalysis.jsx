@@ -49,14 +49,14 @@ export default function BacklinkGapAnalysis() {
         : data?.overlap?.map(d => ({ ...d, type: 'overlap' })) || []
 
   return (
-    <div style={{ padding: '24px 24px 40px', background: '#080B18', minHeight: '100vh', color: '#E5E7EB' }}>
+    <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <Network size={26} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Backlink Gap Analysis</h1>
           <DataSourceBadge source={data?.source} />
         </div>
-        <p style={{ color: '#9CA3AF', margin: '0 0 20px', fontSize: 13 }}>
+        <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 13 }}>
           Find referring domains that link to your competitors but not to you
         </p>
         <form onSubmit={handleAnalyze} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 520, margin: '0 auto' }}>
@@ -65,8 +65,8 @@ export default function BacklinkGapAnalysis() {
             onChange={(e) => setDomain(e.target.value)}
             placeholder="your-domain.com"
             style={{
-              padding: '9px 12px', background: '#111827', border: '1px solid #374151',
-              borderRadius: 8, color: '#F9FAFB', fontSize: 13, outline: 'none',
+              padding: '9px 12px', background: '#FFFFFF', border: '1px solid #DAE0EA',
+              borderRadius: 8, color: '#0F172A', fontSize: 13, outline: 'none',
             }}
           />
           {competitors.map((c, i) => (
@@ -76,8 +76,8 @@ export default function BacklinkGapAnalysis() {
               onChange={(e) => updateCompetitor(i, e.target.value)}
               placeholder={`competitor${i + 1}.com${i === 0 ? ' (required)' : ' (optional)'}`}
               style={{
-                padding: '9px 12px', background: '#111827', border: '1px solid #374151',
-                borderRadius: 8, color: '#F9FAFB', fontSize: 13, outline: 'none',
+                padding: '9px 12px', background: '#FFFFFF', border: '1px solid #DAE0EA',
+                borderRadius: 8, color: '#0F172A', fontSize: 13, outline: 'none',
               }}
             />
           ))}
@@ -92,12 +92,12 @@ export default function BacklinkGapAnalysis() {
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: 50, color: '#9CA3AF' }}>
+        <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>
           <div style={{
-            width: 32, height: 32, border: '3px solid #374151', borderTopColor: '#6366F1',
+            width: 32, height: 32, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
           }} />
-          Analyzing backlink gap…
+          Analyzing backlink gapâ€¦
         </div>
       )}
 
@@ -108,10 +108,10 @@ export default function BacklinkGapAnalysis() {
       )}
 
       {!loading && !data && !error && (
-        <div style={{ textAlign: 'center', padding: 50, color: '#4B5563' }}>
+        <div style={{ textAlign: 'center', padding: 50, color: '#8B93A7' }}>
           <Network size={48} style={{ opacity: 0.2, marginBottom: 12 }} />
           <p>Enter your domain and up to 3 competitors to find link gaps</p>
-          <p style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: '#475569', marginTop: 8 }}>
             <Info size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
             Backlink data sourced from Common Crawl's public web archive, refreshed monthly.
           </p>
@@ -127,9 +127,9 @@ export default function BacklinkGapAnalysis() {
               { label: 'Unique To You', value: uniqueYou, color: '#22C55E' },
               { label: 'Overlap (Both)', value: overlap, color: '#F59E0B' },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
+              <div key={label} style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -147,8 +147,8 @@ export default function BacklinkGapAnalysis() {
                 style={{
                   padding: '7px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
                   fontSize: 12, fontWeight: 600,
-                  background: tab === key ? '#6366F1' : '#1F2937',
-                  color: tab === key ? '#fff' : '#9CA3AF',
+                  background: tab === key ? '#6366F1' : '#E5E9F2',
+                  color: tab === key ? '#fff' : '#64748B',
                 }}
               >
                 {label}
@@ -156,32 +156,32 @@ export default function BacklinkGapAnalysis() {
             ))}
           </div>
 
-          <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
             {rows.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: '#6B7280' }}>
+              <div style={{ padding: 30, textAlign: 'center', color: '#475569' }}>
                 No referring domain gaps found. Try refreshing backlinks for this domain first.
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1F2937' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Referring Domain</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Type</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Links To</th>
+                  <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Referring Domain</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Type</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Links To</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.slice(0, 200).map((r, i) => {
                     const t = TYPE_LABEL[r.type] || TYPE_LABEL.overlap
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid #1F2937' }}>
-                        <td style={{ padding: '10px 14px', color: '#F9FAFB', fontWeight: 500 }}>{r.domain}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid #DAE0EA' }}>
+                        <td style={{ padding: '10px 14px', color: '#0F172A', fontWeight: 500 }}>{r.domain}</td>
                         <td style={{ padding: '10px 14px' }}>
                           <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: `${t.color}15`, color: t.color }}>
                             {t.label}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#6B7280', fontSize: 12 }}>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
                           {r.competitors?.length ? r.competitors.join(', ') : 'You only'}
                         </td>
                       </tr>
@@ -193,7 +193,7 @@ export default function BacklinkGapAnalysis() {
           </div>
 
           {data.summary && (
-            <div style={{ marginTop: 14, padding: '10px 14px', background: '#1E293B', border: '1px solid #334155', borderRadius: 6, fontSize: 12, color: '#94A3B8', display: 'flex', gap: 8 }}>
+            <div style={{ marginTop: 14, padding: '10px 14px', background: '#F1F4F9', border: '1px solid #334155', borderRadius: 6, fontSize: 12, color: '#64748B', display: 'flex', gap: 8 }}>
               <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               Backlink data sourced from Common Crawl's public web archive, refreshed monthly. Gap analysis is based on the most recent backlink refresh.
             </div>

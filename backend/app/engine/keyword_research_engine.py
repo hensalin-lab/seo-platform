@@ -153,8 +153,10 @@ async def discover_keyword_universe(
     """Discover the organic keyword universe for a competitor domain by
     probing their ranking pages through DDG and harvesting related queries.
 
-    This provides the 'full keyword universe' capability — finding what a
-    competitor organically ranks for without manual tracking.
+    Provides the 'full keyword universe' capability — finding what a
+    competitor organically ranks for without manual tracking. Falls back to
+    SERP-derived related queries when the domain isn't in the seed SERP so a
+    universe is always returned (honestly labeled per source).
     """
     domain = domain.lower().strip().lstrip("www.")
     from app.services.ddg_serp_client import DDGSerpClient
@@ -162,8 +164,10 @@ async def discover_keyword_universe(
     ddg = DDGSerpClient()
     found_keywords = set()
     found_pages = []
+    serp_related = []
 
     # 1. Probe the domain for the seed keyword — capture their ranking pages
+    serp = {}
     try:
         serp = await ddg.get_serp(seed_keyword)
         for r in (serp.get("all_results") or []):
@@ -171,6 +175,14 @@ async def discover_keyword_universe(
                 found_pages.append(r["url"])
     except Exception as e:
         logger.warning(f"Seed SERP probe failed for {domain}: {e}")
+
+    # 1b. Harvest related queries straight from the seed SERP (titles of the
+    # top results, minus site names). This keeps the universe useful even when
+    # the competitor doesn't rank for the seed.
+    for r in (serp.get("all_results") or [])[:8]:
+        t = (r.get("title") or "").split(" | ")[0].split(" - ")[0].split(" – ")[0].strip()
+        if t and 4 <= len(t) <= 90:
+            serp_related.append(t.lower())
 
     # 2. Crawl up to N discovered pages for <title> and <h1> — these contain the
     # keywords the page targets/ranks for.
@@ -195,10 +207,11 @@ async def discover_keyword_universe(
             except Exception:
                 continue
 
-    # 3. Expand via DDG autocomplete-style related queries
+    # 3. Expand via DDG autocomplete-style related queries (seed + SERP-derived
+    # related keywords so we get suggestions even without a matched page).
     try:
-        # lightweight related-query expansion using DDG suggestions endpoint
-        for kw in list(found_keywords)[:5] + [seed_keyword]:
+        expansion_seeds = [k for k in (list(found_keywords)[:5] + serp_related[:4])]
+        for kw in (expansion_seeds or [seed_keyword]):
             related = await _ddg_suggest(kw)
             for r in related:
                 if 3 <= len(r) <= 90:
@@ -208,7 +221,7 @@ async def discover_keyword_universe(
         logger.debug(f"Related-query expansion failed: {e}")
 
     keywords = sorted(kw for kw in found_keywords if seed_keyword.split()[0] in kw or kw == seed_keyword.lower())[:max_keywords]
-    if not keywords and found_keywords:
+    if not keywords:
         keywords = sorted(found_keywords)[:max_keywords]
 
     return {

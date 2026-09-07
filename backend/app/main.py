@@ -83,10 +83,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Startup maintenance failed (non-fatal): {e}")
 
+    try:
+        from app.engine.db_maintenance import recover_orphaned_audits
+        recovered = await recover_orphaned_audits()
+        if recovered:
+            logger.info(f"Recovered {len(recovered)} orphaned audits: {recovered}")
+    except Exception as e:
+        logger.warning(f"Orphaned audit recovery failed (non-fatal): {e}")
+
     scheduler_task = asyncio.create_task(_scheduled_audit_worker())
     logger.info("Scheduled audit worker started")
     digest_task = asyncio.create_task(_digest_worker())
     logger.info("Digest worker started")
+    orphan_task = asyncio.create_task(_orphan_audit_reaper())
+    logger.info("Orphan audit reaper started")
     uptime_task = asyncio.create_task(_uptime_worker())
     logger.info("Uptime monitor worker started")
     rank_task = asyncio.create_task(_rank_tracker_worker())
@@ -109,6 +119,7 @@ async def lifespan(app: FastAPI):
     yield
     scheduler_task.cancel()
     digest_task.cancel()
+    orphan_task.cancel()
     uptime_task.cancel()
     rank_task.cancel()
     growth_rank_task.cancel()
@@ -122,6 +133,7 @@ async def lifespan(app: FastAPI):
     try:
         await scheduler_task
         await digest_task
+        await orphan_task
         await uptime_task
         await rank_task
     except asyncio.CancelledError:
@@ -186,6 +198,20 @@ async def _digest_worker():
         except Exception as e:
             logger.warning(f"Digest worker error (non-fatal): {e}")
         await asyncio.sleep(900)
+
+
+async def _orphan_audit_reaper():
+    """Fail audits stuck in a non-terminal state for too long. Catches tasks that
+    hang inside a still-running process (deploys/restarts are handled at boot by
+    run_startup_maintenance). Runs every 3 minutes."""
+    from app.engine.db_maintenance import recover_orphaned_audits
+
+    while True:
+        try:
+            await asyncio.sleep(180)
+            await recover_orphaned_audits(max_minutes=45)
+        except Exception as e:
+            logger.warning(f"Orphan audit reaper error (non-fatal): {e}")
 
 
 async def _uptime_worker():
