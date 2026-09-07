@@ -63,7 +63,6 @@ def url_inspection_lookup(property_url: str, url_to_inspect: str, service_accoun
         body = {
             "inspectionUrl": url_to_inspect,
             "siteUrl": property_url,
-            "inspectionType": "URL_INSPECTION",
         }
         response = (
             service.urlInspection()
