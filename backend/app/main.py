@@ -52,8 +52,22 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting AI SEO Intelligence Platform v2.0...")
-    await init_db()
-    logger.info("Database initialized")
+    init_ok = False
+    for attempt in range(1, 4):
+        try:
+            await init_db()
+            init_ok = True
+            break
+        except Exception as e:
+            logger.warning(
+                f"DB init attempt {attempt}/3 failed: {e}"
+            )
+            if attempt < 3:
+                await asyncio.sleep(5)
+    if init_ok:
+        logger.info("Database initialized")
+    else:
+        logger.error("Database unreachable after 3 attempts; continuing startup (endpoints that need DB will fail)")
     try:
         from app.database import async_session
         from app.engine.issue_cleanup import cleanup_stale_no_author_issues

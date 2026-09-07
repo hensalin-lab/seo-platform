@@ -81,9 +81,11 @@ async def _run_pending_migrations():
     from alembic import command
 
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Export the live URL as an env var so alembic/env.py can consume it
+    # without routing a '%'-containing URL through configparser interpolation.
+    os.environ["DATABASE_URL"] = settings.DATABASE_URL
     cfg = Config(os.path.join(here, "alembic.ini"))
     cfg.set_main_option("script_location", os.path.join(here, "alembic"))
-    cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
     def _run():
         command.upgrade(cfg, "head")

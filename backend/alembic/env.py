@@ -21,6 +21,7 @@ from app.models import (  # noqa: F401 (keep explicit import for clarity/tooling
 )
 
 config = context.config
+_OVERRIDE_URL = os.environ.get("DATABASE_URL") or config.attributes.get("configured_url")
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -41,7 +42,11 @@ def do_run_migrations(connection):
 
 
 async def run_migrations_online() -> None:
-    connectable = create_async_engine(config.get_main_option("sqlalchemy.url"))
+    if _OVERRIDE_URL:
+        url = _OVERRIDE_URL
+    else:
+        url = config.get_main_option("sqlalchemy.url")
+    connectable = create_async_engine(url)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
