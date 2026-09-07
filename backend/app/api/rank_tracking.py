@@ -100,9 +100,10 @@ async def _fetch_latest_snapshots(db: AsyncSession,
 
 @router.post("/keywords")
 async def add_keyword(body: AddKeywordBody,
+                      background_tasks: BackgroundTasks,
                       user: User = Depends(get_current_active_user),
                       db: AsyncSession = Depends(get_db)):
-    """Add a keyword to track for a domain."""
+    """Add a keyword to track for a domain. Auto-checks SERP position immediately."""
     device = body.device.lower()
     if device not in (DeviceEnum.DESKTOP.value, DeviceEnum.MOBILE.value):
         raise HTTPException(400, "device must be 'desktop' or 'mobile'")
@@ -128,7 +129,44 @@ async def add_keyword(body: AddKeywordBody,
     )
     db.add(kw)
     await db.commit()
+
+    background_tasks.add_task(_auto_check_keyword, kw.id, body.keyword.strip(), body.domain, device, body.location)
+
     return {"id": kw.id, "message": "Keyword added"}
+
+
+async def _auto_check_keyword(keyword_id: str, keyword: str, domain: str, device: str, location: str):
+    """Background task: immediately check SERP position for a newly added keyword."""
+    from app.database import async_session
+    from app.services.ddg_serp_client import DDGSerpClient
+    try:
+        async with async_session() as db:
+            td_result = await db.execute(
+                select(TrackedDomain).where(TrackedDomain.domain == domain.lower().strip())
+            )
+            td = td_result.scalar_one_or_none()
+            if not td:
+                return
+
+            client = DDGSerpClient()
+            result = await client.get_serp(keyword=keyword, target_domain=domain)
+
+            position = result.get("position")
+            serp_features = result.get("serp_features", {})
+            top_3_urls = result.get("top_3_urls", [])
+
+            snapshot = RankSnapshot(
+                tracked_keyword_id=keyword_id,
+                position=position,
+                serp_features=serp_features,
+                top_3_urls=top_3_urls,
+                checked_at=_dt.datetime.utcnow(),
+            )
+            db.add(snapshot)
+            await db.commit()
+            logger.info(f"Auto-checked rank for '{keyword}' on {domain}: position={position}")
+    except Exception as e:
+        logger.warning(f"Auto-check failed for '{keyword}' on {domain}: {e}")
 
 
 @router.get("/{domain}/keywords")
@@ -214,8 +252,8 @@ async def refresh_keywords(domain: str,
     if not td:
         raise HTTPException(404, "Domain not found")
 
-    background_tasks.add_task(check_all_tracked_keywords)
-    return {"message": "Rank refresh queued"}
+    background_tasks.add_task(check_all_tracked_keywords, domain_filter=domain)
+    return {"message": f"Rank refresh queued for {domain}"}
 
 
 @router.get("/{domain}/export/csv")

@@ -20,17 +20,28 @@ from app.services.gsc_rank_client import GSCRankClient
 logger = logging.getLogger(__name__)
 
 
-async def check_all_tracked_keywords():
-    """One full pass: query every tracked keyword, write a RankSnapshot."""
+async def check_all_tracked_keywords(domain_filter: Optional[str] = None):
+    """One full pass: query tracked keywords, write a RankSnapshot.
+
+    Args:
+        domain_filter: if provided, only check keywords for this domain.
+    """
     from app.models import DeviceEnum
 
     gsc_client = GSCRankClient()
     ddg_client = DDGSerpClient()
 
     async with async_session() as db:
-        result = await db.execute(
-            select(TrackedKeyword).join(TrackedDomain)
-        )
+        if domain_filter:
+            result = await db.execute(
+                select(TrackedKeyword)
+                .join(TrackedDomain)
+                .where(TrackedDomain.domain == domain_filter.lower().strip())
+            )
+        else:
+            result = await db.execute(
+                select(TrackedKeyword).join(TrackedDomain)
+            )
         tracked = result.scalars().all()
 
     if not tracked:

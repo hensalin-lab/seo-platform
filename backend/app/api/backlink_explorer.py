@@ -105,7 +105,7 @@ def _should_auto_refresh(domain: str) -> bool:
     return True
 
 
-async def _ensure_backlink_data(db, domain: str, background_tasks: BackgroundTasks) -> str:
+async def _ensure_backlink_data(db, domain: str, background_tasks: Optional[BackgroundTasks] = None) -> str:
     """Ensure a domain has backlink data, kicking off free ingestion in the
     background when it doesn't (throttled). Returns:
       "ready"     — data already present
@@ -115,7 +115,12 @@ async def _ensure_backlink_data(db, domain: str, background_tasks: BackgroundTas
         return "ready"
     if not _should_auto_refresh(domain):
         return "pending"
-    background_tasks.add_task(_run_refresh_background, domain.lower().strip())
+    if background_tasks is not None:
+        background_tasks.add_task(_run_refresh_background, domain.lower().strip())
+        return "fetching"
+    # No background_tasks available — schedule directly as a detached task
+    import asyncio
+    asyncio.create_task(_run_refresh_background(domain.lower().strip()))
     return "fetching"
 
 
@@ -168,15 +173,19 @@ async def backlink_explorer(domain: str,
     (Open PageRank) in the background when the domain has none yet."""
     d = domain.lower().strip()
 
-    data_status = await _ensure_backlink_data(db, d, background_tasks)
+    try:
+        data_status = await _ensure_backlink_data(db, d, background_tasks)
+    except Exception as e:
+        logger.warning(f"_ensure_backlink_data failed for {d}: {e}")
+        data_status = "pending"
 
-    total = (await db.execute(
-        select(func.count(Backlink.id)).where(
-            (Backlink.target_domain == d) | (Backlink.audit_id == select(Audit.id).where(Audit.website_url.ilike(f"%{d}%")).correlate(None).scalar_subquery())
-        )
-    )).scalar() or 0
+    try:
+        backlinks = await _get_backlinks_for_domain(db, d)
+    except Exception as e:
+        logger.warning(f"get_backlinks failed for {d}: {e}")
+        backlinks = []
 
-    backlinks = await _get_backlinks_for_domain(db, d)
+    total = len(backlinks)
     paginated = backlinks[offset:offset + limit]
 
     source_label = "common_crawl" if any(bl.target_domain == d for bl in backlinks) else "audit"
@@ -216,26 +225,34 @@ async def referring_domains(domain: str,
     Auto-fetches free data (Open PageRank) in the background when empty."""
     d = domain.lower().strip()
 
-    data_status = await _ensure_backlink_data(db, d, background_tasks)
+    try:
+        data_status = await _ensure_backlink_data(db, d, background_tasks)
+    except Exception as e:
+        logger.warning(f"_ensure_backlink_data failed for {d}: {e}")
+        data_status = "pending"
 
-    # Prefer target_domain
-    result = await db.execute(
-        select(ReferringDomain)
-        .where(ReferringDomain.target_domain == d)
-        .order_by(desc(ReferringDomain.domain_authority))
-    )
-    domains = result.scalars().all()
+    try:
+        # Prefer target_domain
+        result = await db.execute(
+            select(ReferringDomain)
+            .where(ReferringDomain.target_domain == d)
+            .order_by(desc(ReferringDomain.domain_authority))
+        )
+        domains = result.scalars().all()
 
-    # Fallback to audit-based
-    if not domains:
-        audit_id = await _get_latest_audit_id(db, d)
-        if audit_id:
-            result = await db.execute(
-                select(ReferringDomain)
-                .where(ReferringDomain.audit_id == audit_id)
-                .order_by(desc(ReferringDomain.domain_authority))
-            )
-            domains = result.scalars().all()
+        # Fallback to audit-based
+        if not domains:
+            audit_id = await _get_latest_audit_id(db, d)
+            if audit_id:
+                result = await db.execute(
+                    select(ReferringDomain)
+                    .where(ReferringDomain.audit_id == audit_id)
+                    .order_by(desc(ReferringDomain.domain_authority))
+                )
+                domains = result.scalars().all()
+    except Exception as e:
+        logger.warning(f"get_referring_domains failed for {d}: {e}")
+        domains = []
 
     source_label = "common_crawl" if any(rd.target_domain == d for rd in domains) else "audit"
 
@@ -272,9 +289,17 @@ async def toxic_links(domain: str,
     Auto-fetches free data (Open PageRank) in the background when empty."""
     d = domain.lower().strip()
 
-    data_status = await _ensure_backlink_data(db, d, background_tasks)
+    try:
+        data_status = await _ensure_backlink_data(db, d, background_tasks)
+    except Exception as e:
+        logger.warning(f"_ensure_backlink_data failed for {d}: {e}")
+        data_status = "pending"
 
-    all_backlinks = await _get_backlinks_for_domain(db, d)
+    try:
+        all_backlinks = await _get_backlinks_for_domain(db, d)
+    except Exception as e:
+        logger.warning(f"get_backlinks failed for {d}: {e}")
+        all_backlinks = []
 
     toxic = [
         bl for bl in all_backlinks

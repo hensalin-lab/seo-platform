@@ -53,7 +53,7 @@ async def _ingest_background(domain: str):
         logger.error(f"Auto backlink ingestion failed for {domain}: {e}")
 
 
-async def _ensure_data(db: AsyncSession, domains: list[str], background_tasks: BackgroundTasks) -> dict:
+async def _ensure_data(db: AsyncSession, domains: list[str], background_tasks=None) -> dict:
     """For each domain with no referring-domains rows, schedule free Open
     PageRank ingestion in the background (throttled per domain). Returns a
     map of which domains need to be re-checked after ingestion."""
@@ -66,7 +66,11 @@ async def _ensure_data(db: AsyncSession, domains: list[str], background_tasks: B
             continue
         needing[d] = True
         if _should_auto_refresh(d):
-            background_tasks.add_task(_ingest_background, d.lower().strip())
+            if background_tasks is not None:
+                background_tasks.add_task(_ingest_background, d.lower().strip())
+            else:
+                import asyncio
+                asyncio.create_task(_ingest_background(d.lower().strip()))
     return needing
 
 
