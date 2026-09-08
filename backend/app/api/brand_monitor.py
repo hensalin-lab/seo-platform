@@ -32,7 +32,7 @@ def _audit_guard(audit, user):
 
 def _derive_brand(website_url: str, pages) -> str:
     host = (urlparse(website_url or "").hostname or "").lower()
-    host = host.lstrip("www.")
+    host = host.removeprefix("www.")
     base = host.split(".")[0] if host else ""
     # Prefer a brand-like word from the homepage title when it differs from the hostname root.
     for p in pages:

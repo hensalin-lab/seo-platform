@@ -196,8 +196,8 @@ async def fetch_warc_links(
 
         try:
             parsed_href = urlparse(href)
-            href_domain = (parsed_href.netloc or "").lower().lstrip("www.")
-            if href_domain == target_domain.lower().lstrip("www."):
+            href_domain = (parsed_href.netloc or "").lower().removeprefix("www.")
+            if href_domain == target_domain.lower().removeprefix("www."):
                 anchor_text = re.sub(r"<[^>]+>", "", inner_html).strip()[:200]
                 links.append({
                     "source_url": href[:500],
@@ -219,7 +219,7 @@ async def get_backlinks_for_domain(
     Returns a deduplicated list of backlinks:
     [{source_url, source_domain, anchor_text, is_nofollow}, ...]
     """
-    domain = domain.lower().strip().lstrip("www.")
+    domain = domain.lower().strip().removeprefix("www.")
     records = await query_common_crawl_index(domain, max_index_pages)
 
     if not records:
@@ -258,7 +258,7 @@ async def get_backlinks_for_domain(
                     if key not in seen:
                         seen.add(key)
                         try:
-                            source_domain = (urlparse(link["source_url"]).netloc or "").lower().lstrip("www.")
+                            source_domain = (urlparse(link["source_url"]).netloc or "").lower().removeprefix("www.")
                         except Exception:
                             source_domain = ""
                         backlinks.append({

@@ -31,7 +31,7 @@ def _audit_guard(audit: Audit | None, user: User):
 
 def _host(url: str) -> str:
     try:
-        return (urlparse(url or "").hostname or "").lstrip("www.")
+        return (urlparse(url or "").hostname or "").removeprefix("www.")
     except Exception:
         return (url or "").strip()
 

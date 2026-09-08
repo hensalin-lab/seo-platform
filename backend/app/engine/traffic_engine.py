@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def _host_of(url: str) -> str:
     try:
-        return (urlparse(url).hostname or "").lower().lstrip("www.")
+        return (urlparse(url).hostname or "").lower().removeprefix("www.")
     except Exception:
         return ""
 
@@ -70,7 +70,7 @@ async def estimate_domain_traffic(
     For each seed keyword we probe the DDG SERP to determine the domain's
     position, then estimate visits = volume × CTR(position) × click-share.
     """
-    domain = domain.lower().strip().lstrip("www.")
+    domain = domain.lower().strip().removeprefix("www.")
     ddg = DDGSerpClient()
 
     seed_keywords = seed_keywords or [domain.replace(".com", "").replace(".io", "").replace(".co", "")

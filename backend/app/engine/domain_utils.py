@@ -30,4 +30,4 @@ def normalize_domain(value: str) -> str:
     else:
         # strip any path/query if the user included them without a scheme
         host = raw.split("/")[0].split("?")[0].split("#")[0]
-    return host.lower().lstrip("www.") or ""
+    return host.lower().removeprefix("www.") or ""

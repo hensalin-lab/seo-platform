@@ -85,7 +85,7 @@ def _trust_from_referring_domains(domains: list) -> dict:
 async def compute_trust_citation_flow(db: AsyncSession, domain: str) -> dict:
     """Compute Trust/Citation Flow for a domain from ReferringDomain rows.
     Enhances DA values with real Open PageRank data when API key is configured."""
-    domain = domain.lower().strip().lstrip("www.")
+    domain = domain.lower().strip().removeprefix("www.")
 
     result = await db.execute(
         select(ReferringDomain).where(ReferringDomain.target_domain == domain)
@@ -109,7 +109,7 @@ async def compute_trust_citation_flow(db: AsyncSession, domain: str) -> dict:
             domain_list = [rd.domain for rd in domains[:50]]
             opr = await opr_batch(domain_list, opr_key)
             for rd in domains:
-                info = opr.get(rd.domain.lstrip("www.").lower())
+                info = opr.get(rd.domain.removeprefix("www.").lower())
                 if info and info.get("domain_authority"):
                     rd.domain_authority = info["domain_authority"]
         except Exception as e:

@@ -363,7 +363,7 @@ class DataForSEOSerpProvider(SerpRankProvider):
 
     async def _host_of(self, url: str) -> str:
         try:
-            return (urlparse(url or "").hostname or "").lower().lstrip("www.")
+            return (urlparse(url or "").hostname or "").lower().removeprefix("www.")
         except Exception:
             return ""
 
@@ -383,7 +383,7 @@ class DataForSEOSerpProvider(SerpRankProvider):
             for item in task.get("result", []):
                 for idx, o in enumerate(item.get("items", [])):
                     link = (o.get("url") or "").strip()
-                    if link and await self._host_of(link) == host.lower().lstrip("www."):
+                    if link and await self._host_of(link) == host.lower().removeprefix("www."):
                         return {"position": idx + 1, "page_url": link, "source": "dataforseo"}
         return {"position": None, "page_url": "", "source": "dataforseo"}
 
@@ -480,7 +480,7 @@ class OpenPageRankBacklinkProvider(BacklinkProvider):
         self.cfg = cfg
 
     async def summary(self, target: str) -> dict:
-        host = (urlparse(target).hostname or target).lstrip("www.")
+        host = (urlparse(target).hostname or target).removeprefix("www.")
         from app.engine.open_page_rank_client import get_domain_authority
         info = await get_domain_authority(host, self.cfg.get("api_key", ""))
         if not info.get("domain_authority") and not info.get("page_rank"):
@@ -646,12 +646,12 @@ class ProfoundCitationProvider(AiCitationProvider):
         info = data.get("info") or {}
         audit = site_data.get("audit")
         website = (audit.website_url if audit else "") or ""
-        host = (urlparse(website).hostname or "").lstrip("www.")
+        host = (urlparse(website).hostname or "").removeprefix("www.")
         brand_share = 0.0
         brand_rank = None
         brand_row = None
         for r in rows:
-            dom = (r.get("domain") or "").lstrip("www.")
+            dom = (r.get("domain") or "").removeprefix("www.")
             if dom and host and (dom == host or dom.endswith("." + host) or host.endswith("." + dom)):
                 brand_row = r
                 break
@@ -823,12 +823,12 @@ class GscOAuthProvider:
         fp = (default_property or "").strip().rstrip("/").lower()
         if not fp:
             return sites[0]
-        host = (urlparse(fp).hostname or fp).lstrip("www.")
+        host = (urlparse(fp).hostname or fp).removeprefix("www.")
         for s in sites:
             s2 = s.strip().rstrip("/").lower()
             if s2 == fp or s2 == f"sc-domain:{host}":
                 return s
-            sh = (urlparse(s2).hostname or s2.lstrip("sc-domain:")).lstrip("www.")
+            sh = (urlparse(s2).hostname or s2.lstrip("sc-domain:")).removeprefix("www.")
             if sh and (sh == host or sh.endswith("." + host) or host.endswith("." + sh)):
                 return s
         return sites[0]
@@ -950,8 +950,8 @@ class SerpApiRankProvider(SerpRankProvider):
             if not isinstance(o, dict):
                 continue
             link = (o.get("link") or "") or ""
-            link_host = (urlparse(link).hostname or "").lower().lstrip("www.")
-            if link_host and link_host == host.lower().lstrip("www."):
+            link_host = (urlparse(link).hostname or "").lower().removeprefix("www.")
+            if link_host and link_host == host.lower().removeprefix("www."):
                 return {"position": i + 1, "page_url": link, "source": "serpapi"}
         return {"position": None, "page_url": "", "source": "serpapi"}
 
@@ -989,7 +989,7 @@ class GoogleCseSerpProvider(SerpRankProvider):
             data = resp.json()
         for idx, item in enumerate(data.get("items") or []):
             link = (item.get("link") or "") or ""
-            if link and (urlparse(link).hostname or "").lower().lstrip("www.") == host.lower().lstrip("www."):
+            if link and (urlparse(link).hostname or "").lower().removeprefix("www.") == host.lower().removeprefix("www."):
                 return {"position": idx + 1, "page_url": link, "source": "google_cse"}
         return {"position": None, "page_url": "", "source": "google_cse"}
 
@@ -1027,8 +1027,8 @@ class SerperSerpProvider(SerpRankProvider):
             return {"position": None, "page_url": "", "source": "serper", "error": str(e)}
         for i, item in enumerate(data.get("organic") or []):
             link = (item.get("link") or "") or ""
-            link_host = (urlparse(link).hostname or "").lower().lstrip("www.")
-            if link_host and link_host == host.lower().lstrip("www."):
+            link_host = (urlparse(link).hostname or "").lower().removeprefix("www.")
+            if link_host and link_host == host.lower().removeprefix("www."):
                 return {"position": i + 1, "page_url": link, "source": "serper"}
         return {"position": None, "page_url": "", "source": "serper"}
 
@@ -1069,8 +1069,8 @@ class OpenSerpProvider(SerpRankProvider):
             return {"position": None, "page_url": "", "source": "openserp", "error": str(e)}
         for i, item in enumerate(data.get("results") or data.get("organic") or []):
             link = (item.get("url") or item.get("link") or "") or ""
-            link_host = (urlparse(link).hostname or "").lower().lstrip("www.")
-            if link_host and link_host == host.lower().lstrip("www."):
+            link_host = (urlparse(link).hostname or "").lower().removeprefix("www.")
+            if link_host and link_host == host.lower().removeprefix("www."):
                 return {"position": i + 1, "page_url": link, "source": "openserp"}
         return {"position": None, "page_url": "", "source": "openserp"}
 

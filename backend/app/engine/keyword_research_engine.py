@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def _host_of(url: str) -> str:
     from urllib.parse import urlparse
     try:
-        return (urlparse(url).hostname or "").lower().lstrip("www.")
+        return (urlparse(url).hostname or "").lower().removeprefix("www.")
     except Exception:
         return ""
 
@@ -158,7 +158,7 @@ async def discover_keyword_universe(
     SERP-derived related queries when the domain isn't in the seed SERP so a
     universe is always returned (honestly labeled per source).
     """
-    domain = domain.lower().strip().lstrip("www.")
+    domain = domain.lower().strip().removeprefix("www.")
     from app.services.ddg_serp_client import DDGSerpClient
 
     ddg = DDGSerpClient()

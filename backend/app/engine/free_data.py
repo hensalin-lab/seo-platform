@@ -35,7 +35,7 @@ def host_of(url: str) -> str:
     host = (parsed.hostname or "").strip()
     if not host:
         host = (url or "").strip()
-    return host.lower().lstrip("www.")
+    return host.lower().removeprefix("www.")
 
 
 async def google_autocomplete(q: str, limit: int = 10) -> list:

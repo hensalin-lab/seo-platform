@@ -25,7 +25,7 @@ _TIMEOUT = 20.0
 
 
 def _normalize_domain(domain: str) -> str:
-    return domain.lower().strip().lstrip("www.")
+    return domain.lower().strip().removeprefix("www.")
 
 
 async def opr_batch(domains: list, api_key: str, timeout: float = _TIMEOUT) -> dict:

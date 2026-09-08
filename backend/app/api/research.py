@@ -34,11 +34,25 @@ async def keyword_difficulty(
     user: User = Depends(get_current_active_user),
 ):
     """Return keyword difficulty (0-100) + SERP overview from DDG analysis."""
-    from app.engine.keyword_research_engine import KeywordDifficultyEngine
+    from app.engine.keyword_difficulty_engine import KeywordDifficultyEngine
     if not keyword.strip():
-        return {"keyword": "", "difficulty": None, "note": "Provide a keyword.", "results": []}
-    engine = KeywordDifficultyEngine()
-    return await engine.analyze(keyword.strip())
+        return {"keyword": "", "difficulty": None,
+                "state": "INVALID_KEYWORD",
+                "note": "Provide a keyword.", "results": []}
+    try:
+        engine = KeywordDifficultyEngine()
+        return await engine.analyze(keyword.strip())
+    except Exception as e:
+        logger.exception(f"Keyword difficulty failed for '{keyword.strip()}': {e}")
+        return {
+            "keyword": keyword.strip(),
+            "state": "PROVIDER_ERROR",
+            "rate_limited": False,
+            "difficulty": None,
+            "results": [],
+            "serp_error": f"Engine failure: {e}",
+            "note": "The SERP/authority providers could not be reached. Try again shortly.",
+        }
 
 
 @router.get("/traffic-estimate")

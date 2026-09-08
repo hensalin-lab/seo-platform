@@ -37,7 +37,7 @@ def _domain_of_audit_url(url: str) -> str:
     """Extract domain from audit website_url for matching."""
     from urllib.parse import urlparse
     try:
-        return (urlparse(url or "").hostname or "").lower().lstrip("www.")
+        return (urlparse(url or "").hostname or "").lower().removeprefix("www.")
     except Exception:
         return ""
 

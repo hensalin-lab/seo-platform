@@ -27,7 +27,7 @@ def _domain_of(url: str) -> str:
     """Extract bare domain from a URL string."""
     from urllib.parse import urlparse
     try:
-        return (urlparse(url or "").hostname or "").lower().lstrip("www.")
+        return (urlparse(url or "").hostname or "").lower().removeprefix("www.")
     except Exception:
         return ""
 

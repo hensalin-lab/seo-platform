@@ -6191,7 +6191,7 @@ def _rule_ai_rewrite(page, content: str, issues: list, targets: dict, h1_text: s
     kw = kw.split("|")[0].strip()[:60] or "your topic"
     brand = ""
     try:
-        brand = (urlparse(page.url).netloc or "").lstrip("www.").split(".")[0].title() or "your brand"
+        brand = (urlparse(page.url).netloc or "").removeprefix("www.").split(".")[0].title() or "your brand"
     except Exception:
         brand = "your brand"
     year = str(_dt.datetime.utcnow().year)

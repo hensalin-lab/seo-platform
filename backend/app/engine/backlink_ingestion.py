@@ -116,7 +116,7 @@ async def ingest_backlinks_for_domain(
 
     Writes/updates ReferringDomain (+ Backlink summary) rows.
     """
-    domain = domain.lower().strip().lstrip("www.")
+    domain = domain.lower().strip().removeprefix("www.")
     logger.info(f"Starting backlink ingestion for {domain}")
     now = _dt.datetime.utcnow()
 

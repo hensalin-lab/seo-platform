@@ -66,7 +66,7 @@ def _host_of(url: str) -> str:
     """Extract bare domain from a URL."""
     try:
         parsed = urllib.parse.urlparse(url)
-        return (parsed.hostname or "").lower().lstrip("www.")
+        return (parsed.hostname or "").lower().removeprefix("www.")
     except Exception:
         return ""
 
@@ -144,7 +144,7 @@ class DDGSerpClient:
 
         position = None
         if target_domain:
-            target = target_domain.lower().lstrip("www.")
+            target = target_domain.lower().removeprefix("www.")
             for i, r in enumerate(results):
                 if target in _host_of(r["url"]):
                     position = i + 1
@@ -193,7 +193,7 @@ class DDGSerpClient:
 
         position = None
         if target_domain:
-            target = target_domain.lower().lstrip("www.")
+            target = target_domain.lower().removeprefix("www.")
             for i, r in enumerate(results):
                 if target in _host_of(r["url"]):
                     position = i + 1
@@ -246,7 +246,7 @@ class DDGSerpClient:
 
         position = None
         if target_domain:
-            target = target_domain.lower().lstrip("www.")
+            target = target_domain.lower().removeprefix("www.")
             for i, r in enumerate(results):
                 if target in _host_of(r["url"]):
                     position = i + 1
