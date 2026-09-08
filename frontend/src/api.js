@@ -17,6 +17,12 @@ function setToken(token) {
   _authToken = token;
 }
 
+function redirectToLogin() {
+  try { localStorage.setItem('session_return', window.location.pathname + window.location.search) } catch {}
+  localStorage.setItem('session_expired', '1');
+  window.location.href = '/login';
+}
+
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const headers = { 'Content-Type': 'application/json', ...options.headers };
@@ -32,7 +38,7 @@ async function request(path, options = {}) {
     if (res.status === 401 && path !== '/auth/login') {
       _authToken = null;
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      redirectToLogin();
       throw new Error('Session expired');
     }
 
@@ -69,7 +75,7 @@ async function downloadBlob(path, filename, errorMsg) {
   if (res.status === 401 && path !== '/auth/login') {
     _authToken = null;
     localStorage.removeItem('token');
-    window.location.href = '/login';
+    redirectToLogin();
     throw new Error('Session expired');
   }
   if (!res.ok) throw new Error(errorMsg);

@@ -13,7 +13,19 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
-  const from = location.state?.from || '/';
+
+  const [sessionReturn, setSessionReturn] = useState(() => {
+    try { return localStorage.getItem('session_return') || '' } catch { return '' }
+  });
+  const [expired, setExpired] = useState(() => {
+    try { return localStorage.getItem('session_expired') === '1' } catch { return false }
+  });
+
+  useEffect(() => {
+    if (expired) {
+      try { localStorage.removeItem('session_expired') } catch {}
+    }
+  }, [expired]);
 
   useEffect(() => {
     let active = true;
@@ -24,11 +36,17 @@ export default function LoginPage() {
     return () => { active = false; };
   }, []);
 
+  const from = location.state?.from || sessionReturn || '/';
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     try {
       await login(email, password);
+      try {
+        localStorage.removeItem('session_return');
+        localStorage.removeItem('session_expired');
+      } catch {}
       addToast('Logged in successfully', 'success');
       navigate(from, { replace: true });
     } catch (err) {
@@ -46,6 +64,11 @@ export default function LoginPage() {
             {from && from !== '/' ? 'Sign in to continue to the requested page' : 'Sign in to your account'}
           </div>
         </div>
+        {expired && (
+          <div style={{ marginBottom: 16, padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FCD34D', color: '#92400E', borderRadius: 8, fontSize: 13 }}>
+            Your session expired — please sign in again. We'll bring you back to where you were.
+          </div>
+        )}
         {error && (
           <div style={{ marginBottom: 16, padding: '10px 12px', background: 'var(--danger-bg, #fee2e2)', color: '#b91c1c', borderRadius: 8, fontSize: 13 }}>
             {error}
