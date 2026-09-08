@@ -96,7 +96,7 @@ export default function RankTracking() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <TrendingUp size={28} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Rank Tracking</h1>
-          <DataSourceBadge source={data?.source} />
+          <DataSourceBadge source="ddg" />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 14 }}>Track keyword positions over time for any domain</p>
         <form onSubmit={handleSubmitDomain} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto' }}>
@@ -184,10 +184,11 @@ export default function RankTracking() {
             >
               <RefreshCw size={14} className={refreshing ? 'spin' : ''} /> Refresh all
             </button>
-            <a
-              href={api.exportRankTrackingCsv(loadedDomain)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={async () => {
+                try { await api.downloadRankTrackingCsv(loadedDomain); }
+                catch (e) { setError(e.message || 'Export failed') }
+              }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                 background: '#E5E9F2', border: '1px solid #DAE0EA', borderRadius: 6,
@@ -195,7 +196,7 @@ export default function RankTracking() {
               }}
             >
               <Download size={14} /> Export CSV
-            </a>
+            </button>
           </div>
 
           {/* Add keyword form */}

@@ -405,7 +405,7 @@ export const api = {
   keywordHistory: (domain, id) => request(`/rank-tracking/${encodeURIComponent(toDomain(domain))}/keywords/${id}/history`),
   deleteTrackedKeyword: (id) => request(`/rank-tracking/keywords/${id}`, { method: 'DELETE' }),
   refreshRankTracking: (domain) => request(`/rank-tracking/${encodeURIComponent(toDomain(domain))}/refresh`, { method: 'POST' }),
-  exportRankTrackingCsv: (domain) => `${API_BASE}/rank-tracking/${encodeURIComponent(toDomain(domain))}/export/csv`,
+  downloadRankTrackingCsv: (domain) => downloadBlob(`/rank-tracking/${encodeURIComponent(toDomain(domain))}/export/csv`, `rank-tracking-${toDomain(domain)}.csv`, 'CSV export failed'),
 
   // ── Growth AI: Domain Overview ─────────────────────────────────────────
   getDomainOverview: (domain) => request(`/domain-overview/${encodeURIComponent(toDomain(domain))}`),
