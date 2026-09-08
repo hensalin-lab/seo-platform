@@ -347,7 +347,7 @@ class DataForSEOVolumeProvider(KeywordVolumeProvider):
                 "competition": top.get("keyword_info", {}).get("competition_level", "N/A"),
                 "source": "dataforseo",
             }
-        return {"keyword": keyword, "volume": 0, "cpc": 0, "competition": "N/A", "source": "dataforseo"}
+        return {"keyword": keyword, "volume": None, "cpc": None, "competition": "N/A", "source": "dataforseo", "note": "no volume data for keyword"}
 
     async def test(self) -> dict:
         try:
@@ -537,7 +537,7 @@ class SeRankingVolumeProvider(KeywordVolumeProvider):
                 "competition": top.get("competition", top.get("difficulty", "N/A")),
                 "source": "se_ranking",
             }
-        return {"keyword": keyword, "volume": 0, "cpc": 0, "competition": "N/A", "source": "se_ranking"}
+        return {"keyword": keyword, "volume": None, "cpc": None, "competition": "N/A", "source": "se_ranking", "note": "no volume data for keyword"}
 
     async def test(self) -> dict:
         try:
@@ -1202,27 +1202,15 @@ class KeylessVolumeEstimator(KeywordVolumeProvider):
 
 
 class KeylessSerpProvider(SerpRankProvider):
-    """Estimates a position from crawled on-page signals when no SERP key exists."""
+    """No on-page heuristic can produce a real Google position, so the keyless
+    fallback reports no position rather than a fabricated estimate."""
 
     async def live_position(self, keyword: str, host: str, **ctx) -> dict:
-        pages = ctx.get("pages") or []
-        audit = ctx.get("audit")
-        k = re.sub(r"\s+", " ", (keyword or "").strip()).lower()
-        kw_words = set(w for w in k.split() if len(w) > 2)
-        homepage = [p for p in pages if (p.url or "").rstrip("/") == ((audit.website_url if audit else "") or "").rstrip("/")]
-        for p in (homepage or pages):
-            title = re.sub(r"\s+", " ", (p.title or "").strip()).lower()
-            h1 = re.sub(r"\s+", " ", (p.h1 or "").strip()).lower()
-            content = re.sub(r"\s+", " ", (p.content_text or "")[:6000]).lower()
-            if k in title:
-                return {"position": 5, "page_url": p.url, "source": "estimated"}
-            if k in h1:
-                return {"position": 12, "page_url": p.url, "source": "estimated"}
-            if title and kw_words and kw_words.issubset(set(title.split())):
-                return {"position": 18, "page_url": p.url, "source": "estimated"}
-            if content and k in content:
-                return {"position": 60, "page_url": p.url, "source": "estimated"}
-        return {"position": None, "page_url": "", "source": "estimated"}
+        return {
+            "position": None, "page_url": "",
+            "source": "unmeasured",
+            "note": "No SERP provider configured — connect Serper, OpenSerp or DataForSEO for real positions.",
+        }
 
     async def test(self) -> dict:
         return {"ok": True, "message": "Keyless SERP estimator always available", "note": "Heuristic only"}

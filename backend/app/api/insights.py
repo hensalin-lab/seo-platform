@@ -370,7 +370,7 @@ async def get_keyword_volumes(
                 await check_provider_budget(db, user.id, resolved["provider"], cost=1)
             except Exception as e:
                 volumes.append({
-                    "keyword": kw, "volume": 0, "cpc": 0, "competition": "N/A",
+                    "keyword": kw, "volume": None, "cpc": None, "competition": "N/A",
                     "source": "budget_exceeded", "note": str(e)[:200],
                 })
                 continue
@@ -378,7 +378,7 @@ async def get_keyword_volumes(
             v = await provider.get_volume(kw)
         except Exception as e:
             logger.warning(f"Keyword volume failed for {kw!r}: {e}")
-            v = {"keyword": kw, "volume": 0, "cpc": 0, "competition": "N/A", "source": "error", "note": str(e)[:200]}
+            v = {"keyword": kw, "volume": None, "cpc": None, "competition": "N/A", "source": "error", "note": str(e)[:200]}
         if not resolved["provider"].startswith("keyless"):
             from app.engine.spend_guard import record_provider_usage
             try:

@@ -68,28 +68,6 @@ async def _collect_keywords(db: AsyncSession, audit_id: str) -> List[str]:
     return out
 
 
-def _estimate_position(keyword: str, audit: Audit, pages) -> Optional[int]:
-    """Crude position estimate from crawled page signals (used when no SERP key)."""
-    k = _norm_keyword(keyword)
-    if not k:
-        return None
-    kw_words = set(w for w in k.split() if len(w) > 2)
-    homepage = [p for p in pages if (p.url or "").rstrip("/") == (audit.website_url or "").rstrip("/")]
-    for p in (homepage or pages):
-        title = _norm_keyword(p.title or "")
-        h1 = _norm_keyword(p.h1 or "")
-        content = _norm_keyword((p.content_text or "")[:6000])
-        if k in title:
-            return 5
-        if k in h1:
-            return 12
-        if title and kw_words and kw_words.issubset(set(title.split())):
-            return 18
-        if content and k in content:
-            return 60
-    return None
-
-
 async def _live_position(keyword: str, host: str, client: httpx.AsyncClient) -> dict:
     r = await client.get(
         "https://serpapi.com/search",
@@ -278,7 +256,7 @@ async def get_rankings(
     return {
         "audit_id": audit_id,
         "configured": configured,
-        "mode": provider_name if configured else "estimated",
+        "mode": provider_name if configured else "unmeasured",
         "last_captured_at": last_captured.isoformat() if last_captured else None,
         "total_keywords": len(keywords_out),
         "keywords": keywords_out,

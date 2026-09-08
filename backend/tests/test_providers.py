@@ -104,7 +104,8 @@ async def test_keyless_serp_provider():
     prov = KeylessSerpProvider()
     pages = [FakePage()]
     res = await prov.live_position("seo audit", "example.com", pages=pages, audit=FakeAudit())
-    assert res["source"] == "estimated"
+    assert res["source"] == "unmeasured"
+    assert res["position"] is None, "Keyless provider must not fabricate a position"
 
 
 @pytest.mark.asyncio

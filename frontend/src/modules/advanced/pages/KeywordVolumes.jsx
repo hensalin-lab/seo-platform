@@ -112,9 +112,9 @@ export default function KeywordVolumes() {
               {volumes.map((v, i) => (
                 <tr key={`${v.keyword}-${i}`} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--text)' }}>{v.keyword}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text)' }}>{(v.volume || 0).toLocaleString()}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text)' }}>{v.volume == null ? '—' : v.volume.toLocaleString()}</td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', color: 'var(--text)' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><DollarSign size={11} />{(v.cpc || 0).toFixed(2)}</span>
+                    {v.cpc == null ? '—' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><DollarSign size={11} />{v.cpc.toFixed(2)}</span>}
                   </td>
                   <td style={{ padding: '8px 10px' }}>
                     <Badge color={competitionColor(v.competition)}>{v.competition || 'N/A'}</Badge>
