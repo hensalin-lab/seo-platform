@@ -32,7 +32,7 @@ export default function BacklinkExplorer() {
     setRefreshing(true); setToast('')
     try {
       const res = await api.refreshBacklinks(domain.trim())
-      setToast(res.message || 'Backlink ingestion started â€” check back in a few minutes.')
+      setToast(res.message || 'Backlink ingestion started — check back in a few minutes.')
       // Auto-reload data after 90 seconds to give ingestion time to run
       setTimeout(() => { load(domain.trim(), 0) }, 90000)
     } catch (e) { setToast('Failed to start refresh: ' + (e.message || 'Unknown error')) }
@@ -69,7 +69,7 @@ export default function BacklinkExplorer() {
         </div>
       )}
 
-      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Loadingâ€¦</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Loading…</div>}
       {error && <div style={{ textAlign: 'center', padding: 14, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, color: '#DC2626', maxWidth: 500, margin: '0 auto', fontSize: 12 }}>{error}</div>}
 
       {!loading && data && (
@@ -94,7 +94,7 @@ export default function BacklinkExplorer() {
               }}
             >
               <RefreshCw size={12} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-              {refreshing ? 'Refreshingâ€¦' : 'Refresh Backlinks'}
+              {refreshing ? 'Refreshing…' : 'Refresh Backlinks'}
             </button>
           </div>
 
@@ -116,10 +116,10 @@ export default function BacklinkExplorer() {
                           {bl.source_domain || bl.source_url?.slice(0, 40)} <ExternalLink size={10} />
                         </a>
                       </td>
-                      <td style={{ padding: '8px 12px', color: '#64748B', fontSize: 11, maxWidth: 180, wordBreak: 'break-all' }}>{bl.target_url?.slice(0, 30) || 'â€”'}</td>
-                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11, maxWidth: 120, wordBreak: 'break-all' }}>{bl.anchor_text || 'â€”'}</td>
+                      <td style={{ padding: '8px 12px', color: '#64748B', fontSize: 11, maxWidth: 180, wordBreak: 'break-all' }}>{bl.target_url?.slice(0, 30) || '—'}</td>
+                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11, maxWidth: 120, wordBreak: 'break-all' }}>{bl.anchor_text || '—'}</td>
                       <td style={{ padding: '8px 12px', fontWeight: 600, color: bl.domain_authority >= 50 ? '#22C55E' : bl.domain_authority >= 20 ? '#F59E0B' : '#EF4444' }}>
-                        {bl.domain_authority || 'â€”'}
+                        {bl.domain_authority || '—'}
                       </td>
                       <td style={{ padding: '8px 12px' }}>
                         <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600, background: bl.is_follow ? '#22C55E15' : '#EF444415', color: bl.is_follow ? '#22C55E' : '#EF4444' }}>
@@ -128,7 +128,7 @@ export default function BacklinkExplorer() {
                       </td>
                       <td style={{ padding: '8px 12px' }}>
                         <span style={{ color: (bl.toxic_score || 0) >= 0.7 ? '#EF4444' : '#475569', fontSize: 11, fontWeight: 600 }}>
-                          {bl.toxic_score != null ? bl.toxic_score.toFixed(2) : 'â€”'}
+                          {bl.toxic_score != null ? bl.toxic_score.toFixed(2) : '—'}
                         </span>
                       </td>
                     </tr>

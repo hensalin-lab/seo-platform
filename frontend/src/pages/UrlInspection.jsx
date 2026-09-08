@@ -60,7 +60,7 @@ export default function UrlInspection() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Running live inspectionâ€¦</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Running live inspection…</div>}
       {error && <div style={{ textAlign: 'center', padding: 16, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', maxWidth: 500, margin: '0 auto' }}>{error}</div>}
 
       {data && (

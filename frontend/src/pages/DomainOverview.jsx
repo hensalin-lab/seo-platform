@@ -25,7 +25,7 @@ function StatCard({ icon: Icon, label, value, color, cta, ctaLabel, ctaHref }) {
         <span style={{ fontSize: 12, color: '#475569', fontWeight: 500 }}>{label}</span>
       </div>
       <div style={{ fontSize: 26, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>
-        {value ?? 'â€”'}
+        {value ?? '—'}
       </div>
       {cta && ctaHref && (
         <a href={ctaHref} style={{
@@ -121,7 +121,7 @@ export default function DomainOverview() {
             width: 36, height: 36, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 14px',
           }} />
-          Fetching overview for {loadedDomain || domain}â€¦
+          Fetching overview for {loadedDomain || domain}…
         </div>
       )}
 
@@ -166,7 +166,7 @@ export default function DomainOverview() {
                       </div>
                     </div>
                   </div>
-                : 'â€”'}
+                : '—'}
               color="#6366F1"
               cta={data.ctas?.run_audit}
               ctaLabel="Run full audit"
@@ -175,7 +175,7 @@ export default function DomainOverview() {
             <StatCard
               icon={Link2}
               label="Backlinks"
-              value={data.backlinks?.total != null ? data.backlinks.total.toLocaleString() : 'â€”'}
+              value={data.backlinks?.total != null ? data.backlinks.total.toLocaleString() : '—'}
               color="#F59E0B"
               cta={data.ctas?.analyze_backlinks}
               ctaLabel="Analyze backlinks"
@@ -184,7 +184,7 @@ export default function DomainOverview() {
             <StatCard
               icon={TrendingUp}
               label="Avg. Keyword Position"
-              value={data.rank_tracking?.avg_position ?? 'â€”'}
+              value={data.rank_tracking?.avg_position ?? '—'}
               color="#22C55E"
               cta={data.ctas?.track_keywords}
               ctaLabel="Track keywords"
@@ -223,12 +223,12 @@ export default function DomainOverview() {
                       <td style={{ padding: '8px 10px' }}>
                         <a href={p.url} target="_blank" rel="noopener noreferrer"
                           style={{ color: '#6366F1', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {p.url.length > 50 ? p.url.slice(0, 50) + 'â€¦' : p.url}
+                          {p.url.length > 50 ? p.url.slice(0, 50) + '…' : p.url}
                           <ExternalLink size={11} />
                         </a>
                       </td>
-                      <td style={{ padding: '8px 10px', color: '#475569' }}>{p.title || 'â€”'}</td>
-                      <td style={{ padding: '8px 10px', color: '#64748B' }}>{p.word_count?.toLocaleString() || 'â€”'}</td>
+                      <td style={{ padding: '8px 10px', color: '#475569' }}>{p.title || '—'}</td>
+                      <td style={{ padding: '8px 10px', color: '#64748B' }}>{p.word_count?.toLocaleString() || '—'}</td>
                       <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           padding: '2px 6px', borderRadius: 3, fontSize: 11, fontWeight: 600,

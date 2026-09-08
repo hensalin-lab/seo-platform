@@ -82,7 +82,7 @@ export default function LiveContentEditor() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Paste or write your content hereâ€¦"
+            placeholder="Paste or write your content here…"
             style={{
               width: '100%', minHeight: 400, padding: 14, background: '#FFFFFF',
               border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A',
@@ -92,7 +92,7 @@ export default function LiveContentEditor() {
           />
           <div style={{ marginTop: 6, fontSize: 11, color: '#8B93A7' }}>
             {content.trim().split(/\s+/).filter(Boolean).length} words
-            {loading && <span style={{ marginLeft: 8, color: '#6366F1' }}><Loader2 size={11} style={{ animation: 'spin 1s linear infinite', verticalAlign: 'middle' }} /> Scoringâ€¦</span>}
+            {loading && <span style={{ marginLeft: 8, color: '#6366F1' }}><Loader2 size={11} style={{ animation: 'spin 1s linear infinite', verticalAlign: 'middle' }} /> Scoring…</span>}
           </div>
         </div>
 
@@ -105,13 +105,13 @@ export default function LiveContentEditor() {
             <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Your Draft</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 32, fontWeight: 700, color: draft?.score >= 60 ? '#22C55E' : draft?.score >= 40 ? '#F59E0B' : '#EF4444' }}>
-                {draft?.score ?? 'â€”'}
+                {draft?.score ?? '—'}
               </span>
               <span style={{ fontSize: 13, color: '#475569' }}>/100</span>
             </div>
             <ScoreBar score={draft?.score || 0} color={draft?.score >= 60 ? '#22C55E' : draft?.score >= 40 ? '#F59E0B' : '#EF4444'} />
             <div style={{ marginTop: 10, fontSize: 12, color: '#64748B' }}>
-              {draft?.word_count?.toLocaleString() || 0} words Â· {draft?.heading_count || 0} headings Â· {draft?.entity_count || 0} entities
+              {draft?.word_count?.toLocaleString() || 0} words · {draft?.heading_count || 0} headings · {draft?.entity_count || 0} entities
             </div>
           </div>
 
@@ -122,7 +122,7 @@ export default function LiveContentEditor() {
             <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Competitor Average</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 32, fontWeight: 700, color: '#F59E0B' }}>
-                {avg?.score ?? 'â€”'}
+                {avg?.score ?? '—'}
               </span>
               <span style={{ fontSize: 13, color: '#475569' }}>/100</span>
             </div>

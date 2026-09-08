@@ -30,7 +30,7 @@ export default function KeywordUniverse() {
           <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
-          Discover what keywords a competitor organically ranks for â€” beyond manual tracking
+          Discover what keywords a competitor organically ranks for — beyond manual tracking
         </p>
         <form onSubmit={discover} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
@@ -52,7 +52,7 @@ export default function KeywordUniverse() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Probing competitor pagesâ€¦ (can take ~30s)</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Probing competitor pages… (can take ~30s)</div>}
       {error && <div style={{ textAlign: 'center', padding: 16, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', maxWidth: 500, margin: '0 auto' }}>{error}</div>}
 
       {data && (
@@ -95,7 +95,7 @@ export default function KeywordUniverse() {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
-              No keywords discovered â€” the competitor may not rank for that seed, or probing was limited.
+              No keywords discovered — the competitor may not rank for that seed, or probing was limited.
             </div>
           )}
         </div>

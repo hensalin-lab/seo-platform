@@ -44,7 +44,7 @@ export default function TrustFlow() {
           <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
-          Majestic-style two-metric link quality â€” trust vs raw link popularity
+          Majestic-style two-metric link quality — trust vs raw link popularity
         </p>
         <form onSubmit={analyze} style={{ display: 'flex', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
@@ -60,14 +60,14 @@ export default function TrustFlow() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Analyzing link qualityâ€¦</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Analyzing link quality…</div>}
       {error && <div style={{ textAlign: 'center', padding: 16, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', maxWidth: 500, margin: '0 auto' }}>{error}</div>}
 
       {data && (
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-            <FlowBar label="Trust Flow" value={data.trust_flow} color="#22C55E" desc="Quality of the link neighborhood â€” share of links from trusted high-authority sites" />
-            <FlowBar label="Citation Flow" value={data.citation_flow} color="#6366F1" desc="Raw link popularity â€” influence regardless of quality" />
+            <FlowBar label="Trust Flow" value={data.trust_flow} color="#22C55E" desc="Quality of the link neighborhood — share of links from trusted high-authority sites" />
+            <FlowBar label="Citation Flow" value={data.citation_flow} color="#6366F1" desc="Raw link popularity — influence regardless of quality" />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>

@@ -109,26 +109,39 @@ async def _swap_compact(db_path: str, engine) -> str:
 
 
 async def recover_orphaned_audits(max_minutes: int = 45) -> list[str]:
-    """Marks audits stuck in a non-terminal state for longer than `max_minutes`
-    as FAILED. Covers the case where an audit task hangs inside a still-live
-    process (no boot ever runs, so the boot-time recovery never fires).
+    """Marks audits stuck in a non-terminal state as FAILED. Covers the case
+    where an audit task hangs inside a still-live process (no boot ever runs,
+    so the boot-time recovery never fires).
+
+    Two windows:
+    * audits still in CRAWLING are failed after 13 minutes — a healthy crawl
+      is hard-capped by CRAWLER_CRAWL_TIMEOUT (600s) + one batch, so anything
+      still crawling past this is genuinely wedged (stalled site, blocked loop).
+    * every other non-terminal audit is failed after `max_minutes`.
+
     Returns the ids that were failed."""
     from sqlalchemy import text
     from app.database import engine
 
-    cutoff = _dt.datetime.utcnow() - _dt.timedelta(minutes=max_minutes)
+    now = _dt.datetime.utcnow()
+    cutoff = now - _dt.timedelta(minutes=max_minutes)
+    crawl_cutoff = now - _dt.timedelta(minutes=13)
     ids: list[str] = []
     try:
         async with engine.connect() as conn:
             res = await conn.execute(
                 text(
                     "UPDATE audits SET status='FAILED', "
-                    "error_message='Audit timed out after running too long; please re-run', "
+                    "error_message=CASE "
+                    "  WHEN status='CRAWLING' AND created_at < :crawl_cutoff "
+                    "  THEN 'Crawl stalled (no progress for 13 minutes); please re-run' "
+                    "  ELSE 'Audit timed out after running too long; please re-run' END, "
                     "completed_at=:now "
-                    "WHERE status NOT IN ('COMPLETED','FAILED') AND created_at < :cutoff "
+                    "WHERE (status='CRAWLING' AND created_at < :crawl_cutoff) "
+                    "   OR (status NOT IN ('COMPLETED','FAILED','CRAWLING') AND created_at < :cutoff) "
                     "RETURNING id"
                 ),
-                {"now": _dt.datetime.utcnow(), "cutoff": cutoff},
+                {"now": now, "cutoff": cutoff, "crawl_cutoff": crawl_cutoff},
             )
             ids = [row[0] for row in res.fetchall()]
             await conn.commit()

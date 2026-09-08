@@ -891,11 +891,22 @@ async def run_audit_task(audit_id: str):
                     timeout=crawl_deadline,
                 )
             except asyncio.TimeoutError:
-                logger.error(f"Crawler stalled after {crawl_deadline}s; failing audit {audit_id}")
-                pages = []
+                logger.error(f"Crawler stalled after {crawl_deadline}s; audit {audit_id}")
+                pages = list(getattr(crawler, "pages", []) or [])
+                if pages:
+                    logger.warning(f"Outer crawl deadline fired; salvaged {len(pages)} partially-crawled pages for audit {audit_id}")
+                else:
+                    pages = []
+            except asyncio.CancelledError:
+                logger.warning(f"Crawl task cancelled for audit {audit_id}; marking audit failed")
+                try:
+                    await update_status(AuditStatus.FAILED.value, 0, "Crawl cancelled")
+                except Exception:
+                    pass
+                raise
             except Exception as e:
                 logger.error(f"Crawler failed: {e}")
-                pages = []
+                pages = list(getattr(crawler, "pages", []) or [])
             finally:
                 drain_task.cancel()
                 await crawler.close()

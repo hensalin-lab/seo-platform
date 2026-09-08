@@ -111,7 +111,7 @@ class Settings(BaseSettings):
     CRAWLER_CONTENT_LIMIT: int = 200000
     CRAWLER_PAGE_TIMEOUT: int = 30
     CRAWLER_CRAWL_TIMEOUT: int = 600
-
+    CRAWLER_IDLE_TIMEOUT: int = 90
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",

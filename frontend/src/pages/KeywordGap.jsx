@@ -20,7 +20,7 @@ function GapRow({ keyword, yourPos, compPos, gap, device }) {
           background: yourPos <= 10 ? '#22C55E15' : '#E5E9F2',
           color: yourPos <= 10 ? '#22C55E' : '#475569',
         }}>
-          {yourPos || 'â€”'}
+          {yourPos || '—'}
         </span>
       </td>
       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -30,7 +30,7 @@ function GapRow({ keyword, yourPos, compPos, gap, device }) {
           background: compPos <= 10 ? '#F59E0B15' : '#E5E9F2',
           color: compPos <= 10 ? '#F59E0B' : '#475569',
         }}>
-          {compPos || 'â€”'}
+          {compPos || '—'}
         </span>
       </td>
       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -113,7 +113,7 @@ export default function KeywordGap() {
             width: 32, height: 32, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
           }} />
-          Analyzing keyword gapâ€¦
+          Analyzing keyword gap…
         </div>
       )}
 

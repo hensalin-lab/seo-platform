@@ -51,7 +51,7 @@ export default function ToxicLinks() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Scanning for toxic linksâ€¦</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Scanning for toxic links…</div>}
       {error && <div style={{ textAlign: 'center', padding: 14, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, color: '#DC2626', maxWidth: 500, margin: '0 auto', fontSize: 12 }}>{error}</div>}
 
       {!loading && data && (
@@ -100,11 +100,11 @@ export default function ToxicLinks() {
                       <td style={{ padding: '8px 12px', color: '#EF4444', fontWeight: 500, fontSize: 12 }}>{bl.source_domain}</td>
                       <td style={{ padding: '8px 12px', maxWidth: 200 }}>
                         <a href={bl.source_url} target="_blank" rel="noopener noreferrer" style={{ color: '#6366F1', textDecoration: 'none', wordBreak: 'break-all', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}>
-                          {bl.source_url?.slice(0, 35)}â€¦ <ExternalLink size={10} />
+                          {bl.source_url?.slice(0, 35)}… <ExternalLink size={10} />
                         </a>
                       </td>
-                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11, wordBreak: 'break-all' }}>{bl.anchor_text || 'â€”'}</td>
-                      <td style={{ padding: '8px 12px', color: '#64748B' }}>{bl.domain_authority || 'â€”'}</td>
+                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11, wordBreak: 'break-all' }}>{bl.anchor_text || '—'}</td>
+                      <td style={{ padding: '8px 12px', color: '#64748B' }}>{bl.domain_authority || '—'}</td>
                       <td style={{ padding: '8px 12px' }}>
                         <span style={{
                           display: 'inline-block', minWidth: 36, textAlign: 'center', padding: '2px 8px',

@@ -55,7 +55,7 @@ export default function ReferringDomains() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Loadingâ€¦</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Loading…</div>}
       {error && <div style={{ textAlign: 'center', padding: 14, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, color: '#DC2626', maxWidth: 500, margin: '0 auto', fontSize: 12 }}>{error}</div>}
 
       {!loading && data && (
@@ -88,18 +88,18 @@ export default function ReferringDomains() {
                       </td>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0F172A' }}>{rd.link_count}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: rd.domain_authority >= 50 ? '#22C55E' : rd.domain_authority >= 20 ? '#F59E0B' : '#EF4444' }}>
-                        {rd.domain_authority || 'â€”'}
+                        {rd.domain_authority || '—'}
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <div style={{ width: 40, height: 5, background: '#E5E9F2', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ width: `${Math.min(100, (rd.toxic_score || 0) * 100)}%`, height: '100%', background: (rd.toxic_score || 0) >= 0.7 ? '#EF4444' : (rd.toxic_score || 0) >= 0.3 ? '#F59E0B' : '#22C55E', borderRadius: 3 }} />
                           </div>
-                          <span style={{ fontSize: 11, color: '#64748B' }}>{rd.toxic_score != null ? rd.toxic_score.toFixed(2) : 'â€”'}</span>
+                          <span style={{ fontSize: 11, color: '#64748B' }}>{rd.toxic_score != null ? rd.toxic_score.toFixed(2) : '—'}</span>
                         </div>
                       </td>
                       <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
-                        {rd.first_seen ? new Date(rd.first_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'â€”'}
+                        {rd.first_seen ? new Date(rd.first_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
                       </td>
                     </tr>
                   ))}

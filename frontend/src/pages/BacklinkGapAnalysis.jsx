@@ -97,7 +97,7 @@ export default function BacklinkGapAnalysis() {
             width: 32, height: 32, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
           }} />
-          Analyzing backlink gapâ€¦
+          Analyzing backlink gap…
         </div>
       )}
 

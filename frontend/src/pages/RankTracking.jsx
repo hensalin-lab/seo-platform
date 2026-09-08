@@ -12,13 +12,15 @@ const POSITION_COLOR = (pos) => {
   return '#EF4444'
 }
 const DELTA_COLOR = (delta) => {
-  if (delta === 'â€”' || delta === '=') return '#475569'
-  if (delta.startsWith('+')) return '#EF4444'
+  const d = delta || ''
+  if (d === '—' || d === '=') return '#475569'
+  if (d.startsWith('+')) return '#EF4444'
   return '#22C55E'
 }
 const DELTA_ICON = (delta) => {
-  if (delta === 'â€”' || delta === '=') return <Minus size={13} />
-  return delta.startsWith('+') ? <ArrowUp size={13} /> : <ArrowDown size={13} />
+  const d = delta || ''
+  if (d === '—' || d === '=') return <Minus size={13} />
+  return d.startsWith('+') ? <ArrowUp size={13} /> : <ArrowDown size={13} />
 }
 
 export default function RankTracking() {
@@ -87,7 +89,7 @@ export default function RankTracking() {
 
   const avgPos = keywords.length
     ? (keywords.reduce((s, k) => s + (k.position || 0), 0) / keywords.length).toFixed(1)
-    : 'â€”'
+    : '—'
 
   return (
     <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
@@ -137,7 +139,7 @@ export default function RankTracking() {
             width: 32, height: 32, border: '3px solid #E2E5EA', borderTopColor: '#6366F1',
             borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
           }} />
-          Loading keywordsâ€¦
+          Loading keywords…
         </div>
       )}
 
@@ -209,7 +211,7 @@ export default function RankTracking() {
                 <input
                   value={newKw}
                   onChange={(e) => setNewKw(e.target.value)}
-                  placeholder="Enter keywordâ€¦"
+                  placeholder="Enter keyword…"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                   style={{
@@ -252,7 +254,7 @@ export default function RankTracking() {
                     opacity: adding || !newKw.trim() ? 0.5 : 1,
                   }}
                 >
-                  {adding ? 'Addingâ€¦' : 'Add'}
+                  {adding ? 'Adding…' : 'Add'}
                 </button>
                 <button
                   onClick={() => { setAddOpen(false); setNewKw('') }}
@@ -281,7 +283,7 @@ export default function RankTracking() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                    {['Keyword', 'Device', 'Position', 'Î”', 'SERP Features', 'Last Checked', ''].map(h => (
+                    {['Keyword', 'Device', 'Position', 'Δ', 'SERP Features', 'Last Checked', ''].map(h => (
                       <th key={h} style={{
                         padding: '10px 14px', textAlign: 'left', color: '#475569',
                         fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -307,7 +309,7 @@ export default function RankTracking() {
                             background: kw.position ? `${POSITION_COLOR(kw.position)}15` : '#E5E9F2',
                             color: POSITION_COLOR(kw.position),
                           }}>
-                            {kw.position || 'â€”'}
+                            {kw.position || '—'}
                           </span>
                         </td>
                         <td style={{ padding: '10px 14px', color: DELTA_COLOR(kw.delta), fontWeight: 600, fontSize: 12 }}>
@@ -326,7 +328,7 @@ export default function RankTracking() {
                             <span style={{ padding: '1px 6px', background: '#22C55E10', color: '#4ADE80', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>AI Overview</span>
                           )}
                           {!kw.serp_features?.featured_snippet && !kw.serp_features?.people_also_ask && !kw.serp_features?.ai_overview && (
-                            <span style={{ color: '#8B93A7', fontSize: 11 }}>â€”</span>
+                            <span style={{ color: '#8B93A7', fontSize: 11 }}>—</span>
                           )}
                         </td>
                         <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
@@ -369,11 +371,11 @@ export default function RankTracking() {
                   onClick={() => { setHistoryKw(null); setHistory([]) }}
                   style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 13 }}
                 >
-                  âœ• Close
+                  ✕ Close
                 </button>
               </div>
               {historyLoading ? (
-                <div style={{ color: '#475569', padding: 20, textAlign: 'center' }}>Loadingâ€¦</div>
+                <div style={{ color: '#475569', padding: 20, textAlign: 'center' }}>Loading…</div>
               ) : history.length === 0 ? (
                 <div style={{ color: '#475569', padding: 20, textAlign: 'center' }}>No history yet</div>
               ) : (
@@ -388,7 +390,7 @@ export default function RankTracking() {
                             height: barH, background: POSITION_COLOR(pos), borderRadius: '3px 3px 0 0',
                             minWidth: 8, maxWidth: 28, margin: '0 auto', opacity: 0.8,
                           }}
-                          title={`${pos} â€” ${snap.checked_at ? new Date(snap.checked_at).toLocaleDateString() : ''}`}
+                          title={`${pos} — ${snap.checked_at ? new Date(snap.checked_at).toLocaleDateString() : ''}`}
                         />
                         <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>{pos}</div>
                       </div>

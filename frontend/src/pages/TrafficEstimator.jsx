@@ -31,7 +31,7 @@ export default function TrafficEstimator() {
           <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
-          Estimate monthly organic visits â€” real GSC data for your domains, DDG-based estimate for any domain
+          Estimate monthly organic visits — real GSC data for your domains, DDG-based estimate for any domain
         </p>
         <form onSubmit={estimate} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
@@ -59,7 +59,7 @@ export default function TrafficEstimator() {
         </form>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Estimating trafficâ€¦</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 50, color: '#64748B' }}>Estimating traffic…</div>}
       {error && <div style={{ textAlign: 'center', padding: 16, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', maxWidth: 500, margin: '0 auto' }}>{error}</div>}
 
       {data && !data.error && (

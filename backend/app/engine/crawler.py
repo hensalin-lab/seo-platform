@@ -471,6 +471,8 @@ class CrawlerEngine:
         queue = [(start_url, 0)]
         pages_crawled = 0
         crawl_start = time.time()
+        last_completed = 0
+        last_progress_at = crawl_start
 
         if settings.CRAWLER_SITEMAP_SEEDING:
             try:
@@ -507,7 +509,18 @@ class CrawlerEngine:
                     for new_url in result:
                         queue.append((new_url, depth + 1))
 
+            completed_pages = len(self.pages)
             pages_crawled = len(self.visited)
+            if completed_pages == last_completed:
+                if time.time() - last_progress_at > settings.CRAWLER_IDLE_TIMEOUT:
+                    logger.warning(
+                        f"Crawl made no progress for {settings.CRAWLER_IDLE_TIMEOUT}s "
+                        f"({completed_pages} completed pages); stopping crawl"
+                    )
+                    break
+            else:
+                last_completed = completed_pages
+                last_progress_at = time.time()
             if on_progress:
                 progress = min(5 + int((pages_crawled / max_pages) * 35), 40)
                 on_progress(f"Crawled {pages_crawled}/{max_pages} pages", progress)
