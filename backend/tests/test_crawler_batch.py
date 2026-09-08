@@ -7,8 +7,10 @@ until the orphan reaper failed them.
 import asyncio
 import time
 
-from app.engine.crawler import CrawlerEngine
+from app.engine.crawler import CrawlerEngine, PageData
 from app.config import settings
+
+_EXTREME_HTML = "<html><meta name='description' content='x'>" + ("<div>&nbsp;" * 200000) + "</div></html>"
 
 
 async def _sticky():
@@ -49,6 +51,29 @@ def test_batch_order_matches_input():
         engine = CrawlerEngine()
         results = await engine._run_batch([_quick(), _quick()])
         assert results == [["https://example.com/1"], ["https://example.com/1"]]
+        await asyncio.wait_for(engine.close(), timeout=10)
+
+    asyncio.run(scenario())
+
+
+def test_page_parse_runs_in_thread_loop_stays_responsive():
+    """A pathological page must be parsed off the event loop: otherwise the loop
+    (and with it crawl timers, heartbeats, and the orphan reaper) freezes."""
+    async def scenario():
+        engine = CrawlerEngine()
+        page = PageData()
+        page.signals = {"has_viewport": False, "js_signals": {}, "language": "", "hreflang_tags": [], "rendered_with_js": False}
+        task = asyncio.create_task(
+            asyncio.to_thread(engine._extract_page, page, _EXTREME_HTML, "https://x/", 0, 200)
+        )
+        t0 = time.monotonic()
+        await asyncio.sleep(0.05)
+        lag = time.monotonic() - t0
+        assert lag < 0.3, f"event loop blocked by page parsing (lag {lag:.3f}s)"
+        await task
+        assert page.signals.get("has_viewport") is False, "no viewport meta present"
+        assert page.content_hash, "extraction completed in the worker thread"
+        assert isinstance(page.signals.get("js_signals"), dict)
         await asyncio.wait_for(engine.close(), timeout=10)
 
     asyncio.run(scenario())

@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import logging
 import time
 import random
@@ -142,6 +143,123 @@ class CrawlerEngine:
 
     def _next_user_agent(self) -> str:
         return random.choice(USER_AGENTS)
+
+    def _extract_page(self, page, html: str, url: str, depth: int, response_status: int) -> list:
+        """Synchronous CPU-heavy HTML extraction. Runs in a worker thread so a
+        pathological page (huge/garbled HTML causing slow BeautifulSoup or regex
+        work) can never block the asyncio event loop -- and with it the crawl
+        timers, progress heartbeats, orphan reaper, and every other request."""
+        soup = BeautifulSoup(html, "html.parser")
+        page.signals["has_viewport"] = bool(re.search(r'<meta[^>]*name=["\']viewport["\']', html, re.I))
+        page.title = (soup.title.string or "").strip() if soup.title else ""
+
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        page.meta_description = (meta_desc.get("content", "") or "").strip() if meta_desc else ""
+
+        canonical = soup.find("link", attrs={"rel": "canonical"})
+        page.canonical = (canonical.get("href", "") or "").strip() if canonical else ""
+
+        robots_meta = soup.find("meta", attrs={"name": "robots"})
+        page.robots_meta = (robots_meta.get("content", "") or "").strip() if robots_meta else ""
+        if "noindex" in page.robots_meta.lower():
+            page.is_indexable = False
+
+        h1_tag = soup.find("h1")
+        page.h1 = h1_tag.get_text(strip=True) if h1_tag else ""
+
+        page.headings = []
+        for level in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+            for tag in soup.find_all(level):
+                text = tag.get_text(strip=True)
+                if text:
+                    page.headings.append({"level": level.upper(), "text": text[:200]})
+
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string)
+                if isinstance(data, list):
+                    page.schema_markup.extend(data)
+                elif isinstance(data, dict):
+                    page.schema_markup.append(data)
+            except Exception:
+                pass
+
+        for tag in soup.find_all("meta", property=True):
+            prop = tag.get("property", "")
+            content = tag.get("content", "")
+            if prop.startswith("og:"):
+                page.open_graph[prop] = content
+        for tag in soup.find_all("meta", attrs={"name": True}):
+            name = tag.get("name", "").lower()
+            if name.startswith("twitter:"):
+                page.twitter_card[name] = tag.get("content", "")
+
+        body = soup.find("body")
+        if body:
+            for t in body.find_all(["script", "style", "noscript"]):
+                t.decompose()
+            raw_text = body.get_text(separator="\n", strip=True)
+            cleaned = _collapse_duplicate_lines(raw_text)
+            page.content_text = re.sub(r"\s*\n\s*", " ", cleaned)[:settings.CRAWLER_CONTENT_LIMIT]
+            page.word_count = len(page.content_text.split())
+
+        page.images = []
+        for img in soup.find_all("img"):
+            page.images.append({"src": img.get("src", ""), "alt": img.get("alt", ""), "loading": img.get("loading", "")})
+
+        page.links_internal = []
+        page.links_external = []
+        for a in soup.find_all("a", href=True):
+            href = a.get("href", "").strip()
+            if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
+                continue
+            normalized = self._normalize_url(href, url)
+            if not normalized:
+                continue
+            if self._is_same_domain(normalized, url):
+                page.links_internal.append({"url": normalized, "text": a.get_text(strip=True)[:100]})
+            else:
+                page.links_external.append({"url": normalized, "text": a.get_text(strip=True)[:100]})
+
+        page.content_hash = hashlib.md5(page.content_text.encode()).hexdigest()
+
+        # ---- Enrichment signals: hreflang, language, JS dependency ----
+        html_tag = soup.find("html")
+        if html_tag and html_tag.get("lang"):
+            page.signals["language"] = html_tag.get("lang", "")[:20]
+        hreflang_tags = []
+        for link in soup.find_all("link", rel="alternate"):
+            hl = link.get("hreflang") or ""
+            href = link.get("href") or ""
+            if hl and href:
+                hreflang_tags.append({"hreflang": hl.strip(), "href": href.strip()})
+        xdefault = soup.find("link", attrs={"rel": "alternate", "hreflang": "x-default"})
+        if hreflang_tags:
+            page.signals["hreflang_tags"] = hreflang_tags
+            page.signals["hreflang_x_default"] = bool(xdefault)
+        script_tags = soup.find_all("script")
+        inline_scripts = [s for s in script_tags if not (s.get("src") or "")]
+        external_scripts = [s for s in script_tags if s.get("src")]
+        raw_html = page.html_raw or ""
+        page.signals["js_signals"] = {
+            "script_count": len(script_tags),
+            "external_scripts": len(external_scripts),
+            "inline_scripts": len(inline_scripts),
+            "content_empty_with_js": page.word_count == 0 and len(script_tags) > 0,
+            "framework": _detect_js_framework(raw_html),
+            "hydration_marker": _has_hydration_marker(raw_html),
+            "inline_handler_count": len(re.findall(r"\son\w+=", raw_html)),
+        }
+        if page.rendered_with_js:
+            page.signals["rendered_with_js"] = True
+
+        new_urls = []
+        if response_status == 200 and depth < settings.CRAWLER_MAX_DEPTH:
+            for link in page.links_internal:
+                link_url = link["url"]
+                if link_url not in self.visited:
+                    new_urls.append(link_url)
+        return new_urls
 
     async def _respect_polite_delay(self):
         delay = max(settings.CRAWLER_POLITE_DELAY, 0.05)
@@ -330,7 +448,7 @@ class CrawlerEngine:
                     "rendered_with_js": False,
                     "hreflang_tags": [],
                     "language": "",
-                    "has_viewport": bool(re.search(r'<meta[^>]*name=["\']viewport["\']', html, re.I)),
+                    "has_viewport": False,
                     "js_signals": {},
                 }
 
@@ -342,115 +460,9 @@ class CrawlerEngine:
                         page.html_raw = rendered[:settings.CRAWLER_HTML_RAW_LIMIT]
 
                 if html:
-                    soup = BeautifulSoup(html, "html.parser")
-                    page.title = (soup.title.string or "").strip() if soup.title else ""
-
-                    meta_desc = soup.find("meta", attrs={"name": "description"})
-                    page.meta_description = (meta_desc.get("content", "") or "").strip() if meta_desc else ""
-
-                    canonical = soup.find("link", attrs={"rel": "canonical"})
-                    page.canonical = (canonical.get("href", "") or "").strip() if canonical else ""
-
-                    robots_meta = soup.find("meta", attrs={"name": "robots"})
-                    page.robots_meta = (robots_meta.get("content", "") or "").strip() if robots_meta else ""
-                    if "noindex" in page.robots_meta.lower():
-                        page.is_indexable = False
-
-                    h1_tag = soup.find("h1")
-                    page.h1 = h1_tag.get_text(strip=True) if h1_tag else ""
-
-                    page.headings = []
-                    for level in ["h1", "h2", "h3", "h4", "h5", "h6"]:
-                        for tag in soup.find_all(level):
-                            text = tag.get_text(strip=True)
-                            if text:
-                                page.headings.append({"level": level.upper(), "text": text[:200]})
-
-                    import json as _json
-                    for script in soup.find_all("script", type="application/ld+json"):
-                        try:
-                            data = _json.loads(script.string)
-                            if isinstance(data, list):
-                                page.schema_markup.extend(data)
-                            elif isinstance(data, dict):
-                                page.schema_markup.append(data)
-                        except Exception:
-                            pass
-
-                    for tag in soup.find_all("meta", property=True):
-                        prop = tag.get("property", "")
-                        content = tag.get("content", "")
-                        if prop.startswith("og:"):
-                            page.open_graph[prop] = content
-                    for tag in soup.find_all("meta", attrs={"name": True}):
-                        name = tag.get("name", "").lower()
-                        if name.startswith("twitter:"):
-                            page.twitter_card[name] = tag.get("content", "")
-
-                    body = soup.find("body")
-                    if body:
-                        for t in body.find_all(["script", "style", "noscript"]):
-                            t.decompose()
-                        raw_text = body.get_text(separator="\n", strip=True)
-                        cleaned = _collapse_duplicate_lines(raw_text)
-                        page.content_text = re.sub(r"\s*\n\s*", " ", cleaned)[:settings.CRAWLER_CONTENT_LIMIT]
-                        page.word_count = len(page.content_text.split())
-
-                    page.images = []
-                    for img in soup.find_all("img"):
-                        page.images.append({"src": img.get("src", ""), "alt": img.get("alt", ""), "loading": img.get("loading", "")})
-
-                    page.links_internal = []
-                    page.links_external = []
-                    for a in soup.find_all("a", href=True):
-                        href = a.get("href", "").strip()
-                        if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
-                            continue
-                        normalized = self._normalize_url(href, url)
-                        if not normalized:
-                            continue
-                        if self._is_same_domain(normalized, url):
-                            page.links_internal.append({"url": normalized, "text": a.get_text(strip=True)[:100]})
-                        else:
-                            page.links_external.append({"url": normalized, "text": a.get_text(strip=True)[:100]})
-
-                    page.content_hash = hashlib.md5(page.content_text.encode()).hexdigest()
-
-                    # ---- Enrichment signals: hreflang, language, JS dependency ----
-                    html_tag = soup.find("html")
-                    if html_tag and html_tag.get("lang"):
-                        page.signals["language"] = html_tag.get("lang", "")[:20]
-                    hreflang_tags = []
-                    for link in soup.find_all("link", rel="alternate"):
-                        hl = link.get("hreflang") or ""
-                        href = link.get("href") or ""
-                        if hl and href:
-                            hreflang_tags.append({"hreflang": hl.strip(), "href": href.strip()})
-                    xdefault = soup.find("link", attrs={"rel": "alternate", "hreflang": "x-default"})
-                    if hreflang_tags:
-                        page.signals["hreflang_tags"] = hreflang_tags
-                        page.signals["hreflang_x_default"] = bool(xdefault)
-                    script_tags = soup.find_all("script")
-                    inline_scripts = [s for s in script_tags if not (s.get("src") or "")]
-                    external_scripts = [s for s in script_tags if s.get("src")]
-                    raw_html = page.html_raw or ""
-                    page.signals["js_signals"] = {
-                        "script_count": len(script_tags),
-                        "external_scripts": len(external_scripts),
-                        "inline_scripts": len(inline_scripts),
-                        "content_empty_with_js": page.word_count == 0 and len(script_tags) > 0,
-                        "framework": _detect_js_framework(raw_html),
-                        "hydration_marker": _has_hydration_marker(raw_html),
-                        "inline_handler_count": len(re.findall(r"\son\w+=", raw_html)),
-                    }
-                    if page.rendered_with_js:
-                        page.signals["rendered_with_js"] = True
-
-                    if response.status_code == 200 and depth < settings.CRAWLER_MAX_DEPTH:
-                        for link in page.links_internal:
-                            link_url = link["url"]
-                            if link_url not in self.visited:
-                                new_urls.append(link_url)
+                    new_urls = await asyncio.to_thread(
+                        self._extract_page, page, html, url, depth, response.status_code
+                    )
 
                 self.pages.append(page)
 
