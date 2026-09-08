@@ -3,7 +3,7 @@ import { api } from '../api'
 import { DataSourceBadge } from '../components/DataSourceBadge'
 import {
   Gauge, Search, ExternalLink, Info, Target, TrendingUp, FileText,
-  AlertTriangle, ShieldAlert, ShieldCheck, Lightbulb,
+  AlertTriangle, ShieldAlert, ShieldCheck, Lightbulb, BarChart3,
 } from 'lucide-react'
 
 const BAND_META = {
@@ -242,8 +242,8 @@ export default function KeywordDifficulty() {
             </Section>
           </div>
 
-          {/* Opportunity + intent */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {/* Opportunity + volume + intent */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             <Section icon={TrendingUp} title="Opportunity score" subtitle="Shared module — same formula as Keyword Gap">
               {data.opportunity?.status === 'SUCCESS' ? (
                 <>
@@ -256,6 +256,26 @@ export default function KeywordDifficulty() {
                 </>
               ) : (
                 <div style={{ fontSize: 12, color: '#92400E' }}>{data.opportunity?.reason || 'Opportunity unavailable.'}</div>
+              )}
+            </Section>
+
+            <Section icon={BarChart3} title="Search volume" subtitle="Real provider only — never guessed">
+              {typeof data.search_volume?.volume === 'number' ? (
+                <>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#0F172A' }}>
+                    {data.search_volume.volume.toLocaleString()}
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginLeft: 8 }}>/ month</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+                    CPC <strong>${data.search_volume.cpc ?? '—'}</strong> · Competition <strong>{data.search_volume.competition || '—'}</strong>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>{data.search_volume.note}</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#94A3B8' }}>N/A</div>
+                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 6 }}>{data.search_volume?.note || 'Search volume requires DataForSEO credentials.'}</div>
+                </>
               )}
             </Section>
 

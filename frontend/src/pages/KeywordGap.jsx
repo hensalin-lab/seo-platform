@@ -239,7 +239,7 @@ export default function KeywordGap() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                      {['Keyword', 'Competitor Position', 'Device'].map(h => (
+                      {['Keyword', 'Competitor Position', 'Device', 'Opportunity'].map(h => (
                         <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#475569', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
@@ -254,6 +254,20 @@ export default function KeywordGap() {
                           </span>
                         </td>
                         <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>{r.device || 'desktop'}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {typeof r.opportunity === 'number' ? (
+                            <span style={{
+                              display: 'inline-block', padding: '3px 8px', borderRadius: 4,
+                              fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap',
+                              background: (r.opportunity >= 60 ? '#22C55E15' : r.opportunity >= 40 ? '#F59E0B15' : '#FDE8E8'),
+                              color: (r.opportunity >= 60 ? '#16A34A' : r.opportunity >= 40 ? '#B45309' : '#DC2626'),
+                            }} title={`SERP weakness + difficulty via shared opportunity module (${r.score_source || 'unknown'})`}>
+                              {r.opportunity} {r.opportunity_band || ''}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

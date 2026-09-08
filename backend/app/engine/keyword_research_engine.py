@@ -1,17 +1,12 @@
-"""Keyword research engine — SERP-based keyword difficulty, SERP overview,
-and keyword-universe discovery. All free, no API key required for basic usage.
+"""Keyword research engine — keyword-universe discovery.
 
 Uses multi-source SERP client (Serper → OpenSerp → DuckDuckGo) for real
 Google rankings when API keys are configured. Falls back to DDG HTML scraper.
 
-Keyword Difficulty (0-100): a real competitive difficulty estimate computed by
-analyzing the actual SERP for the keyword — the strength (referring-domain
-authority) of the domains ranking in the top 10 determines the score.
+Keyword Difficulty now lives in `app.engine.keyword_difficulty_engine`
+(transparent formula, reconciled buckets, shared modules).
 """
-import asyncio
 import logging
-
-from app.services.ddg_serp_client import DDGSerpClient
 
 logger = logging.getLogger(__name__)
 
@@ -22,127 +17,6 @@ def _host_of(url: str) -> str:
         return (urlparse(url).hostname or "").lower().removeprefix("www.")
     except Exception:
         return ""
-
-
-def _difficulty_from_results(results: list, referring_strength: dict) -> dict:
-    """Compute keyword difficulty from the top SERP results.
-
-    Score logic (0-100, higher = harder):
-      - Average DA of ranking domains (weighted): 0-60
-      - % of top-10 from strong domains (DA>=40): 0-20
-      - Density of well-known/authority TLDs (.gov/.edu/.com): 0-10
-      - Competitiveness spread (how tightly packed positions 1-10): 0-10
-    """
-    top10 = results[:10]
-    if not top10:
-        return {"difficulty": 50.0, "note": "No SERP results — defaulted to moderate difficulty.",
-                "top10_da_avg": 0, "strong_domain_pct": 0}
-
-    das = []
-    strong_count = 0
-    authority_tld_count = 0
-    for r in top10:
-        host = _host_of(r.get("url", ""))
-        da = referring_strength.get(host, 0) or 0
-        das.append(da)
-        if da >= 40:
-            strong_count += 1
-        if host.endswith((".gov", ".edu", ".org")):
-            authority_tld_count += 1
-
-    avg_da = sum(das) / len(das)
-    strong_pct = strong_count / len(das)
-    authority_pct = authority_tld_count / len(das)
-
-    # DA component: 0-60 points
-    da_component = min(60.0, avg_da * 1.2)
-    # Strong-domain concentration: 0-20
-    strong_component = strong_pct * 20.0
-    # Authority TLD presence: 0-10
-    tld_component = authority_pct * 10.0
-    # Spread: tight top-10 = harder — approximate using DA variance
-    if len(das) > 1:
-        mean = sum(das) / len(das)
-        spread = sum((d - mean) ** 2 for d in das) / len(das)
-        spread_component = min(10.0, (1 - (spread / 2500)) * 10.0)
-    else:
-        spread_component = 5.0
-
-    difficulty = round(min(100.0, da_component + strong_component + tld_component + spread_component), 1)
-
-    return {
-        "difficulty": difficulty,
-        "note": "Estimated from DuckDuckGo SERP analysis of the top 10 results (domain-authority of ranking pages). Estimates, not Google data.",
-        "top10_da_avg": round(avg_da, 1),
-        "strong_domain_pct": round(strong_pct, 3),
-    }
-
-
-async def _referring_strength_cache(domains: list, max_new: int = 5) -> dict:
-    """Fetch domain-authority strength (0-100) for up to `max_new` domains.
-
-    Uses a single fast Open PageRank batch request (real, spam-filtered DA).
-    This endpoint must stay fast — it runs synchronously inside a keyword
-    request, so we deliberately avoid live Common Crawl lookups here (those
-    are handled by the background ingestion worker instead).
-    """
-    hosts = [h for h in domains[:max_new] if h]
-    if not hosts:
-        return {}
-
-    strength = {h: 0 for h in hosts}
-    from app.engine.open_page_rank_client import opr_batch
-    from app.config import settings as _settings
-    opr_key = getattr(_settings, "OPEN_PAGERANK_API_KEY", "") or ""
-    if opr_key:
-        try:
-            opr = await opr_batch(hosts, opr_key)
-            for dom, info in opr.items():
-                if info.get("domain_authority"):
-                    strength[dom] = int(round(min(100, info["domain_authority"])))
-        except Exception as e:
-            logger.debug(f"Open PageRank strength lookup failed: {e}")
-    return strength
-
-
-class KeywordDifficultyEngine:
-    """Estimate keyword difficulty + SERP overview using the free DDG scraper."""
-
-    def __init__(self):
-        self.ddg = DDGSerpClient()
-
-    async def analyze(self, keyword: str) -> dict:
-        """Get difficulty score + SERP overview for a keyword."""
-        serp = await self.ddg.get_serp(keyword)  # no target_domain → position None
-        results = serp.get("all_results") or []
-        if not results:
-            return {"keyword": keyword, "error": serp.get("error", "No results"),
-                    "difficulty": None, "results": []}
-
-        top_domains = list(dict.fromkeys(_host_of(r["url"]) for r in results[:10]))
-        strength = await _referring_strength_cache(top_domains)
-
-        difficulty = _difficulty_from_results(results, strength)
-
-        return {
-            "keyword": keyword,
-            "difficulty": difficulty["difficulty"],
-            "note": difficulty["note"],
-            "top10_da_avg": difficulty["top10_da_avg"],
-            "strong_domain_pct": difficulty["strong_domain_pct"],
-            "serp_overview": [
-                {
-                    "position": i + 1,
-                    "url": r["url"],
-                    "domain": _host_of(r["url"]),
-                    "title": r["title"],
-                    "snippet": r["snippet"],
-                    "referring_strength": strength.get(_host_of(r["url"]), 0),
-                }
-                for i, r in enumerate(results[:10])
-            ],
-            "source": serp.get("source", "ddg"),
-        }
 
 
 async def discover_keyword_universe(

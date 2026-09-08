@@ -147,6 +147,42 @@ def _search_volume_available() -> bool:
     return bool(getattr(settings, "DATAFORSEO_LOGIN", "") and getattr(settings, "DATAFORSEO_PASSWORD", ""))
 
 
+async def _keyword_volume(keyword: str) -> dict:
+    """Real search volume/CPC/competition from the configured volume provider.
+
+    Only DataForSEO supplies volume here (single implementation, reusing the
+    provider registry). When credentials are absent or the call fails, the
+    result is honest N/A (volume=None) — search volume is never guessed.
+    """
+    from app.config import settings as _s
+    login = getattr(_s, "DATAFORSEO_LOGIN", "") or ""
+    password = getattr(_s, "DATAFORSEO_PASSWORD", "") or ""
+    if not login or not password:
+        return {
+            "keyword": keyword, "volume": None, "cpc": None,
+            "competition": None, "source": None,
+            "note": "Search volume requires DataForSEO credentials — shown as N/A, never guessed.",
+        }
+    from app.engine.providers import DataForSEOVolumeProvider
+    try:
+        res = await DataForSEOVolumeProvider({"login": login, "password": password}).get_volume(keyword)
+    except Exception as e:
+        logger.debug(f"DataForSEO volume lookup failed for '{keyword}': {e}")
+        return {
+            "keyword": keyword, "volume": None, "cpc": None,
+            "competition": None, "source": "dataforseo",
+            "note": "Volume provider errored (invalid credentials or rate limit) — shown as N/A.",
+        }
+    return {
+        "keyword": keyword,
+        "volume": res.get("volume"),
+        "cpc": res.get("cpc"),
+        "competition": res.get("competition"),
+        "source": "dataforseo",
+        "note": "Measured search volume/CPC from DataForSEO (US, en).",
+    }
+
+
 async def _fetch_page_topics(url: str, client: httpx.AsyncClient) -> list[str] | None:
     """Fetch a ranking page and reduce it to a set of meaningful topic words."""
     try:
@@ -362,6 +398,9 @@ class KeywordDifficultyEngine:
         # â”€â”€ Content gap (real page analysis) â”€â”€
         content_gap = await _content_gap(results)
 
+        # â”€â”€ Search volume (real provider only; honest N/A otherwise) â”€â”€
+        search_volume = await _keyword_volume(kw)
+
         recommendation = _recommendation(kw, intent, content_gap.get("topics") or [], difficulty)
 
         return {
@@ -412,6 +451,7 @@ class KeywordDifficultyEngine:
             },
             "serp_weakness": weakness,
             "opportunity": opportunity,
+            "search_volume": search_volume,
             "serp_overview": rows,
             "content_gap": content_gap,
             "recommendation": recommendation,

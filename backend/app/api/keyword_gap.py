@@ -19,9 +19,53 @@ from app.models import (
 )
 from app.api.auth import get_current_active_user
 from app.services.ddg_serp_client import DDGSerpClient
+from app.engine.keyword_difficulty_engine import KeywordDifficultyEngine
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/keyword-gap", tags=["keyword-gap"])
+
+# Bounded live opportunity enrichment: we never score more than this many gap
+# rows per request, and the scoring reuses the platform's single shared
+# SERP-weakness + opportunity modules (see app.engine.opportunity_score).
+_SCORE_LIMIT = 5
+_SCORE_CONCURRENCY = 3
+
+
+async def _score_gap_opportunities(rows: list[dict], engine=None) -> list[dict]:
+    """Attach shared-module SERP opportunity to competitor-only gap rows.
+
+    Reuses the Keyword Difficulty engine, which layers the shared
+    `compute_serp_weakness` + `score_opportunity` under one documented formula.
+    Honesty rules inherited: no volume/CPC anywhere, N/A stays N/A. Scoring is
+    best-effort — a failed or rate-limited analysis leaves the row unscored.
+    """
+    engine = engine or KeywordDifficultyEngine()
+    targets = rows[:_SCORE_LIMIT]
+    sem = asyncio.Semaphore(_SCORE_CONCURRENCY)
+
+    async def score_one(row: dict) -> dict:
+        async with sem:
+            try:
+                res = await engine.analyze(row.get("keyword", ""))
+            except Exception as e:
+                logger.debug(f"Gap opportunity scoring failed for '{row.get('keyword')}': {e}")
+                return row
+        if res.get("state") not in ("SUCCESS", "PARTIAL_DATA"):
+            return row
+        opp = res.get("opportunity") or {}
+        weakness = res.get("serp_weakness") or {}
+        return {
+            **row,
+            "difficulty": res.get("difficulty"),
+            "difficulty_label": res.get("difficulty_label"),
+            "opportunity": opp.get("score"),
+            "opportunity_band": opp.get("band"),
+            "weakness": weakness.get("level"),
+            "score_source": (res.get("data_source") or {}).get("serp_provider", "unknown"),
+        }
+
+    scored = await asyncio.gather(*(score_one(r) for r in targets))
+    return list(scored) + rows[_SCORE_LIMIT:]
 
 
 async def _get_latest_positions(db: AsyncSession, domain_id: str) -> dict:
@@ -211,6 +255,16 @@ async def _keyword_gap_inner(d1: str, d2: str, user, db):
     competitor_only.sort(key=lambda x: x.get("position", 999))
     both_rank.sort(key=lambda x: x.get("gap", 0))
 
+    # Shared-module opportunity enrichment: for your attack gaps (competitor
+    # ranks, you don't), score the actual SERP via the KD engine — which uses
+    # the single platform-wide `opportunity_score` module. Best-effort.
+    scored = 0
+    if competitor_only:
+        enriched = await _score_gap_opportunities(competitor_only)
+        scored = sum(1 for r in enriched if r.get("opportunity") is not None)
+        if scored:
+            competitor_only = enriched
+
     return {
         "domain": d1,
         "competitor": d2,
@@ -224,5 +278,9 @@ async def _keyword_gap_inner(d1: str, d2: str, user, db):
             "competitor_only_count": len(competitor_only),
             "both_rank_count": len(both_rank),
             "live_serp_checked": live_checked,
+            "opportunity_scored": scored,
+            "opportunity_note": "Competitor-only rows are scored against the live SERP "
+                                "via the shared opportunity module (SERP weakness + "
+                                "difficulty). Never volume/CPC — those are never guessed.",
         },
     }

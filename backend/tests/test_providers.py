@@ -19,6 +19,20 @@ from app.engine import providers as providers_mod
 transport = ASGITransport(app=app)
 
 
+@pytest.fixture(autouse=True)
+def _blank_env_config(monkeypatch):
+    """Make provider tests hermetic: ignore real keys from the dev .env.
+
+    `_ENV_CONFIG` is snapshotted from settings at import; replacing it with
+    empty values makes every hardcoded config authoritative. Production behavior
+    (env merged into effective_config) is untouched — only this module sees the
+    blank snapshot.
+    """
+    from app.engine import providers as pmod
+    blank = {name: {k: "" for k in cfg} for name, cfg in pmod._ENV_CONFIG.items()}
+    monkeypatch.setattr(pmod, "_ENV_CONFIG", blank)
+
+
 class FakePage:
     def __init__(self, url="https://example.com/page-a", title="SEO Guide", h1="SEO Guide",
                  content_text="How to do SEO audit best practices ", word_count=900,

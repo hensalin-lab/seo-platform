@@ -145,6 +145,69 @@ def test_opportunity_score_bounds_and_honesty():
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# 8b. Search volume — real provider only, honest N/A without credentials
+# ──────────────────────────────────────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_volume_honest_na_without_credentials(monkeypatch):
+    import app.engine.keyword_difficulty_engine as kdmod
+    monkeypatch.setattr(settings, "DATAFORSEO_LOGIN", "")
+    monkeypatch.setattr(settings, "DATAFORSEO_PASSWORD", "")
+    res = await kdmod._keyword_volume("best seo tools")
+    assert res["volume"] is None
+    assert res["cpc"] is None
+    assert res["source"] is None
+    assert "DataForSEO" in res["note"] and "never guessed" in res["note"]
+
+
+@pytest.mark.asyncio
+async def test_volume_returns_provider_data_when_configured(monkeypatch):
+    import app.engine.keyword_difficulty_engine as kdmod
+    monkeypatch.setattr(settings, "DATAFORSEO_LOGIN", "login")
+    monkeypatch.setattr(settings, "DATAFORSEO_PASSWORD", "password")
+
+    class _FakeVolumeProvider:
+        def __init__(self, cfg):
+            self.cfg = cfg
+
+        async def get_volume(self, keyword):
+            assert self.cfg["login"] == "login" and self.cfg["password"] == "password"
+            return {"keyword": keyword, "volume": 2500, "cpc": 2.4,
+                    "competition": "LOW", "source": "dataforseo"}
+
+    import app.engine.providers as pmod
+    monkeypatch.setattr(pmod, "DataForSEOVolumeProvider", _FakeVolumeProvider)
+
+    res = await kdmod._keyword_volume("best seo tools")
+    assert res["volume"] == 2500
+    assert res["cpc"] == 2.4
+    assert res["competition"] == "LOW"
+    assert res["source"] == "dataforseo"
+    assert "never guessed" not in res["note"]
+
+
+@pytest.mark.asyncio
+async def test_volume_provider_error_stays_na(monkeypatch):
+    import app.engine.keyword_difficulty_engine as kdmod
+    monkeypatch.setattr(settings, "DATAFORSEO_LOGIN", "login")
+    monkeypatch.setattr(settings, "DATAFORSEO_PASSWORD", "password")
+
+    class _FailingVolumeProvider:
+        def __init__(self, cfg):
+            pass
+
+        async def get_volume(self, keyword):
+            raise RuntimeError("429 rate limited")
+
+    import app.engine.providers as pmod
+    monkeypatch.setattr(pmod, "DataForSEOVolumeProvider", _FailingVolumeProvider)
+
+    res = await kdmod._keyword_volume("best seo tools")
+    assert res["volume"] is None
+    assert res["source"] == "dataforseo"  # honest: attempted provider, no data
+    assert "shown as N/A" in res["note"]
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Fixtures for full-engine tests
 # ──────────────────────────────────────────────────────────────────────────
 _RAW = [
@@ -203,6 +266,11 @@ def _make_engine(monkeypatch, serp):
     monkeypatch.setattr(opr_client, "opr_batch", _fake_opr)
     import app.engine.keyword_difficulty_engine as kdmod
     monkeypatch.setattr(kdmod, "_fetch_page_topics", _fake_topics)
+
+    async def _fake_volume(keyword):
+        return {"keyword": keyword, "volume": None, "cpc": None, "competition": None,
+                "source": None, "note": "Honest N/A (tests disable the volume provider)"}
+    monkeypatch.setattr(kdmod, "_keyword_volume", _fake_volume)
 
     engine = KeywordDifficultyEngine()
     engine.ddg = _FakeDDG(serp)
@@ -263,6 +331,12 @@ async def test_analyze_success(monkeypatch):
     assert 0 <= out["opportunity"]["score"] <= 100
     assert "search_volume" not in out["opportunity"]
 
+    # search volume: real-provider only; never fabricated in the response
+    sv = out["search_volume"]
+    assert sv["volume"] is None  # honest N/A when the provider is unavailable
+    assert sv["source"] is None
+    assert "N/A" in sv["note"]
+
     # content gap: real coverage fractions from fetched pages (capped at 8 for speed)
     cg = out["content_gap"]
     assert cg["pages_total"] == 10 and cg["pages_analyzed"] == 8
@@ -298,6 +372,7 @@ async def test_analyze_partial_data_no_da(monkeypatch):
         return None
 
     monkeypatch.setattr(kdmod, "_fetch_page_topics", _none)
+    monkeypatch.setattr(kdmod, "_keyword_volume", _none)
 
     class _FakeDDG:
         async def get_serp(self, keyword, target_domain=None):
