@@ -115,8 +115,16 @@ class CrawlerEngine:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
+            # Strict per-socket timeouts so a pathological server (slow DNS,
+            # connect, or a response that stalls mid-body) can never wedge the
+            # shared connection pool or a whole batch of pages.
             self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(settings.CRAWLER_TIMEOUT),
+                timeout=httpx.Timeout(
+                    connect=10.0,
+                    read=float(settings.CRAWLER_TIMEOUT),
+                    write=10.0,
+                    pool=10.0,
+                ),
                 follow_redirects=True,
                 headers={"User-Agent": settings.CRAWLER_USER_AGENT},
                 verify=settings.CRAWLER_VERIFY_SSL,
@@ -125,7 +133,12 @@ class CrawlerEngine:
 
     async def close(self):
         if self._client and not self._client.is_closed:
-            await self._client.aclose()
+            try:
+                # Bounded teardown: never let an in-flight request that refused
+                # cancellation block the audit pipeline forever.
+                await asyncio.wait_for(self._client.aclose(), timeout=5)
+            except Exception:
+                pass
 
     def _next_user_agent(self) -> str:
         return random.choice(USER_AGENTS)
@@ -455,6 +468,45 @@ class CrawlerEngine:
 
             return new_urls
 
+    async def _run_batch(self, tasks) -> list:
+        """Run a batch of _crawl_page tasks with a hard time budget.
+
+        asyncio.wait_for is not reliable here: a page coroutine that absorbs its
+        CancelledError makes the surrounding gather (and ultimately the whole
+        crawl coroutine) hang past every timeout, which stalls the audit until
+        the orphan reaper kills it. This runner waits until page-timeout plus a
+        short grace, collects whatever finished, then ABANDONS sticky tasks
+        (best-effort cancel, no awaiting) so the batch always returns.
+        """
+        wrapped = {}
+        for t in tasks:
+            task = asyncio.ensure_future(t)
+            wrapped[task] = t
+        pending = set(wrapped.keys())
+        results = {}
+        deadline = time.monotonic() + settings.CRAWLER_PAGE_TIMEOUT + 10
+        while pending and time.monotonic() < deadline:
+            done, pending = await asyncio.wait(
+                pending,
+                timeout=max(0.0, deadline - time.monotonic()),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for t in done:
+                if t.cancelled():
+                    results[wrapped[t]] = []
+                    continue
+                exc = t.exception()
+                if exc is not None:
+                    results[wrapped[t]] = []
+                    continue
+                res = t.result()
+                results[wrapped[t]] = res if isinstance(res, list) else []
+        for t in pending:
+            if len(self.crawl_diagnostics) < 10:
+                self.crawl_diagnostics.append(f"Stuck page abandoned after {settings.CRAWLER_PAGE_TIMEOUT + 10}s")
+            t.cancel()
+        return [results.get(t, []) for t in tasks]
+
     async def crawl(self, start_url: str, max_pages: int = None, on_page=None, on_progress=None) -> list[PageData]:
         max_pages = max_pages or settings.CRAWLER_MAX_PAGES
         self.visited.clear()
@@ -499,10 +551,7 @@ class CrawlerEngine:
                 break
 
             tasks = [self._crawl_page(url, depth, base_url, max_pages) for url, depth in batch]
-            results = await asyncio.gather(*[
-                asyncio.wait_for(t, timeout=settings.CRAWLER_PAGE_TIMEOUT)
-                for t in tasks
-            ], return_exceptions=True)
+            results = await self._run_batch(tasks)
 
             for result in results:
                 if isinstance(result, list):
