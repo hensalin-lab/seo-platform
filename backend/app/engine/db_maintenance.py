@@ -114,8 +114,8 @@ async def recover_orphaned_audits(max_minutes: int = 45) -> list[str]:
     so the boot-time recovery never fires).
 
     Two windows:
-    * audits still in CRAWLING are failed after 13 minutes — a healthy crawl
-      is hard-capped by CRAWLER_CRAWL_TIMEOUT (600s) + one batch, so anything
+    * audits still in CRAWLING are failed after 26 minutes — the crawl is
+      hard-capped by CRAWLER_CRAWL_TIMEOUT (1500s) + one batch, so anything
       still crawling past this is genuinely wedged (stalled site, blocked loop).
     * every other non-terminal audit is failed after `max_minutes`.
 
@@ -125,7 +125,7 @@ async def recover_orphaned_audits(max_minutes: int = 45) -> list[str]:
 
     now = _dt.datetime.utcnow()
     cutoff = now - _dt.timedelta(minutes=max_minutes)
-    crawl_cutoff = now - _dt.timedelta(minutes=13)
+    crawl_cutoff = now - _dt.timedelta(minutes=26)
     ids: list[str] = []
     try:
         async with engine.connect() as conn:
@@ -134,7 +134,7 @@ async def recover_orphaned_audits(max_minutes: int = 45) -> list[str]:
                     "UPDATE audits SET status='FAILED', "
                     "error_message=CASE "
                     "  WHEN status='CRAWLING' AND created_at < :crawl_cutoff "
-                    "  THEN 'Crawl stalled (no progress for 13 minutes); please re-run' "
+                    "  THEN 'Crawl stalled (no progress for 26 minutes); please re-run' "
                     "  ELSE 'Audit timed out after running too long; please re-run' END, "
                     "completed_at=:now "
                     "WHERE (status='CRAWLING' AND created_at < :crawl_cutoff) "

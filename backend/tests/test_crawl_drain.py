@@ -112,3 +112,25 @@ def test_crawl_pct_never_exceeds_30():
     for p in range(300, 500):
         pct = 5 + int((p / 300) * 35)
         assert min(pct, 30) <= 30
+
+
+def test_large_site_crawl_timeout_is_generous():
+    """A 300+ page site must be allowed enough time to actually finish its
+    crawl. The hard crawl cap must exceed the idle watchdog window by a wide
+    margin so legitimate slow tails are not mistaken for stalls, and the orphan
+    reaper's CRAWLING cutoff must be ≥ the crawl deadline (cap + one batch)."""
+    from app.config import settings
+
+    crawl_cap = settings.CRAWLER_CRAWL_TIMEOUT  # seconds
+    idle = settings.CRAWLER_IDLE_TIMEOUT
+    deadline = crawl_cap + 60  # audit.py crawl_deadline formula
+    reaper_crawl_cutoff_min = 26  # db_maintenance.py
+
+    # The orphan reaper must not kill a crawl before the outer deadline fires.
+    assert deadline <= reaper_crawl_cutoff_min * 60, (
+        f"crawl deadline {deadline}s exceeds reaper cutoff "
+        f"{reaper_crawl_cutoff_min * 60}s — legitimate slow crawls get killed"
+    )
+    # The idle watchdog (real stall detector) is much shorter than the cap:
+    # a true stall is caught at ~2x idle, long before the hard cap.
+    assert idle * 3 < crawl_cap
