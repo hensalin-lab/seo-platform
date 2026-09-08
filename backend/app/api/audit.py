@@ -861,25 +861,41 @@ async def run_audit_task(audit_id: str):
 
             crawler = CrawlerEngine()
             progress_q = asyncio.Queue()
-            last_progress_pct = {"v": -1}
 
             def _on_progress(msg, pct):
-                if pct > last_progress_pct["v"]:
-                    last_progress_pct["v"] = pct
-                    progress_q.put_nowait((pct, msg))
+                # Always queue a message so the UI keeps updating even when the
+                # percentage plateaus during the tail of a large crawl (the
+                # watchdog keeps the drain task alive; exiting early freezes the
+                # status at the last queued value).
+                progress_q.put_nowait((pct, msg))
 
             async def _drain_progress():
                 try:
+                    last_written = {"pct": -1, "msg": ""}
                     while True:
                         try:
                             pct, msg = await asyncio.wait_for(progress_q.get(), timeout=45)
                         except asyncio.TimeoutError:
-                            return
-                        pct = min(pct, 30)  # keep crawl progress below the 35% post-crawl step
-                        try:
-                            await update_status(AuditStatus.CRAWLING.value, pct, msg)
-                        except Exception as e:
-                            logger.warning(f"Progress update failed: {e}")
+                            # No new progress happened; keep the drain alive so a
+                            # later message still gets written. Write a heartbeat
+                            # ping so the frontend stays responsive even during a
+                            # slow, non-stalled tail of the crawl.
+                            pct, msg = None, None
+                        if pct is not None:
+                            pct = min(pct, 30)  # keep crawl progress below the 35% post-crawl step
+                            try:
+                                await update_status(AuditStatus.CRAWLING.value, pct, msg)
+                                last_written["pct"] = pct
+                                last_written["msg"] = msg
+                            except Exception as e:
+                                logger.warning(f"Progress update failed: {e}")
+                        elif last_written["pct"] < 30:
+                            # Heartbeat: refresh the same value to keep the UI
+                            # alive during a slow crawl tail.
+                            try:
+                                await update_status(AuditStatus.CRAWLING.value, last_written["pct"], last_written["msg"] or "Crawling website...")
+                            except Exception as e:
+                                logger.warning(f"Heartbeat update failed: {e}")
                 except asyncio.CancelledError:
                     raise
 
@@ -917,6 +933,11 @@ async def run_audit_task(audit_id: str):
                 logger.info(f"Audit {audit_id}: cleared stale endpoint caches from previous crawl")
             except Exception as e:
                 logger.warning(f"Audit {audit_id}: cache clear skipped: {e}")
+
+            diag = getattr(crawler, "crawl_diagnostics", None) or []
+            logger.info(f"Audit {audit_id}: crawl finished with {len(pages)} pages; "
+                        f"visited={len(getattr(crawler, 'visited', set()) or set())}; "
+                        f"diagnostics={diag[:5]}")
 
             if not pages:
                 await update_status(AuditStatus.FAILED.value, 0, "No pages found")
