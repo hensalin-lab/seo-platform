@@ -80,9 +80,9 @@ export default function UrlInspection() {
             </div>
           )}
 
-          {data.status !== 'UNAVAILABLE' && data.source === 'gsc_url_inspection' && data.status !== 'ERROR' && (
+          {data.status !== 'UNAVAILABLE' && data.status !== 'ERROR' && (
             <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #DAE0EA', fontWeight: 600, fontSize: 13, color: '#0F172A' }}>Indexing Details</div>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #DAE0EA', fontWeight: 600, fontSize: 13, color: '#0F172A' }}>Inspection Details</div>
               <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', fontSize: 12 }}>
                 {[
                   ['Coverage state', data.coverage_state],
@@ -91,16 +91,25 @@ export default function UrlInspection() {
                   ['Last crawl', data.last_crawl_time],
                   ['Crawled as', data.crawled_as],
                   ['Robots.txt', data.robots_txt_state],
-                ].map(([label, val]) => (
-                  <div key={label}>
+                  ['HTTP status', data.final_status],
+                  ['X-Robots-Tag', data.x_robots_tag],
+                  ['Meta robots', data.meta_robots],
+                  ['Robots block', data.robots_disallow],
+                  ['Sitemap', data.sitemap],
+                  ['Redirects', data.redirected ? 'Yes' : 'No'],
+                  ['Final URL', data.final_url],
+                  ['Page title', data.page_title],
+                ].filter(([label, val]) => val && val !== '—').map(([label, val]) => (
+                  <div key={label} style={{ gridColumn: label === 'Page title' || label === 'Final URL' ? '1 / -1' : undefined }}>
                     <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', fontWeight: 600, marginBottom: 2 }}>{label}</div>
-                    <div style={{ color: val ? '#0F172A' : '#475569' }}>{val || 'â€”'}</div>
+                    <div style={{ color: '#0F172A', wordBreak: 'break-word', minHeight: 15 }}>{val}</div>
                   </div>
                 ))}
               </div>
               <div style={{ padding: '0 16px 16px', fontSize: 11, color: '#475569' }}>
-                <div>Google canonical: <span style={{ color: '#64748B' }}>{data.google_canonical || 'â€”'}</span></div>
-                <div>Submitted/User canonical: <span style={{ color: '#64748B' }}>{data.user_canonical || 'â€”'}</span></div>
+                <div>Canonical: <span style={{ color: '#64748B' }}>{data.canonical || data.google_canonical || '—'}</span></div>
+                <div>Google canonical: <span style={{ color: '#64748B' }}>{data.google_canonical || '—'}</span></div>
+                <div>Submitted/User canonical: <span style={{ color: '#64748B' }}>{data.user_canonical || '—'}</span></div>
               </div>
             </div>
           )}

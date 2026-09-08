@@ -25,6 +25,30 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+# In-process TTL cache for SERP lookups. Skips repeated network calls when the
+# same keyword/target is requested again (across tools and repeat page loads).
+# Pure-memory: FastAPI Cloud runs a single worker process, so this is safe.
+_SERP_CACHE: dict[str, tuple[dict, float]] = {}
+_SERP_CACHE_TTL = 900.0  # 15 minutes
+_SERP_CACHE_MAX = 3000
+
+
+def _cache_put(key: str, value: dict):
+    now = time.time()
+    _SERP_CACHE[key] = (value, now)
+    if len(_SERP_CACHE) > _SERP_CACHE_MAX:
+        stale = [k for k, (_, t) in _SERP_CACHE.items() if now - t > _SERP_CACHE_TTL]
+        for k in stale:
+            _SERP_CACHE.pop(k, None)
+
+
+def _cache_get(key: str):
+    hit = _SERP_CACHE.get(key)
+    if hit and time.time() - hit[1] < _SERP_CACHE_TTL:
+        return hit[0]
+    return None
+
+
 _USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
@@ -246,6 +270,9 @@ class DDGSerpClient:
                        target_domain: Optional[str] = None) -> dict:
         """Get SERP results with automatic fallback: Serper → OpenSerp → DDG.
 
+        Results are cached in-process for 15 minutes so repeat lookups (across
+        tools and repeat page loads) return instantly instead of re-scraping.
+
         Returns the same shape regardless of source:
             {
                 "position": int|None,
@@ -255,6 +282,19 @@ class DDGSerpClient:
                 "source": "serper"|"openserp"|"ddg",
             }
         """
+        cache_key = f"{keyword.strip().lower()}\x00{target_domain or ''}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        result = await self._fetch_serp(keyword, target_domain)
+        if result and not result.get("error"):
+            _cache_put(cache_key, result)
+        return result
+
+    async def _fetch_serp(self, keyword: str,
+                          target_domain: Optional[str] = None) -> dict:
+        """Uncached SERP fetch (Serper → OpenSerp → DDG)."""
         # Try Serper first (real Google, fast)
         result = await self._try_serper(keyword, target_domain)
         if result and not result.get("error"):

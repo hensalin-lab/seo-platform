@@ -18,6 +18,8 @@ const SOURCE_CONFIG = {
   heuristic: { label: 'Heuristic', color: '#94a3b8', icon: 'H' },
   dataforseo: { label: 'DataForSEO', color: '#8b5cf6', icon: 'DFS' },
   serpapi: { label: 'SerpAPI', color: '#0ea5e9', icon: 'S' },
+  gsc_url_inspection: { label: 'GSC URL Inspection', color: '#34a853', icon: 'GSC' },
+  free_probe: { label: 'Live Probe', color: '#0ea5e9', icon: '▶' },
 }
 
 const STATUS_CONFIG = {

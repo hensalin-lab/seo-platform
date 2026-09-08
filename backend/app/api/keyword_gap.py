@@ -48,19 +48,27 @@ async def _get_latest_positions(db: AsyncSession, domain_id: str) -> dict:
 
 
 async def _live_serp_check(keywords: list[str], target_domain: str, client: DDGSerpClient) -> dict:
-    """Check a list of keywords for a domain via live SERP. Returns {keyword: {position, serp_features}}."""
+    """Check a list of keywords for a domain via live SERP. Returns {keyword: {position, serp_features}}.
+
+    Runs checks concurrently (bounded by a semaphore). Repeated lookups hit the
+    in-process SERP cache so re-checking the same keywords is nearly instant.
+    """
     results = {}
-    for kw in keywords:
-        try:
-            data = await client.get_serp(keyword=kw, target_domain=target_domain)
-            if not data.get("error"):
-                results[kw.lower()] = {
-                    "position": data.get("position"),
-                    "serp_features": data.get("serp_features", {}),
-                }
-        except Exception as e:
-            logger.debug(f"Live SERP check failed for '{kw}' on {target_domain}: {e}")
-        await asyncio.sleep(1)  # rate-limit
+    sem = asyncio.Semaphore(5)
+
+    async def check(kw: str):
+        async with sem:
+            try:
+                data = await client.get_serp(keyword=kw, target_domain=target_domain)
+                if not data.get("error"):
+                    results[kw.lower()] = {
+                        "position": data.get("position"),
+                        "serp_features": data.get("serp_features", {}),
+                    }
+            except Exception as e:
+                logger.debug(f"Live SERP check failed for '{kw}' on {target_domain}: {e}")
+
+    await asyncio.gather(*(check(kw) for kw in keywords))
     return results
 
 

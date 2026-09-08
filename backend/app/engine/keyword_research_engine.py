@@ -177,12 +177,13 @@ async def discover_keyword_universe(
         logger.warning(f"Seed SERP probe failed for {domain}: {e}")
 
     # 1b. Harvest related queries straight from the seed SERP (titles of the
-    # top results, minus site names). This keeps the universe useful even when
-    # the competitor doesn't rank for the seed.
+    # top results, minus site names). These go straight into the pool so the
+    # universe is never empty even when the competitor doesn't rank for the seed.
     for r in (serp.get("all_results") or [])[:8]:
         t = (r.get("title") or "").split(" | ")[0].split(" - ")[0].split(" – ")[0].strip()
         if t and 4 <= len(t) <= 90:
             serp_related.append(t.lower())
+            found_keywords.add(t.lower())
 
     # 2. Crawl up to N discovered pages for <title> and <h1> — these contain the
     # keywords the page targets/ranks for.
@@ -203,24 +204,23 @@ async def discover_keyword_universe(
                         clean = text.split(" | ")[0].split(" - ")[0].split(" – ")[0].strip()
                         if clean and 4 <= len(clean) <= 90 and clean.lower() != domain:
                             found_keywords.add(clean.lower())
-                await asyncio.sleep(2)
             except Exception:
                 continue
 
-    # 3. Expand via DDG autocomplete-style related queries (seed + SERP-derived
-    # related keywords so we get suggestions even without a matched page).
+    # 3. Expand via DDG autocomplete (seed + SERP-derived related keywords so we
+    # get suggestions even without a matched page). Persona: prefer seed-related.
     try:
-        expansion_seeds = [k for k in (list(found_keywords)[:5] + serp_related[:4])]
-        for kw in (expansion_seeds or [seed_keyword]):
-            related = await _ddg_suggest(kw)
-            for r in related:
+        expansion_seeds = [k for k in list(found_keywords)[:4]] or [seed_keyword]
+        for kw in expansion_seeds:
+            for r in await _ddg_suggest(kw):
                 if 3 <= len(r) <= 90:
                     found_keywords.add(r.lower())
-            await asyncio.sleep(2)
     except Exception as e:
         logger.debug(f"Related-query expansion failed: {e}")
 
-    keywords = sorted(kw for kw in found_keywords if seed_keyword.split()[0] in kw or kw == seed_keyword.lower())[:max_keywords]
+    seed_tokens = [w for w in seed_keyword.lower().split() if len(w) > 2]
+    if seed_tokens:
+        keywords = sorted(kw for kw in found_keywords if any(t in kw for t in seed_tokens))[:max_keywords]
     if not keywords:
         keywords = sorted(found_keywords)[:max_keywords]
 
@@ -240,11 +240,15 @@ async def _ddg_suggest(query: str) -> list[str]:
     import urllib.parse
     import httpx
     try:
-        url = "https://duckduckgo.com/ac/" + urllib.parse.quote(query)
+        url = "https://duckduckgo.com/ac/?q=" + urllib.parse.quote(query) + "&type=list"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
             if resp.status_code == 200:
-                return [item[0] for item in resp.json() if isinstance(item, list) and item]
+                data = resp.json()
+                # DDG returns ["query", ["sug1","sug2",...]] — take the array
+                if isinstance(data, list) and data and isinstance(data[-1], list):
+                    return [str(x) for x in data[-1] if x]
+                return [str(x) for x in data if isinstance(x, str)]
     except Exception:
         pass
     return []
