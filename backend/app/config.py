@@ -107,8 +107,11 @@ class Settings(BaseSettings):
     CRAWLER_SITEMAP_SEEDING: bool = True
     CRAWLER_SITEMAP_MAX_PAGES: int = 300
     CRAWLER_JS_RENDER: bool = False
-    CRAWLER_HTML_RAW_LIMIT: int = 20000
-    CRAWLER_CONTENT_LIMIT: int = 200000
+    # Trimmed per-page payloads. These sit in RAM (many pages concurrently) on a
+    # small 512MB instance; over-limit values are the biggest OOM driver and the
+    # root cause of the process dying mid-crawl on large audits.
+    CRAWLER_HTML_RAW_LIMIT: int = 12000
+    CRAWLER_CONTENT_LIMIT: int = 50000
     CRAWLER_PAGE_TIMEOUT: int = 30
     CRAWLER_CRAWL_TIMEOUT: int = 1500
     CRAWLER_IDLE_TIMEOUT: int = 90

@@ -75,6 +75,17 @@ async def wait_for_crawl(crawler, crawl_task, crawl_deadline, idle_cutoff=None, 
     return crawl_task.done()
 
 
+async def _safe_commit(db, timeout: float = 30.0) -> bool:
+    """Commit with a hard bound. Returns False (and logs) when the database
+    stalls instead of letting a slow SQLite write wedge the audit pipeline."""
+    try:
+        await asyncio.wait_for(db.commit(), timeout=timeout)
+        return True
+    except Exception as e:
+        logger.warning(f"Audit commit failed after {timeout}s: {e}")
+        return False
+
+
 async def _write_live_probe(audit_id: str, payload: str) -> None:
     """Persist one probe row on its own short-lived session. Never raises."""
     try:
@@ -112,6 +123,16 @@ async def _audit_live_probe_writer(audit_id: str, crawler, crawl_task, drain_tas
                     sample["q_hosts"] = -1
                 sample["tasks"] = len(asyncio.all_tasks())
                 sample["threads"] = __import__("threading").active_count()
+                try:
+                    # RSS of the process (Linux /proc). RSS climbing past the
+                    # container memory limit is the OOM-kill warning sign.
+                    with open("/proc/self/status", "r", encoding="utf-8") as _f:
+                        for _ln in _f:
+                            if _ln.startswith("VmRSS:"):
+                                sample["rss_kb"] = int(_ln.split()[1])
+                                break
+                except Exception:
+                    pass
                 try:
                     import gc as _gc
                     sample["gc_objs"] = _gc.get_count()
@@ -223,6 +244,31 @@ def _generate_fallback_recommendations(issues, website_url):
 @router.post("/audit/start", response_model=AuditStartResponse)
 @limiter.limit(settings.RATE_LIMIT_AUDIT)
 async def start_audit(request: Request, req: AuditRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    # Capacity guard: audits hold the whole page set in RAM on a small instance;
+    # stacking two crawls on one process is the fastest route to an OOM kill
+    # mid-crawl. Refuse to start while any audit is mid-flight (non-terminal).
+    try:
+        _ACTIVE_STATUS = (
+            AuditStatus.QUEUED.value, AuditStatus.CRAWLING.value,
+            AuditStatus.SEO_ANALYSIS.value, AuditStatus.TECHNICAL_ANALYSIS.value,
+            AuditStatus.AEO_ANALYSIS.value, AuditStatus.GEO_ANALYSIS.value,
+            AuditStatus.CONTENT_ANALYSIS.value, AuditStatus.COMPETITOR_ANALYSIS.value,
+            AuditStatus.KEYWORD_ANALYSIS.value, AuditStatus.AI_ANALYSIS.value,
+        )
+        active_count = (await db.execute(
+            select(func.count()).select_from(Audit).where(Audit.status.in_(_ACTIVE_STATUS))
+        )).scalar() or 0
+        if active_count >= 1:
+            logger.warning(f"Audit start rejected: {active_count} audit(s) already running")
+            raise HTTPException(
+                status_code=409,
+                detail="Another audit is already running on this instance. Please wait for it to finish before starting a new one.",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Audit capacity check skipped: {e}")
+
     user_id = getattr(request.state, "user_id", None)
     audit = Audit(
         website_url=req.website_url.rstrip("/"),
@@ -1119,7 +1165,7 @@ async def run_audit_task(audit_id: str):
                 await update_status(AuditStatus.FAILED.value, 0, "No pages found")
                 audit.error_message = "No pages could be crawled"
                 audit.completed_at = _dt.datetime.utcnow()
-                await db.commit()
+                await _safe_commit(db)
                 return
 
             await update_status(AuditStatus.SEO_ANALYSIS.value, 35, "Running 200+ signal analysis...")
@@ -1183,7 +1229,7 @@ async def run_audit_task(audit_id: str):
                 except Exception as e:
                     logger.error(f"Page save failed for {page.url}: {e}")
                     continue
-            await db.commit()
+            await _safe_commit(db, timeout=60)
 
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 52, "Running enterprise engine analysis...")
 

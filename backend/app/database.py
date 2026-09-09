@@ -2,6 +2,7 @@ import os
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import event
 from app.config import settings
 
 engine = create_async_engine(
@@ -9,6 +10,32 @@ engine = create_async_engine(
     echo=False,
     connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
 )
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def _set_sqlite_pragmas(dbapi_connection, connection_record):
+    """Tune every SQLite connection for the slow shared volume the app runs on.
+
+    - WAL: readers no longer block writers and vice versa; the audit status
+      drain, live probe beacon, orphan reaper and web handlers can all touch the
+      database concurrently without serializing on one rollback-journal lock.
+    - synchronous=NORMAL: commits stop fsyncing the journal on every write
+      (the dominant cost of the multi-second write stalls we observed), leaving
+      durability to the WAL checkpoint.
+    - busy_timeout: concurrent writers queue instead of failing immediately.
+    """
+    if "sqlite" not in settings.DATABASE_URL:
+        return
+    try:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
+    except Exception:
+        # Falls back to defaults if a compatibility layer lacks PRAGMA support.
+        pass
+
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
