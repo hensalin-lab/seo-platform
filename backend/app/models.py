@@ -112,6 +112,22 @@ class Audit(Base):
     core_web_vitals = relationship("CoreWebVitals", back_populates="audit", cascade="all, delete-orphan")
 
 
+class AuditLiveProbe(Base):
+    """Periodic in-process diagnostics for a running audit. Written by an
+    independent watcher task (hard-bounded, error-swallowing) so that a frozen
+    crawl still narrates its last state to the database instead of going dark:
+    the last surviving row shows exactly where the crawl task was awaiting."""
+
+    __tablename__ = "audit_live_probes"
+    __table_args__ = (
+        Index("ix_audit_live_probes_audit_id", "audit_id"),
+    )
+    id = Column(String, primary_key=True, default=generate_uuid)
+    audit_id = Column(String, ForeignKey("audits.id"))
+    ts = Column(DateTime, default=_dt.datetime.utcnow, index=True)
+    payload = Column(Text, nullable=True)
+
+
 class AuditScore(Base):
     __tablename__ = "audit_scores"
     __table_args__ = (

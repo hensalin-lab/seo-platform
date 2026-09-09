@@ -5,6 +5,7 @@ import logging
 import time
 import random
 import re
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 from typing import Optional
@@ -117,6 +118,11 @@ class CrawlerEngine:
         # in the hosting datacenter). Quarantined hosts are skipped instantly so a
         # small poisoned enclave cannot collapse crawl throughput at the frontier.
         self._quarantined_hosts: set[str] = set()
+        # Dedicated executor for CPU-heavy HTML extraction (BeautifulSoup etc.).
+        # Kept separate from asyncio's shared default executor so a batch of
+        # stalled DNS lookups (which run in that default executor and can die in
+        # per-thread hung getaddrinfo calls) can never starve page parsing.
+        self._parse_executor: Optional[ThreadPoolExecutor] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -144,6 +150,25 @@ class CrawlerEngine:
                 await asyncio.wait_for(self._client.aclose(), timeout=5)
             except Exception:
                 pass
+        if self._parse_executor is not None:
+            try:
+                self._parse_executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+            self._parse_executor = None
+
+    async def _parse_page(self, page, html: str, url: str, depth: int, response_status: int) -> list:
+        """Run CPU-heavy extraction on the dedicated parse executor. The default
+        asyncio executor also serves DNS (getaddrinfo) jobs, which can hang for
+        minutes in the hosting datacenter; routing parsing elsewhere guarantees a
+        stuck DNS thread can never hold up extraction -- and thereby a semaphore
+        slot -- for longer than the per-page ring-fence below."""
+        if self._parse_executor is None:
+            self._parse_executor = ThreadPoolExecutor(max_workers=max(2, settings.CRAWLER_CONCURRENCY))
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self._parse_executor, self._extract_page, page, html, url, depth, response_status
+        )
 
     def _next_user_agent(self) -> str:
         return random.choice(USER_AGENTS)
@@ -414,10 +439,30 @@ class CrawlerEngine:
                 self.crawl_diagnostics.append(f"Blocked by robots.txt: {url}")
             return []
 
-        async with self._semaphore:
-            self.visited.add(url)
-            new_urls = []
+        # Manual acquire with a hard deadline: if every semaphore slot is held
+        # by a batch of previously-stalled pages, this page waits forever and
+        # the whole frontier starves. Bound the wait so a backlog punishes only
+        # the poisoned host, never the crawl.
+        acquired = False
+        try:
+            await asyncio.wait_for(
+                self._semaphore.acquire(),
+                timeout=float(settings.CRAWLER_PAGE_TIMEOUT) + 10,
+            )
+            acquired = True
+        except asyncio.TimeoutError:
+            if len(self.crawl_diagnostics) < 10:
+                self.crawl_diagnostics.append(f"Semaphore wait exceeded deadline: {url}")
             try:
+                self._quarantined_hosts.add(urlparse(url).netloc)
+            except Exception:
+                pass
+            return []
+
+        try:
+            try:
+                self.visited.add(url)
+                new_urls = []
                 client = await self._get_client()
                 await self._respect_polite_delay()
                 start = time.time()
@@ -477,9 +522,7 @@ class CrawlerEngine:
                         page.html_raw = rendered[:settings.CRAWLER_HTML_RAW_LIMIT]
 
                 if html:
-                    new_urls = await asyncio.to_thread(
-                        self._extract_page, page, html, url, depth, response.status_code
-                    )
+                    new_urls = await self._parse_page(page, html, url, depth, response.status_code)
 
                 self.pages.append(page)
 
@@ -500,6 +543,12 @@ class CrawlerEngine:
                     self.crawl_diagnostics.append(f"{type(e).__name__}: {url} ({e})")
 
             return new_urls
+        finally:
+            if acquired:
+                try:
+                    self._semaphore.release()
+                except ValueError:
+                    pass
 
     async def _run_batch(self, tasks) -> list:
         """Run a batch of _crawl_page tasks with a hard time budget.

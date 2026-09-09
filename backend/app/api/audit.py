@@ -15,6 +15,7 @@ from app.models import (
     Audit, AuditStatus, Page, Issue, Recommendation,
     CompetitorData, AuditScore, AuditHistory, AuditLinterResult, AuditSnapshot,
     PageAnalysisRecord, KeywordRecord, RoadmapRecord, WhiteLabelSettings,
+    AuditLiveProbe,
 )
 from app.schemas import AuditRequest, AuditStartResponse
 from pydantic import BaseModel
@@ -23,6 +24,21 @@ from app.api.auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["audit"])
+
+
+@router.get("/audit/{audit_id}/probes")
+async def get_audit_probes(audit_id: str, db: AsyncSession = Depends(get_db)):
+    """Return the most recent in-process diagnostics probes for an audit.
+    Last-probe-wins: the freshest row pinpoints the exact state (and the exact
+    await frame) at the moment a crawl stopped narrating."""
+    from sqlalchemy import select as _select
+    rows = (await db.execute(
+        _select(AuditLiveProbe.payload, AuditLiveProbe.ts)
+        .where(AuditLiveProbe.audit_id == audit_id)
+        .order_by(AuditLiveProbe.ts.desc())
+        .limit(30)
+    )).all()
+    return [{"ts": ts, "payload": payload} for payload, ts in rows]
 
 
 async def wait_for_crawl(crawler, crawl_task, crawl_deadline, idle_cutoff=None, poll_interval=5.0):
@@ -57,6 +73,85 @@ async def wait_for_crawl(crawler, crawl_task, crawl_deadline, idle_cutoff=None, 
         return_when=asyncio.FIRST_COMPLETED,
     )
     return crawl_task.done()
+
+
+async def _write_live_probe(audit_id: str, payload: str) -> None:
+    """Persist one probe row on its own short-lived session. Never raises."""
+    try:
+        from app.database import async_session
+        async with async_session() as db:
+            row = AuditLiveProbe(audit_id=audit_id, payload=payload)
+            db.add(row)
+            # Cap history: drop probes older than 40 minutes so a long crawl
+            # cannot blow the table up (probe cadence is 5s -> ~480 rows).
+            from app.models import AuditLiveProbe as _Probe
+            from sqlalchemy import delete as _delete
+            prune_cutoff = _dt.datetime.utcnow() - _dt.timedelta(minutes=40)
+            await db.execute(_delete(_Probe).where(_Probe.audit_id == audit_id,
+                                                   _Probe.ts < prune_cutoff))
+            await asyncio.wait_for(db.commit(), timeout=4)
+    except Exception:
+        pass
+
+
+async def _audit_live_probe_writer(audit_id: str, crawler, crawl_task, drain_task):
+    """Detached diagnostics beacon. Samples the live crawl every ~5s and writes
+    it to the database INDEPENDENTLY of the drain task. Shares nothing with the
+    crawl/drain awaits, so when they wedge this task keeps narrating and the last
+    surviving row pinpoints the exact await frame the crawl was stuck on."""
+    try:
+        while True:
+            sample = {}
+            try:
+                sample["ts"] = _dt.datetime.utcnow().isoformat() + "Z"
+                sample["pages"] = len(getattr(crawler, "pages", []) or [])
+                sample["visited"] = len(getattr(crawler, "visited", set()) or set())
+                try:
+                    sample["q_hosts"] = len(list(getattr(crawler, "_quarantined_hosts", set()) or set()))
+                except Exception:
+                    sample["q_hosts"] = -1
+                sample["tasks"] = len(asyncio.all_tasks())
+                sample["threads"] = __import__("threading").active_count()
+                try:
+                    import gc as _gc
+                    sample["gc_objs"] = _gc.get_count()
+                except Exception:
+                    pass
+                try:
+                    diag = list(getattr(crawler, "crawl_diagnostics", []) or [])[-3:]
+                    sample["diag"] = diag
+                except Exception:
+                    pass
+                if crawl_task is not None:
+                    sample["crawl_done"] = crawl_task.done()
+                    if crawl_task.done():
+                        try:
+                            exc = crawl_task.exception()
+                            sample["crawl_exc"] = repr(exc)[:300] if exc else None
+                        except Exception as e:
+                            sample["crawl_exc"] = f"({type(e).__name__})"
+                    else:
+                        try:
+                            frames = [f.f_code.co_name for f in crawl_task.get_stack()[-5:]]
+                            sample["crawl_await"] = " -> ".join(frames) if frames else "?"
+                        except Exception:
+                            sample["crawl_await"] = "?"
+                if drain_task is not None:
+                    sample["drain_done"] = drain_task.done()
+            except Exception as e:
+                sample["err"] = repr(e)[:200]
+            try:
+                import json as _json
+                payload = _json.dumps(sample)[:4000]
+            except Exception:
+                payload = str(sample)[:4000]
+            await _write_live_probe(audit_id, payload)
+            try:
+                await asyncio.wait_for(asyncio.sleep(5), timeout=6)
+            except asyncio.TimeoutError:
+                pass
+    except asyncio.CancelledError:
+        raise
 
 
 class GooglePropertiesRequest(BaseModel):
@@ -880,7 +975,13 @@ async def run_audit_task(audit_id: str):
                 audit.status = status
                 audit.progress = progress
                 audit.current_step = step
-                await db.commit()
+                try:
+                    # Bound the write so a wedged/stalled database can never freeze
+                    # the audit pipeline (heartbeats degrade to 'no heartbeat',
+                    # the crawl keeps going, and the probe beacon still narrates).
+                    await asyncio.wait_for(db.commit(), timeout=8)
+                except Exception as e:
+                    logger.warning(f"Status commit failed (audit {audit_id}): {e}")
                 # The GET /audit/{id} detail endpoint caches status/progress for
                 # up to 1h; drop it so the frontend always sees the latest state.
                 try:
@@ -946,6 +1047,12 @@ async def run_audit_task(audit_id: str):
                 crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress)
             )
 
+            # Detached diagnostics beacon: keeps narrating engine state to the
+            # DB even if both crawl and drain wedge, so a freeze explains itself.
+            probe_task = asyncio.create_task(
+                _audit_live_probe_writer(audit_id, crawler, crawl_task, drain_task)
+            )
+
             salvaged = False
             try:
                 crawl_finished = await wait_for_crawl(crawler, crawl_task, crawl_deadline)
@@ -985,6 +1092,10 @@ async def run_audit_task(audit_id: str):
             finally:
                 try:
                     drain_task.cancel()
+                except Exception:
+                    pass
+                try:
+                    probe_task.cancel()
                 except Exception:
                     pass
                 await crawler.close()
