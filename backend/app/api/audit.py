@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import datetime as _dt
+import time
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, outerjoin, func, update
@@ -22,6 +23,40 @@ from app.api.auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["audit"])
+
+
+async def wait_for_crawl(crawler, crawl_task, crawl_deadline, idle_cutoff=None, poll_interval=5.0):
+    """Await a crawl task while a detached watchdog monitors the engine's
+    in-memory page list. Returns True if the crawl finished on its own, False if
+    it wedged/stalled (the audit can then salvage `crawler.pages`). Because this
+    never awaits the wedged task, a cancellation-absorbing await inside crawl()
+    can no longer hold the audit past its deadline."""
+    max_idle = max(settings.CRAWLER_IDLE_TIMEOUT * 2, 120)
+
+    async def _crawl_watchdog():
+        cutoff = idle_cutoff if idle_cutoff is not None else max_idle
+        hard_deadline = time.monotonic() + crawl_deadline
+        page_count = len(getattr(crawler, "pages", []) or [])
+        last_growth = time.monotonic()
+        while True:
+            await asyncio.sleep(poll_interval)
+            now = time.monotonic()
+            current = len(getattr(crawler, "pages", []) or [])
+            if current != page_count:
+                page_count = current
+                last_growth = now
+            if now - last_growth >= cutoff:
+                return False  # wedged / immobile
+            if now >= hard_deadline:
+                return False  # hard cap reached
+            if crawl_task.done():
+                return True  # crawl finished on its own
+
+    await asyncio.wait(
+        [crawl_task, asyncio.create_task(_crawl_watchdog())],
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    return crawl_task.done()
 
 
 class GooglePropertiesRequest(BaseModel):
@@ -901,18 +936,35 @@ async def run_audit_task(audit_id: str):
 
             drain_task = asyncio.create_task(_drain_progress())
             crawl_deadline = settings.CRAWLER_CRAWL_TIMEOUT + 60
+
+            crawl_task = asyncio.create_task(
+                crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress)
+            )
+
+            salvaged = False
             try:
-                pages = await asyncio.wait_for(
-                    crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress),
-                    timeout=crawl_deadline,
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Crawler stalled after {crawl_deadline}s; audit {audit_id}")
-                pages = list(getattr(crawler, "pages", []) or [])
-                if pages:
-                    logger.warning(f"Outer crawl deadline fired; salvaged {len(pages)} partially-crawled pages for audit {audit_id}")
+                crawl_finished = await wait_for_crawl(crawler, crawl_task, crawl_deadline)
+                if not crawl_finished:
+                    # Crawl wedged or stalled: salvage whatever the engine holds.
+                    # The wedged task is cancelled best-effort and NEVER awaited, so
+                    # a cancellation-absorbing await cannot hold the audit anymore.
+                    logger.error(f"Crawler stalled; salvaging partial crawl for audit {audit_id}")
+                    crawl_task.cancel()
+                    pages = list(getattr(crawler, "pages", []) or [])
+                    salvaged = True
+                    await update_status(
+                        AuditStatus.CRAWLING.value,
+                        min(30, 5 + int((len(pages) / settings.CRAWLER_MAX_PAGES) * 35)),
+                        f"Crawl stalled; salvaging {len(pages)} pages",
+                    )
                 else:
-                    pages = []
+                    try:
+                        pages = crawl_task.result()
+                    except asyncio.TimeoutError:
+                        pages = list(getattr(crawler, "pages", []) or [])
+                    except Exception as e:
+                        logger.error(f"Crawler failed: {e}")
+                        pages = list(getattr(crawler, "pages", []) or [])
             except asyncio.CancelledError:
                 logger.warning(f"Crawl task cancelled for audit {audit_id}; marking audit failed")
                 try:
@@ -920,11 +972,11 @@ async def run_audit_task(audit_id: str):
                 except Exception:
                     pass
                 raise
-            except Exception as e:
-                logger.error(f"Crawler failed: {e}")
-                pages = list(getattr(crawler, "pages", []) or [])
             finally:
-                drain_task.cancel()
+                try:
+                    drain_task.cancel()
+                except Exception:
+                    pass
                 await crawler.close()
 
             try:
@@ -934,10 +986,13 @@ async def run_audit_task(audit_id: str):
             except Exception as e:
                 logger.warning(f"Audit {audit_id}: cache clear skipped: {e}")
 
-            diag = getattr(crawler, "crawl_diagnostics", None) or []
-            logger.info(f"Audit {audit_id}: crawl finished with {len(pages)} pages; "
-                        f"visited={len(getattr(crawler, 'visited', set()) or set())}; "
-                        f"diagnostics={diag[:5]}")
+            diag = list(getattr(crawler, "crawl_diagnostics", None) or [])
+            if salvaged:
+                diag.append("Crawl wedged; audit completed with a salvaged partial page set")
+            logger.info(
+                f"Audit {audit_id}: crawl finished with {len(pages)} pages; "
+                f"salvaged={salvaged}; diagnostics={diag[:5]}"
+            )
 
             if not pages:
                 await update_status(AuditStatus.FAILED.value, 0, "No pages found")

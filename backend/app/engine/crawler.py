@@ -514,8 +514,15 @@ class CrawlerEngine:
                 res = t.result()
                 results[wrapped[t]] = res if isinstance(res, list) else []
         for t in pending:
+            try:
+                frames = [f.f_code.co_name for f in t.get_stack()[-4:]]
+                where = " -> ".join(frames) if frames else "unknown"
+            except Exception:
+                where = "unknown"
             if len(self.crawl_diagnostics) < 10:
-                self.crawl_diagnostics.append(f"Stuck page abandoned after {settings.CRAWLER_PAGE_TIMEOUT + 10}s")
+                self.crawl_diagnostics.append(
+                    f"Stuck page abandoned after {settings.CRAWLER_PAGE_TIMEOUT + 10}s (await: {where})"
+                )
             t.cancel()
         return [results.get(t, []) for t in tasks]
 
