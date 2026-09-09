@@ -31,7 +31,7 @@ async def wait_for_crawl(crawler, crawl_task, crawl_deadline, idle_cutoff=None, 
     it wedged/stalled (the audit can then salvage `crawler.pages`). Because this
     never awaits the wedged task, a cancellation-absorbing await inside crawl()
     can no longer hold the audit past its deadline."""
-    max_idle = max(settings.CRAWLER_IDLE_TIMEOUT * 2, 120)
+    max_idle = max(settings.CRAWLER_IDLE_TIMEOUT * 2, 60)
 
     async def _crawl_watchdog():
         cutoff = idle_cutoff if idle_cutoff is not None else max_idle
@@ -926,9 +926,14 @@ async def run_audit_task(audit_id: str):
                                 logger.warning(f"Progress update failed: {e}")
                         elif last_written["pct"] < 30:
                             # Heartbeat: refresh the same value to keep the UI
-                            # alive during a slow crawl tail.
+                            # alive during a slow crawl tail. Also embed the live
+                            # engine counters (visited vs pages) so a frozen status
+                            # reveals whether the loop is still cycling.
                             try:
-                                await update_status(AuditStatus.CRAWLING.value, last_written["pct"], last_written["msg"] or "Crawling website...")
+                                live_visited = len(getattr(crawler, "visited", set()) or set())
+                                live_pages = len(getattr(crawler, "pages", []) or [])
+                                live_probe = f" (live: {live_visited} visited / {live_pages} pages)"
+                                await update_status(AuditStatus.CRAWLING.value, last_written["pct"], (last_written["msg"] or "Crawling website...") + live_probe)
                             except Exception as e:
                                 logger.warning(f"Heartbeat update failed: {e}")
                 except asyncio.CancelledError:
@@ -952,6 +957,11 @@ async def run_audit_task(audit_id: str):
                     crawl_task.cancel()
                     pages = list(getattr(crawler, "pages", []) or [])
                     salvaged = True
+                    diag_now = list(getattr(crawler, "crawl_diagnostics", None) or [])[:3]
+                    try:
+                        audit.error_message = "; ".join(diag_now) or "Crawl stalled (no progress)"
+                    except Exception:
+                        pass
                     await update_status(
                         AuditStatus.CRAWLING.value,
                         min(30, 5 + int((len(pages) / settings.CRAWLER_MAX_PAGES) * 35)),
