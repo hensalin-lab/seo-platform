@@ -113,6 +113,10 @@ class CrawlerEngine:
         self._robot_parsers: dict[str, RobotFileParser] = {}
         self._robots_cache: dict[str, Optional[RobotFileParser]] = {}
         self._last_request_time: float = 0.0
+        # Hosts whose pages repeatedly stall the network stack (slow/DNS-blackhole
+        # in the hosting datacenter). Quarantined hosts are skipped instantly so a
+        # small poisoned enclave cannot collapse crawl throughput at the frontier.
+        self._quarantined_hosts: set[str] = set()
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -281,7 +285,7 @@ class CrawlerEngine:
             robots_url = f"{domain_key}/robots.txt"
             try:
                 client = await self._get_client()
-                resp = await client.get(robots_url, timeout=8)
+                resp = await asyncio.wait_for(client.get(robots_url, timeout=8), timeout=10)
                 if resp.status_code == 200 and "text/plain" in resp.headers.get("content-type", ""):
                     rp = RobotFileParser()
                     rp.parse(resp.text.splitlines())
@@ -340,7 +344,7 @@ class CrawlerEngine:
         client = await self._get_client()
         for sitemap_url in candidates:
             try:
-                resp = await client.get(sitemap_url, timeout=10)
+                resp = await asyncio.wait_for(client.get(sitemap_url, timeout=10), timeout=12)
                 if resp.status_code != 200:
                     continue
                 text = resp.text
@@ -350,7 +354,7 @@ class CrawlerEngine:
                 if "<sitemapindex" in text:
                     for loc in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", text):
                         try:
-                            sub_resp = await client.get(loc.strip(), timeout=10)
+                            sub_resp = await asyncio.wait_for(client.get(loc.strip(), timeout=10), timeout=12)
                             if sub_resp.status_code == 200:
                                 urls.extend(re.findall(r"<loc>\s*([^<]+?)\s*</loc>", sub_resp.text))
                         except Exception:
@@ -400,6 +404,10 @@ class CrawlerEngine:
             return []
         if self._is_resource_url(url):
             return []
+        if urlparse(url).netloc in self._quarantined_hosts:
+            if len(self.crawl_diagnostics) < 10:
+                self.crawl_diagnostics.append(f"Quarantined host skipped: {url}")
+            return []
         if settings.CRAWLER_RESPECT_ROBOTS and not await self._robots_allowed(url):
             logger.debug(f"Skipping disallowed by robots.txt: {url}")
             if len(self.crawl_diagnostics) < 10:
@@ -413,7 +421,16 @@ class CrawlerEngine:
                 client = await self._get_client()
                 await self._respect_polite_delay()
                 start = time.time()
-                response = await client.get(url, headers={"User-Agent": self._next_user_agent()})
+                try:
+                    # Bound the whole request from the event loop (not just the
+                    # socket): httpx timeouts do NOT cover DNS resolution running
+                    # in the default executor, which can blackhole for minutes.
+                    response = await asyncio.wait_for(
+                        client.get(url, headers={"User-Agent": self._next_user_agent()}),
+                        timeout=float(settings.CRAWLER_TIMEOUT) + 5.0,
+                    )
+                except asyncio.TimeoutError:
+                    raise httpx.TimeoutException(f"request to {url} exceeded loop-bound deadline")
                 response_time_ms = int((time.time() - start) * 1000)
 
                 content_type = response.headers.get("content-type", "").lower()
@@ -469,6 +486,10 @@ class CrawlerEngine:
             except httpx.TimeoutException:
                 if len(self.crawl_diagnostics) < 10:
                     self.crawl_diagnostics.append(f"Timed out: {url}")
+                try:
+                    self._quarantined_hosts.add(urlparse(url).netloc)
+                except Exception:
+                    pass
                 page = PageData()
                 page.url = url
                 page.status_code = 0
