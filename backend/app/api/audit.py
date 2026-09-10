@@ -989,6 +989,30 @@ async def _notify_audit_failed(audit_id: str, error: str):
 
 
 async def run_audit_task(audit_id: str):
+    """Run an audit under a hard overall deadline so a stalled DB or engine
+    can never hold the single-instance capacity guard hostage forever."""
+    from app.config import settings as _settings
+    hard_cap = max(600, int(getattr(_settings, "CRAWLER_CRAWL_TIMEOUT", 1500) or 1500) + 600)
+    try:
+        async with asyncio.timeout(hard_cap):
+            await _run_audit_task_impl(audit_id)
+    except (asyncio.TimeoutError, TimeoutError) as e:
+        logger.error(f"Audit {audit_id} exceeded the {hard_cap}s hard deadline; marking failed")
+        try:
+            from app.database import async_session as _deadline_session
+            async with _deadline_session() as _db:
+                _r = await _db.execute(select(Audit).where(Audit.id == audit_id))
+                _a = _r.scalar_one_or_none()
+                if _a and _a.status not in (AuditStatus.COMPLETED.value, AuditStatus.FAILED.value):
+                    _a.status = AuditStatus.FAILED.value
+                    _a.error_message = f"Audit exceeded the {hard_cap}s hard deadline"
+                    _a.completed_at = _dt.datetime.utcnow()
+                    await _safe_commit(_db, timeout=20)
+        except Exception as _e:
+            logger.warning(f"Could not mark audit {audit_id} failed after deadline: {_e}")
+
+
+async def _run_audit_task_impl(audit_id: str):
     from app.config import settings
     from app.database import async_session
     from app.engine.crawler import CrawlerEngine
@@ -1377,7 +1401,7 @@ async def run_audit_task(audit_id: str):
                     snapshot_hash=issue.get("snapshot_hash", ""),
                     pages_affected=1,
                 ))
-            await db.commit()
+            await _safe_commit(db, timeout=20)
 
             # Enterprise engines are done with the raw HTML; release it so the
             # large per-page blobs can be garbage collected before the remaining
@@ -1396,7 +1420,7 @@ async def run_audit_task(audit_id: str):
                     fix_code=f"FIX-{issue.get('signal_id', 0):04d}",
                     pages_affected=1,
                 ))
-            await db.commit()
+            await _safe_commit(db, timeout=20)
 
             await update_status(AuditStatus.AEO_ANALYSIS.value, 55, "AEO analysis complete")
 
@@ -1414,7 +1438,7 @@ async def run_audit_task(audit_id: str):
                     issues=pa.issues[:20],
                     recommendations=pa.recommendations[:10],
                 ))
-            await db.commit()
+            await _safe_commit(db, timeout=20)
 
             await update_status(AuditStatus.GEO_ANALYSIS.value, 60, "GEO analysis complete")
             await update_status(AuditStatus.CONTENT_ANALYSIS.value, 65, "Content analysis complete")
@@ -1511,7 +1535,7 @@ async def run_audit_task(audit_id: str):
                             backlink_gap=competitor_data.get("backlink_gap", []),
                             serp_gap=competitor_data.get("serp_gap", []),
                         ))
-                        await db.commit()
+                        await _safe_commit(db, timeout=20)
 
             if not competitor_data or competitor_data.get("_source") == "unavailable":
                 competitor_data = competitor_data or {}
@@ -1533,7 +1557,7 @@ async def run_audit_task(audit_id: str):
                     opportunity=kw.get("opportunity", "LOW"),
                     action=kw.get("action", ""),
                 ))
-            await db.commit()
+            await _safe_commit(db, timeout=20)
 
             if analysis.roadmap:
                 db.add(RoadmapRecord(
@@ -1543,7 +1567,7 @@ async def run_audit_task(audit_id: str):
                     month1=analysis.roadmap.get("month1", []),
                     month3=analysis.roadmap.get("month3", []),
                 ))
-                await db.commit()
+                await _safe_commit(db, timeout=20)
 
             await update_status(AuditStatus.AI_ANALYSIS.value, 80, "Running AI analysis...")
 
@@ -1620,7 +1644,7 @@ async def run_audit_task(audit_id: str):
                     keywords=rec.get("keywords", []), expected_impact=rec.get("expected_impact", ""),
                     difficulty=rec.get("difficulty", "MODERATE"), ai_generated=1 if ai_provider_available else 0,
                 ))
-            await db.commit()
+            await _safe_commit(db, timeout=20)
 
             await update_status(AuditStatus.REPORT_GENERATION.value, 90, "Generating report...")
 
@@ -1711,17 +1735,17 @@ async def run_audit_task(audit_id: str):
                     failed=len(linter_errors),
                     details=[{"check": e.check_name, "detail": e.detail} for e in linter_errors],
                 ))
-                await db.commit()
+                await _safe_commit(db, timeout=20)
                 logger.warning(f"Audit {audit_id} passed with {len(linter_errors)} linter warnings (non-blocking)")
 
             await update_status(AuditStatus.COMPLETED.value, 100, "Audit complete")
             audit.completed_at = _dt.datetime.utcnow()
-            await db.commit()
+            await _safe_commit(db, timeout=20)
             logger.info(f"Audit {audit_id} completed successfully")
 
             try:
                 res = await db.execute(update(Page).where(Page.audit_id == audit_id).values(html_raw=""))
-                await db.commit()
+                await _safe_commit(db, timeout=20)
                 logger.info(f"Audit {audit_id}: cleared raw HTML from {res.rowcount or 0} pages to reclaim disk")
             except Exception as e:
                 logger.warning(f"Audit {audit_id}: could not clear raw HTML (non-fatal): {e}")
@@ -1738,7 +1762,7 @@ async def run_audit_task(audit_id: str):
                     a.status = AuditStatus.FAILED.value
                     a.error_message = str(e)[:500]
                     a.completed_at = _dt.datetime.utcnow()
-                    await db.commit()
+                    await _safe_commit(db, timeout=20)
             except Exception:
                 pass
             asyncio.create_task(_notify_audit_failed(audit_id, str(e)))
