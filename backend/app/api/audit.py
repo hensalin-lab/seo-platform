@@ -1104,7 +1104,7 @@ async def run_audit_task(audit_id: str):
                     if _inc_session is None:
                         from app.database import async_session as _mk
                         _inc_session = _mk()
-                    await _inc_session.add(Page(
+                    _inc_session.add(Page(
                         audit_id=audit_id, url=page.url, status_code=page.status_code,
                         title=page.title, meta_description=page.meta_description,
                         canonical=page.canonical, h1=page.h1,
