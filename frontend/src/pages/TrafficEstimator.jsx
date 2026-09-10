@@ -1,7 +1,44 @@
 import { useState } from 'react'
 import { api } from '../api'
-import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
-import { TrendingUp, Search, Info, BarChart3 } from 'lucide-react'
+import { DataSourceBadge } from '../components/DataSourceBadge'
+import { TrendingUp, Search, Info, BarChart3, ShieldCheck, AlertTriangle, HelpCircle } from 'lucide-react'
+
+const CONFIDENCE_META = {
+  high: { label: 'High', color: '#22C55E', back: '#ECFDF5', icon: ShieldCheck, tip: 'Real Google Search Console data — exact click counts from your property' },
+  medium: { label: 'Medium', color: '#F59E0B', back: '#FFFBEB', icon: HelpCircle, tip: 'Estimated from SERP position + CTR curve — reliable for top-10 positions' },
+  low: { label: 'Low', color: '#EF4444', back: '#FEF2F2', icon: AlertTriangle, tip: 'DDG-based estimate with limited SERP data — treat as directional only' },
+}
+
+function ConfidenceBadge({ level }) {
+  const meta = CONFIDENCE_META[level] || CONFIDENCE_META.low
+  const Icon = meta.icon
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+        background: meta.back, color: meta.color, letterSpacing: '0.03em',
+      }}
+      title={meta.tip}
+    >
+      <Icon size={10} />
+      {meta.label}
+    </span>
+  )
+}
+
+function getConfidence(data) {
+  if (!data) return 'low'
+  if (data.total_clicks != null && !data.is_estimate) return 'high'
+  if (data.keywords_analyzed?.some(k => k.position && k.position <= 10)) return 'medium'
+  return 'low'
+}
+
+function getKeywordConfidence(k) {
+  if (k.source === 'gsc') return 'high'
+  if (k.position && k.position <= 10) return 'medium'
+  return 'low'
+}
 
 export default function TrafficEstimator() {
   const [domain, setDomain] = useState('')
@@ -21,6 +58,8 @@ export default function TrafficEstimator() {
     } catch (err) { setError(err.message || 'Failed') }
     finally { setLoading(false) }
   }
+
+  const confidence = getConfidence(data)
 
   return (
     <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
@@ -64,23 +103,30 @@ export default function TrafficEstimator() {
 
       {data && !data.error && (
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
             <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: '16px 14px', textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#10B981' }}>
                 {data.estimated_monthly_visits?.toLocaleString()}
               </div>
               <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Monthly est. visits</div>
+              <div style={{ marginTop: 6 }}><ConfidenceBadge level={confidence} /></div>
             </div>
             <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: '16px 14px', textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: data.is_estimate ? '#F59E0B' : '#22C55E' }}>
                 {data.is_estimate ? 'Estimate' : 'Real'}
               </div>
               <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Data source</div>
+              <div style={{ marginTop: 6 }}>
+                <span style={{ fontSize: 10, color: '#94A3B8' }}>
+                  {data.is_estimate ? 'DDG SERP + CTR curve' : 'Google Search Console'}
+                </span>
+              </div>
             </div>
             {data.total_clicks != null && (
               <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: '16px 14px', textAlign: 'center' }}>
                 <div style={{ fontSize: 24, fontWeight: 800, color: '#22C55E' }}>{data.total_clicks?.toLocaleString()}</div>
                 <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>GSC clicks (28d)</div>
+                <div style={{ marginTop: 6 }}><ConfidenceBadge level="high" /></div>
               </div>
             )}
           </div>
@@ -100,23 +146,27 @@ export default function TrafficEstimator() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                    {['Keyword', 'Position', 'Est. Volume', 'CTR', 'Est. Visits'].map(h => (
+                    {['Keyword', 'Position', 'Est. Volume', 'CTR', 'Est. Visits', 'Confidence'].map(h => (
                       <th key={h} style={{ padding: '9px 14px', textAlign: 'left', color: '#475569', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {data.keywords_analyzed.map((k, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #DAE0EA' }}>
-                      <td style={{ padding: '9px 14px', color: '#0F172A' }}>{k.keyword}</td>
-                      <td style={{ padding: '9px 14px' }}>
-                        <span style={{ padding: '1px 7px', borderRadius: 4, background: k.position <= 3 ? '#22C55E15' : k.position <= 10 ? '#F59E0B15' : '#E5E9F2', color: k.position <= 3 ? '#22C55E' : k.position <= 10 ? '#F59E0B' : '#64748B', fontWeight: 600 }}>{k.position}</span>
-                      </td>
-                      <td style={{ padding: '9px 14px', color: '#64748B' }}>{k.estimated_volume?.toLocaleString()}</td>
-                      <td style={{ padding: '9px 14px', color: '#64748B' }}>{(k.ctr * 100).toFixed(1)}%</td>
-                      <td style={{ padding: '9px 14px', color: '#10B981', fontWeight: 600 }}>{k.estimated_monthly_visits?.toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {data.keywords_analyzed.map((k, i) => {
+                    const kwConf = getKeywordConfidence(k)
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid #DAE0EA' }}>
+                        <td style={{ padding: '9px 14px', color: '#0F172A' }}>{k.keyword}</td>
+                        <td style={{ padding: '9px 14px' }}>
+                          <span style={{ padding: '1px 7px', borderRadius: 4, background: k.position <= 3 ? '#22C55E15' : k.position <= 10 ? '#F59E0B15' : '#E5E9F2', color: k.position <= 3 ? '#22C55E' : k.position <= 10 ? '#F59E0B' : '#64748B', fontWeight: 600 }}>{k.position}</span>
+                        </td>
+                        <td style={{ padding: '9px 14px', color: '#64748B' }}>{k.estimated_volume?.toLocaleString()}</td>
+                        <td style={{ padding: '9px 14px', color: '#64748B' }}>{(k.ctr * 100).toFixed(1)}%</td>
+                        <td style={{ padding: '9px 14px', color: '#10B981', fontWeight: 600 }}>{k.estimated_monthly_visits?.toLocaleString()}</td>
+                        <td style={{ padding: '9px 14px' }}><ConfidenceBadge level={kwConf} /></td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

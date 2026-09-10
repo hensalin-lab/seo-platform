@@ -257,6 +257,30 @@ async def referring_domains(domain: str,
         logger.warning(f"get_referring_domains failed for {d}: {e}")
         domains = []
 
+    # Per-domain dofollow/nofollow counts from the backlinks table (best effort).
+    dofollow_map: dict[str, int] = {}
+    nofollow_map: dict[str, int] = {}
+    total_map: dict[str, int] = {}
+    try:
+        result = await db.execute(
+            select(
+                Backlink.source_domain,
+                Backlink.is_follow,
+                func.count(Backlink.id),
+            )
+            .where(Backlink.target_domain == d)
+            .group_by(Backlink.source_domain, Backlink.is_follow)
+        )
+        for src, is_follow, cnt in result.all():
+            src = (src or "").lower()
+            if is_follow:
+                dofollow_map[src] = dofollow_map.get(src, 0) + cnt
+            else:
+                nofollow_map[src] = nofollow_map.get(src, 0) + cnt
+            total_map[src] = total_map.get(src, 0) + cnt
+    except Exception as e:
+        logger.warning(f"dofollow/nofollow aggregation failed for {d}: {e}")
+
     source_label = "common_crawl" if any(rd.target_domain == d for rd in domains) else "audit"
 
     return {
@@ -272,6 +296,9 @@ async def referring_domains(domain: str,
                 "link_count": rd.link_count,
                 "domain_authority": rd.domain_authority,
                 "toxic_score": rd.toxic_score,
+                "dofollow_count": dofollow_map.get((rd.domain or "").lower(), 0),
+                "nofollow_count": nofollow_map.get((rd.domain or "").lower(), 0),
+                "dofollow_ratio": round(dofollow_map.get((rd.domain or "").lower(), 0) / total_map.get((rd.domain or "").lower(), 0), 3) if total_map.get((rd.domain or "").lower(), 0) else None,
                 "first_seen": rd.first_seen.isoformat() if rd.first_seen else None,
                 "last_seen": rd.last_seen.isoformat() if rd.last_seen else None,
             }

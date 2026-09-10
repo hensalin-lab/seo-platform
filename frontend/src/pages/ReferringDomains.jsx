@@ -113,46 +113,61 @@ export default function ReferringDomains() {
             <SortBtn field="toxic">Toxic Score</SortBtn>
           </div>
 
-          {sorted.length > 0 ? (
-            <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                    {['Domain', 'Links', 'DA', 'Toxic', 'First Seen', 'Last Seen'].map(h => (
-                      <th key={h} style={{ padding: '9px 14px', textAlign: 'left', color: '#475569', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((rd, i) => (
-                    <tr key={rd.id || i} style={{ borderBottom: '1px solid #DAE0EA' }}>
-                      <td style={{ padding: '10px 14px' }}>
-                        <span style={{ color: '#6366F1', fontWeight: 500, fontSize: 13 }}>{rd.domain}</span>
-                      </td>
-                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0F172A' }}>{rd.link_count}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 700, color: rd.domain_authority >= 50 ? '#22C55E' : rd.domain_authority >= 20 ? '#F59E0B' : '#EF4444' }}>
-                        {rd.domain_authority || '—'}
-                      </td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 40, height: 5, background: '#E5E9F2', borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(100, (rd.toxic_score || 0) * 100)}%`, height: '100%', background: (rd.toxic_score || 0) >= 0.7 ? '#EF4444' : (rd.toxic_score || 0) >= 0.3 ? '#F59E0B' : '#22C55E', borderRadius: 3 }} />
+{sorted.length > 0 ? (
+              <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
+                      {['Domain', 'Links', 'DA', 'Toxic', 'Dofollow', 'First Seen', 'Last Seen'].map(h => (
+                        <th key={h} style={{ padding: '9px 14px', textAlign: 'left', color: '#475569', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map((rd, i) => (
+                      <tr key={rd.id || i} style={{ borderBottom: '1px solid #DAE0EA' }}>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span style={{ color: '#6366F1', fontWeight: 500, fontSize: 13 }}>{rd.domain}</span>
+                        </td>
+                        <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0F172A' }}>{rd.link_count}</td>
+                        <td style={{ padding: '10px 14px', fontWeight: 700, color: rd.domain_authority >= 50 ? '#22C55E' : rd.domain_authority >= 20 ? '#F59E0B' : '#EF4444' }}>
+                          {rd.domain_authority || '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 40, height: 5, background: '#E5E9F2', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(100, (rd.toxic_score || 0) * 100)}%`, height: '100%', background: (rd.toxic_score || 0) >= 0.7 ? '#EF4444' : (rd.toxic_score || 0) >= 0.3 ? '#F59E0B' : '#22C55E', borderRadius: 3 }} />
+                            </div>
+                            <span style={{ fontSize: 11, color: '#64748B' }}>{rd.toxic_score != null ? rd.toxic_score.toFixed(2) : '—'}</span>
                           </div>
-                          <span style={{ fontSize: 11, color: '#64748B' }}>{rd.toxic_score != null ? rd.toxic_score.toFixed(2) : '—'}</span>
-                        </div>
-                      </td>
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {rd.dofollow_ratio != null ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ width: 50, height: 6, background: '#E5E9F2', borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ width: `${Math.round((rd.dofollow_ratio || 0) * 100)}%`, height: '100%', background: (rd.dofollow_ratio || 0) >= 0.7 ? '#22C55E' : (rd.dofollow_ratio || 0) >= 0.4 ? '#F59E0B' : '#EF4444', borderRadius: 3 }} />
+                              </div>
+                              <span style={{ fontSize: 11, color: '#64748B' }}>
+                                {Math.round((rd.dofollow_ratio || 0) * 100)}%
+                                <span style={{ color: '#94A3B8' }}> ({rd.dofollow_count}/{rd.nofollow_count})</span>
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontSize: 11 }}>—</span>
+                          )}
+                        </td>
                         <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
                           {rd.first_seen ? new Date(rd.first_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
                           {rd.last_seen ? new Date(rd.last_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
                         </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
             <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
               {data?.data_status === 'fetching' ? (
                 <div>

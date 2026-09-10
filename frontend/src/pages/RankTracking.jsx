@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { api } from '../api'
-import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
-import { TrendingUp, Plus, Trash2, RefreshCw, Download, Monitor, Smartphone, ArrowUp, ArrowDown, Minus, Search, BarChart2 } from 'lucide-react'
+import { DataSourceBadge } from '../components/DataSourceBadge'
+import {
+  TrendingUp, Plus, Trash2, RefreshCw, Download, Monitor, Smartphone,
+  ArrowUp, ArrowDown, Minus, Search, BarChart2, MapPin,
+  Image, Video, ShoppingCart,
+} from 'lucide-react'
 
 const DEVICE_ICONS = { desktop: Monitor, mobile: Smartphone }
 const POSITION_COLOR = (pos) => {
@@ -23,6 +27,72 @@ const DELTA_ICON = (delta) => {
   return d.startsWith('+') ? <ArrowUp size={13} /> : <ArrowDown size={13} />
 }
 
+const SERP_FEATURE_META = [
+  { key: 'featured_snippet', label: 'Featured', color: '#6366F1', back: '#6366F110' },
+  { key: 'people_also_ask', label: 'PAA', color: '#F59E0B', back: '#F59E0B10' },
+  { key: 'ai_overview', label: 'AI Overview', color: '#22C55E', back: '#22C55E10' },
+  { key: 'local_pack', label: 'Local', color: '#3B82F6', back: '#3B82F610', Icon: MapPin },
+  { key: 'image_pack', label: 'Images', color: '#8B5CF6', back: '#8B5CF610', Icon: Image },
+  { key: 'video_pack', label: 'Video', color: '#EF4444', back: '#EF444410', Icon: Video },
+  { key: 'shopping', label: 'Shopping', color: '#10B981', back: '#10B98110', Icon: ShoppingCart },
+]
+
+const isBranded = (keyword, domain) => {
+  if (!keyword || !domain) return false
+  const base = domain.replace(/^www\./i, '').split('.')[0].toLowerCase()
+  const kw = keyword.toLowerCase()
+  return kw.includes(base)
+}
+
+const volatilityColor = (score) => {
+  if (score == null) return '#94A3B8'
+  if (score <= 2) return '#22C55E'
+  if (score <= 5) return '#F59E0B'
+  return '#EF4444'
+}
+
+const VOLATILITY_LABEL = (score) => {
+  if (score == null) return 'N/A'
+  if (score <= 2) return 'Stable'
+  if (score <= 5) return 'Moderate'
+  return 'Volatile'
+}
+
+function VolatilitySparkline({ history }) {
+  if (!history || history.length < 2) {
+    return <span style={{ color: '#94A3B8', fontSize: 11 }}>—</span>
+  }
+  const positions = history.map(h => h.position).filter(p => p != null)
+  if (positions.length < 2) return <span style={{ color: '#94A3B8', fontSize: 11 }}>—</span>
+
+  const mean = positions.reduce((a, b) => a + b, 0) / positions.length
+  const variance = positions.reduce((a, b) => a + (b - mean) ** 2, 0) / positions.length
+  const stdDev = Math.sqrt(variance)
+
+  const maxPos = Math.max(...positions)
+  const minPos = Math.min(...positions)
+  const range = maxPos - minPos || 1
+
+  const w = 60
+  const h = 20
+  const points = positions.map((p, i) => {
+    const x = (i / (positions.length - 1)) * w
+    const y = ((p - minPos) / range) * (h - 4) + 2
+    return `${x},${y}`
+  }).join(' ')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <svg width={w} height={h} style={{ overflow: 'visible' }}>
+        <polyline points={points} fill="none" stroke={volatilityColor(stdDev)} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span style={{ fontSize: 9, fontWeight: 600, color: volatilityColor(stdDev) }}>
+        {stdDev.toFixed(1)} σ
+      </span>
+    </div>
+  )
+}
+
 export default function RankTracking() {
   const [domain, setDomain] = useState('')
   const [loadedDomain, setLoadedDomain] = useState('')
@@ -38,6 +108,9 @@ export default function RankTracking() {
   const [historyKw, setHistoryKw] = useState(null)
   const [history, setHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [filterTab, setFilterTab] = useState('all')
+  const [kwHistories, setKwHistories] = useState({})
+  const [sparklineLoading, setSparklineLoading] = useState(false)
 
   const SUGGESTIONS = [
     'seo services', 'seo audit', 'technical seo', 'on page seo',
@@ -53,6 +126,24 @@ export default function RankTracking() {
     } catch (e) { setError(e.message || 'Failed to load') }
     finally { setLoading(false) }
   }, [])
+
+  useEffect(() => {
+    if (keywords.length > 0 && loadedDomain && Object.keys(kwHistories).length === 0) {
+      setSparklineLoading(true)
+      const fetchHistory = async () => {
+        const results = {}
+        for (const kw of keywords) {
+          try {
+            const data = await api.keywordHistory(loadedDomain, kw.id)
+            if (data?.history?.length > 1) results[kw.id] = data.history
+          } catch { /* skip */ }
+        }
+        setKwHistories(results)
+        setSparklineLoading(false)
+      }
+      fetchHistory()
+    }
+  }, [keywords, loadedDomain])
 
   const handleAdd = async () => {
     if (!newKw.trim() || !loadedDomain) return
@@ -75,7 +166,6 @@ export default function RankTracking() {
     setRefreshing(true); setError('')
     try {
       await api.refreshRankTracking(loadedDomain)
-      // Poll the list as the background task writes new snapshots
       const poll = [0, 6000, 18000]
       for (const ms of poll) {
         if (ms > 0) await new Promise(r => setTimeout(r, ms))
@@ -117,9 +207,20 @@ export default function RankTracking() {
       })()
     : '—'
 
+  const filteredKeywords = useMemo(() => {
+    if (filterTab === 'all') return keywords
+    if (filterTab === 'branded') return keywords.filter(k => isBranded(k.keyword, loadedDomain))
+    if (filterTab === 'non-branded') return keywords.filter(k => !isBranded(k.keyword, loadedDomain))
+    if (filterTab === 'quick-wins') return keywords.filter(k => k.position && k.position >= 4 && k.position <= 10)
+    return keywords
+  }, [keywords, filterTab, loadedDomain])
+
+  const brandedCount = keywords.filter(k => isBranded(k.keyword, loadedDomain)).length
+  const nonBrandedCount = keywords.length - brandedCount
+  const quickWinsCount = keywords.filter(k => k.position && k.position >= 4 && k.position <= 10).length
+
   return (
     <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
-      {/* Domain Input Hero */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <TrendingUp size={28} style={{ color: '#6366F1' }} />
@@ -171,33 +272,33 @@ export default function RankTracking() {
 
       {!loading && loadedDomain && (
         <>
-          {/* Stats bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20, maxWidth: 600 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20, maxWidth: 700 }}>
             {[
               { label: 'Keywords', value: keywords.length },
               { label: 'Avg. Position', value: avgPos },
               { label: 'Top 3', value: keywords.filter(k => k.position && k.position <= 3).length },
               { label: 'Top 10', value: keywords.filter(k => k.position && k.position <= 10).length },
-            ].map(({ label, value }) => (
+              { label: 'Branded', value: brandedCount, color: '#6366F1' },
+              { label: 'Non-Branded', value: nonBrandedCount, color: '#10B981' },
+            ].map(({ label, value, color }) => (
               <div key={label} style={{
                 background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8,
                 padding: '12px 14px', textAlign: 'center',
               }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#0F172A' }}>{value}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: color || '#0F172A' }}>{value}</div>
                 <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
           {loadedDomain && keywords.length > 0 && avgPos === '—' && (
-            <div style={{ maxWidth: 600, marginBottom: 16, padding: '10px 14px', background: '#F1F4F9', border: '1px solid #DAE0EA', borderRadius: 8, fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ maxWidth: 700, marginBottom: 16, padding: '10px 14px', background: '#F1F4F9', border: '1px solid #DAE0EA', borderRadius: 8, fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}>
               <RefreshCw size={13} color="#6366F1" />
               <span>Rankings haven't been fetched yet — click <strong>"Refresh all"</strong> to run the first position check.</span>
             </div>
           )}
 
-          {/* Quick-add suggestions */}
           {keywords.length < 15 && (
-            <div style={{ marginBottom: 16, maxWidth: 600 }}>
+            <div style={{ marginBottom: 16, maxWidth: 700 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase' }}>Quick add</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {SUGGESTIONS.filter(s => !keywords.some(k => k.keyword.toLowerCase() === s.toLowerCase())).map(s => (
@@ -210,8 +311,7 @@ export default function RankTracking() {
             </div>
           )}
 
-          {/* Actions bar */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => setAddOpen(!addOpen)}
               style={{
@@ -246,9 +346,29 @@ export default function RankTracking() {
             >
               <Download size={14} /> Export CSV
             </button>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+              {[
+                { key: 'all', label: 'All', count: keywords.length },
+                { key: 'branded', label: 'Branded', count: brandedCount },
+                { key: 'non-branded', label: 'Non-Branded', count: nonBrandedCount },
+                { key: 'quick-wins', label: `Quick Wins (${quickWinsCount})`, count: quickWinsCount },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterTab(key)}
+                  style={{
+                    padding: '5px 10px', borderRadius: 5, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600,
+                    background: filterTab === key ? '#6366F1' : '#E5E9F2',
+                    color: filterTab === key ? '#fff' : '#64748B',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Add keyword form */}
           {addOpen && (
             <div style={{
               background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8,
@@ -317,10 +437,9 @@ export default function RankTracking() {
             </div>
           )}
 
-          {/* Keywords table */}
-          {keywords.length === 0 ? (
+          {filteredKeywords.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
-              <p>No keywords tracked yet. Click <strong>"Add keyword"</strong> to start.</p>
+              <p>{filterTab === 'all' ? 'No keywords tracked yet. Click "Add keyword" to start.' : `No ${filterTab} keywords found.`}</p>
             </div>
           ) : (
             <div style={{
@@ -330,26 +449,38 @@ export default function RankTracking() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                    {['Keyword', 'Device', 'Position', 'Δ', 'SERP Features', 'Last Checked', ''].map(h => (
+                    {['Keyword', 'Type', 'Device', 'Position', 'Δ', 'SERP Features', 'Volatility', 'Last Checked', ''].map(h => (
                       <th key={h} style={{
-                        padding: '10px 14px', textAlign: 'left', color: '#475569',
-                        fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        padding: '10px 12px', textAlign: 'left', color: '#475569',
+                        fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em',
                       }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {keywords.map((kw) => {
+                  {filteredKeywords.map((kw) => {
                     const DevIcon = DEVICE_ICONS[kw.device] || Monitor
+                    const branded = isBranded(kw.keyword, loadedDomain)
+                    const kwHistory = kwHistories[kw.id]
                     return (
                       <tr key={kw.id} style={{ borderBottom: '1px solid #DAE0EA' }}>
-                        <td style={{ padding: '10px 14px', color: '#0F172A', fontWeight: 500 }}>
+                        <td style={{ padding: '10px 12px', color: '#0F172A', fontWeight: 500 }}>
                           {kw.keyword}
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#64748B' }}>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            display: 'inline-block', padding: '1px 6px', borderRadius: 3,
+                            fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                            background: branded ? '#6366F115' : '#10B98115',
+                            color: branded ? '#6366F1' : '#10B981',
+                          }}>
+                            {branded ? 'Brand' : 'Non'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#64748B' }}>
                           <DevIcon size={14} />
                         </td>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td style={{ padding: '10px 12px' }}>
                           <span style={{
                             display: 'inline-block', minWidth: 28, textAlign: 'center',
                             padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 14,
@@ -359,29 +490,32 @@ export default function RankTracking() {
                             {kw.position || '—'}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', color: DELTA_COLOR(kw.delta), fontWeight: 600, fontSize: 12 }}>
+                        <td style={{ padding: '10px 12px', color: DELTA_COLOR(kw.delta), fontWeight: 600, fontSize: 12 }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                             {DELTA_ICON(kw.delta)} {kw.delta}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {kw.serp_features?.featured_snippet && (
-                            <span style={{ padding: '1px 6px', background: '#6366F110', color: '#6366F1', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>Featured</span>
-                          )}
-                          {kw.serp_features?.people_also_ask && (
-                            <span style={{ padding: '1px 6px', background: '#F59E0B10', color: '#FBBF24', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>PAA</span>
-                          )}
-                          {kw.serp_features?.ai_overview && (
-                            <span style={{ padding: '1px 6px', background: '#22C55E10', color: '#4ADE80', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>AI Overview</span>
-                          )}
-                          {!kw.serp_features?.featured_snippet && !kw.serp_features?.people_also_ask && !kw.serp_features?.ai_overview && (
+                        <td style={{ padding: '10px 12px', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          {SERP_FEATURE_META.map(({ key, label, color, back, Icon }) => {
+                            if (!kw.serp_features?.[key]) return null
+                            return (
+                              <span key={key} style={{ padding: '1px 6px', background: back, color, borderRadius: 3, fontSize: 9, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                                {Icon && <Icon size={9} />}
+                                {label}
+                              </span>
+                            )
+                          })}
+                          {!SERP_FEATURE_META.some(({ key }) => kw.serp_features?.[key]) && (
                             <span style={{ color: '#8B93A7', fontSize: 11 }}>—</span>
                           )}
                         </td>
-                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
+                        <td style={{ padding: '10px 12px', minWidth: 70 }}>
+                          <VolatilitySparkline history={kwHistory} />
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#475569', fontSize: 11 }}>
                           {kw.checked_at ? new Date(kw.checked_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never'}
                         </td>
-                        <td style={{ padding: '10px 14px', display: 'flex', gap: 4 }}>
+                        <td style={{ padding: '10px 12px', display: 'flex', gap: 4 }}>
                           <button
                             onClick={() => loadHistory(kw)}
                             title="View history"
@@ -405,7 +539,6 @@ export default function RankTracking() {
             </div>
           )}
 
-          {/* History panel */}
           {historyKw && (
             <div style={{
               marginTop: 20, background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,
