@@ -75,15 +75,23 @@ async def wait_for_crawl(crawler, crawl_task, crawl_deadline, idle_cutoff=None, 
     return crawl_task.done()
 
 
-async def _safe_commit(db, timeout: float = 30.0) -> bool:
+async def _safe_commit(db: AsyncSession, timeout: float = 30.0) -> bool:
     """Commit with a hard bound. Returns False (and logs) when the database
-    stalls instead of letting a slow SQLite write wedge the audit pipeline."""
+    stalls instead of letting a slow write wedge the audit pipeline. Always
+    rolls the session back on failure so a timed-out commit can never leave
+    the transaction in an invalid state that breaks every later write."""
     try:
         await asyncio.wait_for(db.commit(), timeout=timeout)
         return True
+    except asyncio.TimeoutError:
+        logger.warning(f"Audit commit timed out after {timeout}s; rolling back")
     except Exception as e:
         logger.warning(f"Audit commit failed after {timeout}s: {e}")
-        return False
+    try:
+        await db.rollback()
+    except Exception:
+        pass
+    return False
 
 
 async def _write_live_probe(audit_id: str, payload: str) -> None:
@@ -1042,16 +1050,20 @@ async def _run_audit_task_impl(audit_id: str):
                 logger.warning(f"audit.started webhook failed: {e}")
 
             async def update_status(status, progress, step=""):
-                audit.status = status
-                audit.progress = progress
-                audit.current_step = step
+                # Use its own short-lived session so narration writes can never
+                # corrupt the pipeline's `db` transaction if one commit stalls.
                 try:
-                    # Bound the write so a wedged/stalled database can never freeze
-                    # the audit pipeline (heartbeats degrade to 'no heartbeat',
-                    # the crawl keeps going, and the probe beacon still narrates).
-                    await asyncio.wait_for(db.commit(), timeout=8)
+                    from app.database import async_session as _status_session
+                    async with _status_session() as _s:
+                        _r = await _s.execute(select(Audit).where(Audit.id == audit_id))
+                        _a = _r.scalar_one_or_none()
+                        if _a:
+                            _a.status = status
+                            _a.progress = progress
+                            _a.current_step = step
+                            await _safe_commit(_s, timeout=8)
                 except Exception as e:
-                    logger.warning(f"Status commit failed (audit {audit_id}): {e}")
+                    logger.warning(f"Status update failed (audit {audit_id}): {e}")
                 # The GET /audit/{id} detail endpoint caches status/progress for
                 # up to 1h; drop it so the frontend always sees the latest state.
                 try:
