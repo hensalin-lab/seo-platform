@@ -98,12 +98,26 @@ export default function BacklinkExplorer() {
             </button>
           </div>
 
+          {data.data_status && data.data_status !== 'ready' && (
+            <div style={{
+              maxWidth: 560, margin: '0 auto 16px', padding: '10px 16px',
+              background: data.data_status === 'fetching' ? '#FEF3C7' : '#EFF6FF',
+              border: `1px solid ${data.data_status === 'fetching' ? '#FDE68A' : '#BFDBFE'}`,
+              borderRadius: 8, fontSize: 12,
+              color: data.data_status === 'fetching' ? '#92400E' : '#1E40AF', textAlign: 'center',
+            }}>
+              {data.data_status === 'fetching'
+                ? 'Backlinks are being fetched from Common Crawl — check back in a few minutes.'
+                : 'Backlink ingestion recently scheduled — check back in a few minutes.'}
+            </div>
+          )}
+
           {data.backlinks?.length > 0 && (
             <div style={{ background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                    {['Source', 'Target', 'Anchor', 'DA', 'Type', 'Toxic'].map(h => (
+                    {['Source', 'Target', 'Anchor', 'DA', 'Type', 'Toxic', 'First Seen', 'Last Seen'].map(h => (
                       <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#475569', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
@@ -131,6 +145,12 @@ export default function BacklinkExplorer() {
                           {bl.toxic_score != null ? bl.toxic_score.toFixed(2) : '—'}
                         </span>
                       </td>
+                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11 }}>
+                        {bl.first_seen ? new Date(bl.first_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
+                      </td>
+                      <td style={{ padding: '8px 12px', color: '#475569', fontSize: 11 }}>
+                        {bl.last_seen ? new Date(bl.last_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -147,7 +167,21 @@ export default function BacklinkExplorer() {
           )}
 
           {!data.backlinks?.length && !data.note && (
-            <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>No backlinks found for this domain</div>
+            <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
+              {data.data_status === 'fetching' ? (
+                <div>
+                  <p style={{ fontWeight: 600, color: '#F59E0B', marginBottom: 4 }}>Backlinks are being fetched</p>
+                  <p style={{ fontSize: 12 }}>Common Crawl data is being ingested — check back in a few minutes and click Refresh.</p>
+                </div>
+              ) : data.data_status === 'pending' ? (
+                <div>
+                  <p style={{ fontWeight: 600, color: '#3B82F6', marginBottom: 4 }}>Ingestion recently scheduled</p>
+                  <p style={{ fontSize: 12 }}>Backlink ingestion is in progress — check back in a few minutes and click Refresh.</p>
+                </div>
+              ) : (
+                <p>No backlinks found for this domain</p>
+              )}
+            </div>
           )}
         </div>
       )}

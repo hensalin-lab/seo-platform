@@ -175,7 +175,16 @@ function GapItem({ fieldName, data }) {
   const needed = data.needed === true || data.needed === 1;
   const suggestion = data.suggestion || data.recommendation || '';
   const importance = data.importance || data.relevance || null;
-  const count = data.count || data.needed_count || null;
+  const count = data.count ?? data.needed_count ?? null;
+  const items = Array.isArray(data.items) ? data.items : null;
+  const resolvedCount = count ?? (items ? items.length : null);
+
+  const label = (it) => {
+    if (typeof it === 'string') return it;
+    if (it == null) return null;
+    if (Array.isArray(it)) return it.map(label).filter(Boolean).join('; ');
+    return it.topic || it.keyword || it.name || it.item || it.title || it.text || it.description || it.term || null;
+  };
 
   return (
     <div
@@ -203,21 +212,56 @@ function GapItem({ fieldName, data }) {
             fontSize: 13,
             fontWeight: 600,
             color: needed ? '#991b1b' : '#166534',
-            marginBottom: 2,
+            marginBottom: 4,
           }}
         >
           {gapFieldLabels[fieldName] || fieldName}
         </div>
-        {suggestion && (
-          <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>
-            {typeof suggestion === 'string'
-              ? suggestion
-              : Array.isArray(suggestion)
-              ? suggestion.join('; ')
-              : JSON.stringify(suggestion)}
+        {items && items.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {items.map((it, i) => {
+              const l = label(it);
+              if (!l) return null;
+              const detail = it && typeof it === 'object'
+                ? it.why || it.reason || it.opportunity || it.suggestion || it.impact || null
+                : null;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    fontSize: 12,
+                    color: needed ? '#991b1b' : '#166534',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span style={{ fontSize: 10, fontWeight: 800, marginTop: 1, flexShrink: 0, opacity: 0.6 }}>
+                    {i + 1}.
+                  </span>
+                  <div>
+                    <span style={{ fontWeight: 500 }}>{l}</span>
+                    {detail && (
+                      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>{detail}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+        ) : (
+          suggestion && (
+            <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>
+              {typeof suggestion === 'string'
+                ? suggestion
+                : Array.isArray(suggestion)
+                ? suggestion.join('; ')
+                : JSON.stringify(suggestion)}
+            </div>
+          )
         )}
-        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+        <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
           {importance != null && (
             <span
               style={{
@@ -231,7 +275,7 @@ function GapItem({ fieldName, data }) {
               Relevance: {typeof importance === 'number' ? `${importance}%` : importance}
             </span>
           )}
-          {count != null && (
+          {resolvedCount != null && (
             <span
               style={{
                 fontSize: 11,
@@ -242,7 +286,7 @@ function GapItem({ fieldName, data }) {
                 fontWeight: 600,
               }}
             >
-              ×{count} needed
+              ×{resolvedCount} needed
             </span>
           )}
         </div>

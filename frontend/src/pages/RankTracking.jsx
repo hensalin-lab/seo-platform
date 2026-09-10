@@ -39,6 +39,11 @@ export default function RankTracking() {
   const [history, setHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
 
+  const SUGGESTIONS = [
+    'seo services', 'seo audit', 'technical seo', 'on page seo',
+    'keyword research', 'content marketing', 'link building', 'local seo',
+  ]
+
   const load = useCallback(async (d) => {
     setLoading(true); setError('')
     try {
@@ -67,9 +72,16 @@ export default function RankTracking() {
   }
 
   const handleRefresh = async () => {
-    setRefreshing(true)
-    try { await api.refreshRankTracking(loadedDomain) }
-    catch (e) { setError(e.message) }
+    setRefreshing(true); setError('')
+    try {
+      await api.refreshRankTracking(loadedDomain)
+      // Poll the list as the background task writes new snapshots
+      const poll = [0, 6000, 18000]
+      for (const ms of poll) {
+        if (ms > 0) await new Promise(r => setTimeout(r, ms))
+        try { await load(loadedDomain) } catch { /* best-effort */ }
+      }
+    } catch (e) { setError(e.message || 'Refresh failed — try again in a minute.') }
     finally { setRefreshing(false) }
   }
 
@@ -87,8 +99,22 @@ export default function RankTracking() {
     if (domain.trim()) load(domain.trim())
   }
 
+  const quickAdd = async (kw) => {
+    if (!loadedDomain || adding) return
+    setAdding(true); setError('')
+    try {
+      await api.addTrackedKeyword(loadedDomain, kw, newDevice, newLocation)
+      await load(loadedDomain)
+    } catch (e) { setError(e.message || 'Failed to add keyword') }
+    finally { setAdding(false) }
+  }
+
   const avgPos = keywords.length
-    ? (keywords.reduce((s, k) => s + (k.position || 0), 0) / keywords.length).toFixed(1)
+    ? (() => {
+        const withPos = keywords.filter(k => k.position)
+        if (!withPos.length) return '—'
+        return (withPos.reduce((s, k) => s + k.position, 0) / withPos.length).toFixed(1)
+      })()
     : '—'
 
   return (
@@ -162,6 +188,27 @@ export default function RankTracking() {
               </div>
             ))}
           </div>
+          {loadedDomain && keywords.length > 0 && avgPos === '—' && (
+            <div style={{ maxWidth: 600, marginBottom: 16, padding: '10px 14px', background: '#F1F4F9', border: '1px solid #DAE0EA', borderRadius: 8, fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <RefreshCw size={13} color="#6366F1" />
+              <span>Rankings haven't been fetched yet — click <strong>"Refresh all"</strong> to run the first position check.</span>
+            </div>
+          )}
+
+          {/* Quick-add suggestions */}
+          {keywords.length < 15 && (
+            <div style={{ marginBottom: 16, maxWidth: 600 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase' }}>Quick add</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {SUGGESTIONS.filter(s => !keywords.some(k => k.keyword.toLowerCase() === s.toLowerCase())).map(s => (
+                  <button key={s} onClick={() => quickAdd(s)} disabled={adding} title={`Track "${s}"`}
+                    style={{ padding: '5px 10px', border: '1px solid #DAE0EA', borderRadius: 6, background: '#E5E9F2', color: '#0F172A', fontSize: 11, cursor: adding ? 'wait' : 'pointer', opacity: adding ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    + {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Actions bar */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>

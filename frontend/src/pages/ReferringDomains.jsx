@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
-import { Globe, Search, ArrowUpDown, ExternalLink } from 'lucide-react'
+import { Globe, Search, ArrowUpDown, ExternalLink, RefreshCw } from 'lucide-react'
 
 export default function ReferringDomains() {
   const [domain, setDomain] = useState('')
@@ -9,6 +9,7 @@ export default function ReferringDomains() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [sortBy, setSortBy] = useState('da')  // da | links | toxic
+  const [refreshing, setRefreshing] = useState(false)
 
   const load = async (d) => {
     setLoading(true); setError('')
@@ -18,6 +19,20 @@ export default function ReferringDomains() {
   }
 
   const handleSubmit = (e) => { e.preventDefault(); if (domain.trim()) load(domain.trim()) }
+
+  const handleRefresh = async () => {
+    if (!domain.trim()) return
+    setRefreshing(true); setError('')
+    try {
+      await api.refreshBacklinks(domain.trim())
+      // Poll to pick up newly written rows
+      for (const ms of [0, 6000, 18000]) {
+        if (ms > 0) await new Promise(r => setTimeout(r, ms))
+        try { await load(domain.trim()) } catch { /* best-effort */ }
+      }
+    } catch (e) { setError(e.message || 'Refresh failed') }
+    finally { setRefreshing(false) }
+  }
 
   const sorted = data?.domains
     ? [...data.domains].sort((a, b) => {
@@ -60,9 +75,37 @@ export default function ReferringDomains() {
 
       {!loading && data && (
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16, fontSize: 13 }}>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16, fontSize: 13, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: '#475569' }}>Total referring domains: <strong style={{ color: '#0F172A' }}>{data.total}</strong></span>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                marginLeft: 'auto',
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', background: '#E5E9F2',
+                border: '1px solid #DAE0EA', borderRadius: 6, color: refreshing ? '#475569' : '#0F172A',
+                fontSize: 11, cursor: refreshing ? 'default' : 'pointer',
+              }}
+            >
+              <RefreshCw size={12} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
+
+          {data.data_status && data.data_status !== 'ready' && (
+            <div style={{
+              marginBottom: 16, padding: '10px 16px',
+              background: data.data_status === 'fetching' ? '#FEF3C7' : '#EFF6FF',
+              border: `1px solid ${data.data_status === 'fetching' ? '#FDE68A' : '#BFDBFE'}`,
+              borderRadius: 8, fontSize: 12,
+              color: data.data_status === 'fetching' ? '#92400E' : '#1E40AF', textAlign: 'center',
+            }}>
+              {data.data_status === 'fetching'
+                ? 'Backlinks are being fetched from Common Crawl — check back in a few minutes.'
+                : 'Backlink ingestion recently scheduled — check back in a few minutes.'}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             <SortBtn field="da">Authority</SortBtn>
@@ -75,7 +118,7 @@ export default function ReferringDomains() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DAE0EA' }}>
-                    {['Domain', 'Links', 'DA', 'Toxic', 'First Seen'].map(h => (
+                    {['Domain', 'Links', 'DA', 'Toxic', 'First Seen', 'Last Seen'].map(h => (
                       <th key={h} style={{ padding: '9px 14px', textAlign: 'left', color: '#475569', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
@@ -98,9 +141,12 @@ export default function ReferringDomains() {
                           <span style={{ fontSize: 11, color: '#64748B' }}>{rd.toxic_score != null ? rd.toxic_score.toFixed(2) : '—'}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
-                        {rd.first_seen ? new Date(rd.first_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
-                      </td>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
+                          {rd.first_seen ? new Date(rd.first_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#475569', fontSize: 12 }}>
+                          {rd.last_seen ? new Date(rd.last_seen).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—'}
+                        </td>
                     </tr>
                   ))}
                 </tbody>
@@ -108,7 +154,19 @@ export default function ReferringDomains() {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
-              {data.note || 'No referring domains found'}
+              {data?.data_status === 'fetching' ? (
+                <div>
+                  <p style={{ fontWeight: 600, color: '#F59E0B', marginBottom: 4 }}>Backlinks are being fetched</p>
+                  <p style={{ fontSize: 12 }}>Common Crawl data is being ingested — check back in a few minutes and click Refresh.</p>
+                </div>
+              ) : data?.data_status === 'pending' ? (
+                <div>
+                  <p style={{ fontWeight: 600, color: '#3B82F6', marginBottom: 4 }}>Ingestion recently scheduled</p>
+                  <p style={{ fontSize: 12 }}>Backlink ingestion is in progress — check back in a few minutes and click Refresh.</p>
+                </div>
+              ) : (
+                <span>{data?.note || 'No referring domains found'}</span>
+              )}
             </div>
           )}
         </div>

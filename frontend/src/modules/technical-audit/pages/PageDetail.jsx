@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../../../api';
 import {
   Globe, Smartphone, Search, Layout, Heading, Link2, ExternalLink,
@@ -162,15 +162,22 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
   const [recs, setRecs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     api.getAiRecommendationsPage(auditId, pageIdx).then(d => { setRecs(d); setLoading(false); }).catch(e => { setError(e?.message || 'Request failed'); setLoading(false); });
-  }, [auditId, pageIdx]);
+  }, [auditId, pageIdx, retry]);
 
   if (loading) return <div style={{ padding: 16, textAlign: 'center' }}><Sparkles size={16} className="spin" color="#8b5cf6" /><p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>AI analyzing...</p></div>;
-  if (error) return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 16 }}>AI recommendations unavailable: {error}</div>;
+  if (error) return (
+    <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: 16, textAlign: 'center' }}>
+      <div>AI recommendations unavailable: {error}</div>
+      <button onClick={() => setRetry(r => r + 1)} style={{ marginTop: 10, padding: '6px 12px', background: '#8b5cf6', border: 'none', borderRadius: 6, color: '#fff', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>Retry</button>
+    </div>
+  );
+  if (!recs) return null;
 
   return (
     <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
@@ -211,8 +218,12 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Lightbulb size={13} /> Content Recommendations</div>
             {recs.content_recommendations.map((item, i) => (
               <div key={i} style={{ padding: '8px 10px', background: '#fffbeb', borderRadius: 6, marginBottom: 6, borderLeft: '2px solid #d97706' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#92400e', marginBottom: 2 }}>{item.title || item.topic || 'Recommendation'}</div>
-                <div style={{ fontSize: 11, color: '#78350f', lineHeight: 1.5 }}>{item.description || item.action || item.suggestion}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#92400e', marginBottom: 2 }}>
+                  <span style={{ display: 'inline-flex', width: 18, height: 18, borderRadius: 4, background: '#d9770620', color: '#d97706', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, marginRight: 6 }}>{i + 1}</span>
+                  {item.title || item.topic || 'Recommendation'}
+                </div>
+                <div style={{ fontSize: 11, color: '#78350f', lineHeight: 1.5, marginTop: 2 }}>{item.description || item.action || item.suggestion}</div>
+                {item.impact && <div style={{ fontSize: 10, color: '#b45309', marginTop: 4, fontWeight: 600 }}>Impact: {item.impact}</div>}
               </div>
             ))}
           </div>
@@ -221,7 +232,8 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#3b82f6', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Zap size={13} /> Technical Fixes</div>
             {recs.technical_fixes.map((item, i) => (
-              <div key={i} style={{ padding: '6px 10px', background: '#eff6ff', borderRadius: 6, marginBottom: 4, fontSize: 11, color: '#1e40af', borderLeft: '2px solid #3b82f6' }}>
+              <div key={i} style={{ padding: '7px 10px', background: '#eff6ff', borderRadius: 6, marginBottom: 4, fontSize: 11, color: '#1e40af', borderLeft: '2px solid #3b82f6' }}>
+                <span style={{ display: 'inline-flex', width: 18, height: 18, borderRadius: 4, background: '#3b82f620', color: '#3b82f6', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, marginRight: 6 }}>{i + 1}</span>
                 {item.issue || item.fix || item.description}
               </div>
             ))}
@@ -234,6 +246,8 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
 
 export default function PageDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const requestedUrl = searchParams.get('url');
   const [pages, setPages] = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState('googlebot');
@@ -244,8 +258,17 @@ export default function PageDetail() {
   const [pageLoading, setPageLoading] = useState(false);
 
   useEffect(() => {
-    api.getAuditPages(id, { limit: 100 }).then(d => { setPages(d.items || []); setLoading(false); }).catch(e => { setPages([]); setLoading(false); console.error('Failed to load pages:', e); });
-  }, [id]);
+    api.getAuditPages(id, { limit: 100 }).then(d => {
+      const items = d.items || [];
+      setPages(items);
+      setLoading(false);
+      if (requestedUrl && items.length) {
+        const normalized = String(requestedUrl).replace(/\/+$/, '');
+        const matchIdx = items.findIndex(p => (p.url || '').replace(/\/+$/, '') === normalized || String(p.url || '').includes(normalized));
+        if (matchIdx >= 0) setSelectedIdx(matchIdx);
+      }
+    }).catch(e => { setPages([]); setLoading(false); console.error('Failed to load pages:', e); });
+  }, [id, requestedUrl]);
 
   useEffect(() => {
     if (!pages.length) return;
