@@ -123,6 +123,10 @@ class CrawlerEngine:
         # stalled DNS lookups (which run in that default executor and can die in
         # per-thread hung getaddrinfo calls) can never starve page parsing.
         self._parse_executor: Optional[ThreadPoolExecutor] = None
+        # Optional per-page callback invoked after a page is extracted and
+        # appended to self.pages.  Enables incremental persistence so the audit
+        # can stream pages to the DB instead of holding the entire crawl in RAM.
+        self._on_page = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -525,6 +529,11 @@ class CrawlerEngine:
                     new_urls = await self._parse_page(page, html, url, depth, response.status_code)
 
                 self.pages.append(page)
+                if self._on_page is not None:
+                    try:
+                        await self._on_page(page)
+                    except Exception as e:
+                        logger.warning(f"on_page callback failed for {url}: {e}")
 
             except httpx.TimeoutException:
                 if len(self.crawl_diagnostics) < 10:
@@ -600,6 +609,7 @@ class CrawlerEngine:
         max_pages = max_pages or settings.CRAWLER_MAX_PAGES
         self.visited.clear()
         self.pages.clear()
+        self._on_page = on_page
 
         parsed = urlparse(start_url)
         base_url = f"{parsed.scheme}://{parsed.netloc}"

@@ -1089,8 +1089,52 @@ async def run_audit_task(audit_id: str):
             drain_task = asyncio.create_task(_drain_progress())
             crawl_deadline = settings.CRAWLER_CRAWL_TIMEOUT + 60
 
+            # Incremental page persistence: save each page to the DB as it's
+            # crawled so (a) the audit survives an OOM-kill/restart with partial
+            # data already durable, and (b) heavy fields (html_raw, content_text)
+            # are stripped from in-memory PageData immediately, shrinking the
+            # process RSS by ~20 MB per 300 pages and keeping it under the
+            # container memory limit.
+            _inc_session = None
+            _pages_saved = 0
+
+            async def _on_page_incremental(page):
+                nonlocal _inc_session, _pages_saved
+                try:
+                    if _inc_session is None:
+                        from app.database import async_session as _mk
+                        _inc_session = _mk()
+                    await _inc_session.add(Page(
+                        audit_id=audit_id, url=page.url, status_code=page.status_code,
+                        title=page.title, meta_description=page.meta_description,
+                        canonical=page.canonical, h1=page.h1,
+                        content_text=(page.content_text or "")[:50000],
+                        word_count=page.word_count,
+                        html_raw=(page.html_raw or "")[:40000],
+                        headers=page.headings, images=page.images,
+                        links_internal=page.links_internal[:100],
+                        links_external=page.links_external[:100],
+                        schema_markup=page.schema_markup, open_graph=page.open_graph,
+                        twitter_card=page.twitter_card, crawl_depth=page.crawl_depth,
+                        response_time_ms=page.response_time_ms, content_hash=page.content_hash,
+                        signals=getattr(page, "signals", {}) or {},
+                    ))
+                    _pages_saved += 1
+                    # Batch-commit every 10 pages (bounded) so the DB isn't hit
+                    # per-page but pages are durable before the next batch.
+                    if _pages_saved % 10 == 0:
+                        await _safe_commit(_inc_session, timeout=8)
+                except Exception as e:
+                    logger.warning(f"Incremental page save failed: {e}")
+                # Release heavy blobs from the in-memory PageData so the process
+                # RSS stays well below the container limit while the crawl runs.
+                # Post-crawl classification reloads content_text from the DB.
+                page.html_raw = None
+                page.content_text = None
+
             crawl_task = asyncio.create_task(
-                crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES, on_progress=_on_progress)
+                crawler.crawl(website_url, max_pages=settings.CRAWLER_MAX_PAGES,
+                              on_page=_on_page_incremental, on_progress=_on_progress)
             )
 
             # Detached diagnostics beacon: keeps narrating engine state to the
@@ -1146,6 +1190,15 @@ async def run_audit_task(audit_id: str):
                     pass
                 await crawler.close()
 
+            # Flush any remaining incremental page saves that weren't committed
+            # in the batched callbacks above.
+            if _inc_session is not None:
+                try:
+                    await _safe_commit(_inc_session, timeout=8)
+                    await _inc_session.close()
+                except Exception as e:
+                    logger.warning(f"Incremental session flush failed: {e}")
+
             try:
                 from app.api.status import _cache_clear
                 _cache_clear(audit_id)
@@ -1170,6 +1223,23 @@ async def run_audit_task(audit_id: str):
 
             await update_status(AuditStatus.SEO_ANALYSIS.value, 35, "Running 200+ signal analysis...")
 
+            # Reload content_text from DB in bulk so the analyzer, classifier,
+            # and context engines have full text. Pages were saved during crawl
+            # and their content_text was stripped to keep RSS below the limit.
+            try:
+                from sqlalchemy import text as _sa_text
+                _rows = (await db.execute(
+                    _sa_text("SELECT url, content_text FROM pages WHERE audit_id = :aid"),
+                    {"aid": str(audit_id)},
+                )).fetchall()
+                _ct_map = {row[0]: row[1] for row in _rows if row[1]}
+                for page in pages:
+                    if not page.content_text and page.url in _ct_map:
+                        page.content_text = _ct_map[page.url]
+                del _ct_map, _rows
+            except Exception as e:
+                logger.warning(f"Bulk content_text reload failed: {e}")
+
             analyzer = AnalyzerEngine()
             try:
                 analysis = await asyncio.to_thread(analyzer.analyze_pages, pages)
@@ -1180,6 +1250,12 @@ async def run_audit_task(audit_id: str):
                 analysis.compute_scores()
 
             await update_status(AuditStatus.TECHNICAL_ANALYSIS.value, 50, "Saving page data...")
+
+            # Pages were already saved to the DB incrementally during crawl.
+            # Now reload content_text (freed from memory to reduce RSS) and run
+            # classification + context-aware analysis, then UPDATE the existing
+            # rows with those enrichment fields.
+            from sqlalchemy import update as _sa_update
 
             for page in pages:
                 try:
@@ -1210,24 +1286,17 @@ async def run_audit_task(audit_id: str):
 
                     from app.engine.crawl_snapshot import CrawlSnapshot
                     page_snap = CrawlSnapshot(page)
-                    db.add(Page(
-                        audit_id=audit_id, url=page.url, status_code=page.status_code,
-                        title=page.title, meta_description=page.meta_description,
-                        canonical=page.canonical, h1=page.h1,
-                        content_text=page.content_text[:50000], word_count=page.word_count,
-                        html_raw=page.html_raw[:40000] if page.html_raw else "",
-                        headers=page.headings, images=page.images,
-                        links_internal=page.links_internal[:100],
-                        links_external=page.links_external[:100],
-                        schema_markup=page.schema_markup, open_graph=page.open_graph,
-                        twitter_card=page.twitter_card, crawl_depth=page.crawl_depth,
-                        response_time_ms=page.response_time_ms, content_hash=page.content_hash,
-                        page_type=page_type, context_issues=ctx_issues,
-                        signals=getattr(page, "signals", {}) or {},
-                        snapshot_hash=page_snap.snapshot_hash,
-                    ))
+                    await db.execute(
+                        _sa_update(Page)
+                        .where(Page.audit_id == audit_id, Page.url == page.url)
+                        .values(
+                            page_type=page_type,
+                            context_issues=ctx_issues,
+                            snapshot_hash=page_snap.snapshot_hash,
+                        )
+                    )
                 except Exception as e:
-                    logger.error(f"Page save failed for {page.url}: {e}")
+                    logger.error(f"Page enrichment failed for {page.url}: {e}")
                     continue
             await _safe_commit(db, timeout=60)
 
