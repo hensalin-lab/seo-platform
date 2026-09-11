@@ -225,7 +225,7 @@ export default function RankTracking() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
           <TrendingUp size={28} style={{ color: '#6366F1' }} />
           <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Rank Tracking</h1>
-          <DataSourceBadge source="ddg" />
+          <DataSourceBadge source={keywords.find(k => k.source)?.source || 'ddg'} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 14 }}>Track keyword positions over time for any domain</p>
         <form onSubmit={handleSubmitDomain} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto' }}>

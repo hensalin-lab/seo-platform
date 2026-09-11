@@ -77,6 +77,7 @@ def _serialize_keyword(kw: TrackedKeyword, latest: Optional[RankSnapshot],
         "delta": _delta_str(prev.position if prev else None,
                             latest.position if latest else None),
         "serp_features": latest.serp_features if latest else {},
+        "source": (latest.serp_features or {}).get("source") if latest else None,
         "checked_at": latest.checked_at.isoformat() if latest and latest.checked_at else None,
         "added_at": kw.added_at.isoformat() if kw.added_at else None,
     }
@@ -130,14 +131,27 @@ async def add_keyword(body: AddKeywordBody,
     db.add(kw)
     await db.commit()
 
-    background_tasks.add_task(_auto_check_keyword, kw.id, body.keyword.strip(), body.domain, device, body.location)
+    background_tasks.add_task(_auto_check_keyword, kw.id, body.keyword.strip(),
+                              body.domain, device, body.location, user.id)
 
     return {"id": kw.id, "message": "Keyword added"}
 
 
-async def _auto_check_keyword(keyword_id: str, keyword: str, domain: str, device: str, location: str):
-    """Background task: immediately check SERP position for a newly added keyword."""
+async def _auto_check_keyword(keyword_id: str, keyword: str, domain: str, device: str, location: str,
+                              user_id: Optional[str] = None):
+    """Background task: immediately check SERP position for a newly added keyword.
+
+    Uses the configured SERP provider (free: Google CSE/OpenSerp, paid: Serper/
+    SerpAPI/DataForSEO) when available, otherwise falls back to the free DDG
+    scraper. The resolved source is recorded on the snapshot so the UI can show
+    where the position came from.
+    """
     from app.database import async_session
+    from app.engine.providers import (
+        build_provider, effective_config, get_user_provider_config,
+        resolve_for_capability,
+    )
+    from app.engine.spend_guard import check_provider_budget, record_provider_usage
     from app.services.ddg_serp_client import DDGSerpClient
     try:
         async with async_session() as db:
@@ -148,12 +162,45 @@ async def _auto_check_keyword(keyword_id: str, keyword: str, domain: str, device
             if not td:
                 return
 
-            client = DDGSerpClient()
-            result = await client.get_serp(keyword=keyword, target_domain=domain)
+            user_config = await get_user_provider_config(db, user_id) if user_id else {}
+            resolved = resolve_for_capability("serp_ranks", user_config)
+            provider = build_provider(
+                "serp_ranks",
+                resolved["provider"],
+                effective_config(resolved["provider"], user_config),
+            )
+            source = resolved["provider"]
 
-            position = result.get("position")
-            serp_features = result.get("serp_features", {})
-            top_3_urls = result.get("top_3_urls", [])
+            position = None
+            serp_features = {}
+            top_3_urls = []
+
+            if resolved["configured"]:
+                try:
+                    await check_provider_budget(db, user_id, source, cost=1)
+                except Exception as e:
+                    logger.info(f"Rank auto-check budget block via {source}: {e}")
+                    source = "ddg"
+                else:
+                    result = await provider.live_position(
+                        keyword=keyword, host=domain.lower().strip()
+                    )
+                    position = result.get("position")
+                    if result.get("page_url"):
+                        top_3_urls = [result["page_url"]]
+                    await record_provider_usage(
+                        db, user_id, source, cost=1,
+                        details={"endpoint": "rank-tracking/auto-check", "keyword": keyword},
+                    )
+
+            if source == "ddg":
+                client = DDGSerpClient()
+                result = await client.get_serp(keyword=keyword, target_domain=domain)
+                position = result.get("position")
+                serp_features = result.get("serp_features", {}) or {}
+
+            serp_features = dict(serp_features)
+            serp_features["source"] = source
 
             snapshot = RankSnapshot(
                 tracked_keyword_id=keyword_id,
@@ -164,7 +211,7 @@ async def _auto_check_keyword(keyword_id: str, keyword: str, domain: str, device
             )
             db.add(snapshot)
             await db.commit()
-            logger.info(f"Auto-checked rank for '{keyword}' on {domain}: position={position}")
+            logger.info(f"Auto-checked rank for '{keyword}' on {domain}: position={position} source={source}")
     except Exception as e:
         logger.warning(f"Auto-check failed for '{keyword}' on {domain}: {e}")
 
