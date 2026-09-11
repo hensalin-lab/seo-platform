@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import { ShieldAlert, Search, Download, ExternalLink } from 'lucide-react'
 
 export default function ToxicLinks() {
@@ -35,6 +36,7 @@ export default function ToxicLinks() {
           <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>Identify harmful backlinks and export a Google disavow file</p>
+        <UpgradeCallout source={data?.source} capability="backlinks" />
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>
           <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
             <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />

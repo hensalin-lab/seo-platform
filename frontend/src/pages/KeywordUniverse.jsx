@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import { FileSearch, Search, Info, Target } from 'lucide-react'
 
 export default function KeywordUniverse() {
@@ -32,6 +33,7 @@ export default function KeywordUniverse() {
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
           Discover what keywords a competitor organically ranks for — beyond manual tracking
         </p>
+        <UpgradeCallout source={data?.source} capability="serp_ranks" />
         <form onSubmit={discover} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
             value={domain}

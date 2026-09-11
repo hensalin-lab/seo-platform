@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import { TrendingUp, Search, Info, BarChart3, ShieldCheck, AlertTriangle, HelpCircle } from 'lucide-react'
 
 const CONFIDENCE_META = {
@@ -72,6 +73,7 @@ export default function TrafficEstimator() {
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
           Estimate monthly organic visits — real GSC data for your domains, DDG-based estimate for any domain
         </p>
+        <UpgradeCallout source={data?.source} capability="serp_ranks" />
         <form onSubmit={estimate} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
             value={domain}

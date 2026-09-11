@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import { Search, Info, Layers } from 'lucide-react'
 
 function FlowBar({ label, value, color, desc }) {
@@ -46,6 +47,7 @@ export default function TrustFlow() {
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
           Majestic-style two-metric link quality — trust vs raw link popularity
         </p>
+        <UpgradeCallout source={data?.source} capability="backlinks" />
         <form onSubmit={analyze} style={{ display: 'flex', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
             value={domain}

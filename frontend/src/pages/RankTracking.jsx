@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { api } from '../api'
 import { DataSourceBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import {
   TrendingUp, Plus, Trash2, RefreshCw, Download, Monitor, Smartphone,
   ArrowUp, ArrowDown, Minus, Search, BarChart2, MapPin,
@@ -228,6 +229,7 @@ export default function RankTracking() {
           <DataSourceBadge source={keywords.find(k => k.source)?.source || 'ddg'} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 14 }}>Track keyword positions over time for any domain</p>
+        <UpgradeCallout source={keywords.find(k => k.source)?.source || 'ddg'} capability="serp_ranks" />
         <form onSubmit={handleSubmitDomain} style={{ display: 'flex', gap: 8, maxWidth: 520, margin: '0 auto' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge, GSCStatusBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import { Globe, Search, ArrowUpDown, ExternalLink, RefreshCw } from 'lucide-react'
 
 export default function ReferringDomains() {
@@ -60,6 +61,7 @@ export default function ReferringDomains() {
           <DataSourceBadge source={data?.source} />
         </div>
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>Backlinks grouped by referring domain, sorted by authority</p>
+        <UpgradeCallout source={data?.source} capability="backlinks" />
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, maxWidth: 480, margin: '0 auto' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />

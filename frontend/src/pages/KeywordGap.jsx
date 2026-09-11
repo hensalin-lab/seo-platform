@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { api } from '../api'
 import { DataSourceBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import { GitCompare, Search, Info, Zap } from 'lucide-react'
 
 const GAP_COLOR = (gap) => {
@@ -171,6 +172,12 @@ export default function KeywordGap() {
     return theirsOnly.filter(r => r.position && r.position >= 4 && r.position <= 10)
   }, [theirsOnly])
 
+  const gapSource = useMemo(() => {
+    if (data?.source) return data.source
+    const rows = [...(data?.competitor_only || []), ...(data?.both_rank || []), ...(data?.your_only || [])]
+    return rows.find(r => r.score_source && r.score_source !== 'unknown')?.score_source
+  }, [data])
+
   return (
     <div style={{ padding: '24px 24px 40px', background: '#F4F6FB', minHeight: '100vh', color: '#0F172A' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -182,6 +189,7 @@ export default function KeywordGap() {
         <p style={{ color: '#64748B', margin: '0 0 20px', fontSize: 13 }}>
           Compare tracked keywords between your domain and a competitor
         </p>
+        <UpgradeCallout source={gapSource} capability="serp_ranks" />
         <form onSubmit={handleAnalyze} style={{ display: 'flex', gap: 8, maxWidth: 600, margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>
           <input
             value={domain}

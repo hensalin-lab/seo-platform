@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { DataSourceBadge } from '../components/DataSourceBadge'
+import { UpgradeCallout } from '../components/UpgradeCallout'
 import {
   Gauge, Search, ExternalLink, Info, Target, TrendingUp, FileText,
   AlertTriangle, ShieldAlert, ShieldCheck, Lightbulb, BarChart3,
@@ -104,6 +105,7 @@ export default function KeywordDifficulty() {
         <p style={{ color: '#64748B', margin: '0 0 18px', fontSize: 13 }}>
           Real competitive difficulty (0–100) from SERP + authority analysis of the ranking domains
         </p>
+        <UpgradeCallout source={src} capability="serp_ranks" />
         <form onSubmit={analyze} style={{ display: 'flex', gap: 8, maxWidth: 460, margin: '0 auto' }}>
           <input
             value={keyword}
