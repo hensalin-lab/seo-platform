@@ -399,6 +399,103 @@ class DataForSEOBacklinkProvider(BacklinkProvider):
     def __init__(self, cfg: dict):
         self.cfg = cfg
 
+    async def _request(self, path: str, payload: list) -> dict:
+        auth = httpx.BasicAuth(self.cfg["login"], self.cfg["password"])
+        async with httpx.AsyncClient(timeout=90) as client:
+            resp = await client.post(f"{DATA_FORSEO_API}{path}", json=payload, auth=auth)
+            if resp.status_code != 200:
+                raise RuntimeError(f"DataForSEO {path} {resp.status_code}: {resp.text[:300]}")
+            return resp.json()
+
+    @staticmethod
+    def _tld_hint(host: str) -> float:
+        """Small toxicity bump for known spammy TLDs (mirrors ingestion heuristic)."""
+        from app.engine.backlink_ingestion import SPAMMY_TLDS
+        host = (host or "").lower().strip()
+        return 0.3 if any(host.endswith(tld) for tld in SPAMMY_TLDS) else 0.0
+
+    @staticmethod
+    def _first_seen(item: dict) -> str | None:
+        raw = item.get("first_seen") or item.get("date_seen")
+        return raw if isinstance(raw, str) else None
+
+    async def list_backlinks(self, target: str, limit: int = 100) -> dict:
+        """Live backlink rows from ``/backlinks/backlinks/live``.
+
+        Returns {"source": "dataforseo", "total": int, "backlinks": [...]} where
+        each row mirrors the Backlink serializer shape used by BacklinkExplorer.
+        """
+        data = await self._request("/backlinks/backlinks/live", [{
+            "target": target,
+            "mode": "as_is",
+            "limit": min(int(limit), 1000),
+            "internal_list_limit": 0,
+            "external_list_limit": 0,
+            "backlinks_status_type": "",
+        }])
+        rows = []
+        total = 0
+        for task in data.get("tasks", []):
+            for item in task.get("result", []):
+                total = item.get("total_count", 0)
+                for bl in item.get("items", []):
+                    attrs = bl.get("attributes") or []
+                    is_follow = "nofollow" not in attrs
+                    rank = bl.get("rank") or bl.get("page_from_rank") or bl.get("page_rank")
+                    try:
+                        toxic = max(
+                            0, min(100.0, (0.0 if is_follow else 30.0)
+                                   + (0.15 * (rank or 0))
+                                   + DataForSEOBacklinkProvider._tld_hint(bl.get("domain_from") or "") * 100)
+                        )
+                    except Exception:
+                        toxic = 0.0
+                    rows.append({
+                        "id": bl.get("id"),
+                        "source_url": bl.get("url_from"),
+                        "source_domain": (bl.get("domain_from") or "").lower(),
+                        "target_url": bl.get("url_to"),
+                        "anchor_text": bl.get("anchor"),
+                        "is_follow": is_follow,
+                        "domain_authority": rank,
+                        "toxic_score": round(toxic, 3) if toxic else None,
+                        "first_seen": DataForSEOBacklinkProvider._first_seen(bl),
+                        "last_seen": bl.get("date_seen"),
+                    })
+        return {"source": "dataforseo", "total": total, "backlinks": rows}
+
+    async def list_referring_domains(self, target: str, limit: int = 100) -> dict:
+        """Live referring-domain rows from ``/backlinks/referring_domains/live``."""
+        data = await self._request("/backlinks/referring_domains/live", [{
+            "target": target,
+            "mode": "as_is",
+            "limit": min(int(limit), 1000),
+            "internal_list_limit": 0,
+            "external_list_limit": 0,
+        }])
+        rows = []
+        total = 0
+        for task in data.get("tasks", []):
+            for item in task.get("result", []):
+                total = item.get("total_count", 0)
+                for rd in item.get("items", []):
+                    external = rd.get("external_backlinks") or rd.get("backlinks") or 0
+                    nofollow = rd.get("nofollow_backlinks", 0)
+                    ratio = round(external / (external + nofollow), 3) if (external + nofollow) > 0 else None
+                    rows.append({
+                        "id": rd.get("id"),
+                        "domain": rd.get("domain", "").lower(),
+                        "link_count": external,
+                        "domain_authority": rd.get("rank"),
+                        "toxic_score": rd.get("spam_score"),
+                        "dofollow_count": external,
+                        "nofollow_count": nofollow,
+                        "dofollow_ratio": ratio,
+                        "first_seen": rd.get("first_seen"),
+                        "last_seen": rd.get("last_seen"),
+                    })
+        return {"source": "dataforseo", "total": total, "domains": rows}
+
     async def summary(self, target: str) -> dict:
         auth = httpx.BasicAuth(self.cfg["login"], self.cfg["password"])
         async with httpx.AsyncClient(timeout=90) as client:

@@ -134,6 +134,105 @@ def test_is_configured_secrets():
     assert is_configured("serpapi", {}) is False
 
 
+# ---------------- DataForSEO backlinks mapping ----------------
+
+FAKE_BACKLINKS_PAYLOAD = {
+    "tasks": [{
+        "status_code": 20000,
+        "result": [{
+            "total_count": 3,
+            "items": [
+                {
+                    "id": "bl1",
+                    "url_from": "https://spam.xyz/post",
+                    "domain_from": "Spam.XYZ",
+                    "url_to": "https://example.com/",
+                    "anchor": "buy cheap seo",
+                    "attributes": ["nofollow"],
+                    "rank": 5,
+                    "first_seen": "2026-01-01 00:00:00",
+                    "date_seen": "2026-09-01 00:00:00",
+                },
+                {
+                    "id": "bl2",
+                    "url_from": "https://goodnews.com/links",
+                    "domain_from": "goodnews.com",
+                    "url_to": "https://example.com/page",
+                    "anchor": "example.com",
+                    "attributes": [],
+                    "page_rank": 42,
+                    "date_seen": "2026-09-01 00:00:00",
+                },
+            ],
+        }],
+    }],
+}
+
+FAKE_REFERRING_PAYLOAD = {
+    "tasks": [{
+        "status_code": 20000,
+        "result": [{
+            "total_count": 2,
+            "items": [
+                {"id": "rd1", "domain": "GOODNEWS.COM", "rank": 42,
+                 "external_backlinks": 10, "nofollow_backlinks": 2,
+                 "spam_score": 4.0, "first_seen": "2026-01-01 00:00:00",
+                 "last_seen": "2026-09-01 00:00:00"},
+                {"id": "rd2", "domain": "spam.xyz", "rank": 3,
+                 "external_backlinks": 5, "nofollow_backlinks": 5},
+            ],
+        }],
+    }],
+}
+
+
+@pytest.mark.asyncio
+async def test_dataforseo_list_backlinks_mapping(monkeypatch):
+    from app.engine.providers import DataForSEOBacklinkProvider
+    prov = DataForSEOBacklinkProvider({"login": "u", "password": "p"})
+
+    async def fake_request(path, payload):
+        return FAKE_BACKLINKS_PAYLOAD
+
+    monkeypatch.setattr(prov, "_request", fake_request)
+    res = await prov.list_backlinks("example.com")
+    assert res["source"] == "dataforseo"
+    assert res["total"] == 3
+    rows = res["backlinks"]
+    assert len(rows) == 2
+    first = rows[0]
+    assert first["source_domain"] == "spam.xyz"
+    assert first["is_follow"] is False
+    assert first["anchor_text"] == "buy cheap seo"
+    assert first["domain_authority"] == 5
+    assert first["toxic_score"] >= 0.5, "nofollow + spammy TLD + low rank must flag toxicity"
+    assert first["first_seen"] == "2026-01-01 00:00:00"
+    second = rows[1]
+    assert second["source_domain"] == "goodnews.com"
+    assert second["is_follow"] is True
+    assert second["domain_authority"] == 42
+
+
+@pytest.mark.asyncio
+async def test_dataforseo_list_referring_mapping(monkeypatch):
+    from app.engine.providers import DataForSEOBacklinkProvider
+    prov = DataForSEOBacklinkProvider({"login": "u", "password": "p"})
+
+    async def fake_request(path, payload):
+        return FAKE_REFERRING_PAYLOAD
+
+    monkeypatch.setattr(prov, "_request", fake_request)
+    res = await prov.list_referring_domains("example.com")
+    assert res["source"] == "dataforseo"
+    domains = res["domains"]
+    assert len(domains) == 2
+    assert domains[0]["domain"] == "goodnews.com"
+    assert domains[0]["link_count"] == 10
+    assert domains[0]["dofollow_ratio"] == round(10 / 12, 3)
+    assert domains[1]["dofollow_ratio"] == round(5 / 10, 3)
+    assert domains[1]["domain_authority"] == 3
+
+
 # ---------------- API integration tests ----------------
 
 @pytest.mark.asyncio

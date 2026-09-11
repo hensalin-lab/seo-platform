@@ -10,6 +10,7 @@ import csv
 import io
 import logging
 import asyncio
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
@@ -31,6 +32,70 @@ router = APIRouter(prefix="/api/backlinks", tags=["backlinks"])
 # ingestion on every request. Tracked as {domain: last_trigger_ts}.
 _AUTO_REFRESH_WINDOW = 15 * 60  # seconds
 _last_auto_refresh: dict[str, float] = {}
+
+# Live (DataForSEO) backlink responses cached in-memory per request so
+# repeat page loads never burn paid credits. Tracked as {cache_key: (ts, data)}.
+_LIVE_TTL = 15 * 60  # seconds
+_LIVE_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+async def _live_backlink_provider(db, user) -> tuple:
+    """Return (DataForSEO backlink provider, user_config) when the user (or env)
+    has DataForSEO credentials, else (None, None)."""
+    from app.engine.providers import (
+        build_provider, effective_config, get_user_provider_config, is_configured,
+    )
+    user_config = await get_user_provider_config(db, user.id) if user else {}
+    if not is_configured("dataforseo", user_config):
+        return None, None
+    provider = build_provider(
+        "backlinks", "dataforseo",
+        effective_config("dataforseo", user_config),
+    )
+    return provider, user_config
+
+
+def _live_cache_get(key: str) -> dict | None:
+    val = _LIVE_CACHE.get(key)
+    if val and (time.time() - val[0]) < _LIVE_TTL:
+        return val[1]
+    return None
+
+
+def _live_cache_set(key: str, data: dict) -> None:
+    _LIVE_CACHE[key] = (time.time(), data)
+
+
+async def _try_live(db, user, cache_key: str, fetcher) -> dict | None:
+    """Fetch live DataForSEO backlinks when configured + within budget.
+
+    Returns the live payload dict (possibly empty), or None when DataForSEO is
+    not configured, budget-blocked, or the paid call errored — in which case the
+    caller falls back to the free Common Crawl dataset.
+    """
+    provider, _ = await _live_backlink_provider(db, user)
+    if not provider:
+        return None
+    cached = _live_cache_get(cache_key)
+    if cached is not None:
+        return cached
+    from app.engine.spend_guard import check_provider_budget, record_provider_usage
+    try:
+        await check_provider_budget(db, user.id if user else None, "dataforseo_backlinks", cost=1)
+    except Exception as e:
+        logger.info(f"Live backlinks budget block ({cache_key}): {e}")
+        return None
+    try:
+        data = await fetcher(provider)
+        await record_provider_usage(
+            db, user.id if user else None, "dataforseo_backlinks", cost=1,
+            details={"endpoint": "backlinks/live", "cache_key": cache_key},
+        )
+        _live_cache_set(cache_key, data)
+        return data
+    except Exception as e:
+        logger.warning(f"Live backlinks failed for {cache_key}: {e}")
+        return None
 
 
 def _domain_of_audit_url(url: str) -> str:
@@ -171,9 +236,26 @@ async def backlink_explorer(domain: str,
                             user: User = Depends(get_current_active_user),
                             db: AsyncSession = Depends(get_db)):
     """Return all backlinks for a domain, paginated. Auto-fetches free data
-    (Open PageRank) in the background when the domain has none yet."""
+    (Open PageRank) in the background when the domain has none yet. Uses a
+    configured DataForSEO account (paid, measured) when available, else the
+    free Common Crawl dataset."""
     from app.engine.domain_utils import normalize_domain
     d = normalize_domain(domain)
+
+    live = await _try_live(
+        db, user, f"expl:{d}:{offset}:{limit}",
+        lambda p: p.list_backlinks(d, max(offset + limit, limit or 1)),
+    )
+    if live is not None:
+        rows = live.get("backlinks", [])[offset:offset + limit]
+        return {
+            "domain": d,
+            "total": live.get("total", len(live.get("backlinks", []))),
+            "source": "dataforseo",
+            "data_status": "live",
+            "note": "Measured backlinks from DataForSEO (paid).",
+            "backlinks": rows,
+        }
 
     try:
         data_status = await _ensure_backlink_data(db, d, background_tasks)
@@ -224,9 +306,24 @@ async def referring_domains(domain: str,
                             user: User = Depends(get_current_active_user),
                             db: AsyncSession = Depends(get_db)):
     """Return backlinks grouped by referring domain, sortable by authority.
-    Auto-fetches free data (Open PageRank) in the background when empty."""
+    Auto-fetches free data (Open PageRank) in the background when empty.
+    Uses a configured DataForSEO account (paid, measured) when available."""
     from app.engine.domain_utils import normalize_domain
     d = normalize_domain(domain)
+
+    live = await _try_live(
+        db, user, f"ref:{d}",
+        lambda p: p.list_referring_domains(d),
+    )
+    if live is not None:
+        return {
+            "domain": d,
+            "total": live.get("total", len(live.get("domains", []))),
+            "source": "dataforseo",
+            "data_status": "live",
+            "note": "Measured referring domains from DataForSEO (paid).",
+            "domains": live.get("domains", []),
+        }
 
     try:
         data_status = await _ensure_backlink_data(db, d, background_tasks)
@@ -316,9 +413,39 @@ async def toxic_links(domain: str,
                       user: User = Depends(get_current_active_user),
                       db: AsyncSession = Depends(get_db)):
     """Return flagged toxic links (toxic_score >= threshold) + disavow file.
-    Auto-fetches free data (Open PageRank) in the background when empty."""
+    Auto-fetches free data (Open PageRank) in the background when empty.
+    Uses a configured DataForSEO account (paid, measured) when available."""
     from app.engine.domain_utils import normalize_domain
     d = normalize_domain(domain)
+
+    live = await _try_live(
+        db, user, f"expl:{d}:0:200",
+        lambda p: p.list_backlinks(d, 200),
+    )
+    if live is not None:
+        rows = live.get("backlinks", [])
+        toxic = [
+            {
+                "id": bl.get("id"),
+                "source_url": bl.get("source_url"),
+                "source_domain": bl.get("source_domain"),
+                "anchor_text": bl.get("anchor_text"),
+                "toxic_score": bl.get("toxic_score"),
+                "domain_authority": bl.get("domain_authority"),
+            }
+            for bl in rows if (bl.get("toxic_score") or 0) >= threshold
+        ]
+        return {
+            "domain": d,
+            "threshold": threshold,
+            "data_status": "live",
+            "total_backlinks": len(rows),
+            "toxic_count": len(toxic),
+            "toxic_links": toxic[:200],
+            "disavow_lines": [f"domain:{t['source_domain']}" for t in toxic if t.get("source_domain")],
+            "source": "dataforseo",
+            "note": "Toxic signals derived from DataForSEO backlink attributes.",
+        }
 
     try:
         data_status = await _ensure_backlink_data(db, d, background_tasks)
@@ -345,6 +472,7 @@ async def toxic_links(domain: str,
         "data_status": data_status,
         "total_backlinks": len(all_backlinks),
         "toxic_count": len(toxic),
+        "source": "common_crawl",
         "toxic_links": [
             {
                 "id": bl.id,
