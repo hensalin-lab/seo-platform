@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../api';
 import { Send, Bot, User, Target, Zap, Lightbulb, Brain, Globe, BarChart3, ChevronRight, ExternalLink, TrendingUp } from 'lucide-react';
 import ScoreRing from '../../../components/ScoreRing';
+import { useGrammarCheck, GrammarBadge } from '../../../shared/harper';
 
 const QUICK_ACTIONS = [
   { label: 'Top issues & fixes', icon: Target, prompt: 'List my top 5 SEO issues with exact URLs affected and step-by-step fix instructions for each.' },
@@ -62,6 +63,14 @@ export default function AiChat() {
   const inputRef = useRef(null);
   const initDone = useRef(false);
   const lastInitId = useRef(null);
+
+  const { lints, loading: grammarLoading, totalCount, applyFix } = useGrammarCheck(input, { debounceMs: 500 });
+
+  const handleGrammarApply = useCallback((text, lint, idx) => {
+    const newText = applyFix(text, lint, idx);
+    if (newText !== text) setInput(newText);
+    return newText;
+  }, [applyFix]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -227,6 +236,10 @@ export default function AiChat() {
                 onClick={() => sendMessage()} disabled={!input.trim() || sending}>
                 <Send size={16} />
               </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+              <GrammarBadge text={input} lints={lints} loading={grammarLoading} onApplyFix={handleGrammarApply} />
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Grammar checked locally · offline</span>
             </div>
           </div>
         </div>

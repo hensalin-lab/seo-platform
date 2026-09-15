@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 backend/.env
 backend/credentials/
 dist/
@@ -20,6 +22,7 @@ deploy-*/
 fc_tmp.py
 lh_*.json
 lh_efd5067d_1786598392.json
+.vercel-deploy-temp/
 
 # Local deploy link / config
 .fastapicloud/

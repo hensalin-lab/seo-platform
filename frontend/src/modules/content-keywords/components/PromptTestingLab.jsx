@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import ProtectedAction from '../../../components/ProtectedAction';
 import { api } from '../../../api';
@@ -6,6 +6,7 @@ import {
   MessageSquare, Send, Save, Clock, History, Sparkles, CheckCircle, XCircle, Brain,
   Loader2, AlertCircle
 } from 'lucide-react';
+import { useGrammarCheck, GrammarBadge } from '../../../shared/harper';
 
 const MODELS = [
   { id: 'chatgpt', label: 'ChatGPT', icon: MessageSquare, color: '#10b981', borderColor: '#10b981', bgColor: 'rgba(16,185,129,0.12)' },
@@ -54,6 +55,25 @@ export default function PromptTestingLab() {
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const textareaRef = useRef(null);
+
+  const { lints, loading: grammarLoading, totalCount, applyFix } = useGrammarCheck(prompt, { debounceMs: 500 });
+
+  const handleApplyFix = useCallback((text, lint, idx) => {
+    const newText = applyFix(text, lint, idx);
+    if (newText !== text) setPrompt(newText);
+    return newText;
+  }, [applyFix]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const { newText } = e.detail;
+      if (newText) setPrompt(newText);
+    };
+    const ta = textareaRef.current;
+    if (ta) ta.addEventListener('harper-apply-fix', handler);
+    return () => { if (ta) ta.removeEventListener('harper-apply-fix', handler); };
+  }, []);
 
   const toggleModel = useCallback((modelId) => {
     setSelectedModels(prev =>
@@ -113,6 +133,7 @@ export default function PromptTestingLab() {
           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Prompt</span>
         </div>
         <textarea
+          ref={textareaRef}
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           placeholder="Enter a prompt to test across LLMs..."
@@ -126,9 +147,12 @@ export default function PromptTestingLab() {
           onBlur={e => { e.target.style.borderColor = 'var(--border)'; }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <span style={{ fontSize: 12, color: promptCharCount > 500 ? '#ef4444' : '#6b7280' }}>
-            {promptCharCount} characters
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: promptCharCount > 500 ? '#ef4444' : '#6b7280' }}>
+              {promptCharCount} characters
+            </span>
+            <GrammarBadge text={prompt} lints={lints} loading={grammarLoading} onApplyFix={handleApplyFix} />
+          </div>
           <ProtectedAction requiredRole="VIEWER">
             <button
               onClick={runAll}

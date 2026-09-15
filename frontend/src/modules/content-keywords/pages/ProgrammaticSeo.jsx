@@ -7,6 +7,7 @@ import {
   Download, FileText, Sparkles, Grid3x3, Settings2, Link2, ListChecks,
 } from 'lucide-react';
 import { DataSourceBadge } from '../../../components/DataSourceBadge';
+import GrammarTextarea from '../../../shared/harper/GrammarTextarea';
 
 const SCHEMA_TYPES = [
   'Article', 'LocalBusiness', 'Service', 'Product', 'FAQPage', 'BreadcrumbList',
@@ -281,7 +282,7 @@ function TemplateEditor({ template, onSave, onCancel, onDelete }) {
             </Field>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
               <Field label="Meta Description Template">
-                <textarea style={{ ...inputStyle, minHeight: 64, resize: 'vertical' }} value={form.meta_template} onChange={e => set('meta_template', e.target.value)} placeholder="Best {service} in {city}..." />
+                <GrammarTextarea style={{ ...inputStyle, minHeight: 64, resize: 'vertical' }} value={form.meta_template} onChange={(v) => set('meta_template', v)} placeholder="Best {service} in {city}..." />
               </Field>
               <Field label="H1 Template">
                 <input style={inputStyle} value={form.h1_template} onChange={e => set('h1_template', e.target.value)} placeholder="Best {service} in {city}, {state}" />
@@ -302,7 +303,7 @@ function TemplateEditor({ template, onSave, onCancel, onDelete }) {
                   <input style={{ ...inputStyle, flex: 0.6 }} value={sec.keywords} onChange={e => updateSection(i, 'keywords', e.target.value)} placeholder="keywords" />
                   <button style={btnDanger} onClick={() => set('sections', form.sections.filter((_, j) => j !== i))}><X size={14} /></button>
                 </div>
-                <textarea style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }} value={sec.body} onChange={e => updateSection(i, 'body', e.target.value)} placeholder="Body text with {placeholders}..." />
+                <GrammarTextarea style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }} value={sec.body} onChange={(v) => updateSection(i, 'body', v)} placeholder="Body text with {placeholders}..." />
               </div>
             ))}
             <div>
@@ -347,7 +348,7 @@ function TemplateEditor({ template, onSave, onCancel, onDelete }) {
                     <input style={inputStyle} value={f.q} onChange={e => updateFaq(i, 'q', e.target.value)} placeholder="Question template" />
                     <button style={btnDanger} onClick={() => set('faq_section', form.faq_section.filter((_, j) => j !== i))}><X size={14} /></button>
                   </div>
-                  <textarea style={{ ...inputStyle, minHeight: 54, resize: 'vertical' }} value={f.a} onChange={e => updateFaq(i, 'a', e.target.value)} placeholder="Answer template" />
+                  <GrammarTextarea style={{ ...inputStyle, minHeight: 54, resize: 'vertical' }} value={f.a} onChange={(v) => updateFaq(i, 'a', v)} placeholder="Answer template" />
                 </div>
               ))}
               <div>

@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { api } from '../api'
 import { MessageSquare, X, Send } from 'lucide-react'
+import { useGrammarCheck, GrammarBadge } from '../shared/harper'
 
 export default function AIChatWidget({ auditId, onClose }) {
   const [messages, setMessages] = useState([
@@ -9,6 +10,14 @@ export default function AIChatWidget({ auditId, onClose }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesRef = useRef(null)
+
+  const { lints, loading: grammarLoading, totalCount, applyFix } = useGrammarCheck(input, { debounceMs: 500 })
+
+  const handleGrammarApply = useCallback((text, lint, idx) => {
+    const newText = applyFix(text, lint, idx)
+    if (newText !== text) setInput(newText)
+    return newText
+  }, [applyFix])
 
   useEffect(() => {
     if (messagesRef.current) {
@@ -76,6 +85,9 @@ export default function AIChatWidget({ auditId, onClose }) {
           <button onClick={send} disabled={loading || !input.trim()}>
             <Send size={14} />
           </button>
+        </div>
+        <div style={{ padding: '0 12px 8px' }}>
+          <GrammarBadge text={input} lints={lints} loading={grammarLoading} onApplyFix={handleGrammarApply} />
         </div>
       </div>
     </div>

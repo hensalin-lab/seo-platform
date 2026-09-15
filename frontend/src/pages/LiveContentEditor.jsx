@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api'
 import { Edit3, Target, BarChart2, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { useGrammarCheck, GrammarInline, GrammarSummaryPanel } from '../shared/harper'
 
 function ScoreBar({ score, max = 100, color = '#6366F1' }) {
   const pct = Math.min(100, Math.max(0, (score / max) * 100))
@@ -21,6 +22,35 @@ export default function LiveContentEditor() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const timerRef = useRef(null)
+  const textareaRef = useRef(null)
+
+  const { lints, loading: grammarLoading, totalCount, categoryCounts, writingScore, applyFix, ignoreAll, addToDictionary, canUndo, canRedo, undo, redo } = useGrammarCheck(content, { debounceMs: 500 })
+
+  const handleApplyFix = useCallback((text, lint, idx) => {
+    const newText = applyFix(text, lint, idx)
+    if (newText !== text) setContent(newText)
+    return newText
+  }, [applyFix])
+
+  const handleUndo = useCallback(() => {
+    const prev = undo()
+    if (prev !== undefined) setContent(prev)
+  }, [undo])
+
+  const handleRedo = useCallback(() => {
+    const next = redo()
+    if (next !== undefined) setContent(next)
+  }, [redo])
+
+  useEffect(() => {
+    const handler = (e) => {
+      const { newText } = e.detail
+      if (newText) setContent(newText)
+    }
+    const ta = textareaRef.current
+    if (ta) ta.addEventListener('harper-apply-fix', handler)
+    return () => { if (ta) ta.removeEventListener('harper-apply-fix', handler) }
+  }, [])
 
   const doScore = useCallback(async (kw, txt) => {
     if (!kw.trim() || !txt.trim()) return
@@ -79,17 +109,29 @@ export default function LiveContentEditor() {
         {/* Left: editor */}
         <div>
           <label style={{ fontSize: 12, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 6 }}>Your Draft (HTML or plain text)</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Paste or write your content here…"
-            style={{
-              width: '100%', minHeight: 400, padding: 14, background: '#FFFFFF',
-              border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A',
-              fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none',
-              lineHeight: 1.6, boxSizing: 'border-box',
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Paste or write your content here…"
+              style={{
+                width: '100%', minHeight: 400, padding: 14, background: '#FFFFFF',
+                border: '1px solid #DAE0EA', borderRadius: 8, color: '#0F172A',
+                fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none',
+                lineHeight: 1.6, boxSizing: 'border-box',
+              }}
+            />
+            <GrammarInline
+              text={content}
+              lints={lints}
+              loading={grammarLoading}
+              onApplyFix={handleApplyFix}
+              onIgnoreAll={ignoreAll}
+              onAddToDictionary={addToDictionary}
+              textareaRef={textareaRef}
+            />
+          </div>
           <div style={{ marginTop: 6, fontSize: 11, color: '#8B93A7' }}>
             {content.trim().split(/\s+/).filter(Boolean).length} words
             {loading && <span style={{ marginLeft: 8, color: '#6366F1' }}><Loader2 size={11} style={{ animation: 'spin 1s linear infinite', verticalAlign: 'middle' }} /> Scoring…</span>}
@@ -98,6 +140,29 @@ export default function LiveContentEditor() {
 
         {/* Right: score panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Grammar check */}
+          <GrammarSummaryPanel totalCount={totalCount} categoryCounts={categoryCounts} loading={grammarLoading} writingScore={writingScore} />
+
+          {/* Undo / redo */}
+          {(canUndo || canRedo) && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                style={{ flex: 1, padding: '8px 0', border: '1px solid #DAE0EA', borderRadius: 8, background: '#FFFFFF', color: canUndo ? '#0F172A' : '#CBD2E0', fontSize: 12, fontWeight: 600, cursor: canUndo ? 'pointer' : 'not-allowed' }}
+              >
+                Undo
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={!canRedo}
+                style={{ flex: 1, padding: '8px 0', border: '1px solid #DAE0EA', borderRadius: 8, background: '#FFFFFF', color: canRedo ? '#0F172A' : '#CBD2E0', fontSize: 12, fontWeight: 600, cursor: canRedo ? 'pointer' : 'not-allowed' }}
+              >
+                Redo
+              </button>
+            </div>
+          )}
+
           {/* Draft score */}
           <div style={{
             background: '#FFFFFF', border: '1px solid #DAE0EA', borderRadius: 8, padding: 16,

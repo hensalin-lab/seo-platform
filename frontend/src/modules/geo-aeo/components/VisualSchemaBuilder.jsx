@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Code, Copy, CheckCircle, AlertTriangle, FileCode, Plus, Trash2 } from 'lucide-react';
+import GrammarTextarea from '../../../shared/harper/GrammarTextarea';
 
 const SCHEMA_TYPES = [
   'Organization',
@@ -570,7 +571,7 @@ const badgeStyle = (valid) => ({
 });
 
 function FormField({ def, value, onChange, error }) {
-  const handleChange = useCallback((e) => onChange(def.key, e.target.value), [def.key, onChange]);
+  const handleChange = useCallback((v) => onChange(def.key, v), [def.key, onChange]);
 
   if (def.type === 'textarea') {
     return (
@@ -578,7 +579,7 @@ function FormField({ def, value, onChange, error }) {
         <label style={{ ...labelStyle, color: def.required ? 'var(--text)' : '#b0b3c0' }}>
           {def.label}{def.required ? ' *' : ''}
         </label>
-        <textarea
+        <GrammarTextarea
           value={value || ''}
           onChange={handleChange}
           placeholder={def.placeholder}

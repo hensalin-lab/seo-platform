@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import History from './pages/History';
 import AuditProgress from './pages/AuditProgress';
 import ShareView from './pages/ShareView';
+import GrammarCheckTest from './pages/GrammarCheckTest';
 import LoginPage from './modules/settings/pages/LoginPage';
 import RegisterPage from './modules/settings/pages/RegisterPage';
 import { mainNav, auditSections, auditRedirects, flattenAuditItems } from './config/routes.config';
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/grammar-check" element={<GrammarCheckTest />} />
           <Route path="/" element={<ProtectedRoute><History /></ProtectedRoute>} />
           {mainNav.map(route => (
             <Route key={route.path} path={route.path} element={<ProtectedRoute><route.component /></ProtectedRoute>} />

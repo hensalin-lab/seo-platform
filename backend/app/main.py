@@ -43,6 +43,7 @@ from app.api.research import router as research_router
 from app.api.admin import router as admin_router
 from app.api.activity import router as activity_router
 from app.api.alerts import router as alerts_router
+from app.api.grammar_eval import router as grammar_eval_router
 from app.auth_middleware import AuthMiddleware, _extract_user_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -356,6 +357,7 @@ app.include_router(research_router)
 app.include_router(admin_router)
 app.include_router(activity_router)
 app.include_router(alerts_router)
+app.include_router(grammar_eval_router)
 
 _mcp_session = None
 
