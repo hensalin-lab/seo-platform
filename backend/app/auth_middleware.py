@@ -85,8 +85,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         if path.startswith("/api/mcp") and getattr(settings, "MCP_API_KEY", ""):
             if method not in PUBLIC_METHODS:
+                # The MCP key is for machine callers. A signed-in user browsing
+                # /agents should not get a 401 for a page that renders their own
+                # account's data, so a valid session is accepted too.
                 if not self._valid_mcp_key(request, settings.MCP_API_KEY):
-                    return JSONResponse(status_code=401, content={"detail": "Invalid MCP API key"})
+                    if not (await _extract_user_id(request)):
+                        return JSONResponse(
+                            status_code=401,
+                            content={"detail": "Invalid MCP API key"},
+                        )
 
         if _is_public(path, method):
             return await call_next(request)

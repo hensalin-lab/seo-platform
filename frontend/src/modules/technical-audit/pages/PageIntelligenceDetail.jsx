@@ -26,6 +26,7 @@ import {
 import FixDetail from '../../../components/FixDetail';
 import ScoreRing from '../../../components/ScoreRing';
 import { DataSourceBadge } from '../../../components/DataSourceBadge';
+import { formatImpact } from '../../../utils/format'
 
 const SCORE_COLORS = {
   excellent: '#059669',
@@ -350,7 +351,7 @@ export default function PageIntelligenceDetail() {
                 <div className="issue-desc">{issue.description}</div>
               )}
               {issue.impact && (
-                <div style={{ fontSize: 12, color: 'var(--cyan)', marginTop: 4 }}>Impact: {issue.impact}</div>
+                <div style={{ fontSize: 12, color: 'var(--cyan)', marginTop: 4 }}>Impact: {formatImpact(issue.impact)}</div>
               )}
               {issue.fix && (
                 <FixDetail issue={issue} />

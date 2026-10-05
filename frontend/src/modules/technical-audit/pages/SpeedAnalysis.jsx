@@ -5,6 +5,7 @@ import { Gauge, AlertTriangle, CheckCircle, ArrowRight, TrendingUp, Smartphone, 
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import FixDetail from '../../../components/FixDetail'
 import { LoadingState, EmptyState, ErrorState } from '../../../components/States'
+import { formatImpact } from '../../../utils/format'
 
 const AUTO_RUN_ATTEMPTED = new Set()
 
@@ -114,7 +115,7 @@ function IssueRow({ issue }) {
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{issue.title || issue.signal || issue.description || issue.message}</div>
-        {issue.impact && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Impact: {issue.impact}</div>}
+        {formatImpact(issue.impact) && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Impact: {formatImpact(issue.impact)}</div>}
         {issue.fix && <FixDetail issue={issue} />}
       </div>
       {issue.time && (

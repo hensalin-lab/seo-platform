@@ -9,17 +9,19 @@
 
 // ── Icon names (resolved via getIcon() in routes.config.js) ──────────────
 
+// The standalone Tools context was removed: those pages duplicated audit-scoped
+// analysis (keywords, backlinks, ranks) and every one of them needed a paid data
+// provider to return anything useful. Their routes still resolve if linked
+// directly, they are just no longer surfaced in navigation.
 export const NAV_CONTEXTS = [
   { id: 'overview', label: 'Overview', icon: 'LayoutDashboard', shortLabel: 'Overview' },
   { id: 'audit', label: 'Audit', icon: 'FileSearch', shortLabel: 'Audit', default: true },
-  { id: 'tools', label: 'Tools', icon: 'Wrench', shortLabel: 'Tools' },
   { id: 'platform', label: 'Platform', icon: 'Settings', shortLabel: 'Platform' },
 ];
 
 // ── Overview rail panel (quick shortcuts across the app) ─────────────────
 export const OVERVIEW_ITEMS = [
   { path: '/trends', icon: 'LineChart', label: 'Score Trends' },
-  { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking' },
   { path: '/uptime', icon: 'Activity', label: 'Uptime' },
 ];
 
@@ -107,36 +109,6 @@ export const AUDIT_GROUPS = [
     items: [
       { suffix: '/gsc', icon: 'Search', label: 'Google Search Console' },
       { suffix: '/chat', icon: 'MessageSquare', label: 'AI Chat' },
-    ],
-  },
-];
-
-// ── Site Tools panel (flat, no audit context) ────────────────────────────
-export const SITE_TOOLS = [
-  {
-    label: 'Keyword tools',
-    items: [
-      { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking' },
-      { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap' },
-      { path: '/keyword-difficulty', icon: 'Gauge', label: 'Keyword Difficulty' },
-      { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe' },
-      { path: '/traffic-estimator', icon: 'TrendingUp', label: 'Traffic Estimator' },
-    ],
-  },
-  {
-    label: 'Backlink tools',
-    items: [
-      { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer' },
-      { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains' },
-      { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links' },
-      { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap' },
-      { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow' },
-    ],
-  },
-  {
-    label: 'Utilities',
-    items: [
-      { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection' },
     ],
   },
 ];

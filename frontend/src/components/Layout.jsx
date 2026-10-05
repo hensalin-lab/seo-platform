@@ -4,12 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import CommandPalette from './CommandPalette';
 import {
   Search, Plus, LogIn, LogOut, Menu, X,
-  ChevronDown, ChevronRight, Wrench
+  ChevronDown, ChevronRight
 } from 'lucide-react';
 import { getPageTitleForPath, getIcon } from '../config/routes.config';
 import {
   NAV_CONTEXTS, OVERVIEW_ITEMS, AUDIT_GROUPS,
-  SITE_TOOLS, PLATFORM
+  PLATFORM
 } from '../config/sidebar.config';
 import { api } from '../api';
 
@@ -31,8 +31,6 @@ function isActive(suffix, segment) {
 
 function resolveContext(pathname) {
   if (pathname.startsWith('/audit/')) return 'audit';
-  const toolPaths = SITE_TOOLS.flatMap(g => g.items.map(i => i.path));
-  if (toolPaths.includes(pathname)) return 'tools';
   const platformPaths = PLATFORM.flatMap(g => g.items.map(i => i.path));
   if (platformPaths.includes(pathname)) return 'platform';
   return 'overview';
@@ -155,12 +153,6 @@ export default function Layout({ children }) {
   const CurrentCtxIcon = getIcon(currentCtx.icon);
 
   const navItems = useMemo(() => {
-    if (activeContext === 'tools') {
-      return SITE_TOOLS.map(g => ({
-        ...g,
-        items: g.items.map(i => ({ ...i, href: i.path })),
-      }));
-    }
     if (activeContext === 'platform') {
       return PLATFORM.map(g => ({
         ...g,

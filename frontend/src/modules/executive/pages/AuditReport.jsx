@@ -9,6 +9,7 @@ import ThemeHero from '../../../components/ai/ThemeHero'
 import ThemeStatCard from '../../../components/ai/ThemeStatCard'
 import FixDetail from '../../../components/FixDetail'
 import ShareAuditPanel from '../../../components/share/ShareAuditPanel'
+import { formatImpact } from '../../../utils/format'
 
 function severityBadge(s) {
   if (s === 'CRITICAL') return 'badge-red'
@@ -611,7 +612,7 @@ export default function AuditReport() {
                     </div>
                     {task.category && <span className={`badge ${categoryBadge(task.category)}`} style={{ marginBottom: 4 }}>{task.category}</span>}
                     {task.page && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Page: {task.page}</div>}
-                    {task.impact && <div className="roadmap-task-desc">Impact: {task.impact}</div>}
+                    {task.impact && <div className="roadmap-task-desc">Impact: {formatImpact(task.impact)}</div>}
                     {task.fix && <FixDetail issue={task} />}
                     {task.details && task.details.length > 0 && (
                       <div style={{ marginTop: 6 }}>

@@ -264,10 +264,19 @@ async def get_rankings(
 
 
 async def auto_capture_rankings(audit_id: str):
-    """Record a ranking baseline snapshot after an audit completes (forward tracking)."""
+    """Record a ranking baseline snapshot after an audit completes (forward tracking).
+
+    Deliberately never holds a database session across network I/O. A single
+    session spanning these SERP calls keeps a read snapshot open for minutes,
+    and on SQLite an open snapshot stops the WAL from ever checkpointing. The
+    write-ahead log then grows without bound while the rest of the app writes
+    normally, every write has to search an ever-larger log, and unrelated
+    requests start failing with "database is locked".
+    """
     from app.database import async_session
     from app.models import Page
     try:
+        # --- read phase: gather what we need, then let the session close ---
         async with async_session() as db:
             audit = (await db.execute(select(Audit).where(Audit.id == audit_id))).scalar_one_or_none()
             if not audit:
@@ -276,36 +285,66 @@ async def auto_capture_rankings(audit_id: str):
             if not keywords:
                 return
             host = _host_of(audit.website_url or "")
-            pages = (await db.execute(select(Page).where(Page.audit_id == audit_id))).scalars().all()
-            now = _dt.datetime.utcnow()
-            provider, provider_name, configured = await _serp_provider(None, db)
             uid = getattr(audit, "user_id", None)
-            if configured:
-                from app.engine.spend_guard import check_provider_budget, record_provider_usage
-                for kw in keywords[:10]:
-                    try:
+            kw_list = list(keywords)
+            provider, provider_name, configured = await _serp_provider(None, db)
+
+        now = _dt.datetime.utcnow()
+
+        if configured:
+            from app.engine.spend_guard import check_provider_budget, record_provider_usage
+            for kw in kw_list[:10]:
+                try:
+                    async with async_session() as db:
                         await check_provider_budget(db, uid, provider_name, cost=1)
-                        if provider_name == "serpapi":
-                            async with httpx.AsyncClient(timeout=30) as client:
-                                live_result = await provider.live_position(kw, host, client=client)
-                        else:
-                            live_result = await provider.live_position(kw, host, pages=pages, audit=audit)
+
+                    # Re-read the rows the provider needs in a short session so
+                    # it is closed again before the (slow) network call.
+                    async with async_session() as db:
+                        live_audit = (await db.execute(
+                            select(Audit).where(Audit.id == audit_id)
+                        )).scalar_one_or_none()
+                        pages = (await db.execute(
+                            select(Page).where(Page.audit_id == audit_id)
+                        )).scalars().all()
+                        snapshot = {
+                            "id": getattr(live_audit, "id", audit_id),
+                            "website_url": getattr(live_audit, "website_url", None),
+                            "user_id": getattr(live_audit, "user_id", None),
+                        }
+                        page_rows = [
+                            {"url": getattr(p, "url", ""), "title": getattr(p, "title", "")}
+                            for p in pages
+                        ]
+
+                    if provider_name == "serpapi":
+                        async with httpx.AsyncClient(timeout=30) as client:
+                            live_result = await provider.live_position(kw, host, client=client)
+                    else:
+                        live_result = await provider.live_position(
+                            kw, host, pages=page_rows, audit=snapshot
+                        )
+
+                    async with async_session() as db:
                         await record_provider_usage(db, uid, provider_name, cost=1,
-                                                    details={"keyword": kw, "capability": "serp_ranks", "auto": True})
+                                                    details={"keyword": kw,
+                                                             "capability": "serp_ranks", "auto": True})
                         db.add(RankPosition(
                             audit_id=audit_id, keyword=_norm_keyword(kw),
                             position=live_result["position"], page_url=live_result.get("page_url", ""),
                             source=provider_name, captured_at=now,
                         ))
-                    except Exception as e:
-                        logger.warning(f"auto rank capture failed for '{kw}' via {provider_name}: {e}")
-            else:
-                for kw in keywords[:25]:
+                        await db.commit()
+                except Exception as e:
+                    logger.warning(f"auto rank capture failed for '{kw}' via {provider_name}: {e}")
+        else:
+            async with async_session() as db:
+                for kw in kw_list[:25]:
                     db.add(RankPosition(
                         audit_id=audit_id, keyword=_norm_keyword(kw),
                         position=None, source="unmeasured", captured_at=now,
                     ))
-            await db.commit()
-            logger.info(f"Ranking snapshot captured for audit {audit_id} ({len(keywords)} keywords)")
+                await db.commit()
+        logger.info(f"Ranking snapshot captured for audit {audit_id} ({len(kw_list)} keywords)")
     except Exception as e:
         logger.error(f"Auto ranking capture failed for {audit_id}: {e}")

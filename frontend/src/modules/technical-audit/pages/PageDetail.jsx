@@ -12,6 +12,7 @@ import FixDetail from '../../../components/FixDetail';
 import GooglebotView from '../../../components/GooglebotView';
 import { EmptyState } from '../../../components/States';
 import { DataSourceBadge } from '../../../components/DataSourceBadge';
+import { formatImpact } from '../../../utils/format'
 
 const TAB_GROUPS = [
   { label: 'Google Sees', tabs: [
@@ -143,7 +144,7 @@ function SignalCard({ signal, index }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-            {signal.expected_impact && <span style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>Impact: {signal.expected_impact}</span>}
+            {signal.expected_impact && <span style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>Impact: {formatImpact(signal.expected_impact)}</span>}
             {signal.effort && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Effort: {signal.effort}</span>}
           </div>
           <div style={{ marginTop: 8 }}><FixDetail issue={signal} /></div>
@@ -223,7 +224,7 @@ function AiRecommendationsPanel({ auditId, pageIdx }) {
                   {item.title || item.topic || 'Recommendation'}
                 </div>
                 <div style={{ fontSize: 11, color: '#78350f', lineHeight: 1.5, marginTop: 2 }}>{item.description || item.action || item.suggestion}</div>
-                {item.impact && <div style={{ fontSize: 10, color: '#b45309', marginTop: 4, fontWeight: 600 }}>Impact: {item.impact}</div>}
+                {item.impact && <div style={{ fontSize: 10, color: '#b45309', marginTop: 4, fontWeight: 600 }}>Impact: {formatImpact(item.impact)}</div>}
               </div>
             ))}
           </div>

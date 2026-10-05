@@ -108,6 +108,8 @@ async def lifespan(app: FastAPI):
     logger.info("AI visibility trend worker started (weekly)")
     backlink_task = asyncio.create_task(_backlink_ingestion_worker())
     logger.info("Backlink ingestion worker started (monthly)")
+    wal_task = asyncio.create_task(_sqlite_wal_checkpointer())
+    logger.info("SQLite WAL checkpointer started")
 
     # Drive the MCP session manager task group for /mcp (if enabled).
     mcp_session = _get_mcp_session()
@@ -229,6 +231,36 @@ async def _uptime_worker():
         await asyncio.sleep(60)
 
 
+async def _sqlite_wal_checkpointer(interval: int = 60):
+    """Keep the SQLite write-ahead log from growing without bound.
+
+    The WAL can only be reclaimed once no reader holds an open snapshot. On a
+    busy deployment it is normal for some session to hold one briefly, and
+    during that window every write lands in the log. Left alone the file grew to
+    well over 100 MB, after which each write had to search an enormous
+    write-ahead log and unrelated endpoints began failing with "database is
+    locked". A periodic passive checkpoint is cheap and keeps the log small
+    regardless of which request happened to be holding a read.
+    """
+    from sqlalchemy import text
+    from app.database import engine
+
+    if engine.dialect.name != "sqlite":
+        return
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            async with engine.connect() as conn:
+                # TRUNCATE only succeeds when nothing holds a read snapshot, so
+                # use the non-blocking form and simply retry next minute.
+                res = await conn.execute(text("PRAGMA wal_checkpoint(PASSIVE)"))
+                row = res.first()
+                if row and (row[0] or 0) == 0 and (row[2] or 0) > 0:
+                    logger.debug(f"WAL checkpointed {row[2]} frames")
+        except Exception as e:
+            logger.debug(f"WAL checkpoint skipped: {e}")
+
+
 async def _rank_tracker_worker():
     """Periodically re-capture SERP positions for recent audits so the ranking
     history (position-over-time) grows automatically without a manual capture.
@@ -238,8 +270,27 @@ async def _rank_tracker_worker():
     from app.models import Audit, AuditStatus, RankPosition
     from app.api.rankings import auto_capture_rankings
 
+    # SQLite permits one writer at a time. Firing recaptures for every recent
+    # audit at once turned each restart into a write storm that made ordinary
+    # requests -- including login -- fail with "database is locked", because a
+    # deferred read transaction that upgrades to a write gets SQLITE_BUSY
+    # immediately and does not wait out the busy timeout. Both the per-cycle
+    # batch and the in-flight concurrency are capped so background tracking can
+    # never starve foreground traffic.
+    per_cycle = max(1, min(int(getattr(settings, "RANK_TRACK_PER_CYCLE", 4) or 4), 40))
+    in_flight = max(1, min(int(getattr(settings, "RANK_TRACK_CONCURRENCY", 2) or 2), 8))
+    sem = asyncio.Semaphore(in_flight)
+
+    async def capture(audit_id: str) -> None:
+        async with sem:
+            try:
+                await auto_capture_rankings(audit_id)
+            except Exception as e:
+                logger.warning(f"Rank tracker capture failed for {audit_id}: {e}")
+
     while True:
         try:
+            picked: list[str] = []
             async with async_session() as db:
                 cutoff = _dt.datetime.utcnow() - _dt.timedelta(days=45)
                 result = await db.execute(
@@ -249,11 +300,9 @@ async def _rank_tracker_worker():
                         Audit.created_at >= cutoff,
                     )
                     .order_by(Audit.created_at.desc())
-                    .limit(40)
+                    .limit(per_cycle)
                 )
-                candidates = result.all()
-                tracked = 0
-                for audit_id, _url in candidates:
+                for audit_id, _url in result.all():
                     try:
                         kw_count = (
                             await db.execute(
@@ -261,12 +310,16 @@ async def _rank_tracker_worker():
                             )
                         ).scalar()
                         if (kw_count or 0) >= 1:
-                            asyncio.get_running_loop().create_task(auto_capture_rankings(audit_id))
-                            tracked += 1
+                            picked.append(audit_id)
                     except Exception as e:
                         logger.warning(f"Rank tracker eval failed for {audit_id}: {e}")
-                if tracked:
-                    logger.info(f"Rank tracker queued recapture for {tracked} audits")
+            # Awaited outside the session so no tracking write is attempted while
+            # this selection query still holds its read transaction open.
+            if picked:
+                await asyncio.gather(
+                    *[capture(a) for a in picked], return_exceptions=True
+                )
+                logger.info(f"Rank tracker recaptured {len(picked)} audit(s)")
         except Exception as e:
             logger.warning(f"Rank tracker worker error (non-fatal): {e}")
         await asyncio.sleep(6 * 3600)

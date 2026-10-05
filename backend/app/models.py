@@ -438,13 +438,29 @@ class KeywordRecord(Base):
     __table_args__ = (
         Index("ix_kw_audit_id", "audit_id"),
         Index("ix_kw_keyword", "keyword"),
+        Index("ix_kw_audit_relevance", "audit_id", "relevance"),
+        # Per-page attribution. Empty page_url means the row is the site-wide
+        # aggregate; otherwise the row belongs to exactly that crawled page.
+        Index("ix_kw_page_url", "page_url"),
+        Index("ix_kw_audit_page", "audit_id", "page_url"),
     )
     id = Column(String, primary_key=True, default=generate_uuid)
     audit_id = Column(String, ForeignKey("audits.id"))
+    page_url = Column(String, default="")     # "" = site-wide aggregate row
     keyword = Column(String, default="")
     frequency = Column(Integer, default=0)
     opportunity = Column(String, default="")
     action = Column(String, default="")
+    # Richer keyword intelligence. The old shape could only hold a word and a
+    # raw on-page count, which is why the keyword view showed a flat list with no
+    # intent, no tail length and no demand signal to prioritise against.
+    intent = Column(String, default="")           # informational/commercial/transactional/navigational
+    tail = Column(String, default="")             # short-tail / long-tail
+    word_count = Column(Integer, default=0)
+    difficulty = Column(Integer, default=0)       # 0-100
+    volume = Column(Integer, default=0)           # estimated monthly searches
+    source = Column(String, default="")           # on-page / autocomplete / ai / modifier
+    relevance = Column(Integer, default=0)        # 0-100, how well it fits the site
 
 
 class RoadmapRecord(Base):

@@ -1555,21 +1555,92 @@ async def _run_audit_task_impl(audit_id: str):
                 competitor_data.setdefault("_source", comp_discovery_info.get("source", "unavailable"))
                 competitor_data.setdefault("_discovery", comp_discovery_info)
 
-            # Competitor analysis was the last consumer of full page text; free it
-            # so later stages only keep the small per-page aggregates.
-            for page in pages_saved:
-                page.content_text = ""
+            # Keyword analysis is the next consumer of full page text. Releasing
+            # it here handed the keyword stage empty bodies, which is why audits
+            # produced only title-level seeds. Freed after the keyword rows are
+            # written instead -- see below.
 
             await update_status(AuditStatus.KEYWORD_ANALYSIS.value, 75, "Keyword analysis...")
 
-            for kw in analysis.keyword_data:
-                db.add(KeywordRecord(
-                    audit_id=audit_id, keyword=kw.get("keyword", ""),
-                    frequency=kw.get("frequency", 0),
-                    opportunity=kw.get("opportunity", "LOW"),
-                    action=kw.get("action", ""),
-                ))
-            await _safe_commit(db, timeout=20)
+            # Build per-page keyword intelligence rather than one pooled list.
+            # A crawl-wide pool produces site vocabulary ("Backlinks",
+            # "Marketing") that is true of the crawl and useless for deciding
+            # what a given page should rank for, so every keyword is attributed
+            # to the page whose own content produced it. Rows with an empty
+            # page_url are the site-wide roll-up the overview screens read.
+            # Falls back to the legacy analyzer so an audit never loses keywords.
+            keyword_rows: list[dict] = []
+            try:
+                from app.engine.page_keywords import build_page_keywords
+                from app.engine.crawler import PageData as _PD
+                # Read bodies back from the DB rather than the in-memory pages:
+                # _on_page_incremental nulls content_text as soon as each page is
+                # persisted to keep RSS low, so the in-memory copies are empty
+                # here and every keyword would be inferred from the title alone.
+                _kw_pages = (await db.execute(
+                    select(Page).where(Page.audit_id == audit_id)
+                )).scalars().all()
+                _pages_for_kw = []
+                for p in _kw_pages:
+                    _pd = _PD()
+                    _pd.url = p.url
+                    _pd.title = p.title or ""
+                    _pd.h1 = p.h1 or ""
+                    _pd.meta_description = p.meta_description or ""
+                    _pd.content_text = p.content_text or ""
+                    _pd.word_count = p.word_count or 0
+                    _pd.status_code = p.status_code or 200
+                    _pd.headings = p.headers or []
+                    _pages_for_kw.append(_pd)
+                del _kw_pages
+                _by_page, _agg_rows = await asyncio.wait_for(
+                    build_page_keywords(
+                        _pages_for_kw, start_url=website_url, use_ai=True,
+                        target_site=250,
+                    ),
+                    timeout=540,
+                )
+                for _url, _rows in _by_page.items():
+                    for _row in _rows:
+                        keyword_rows.append(_row)
+                for _row in _agg_rows:
+                    keyword_rows.append(_row)
+                logger.info(
+                    f"Audit {audit_id}: page-scoped keywords for {len(_by_page)} pages "
+                    f"({sum(len(v) for v in _by_page.values())} page-scoped + "
+                    f"{len(_agg_rows)} roll-up rows)"
+                )
+            except Exception as e:
+                logger.warning(f"Page keyword expansion failed, using legacy keywords: {e}")
+                keyword_rows = []
+
+            if keyword_rows:
+                for kw in keyword_rows:
+                    db.add(KeywordRecord(
+                        audit_id=audit_id,
+                        page_url=(kw.get("page_url", "") or "")[:1000],
+                        keyword=kw.get("keyword", ""),
+                        frequency=kw.get("frequency", 0),
+                        opportunity=kw.get("opportunity", "LOW"),
+                        action=kw.get("action", ""),
+                        intent=kw.get("intent", ""),
+                        tail=kw.get("tail", ""),
+                        word_count=kw.get("word_count", 0),
+                        difficulty=kw.get("difficulty", 0),
+                        volume=kw.get("volume", 0),
+                        source=kw.get("source", ""),
+                        relevance=kw.get("relevance", 0),
+                    ))
+            else:
+                for kw in analysis.keyword_data:
+                    db.add(KeywordRecord(
+                        audit_id=audit_id, keyword=kw.get("keyword", ""),
+                        frequency=kw.get("frequency", 0),
+                        opportunity=kw.get("opportunity", "LOW"),
+                        action=kw.get("action", ""),
+                        source="on-page",
+                    ))
+            await _safe_commit(db, timeout=30)
 
             if analysis.roadmap:
                 db.add(RoadmapRecord(

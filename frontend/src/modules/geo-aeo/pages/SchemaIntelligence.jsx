@@ -6,6 +6,7 @@ import { DataSourceBadge } from '../../../components/DataSourceBadge';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import { LoadingState, EmptyState } from '../../../components/States';
 import ScoreRing from '../../../components/ScoreRing';
+import { formatImpact } from '../../../utils/format'
 
 function CodeBlock({ code, title }) {
   const [copied, setCopied] = useState(false);
@@ -158,7 +159,7 @@ export default function SchemaIntelligence() {
           <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
             <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: schema.importance === 'CRITICAL' ? '#fef2f2' : schema.importance === 'HIGH' ? '#fffbeb' : '#eff6ff', color: schema.importance === 'CRITICAL' ? '#dc2626' : schema.importance === 'HIGH' ? '#d97706' : '#2563eb' }}>{schema.importance}</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Enables: {schema.rich_result}</span>
-            <span style={{ fontSize: 12, color: '#059669' }}>Impact: {schema.estimated_impact}</span>
+            <span style={{ fontSize: 12, color: '#059669' }}>Impact: {formatImpact(schema.estimated_impact)}</span>
           </div>
           {schema.generated_json_ld && <CodeBlock code={schema.generated_json_ld} title="Generated JSON-LD" />}
         </Card>

@@ -80,3 +80,25 @@ async def schema_detector_endpoint(url: str = Query(...)):
 async def sitemap_robots_endpoint(url: str = Query(...)):
     _validate_url(url)
     return await sitemap_robots(url)
+
+
+@router.get("/page-keywords")
+async def page_keywords_endpoint(
+    url: str = Query(...),
+    max_requests: int = Query(260, ge=10, le=600),
+    max_results: int = Query(1500, ge=10, le=5000),
+):
+    """Unlimited keyword suggestions for any page.
+
+    Keyless -- every keyword is a real Google Suggest completion derived from the
+    page's own title, headings and body. `max_requests` bounds fan-out so a
+    caller cannot make this run indefinitely.
+    """
+    _validate_url(url)
+    from app.engine.keyword_free import page_keywords
+
+    try:
+        return await page_keywords(url, max_requests=max_requests, max_results=max_results)
+    except Exception as e:  # the free tools promise best-effort, never-fail
+        logger.warning(f"page_keywords failed for {url}: {e}")
+        return {"url": url, "error": str(e)[:300], "keywords": [], "seeds": [], "stats": {}}

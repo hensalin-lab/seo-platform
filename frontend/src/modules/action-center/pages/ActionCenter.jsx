@@ -6,6 +6,7 @@ import ProtectedAction from '../../../components/ProtectedAction';
 import { AlertTriangle, Lightbulb, Activity, CheckCircle, XCircle, Filter, RefreshCw, Clock, ArrowRight, ExternalLink } from 'lucide-react';
 import { EmptyState as SharedEmptyState, LoadingBlock } from '../../../components/States';
 import { SEVERITY_COLORS } from '../../../components/ai/theme';
+import { formatImpact } from '../../../utils/format'
 
 const PRIORITY_LABELS = { P0: 'Critical', P1: 'High', P2: 'Medium', P3: 'Low' };
 const PRIORITY_COLORS = { P0: '#ef4444', P1: '#f59e0b', P2: '#3b82f6', P3: '#6b7280' };
@@ -243,7 +244,7 @@ function RecommendationsTab({ recommendations, loading }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Activity size={13} color="#22c55e" />
                     <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
-                      Impact: {rec.impact_score}
+                      Impact: {formatImpact(rec.impact_score)}
                     </span>
                   </div>
                 )}

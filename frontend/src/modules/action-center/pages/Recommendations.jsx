@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Lightbulb, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../../../api';
 import { DataSourceBadge } from '../../../components/DataSourceBadge';
+import { formatImpact } from '../../../utils/format'
 
 export default function Recommendations() {
   const { id } = useParams();
@@ -91,7 +92,7 @@ export default function Recommendations() {
                   </div>
                 )}
                 <div style={{display: 'flex', gap: 8}}>
-                  {rec.expected_impact && <span className="badge badge-purple">Impact: {rec.expected_impact}</span>}
+                  {rec.expected_impact && <span className="badge badge-purple">Impact: {formatImpact(rec.expected_impact)}</span>}
                   {rec.difficulty && <span className="badge badge-yellow">Difficulty: {rec.difficulty}</span>}
                 </div>
               </div>

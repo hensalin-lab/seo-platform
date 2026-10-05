@@ -5541,12 +5541,217 @@ async def get_keyword_research(audit_id: str, db: AsyncSession = Depends(get_db)
     engine = KeywordResearchEngine()
     research = engine.analyze(pages=page_objects, competitor_pages=None, gsc_data=None)
 
-    research["summary"]["total_internal_keywords"] = len(internal_kws)
-    research["data_source"] = "estimated"
-    research["data_source_note"] = "Keyword volume, difficulty and intent are estimated from crawled content. Connect DataForSEO credentials for live search-volume data."
+    # The legacy engine caps itself at 50 unigrams and demands each term appear
+    # twice, so on a small site it returns almost nothing. The audit already
+    # persisted a full expanded universe (on-page + modifier + autocomplete + AI)
+    # into keyword_records, so prefer that as the keyword list and keep the
+    # engine only for the derived structures it is still good at (clusters,
+    # questions, cannibalisation).
+    if internal_kws:
+        # How many pages each keyword actually appears on.
+        pages_by_kw: dict = {}
+        for p in page_objects:
+            blob = f"{p.title or ''} {p.h1 or ''} {p.meta_description or ''} {p.content_text or ''}".lower()
+            for kw in internal_kws:
+                key = (kw.keyword or "").strip().lower()
+                if len(key) < 4:
+                    continue
+                if key in blob:
+                    pages_by_kw[key] = pages_by_kw.get(key, 0) + 1
+
+        ranked = sorted(
+            internal_kws,
+            key=lambda k: ((k.relevance or 0), (k.volume or 0), (k.frequency or 0)),
+            reverse=True,
+        )
+        research["keywords"] = [
+            {
+                "keyword": k.keyword,
+                "frequency": k.frequency or 0,
+                "volume": k.volume or 0,
+                "intent": (k.intent or "informational"),
+                "type": k.tail or ("short-tail" if len((k.keyword or "").split()) <= 2 else "long-tail"),
+                "tail": k.tail or "",
+                "word_count": k.word_count or len((k.keyword or "").split()),
+                "difficulty": k.difficulty or 0,
+                "source": k.source or "",
+                "opportunity": k.opportunity or "LOW",
+                "relevance": k.relevance or 0,
+                "action": k.action or "",
+                "pages_using": pages_by_kw.get((k.keyword or "").strip().lower(), 0),
+            }
+            for k in ranked
+            if (k.keyword or "").strip()
+        ]
+        research["keyword_sources"] = _count_by(internal_kws, "source")
+        research["intent_breakdown"] = _count_by(internal_kws, "intent")
+
+    # The legacy engine's own summary still describes its 50-unigram output, so
+    # the header reported "Total Keywords 50" above a 250-row table and the
+    # opportunity counts disagreed with the filters. Recompute the headline
+    # numbers from the list actually being served.
+    served = research.get("keywords") or []
+    if served:
+        summary = research.setdefault("summary", {})
+        summary["total_keywords"] = len(served)
+        summary["total_internal_keywords"] = len(internal_kws)
+        summary["high_opportunity"] = sum(1 for k in served if k.get("opportunity") == "HIGH")
+        summary["medium_opportunity"] = sum(1 for k in served if k.get("opportunity") == "MEDIUM")
+        summary["low_opportunity"] = sum(1 for k in served if k.get("opportunity") == "LOW")
+        summary["long_tail"] = sum(1 for k in served if k.get("tail") == "long-tail")
+        summary["short_tail"] = sum(1 for k in served if k.get("tail") == "short-tail")
+        summary["verified_demand"] = sum(1 for k in served if k.get("source") == "autocomplete")
+        summary["ai_keywords"] = sum(1 for k in served if k.get("source") == "ai")
+        summary["estimated_monthly_searches"] = sum(k.get("volume") or 0 for k in served)
+        # Legacy top_opportunities came from the old engine with wildly
+        # inflated volumes (millions for single words). Rebuild it from the
+        # served rows so the list and its numbers agree.
+        summary["top_opportunities"] = [
+            {
+                "keyword": k.get("keyword"),
+                "difficulty": ({"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH"}.get(
+                    "HIGH" if (k.get("difficulty") or 0) >= 67 else "MEDIUM" if (k.get("difficulty") or 0) >= 34 else "LOW")),
+                "intent": (k.get("intent") or "").upper(),
+                "estimated_volume": k.get("volume") or 0,
+                "opportunity": k.get("opportunity"),
+                "source": k.get("source"),
+            }
+            for k in served[:10]
+        ]
+    else:
+        research["summary"]["total_internal_keywords"] = len(internal_kws)
+    research["data_source"] = "mixed" if internal_kws else "estimated"
+    research["data_source_note"] = (
+        "On-page frequency is measured from crawled content. Volume and difficulty are "
+        "estimates; terms marked 'autocomplete' come from Google Suggest and reflect real "
+        "search demand, terms marked 'ai' were proposed by the model."
+    )
 
     _cache_set(cache_key, research)
     return research
+
+
+def _count_by(rows, attr: str) -> dict:
+    out: dict = {}
+    for r in rows:
+        v = (getattr(r, attr, "") or "").strip().lower()
+        if not v:
+            continue
+        out[v] = out.get(v, 0) + 1
+    return out
+
+
+def _kw_row(k: KeywordRecord, page_url: str = "") -> dict:
+    """Serialise one stored keyword row for the page-scoped API."""
+    return {
+        "page_url": page_url or (k.page_url or ""),
+        "keyword": k.keyword or "",
+        "frequency": k.frequency or 0,
+        "intent": k.intent or "",
+        "tail": k.tail or "",
+        "word_count": k.word_count or len((k.keyword or "").split()),
+        "difficulty": k.difficulty or 0,
+        "volume": k.volume or 0,
+        "source": k.source or "",
+        "relevance": k.relevance or 0,
+        "opportunity": k.opportunity or "LOW",
+        "action": k.action or "",
+    }
+
+
+@router.get("/audit/{audit_id}/page-keywords")
+async def get_page_keywords(audit_id: str, url: str = "", db: AsyncSession = Depends(get_db)):
+    """Keywords for one page, or the list of pages that have keywords.
+
+    ``url`` selects a single page and returns its own keyword rows. Omitting it
+    returns the page index the UI's page picker needs: every page that was
+    crawled, its title, how many keywords it owns and its top three, so the
+    list is navigable even for pages with no keywords of their own.
+
+    Rows are only ever returned for the page they belong to -- no cross-page
+    pooling -- because a pooled list cannot answer "what should this page rank
+    for".
+    """
+    pages_result = await db.execute(select(Page).where(Page.audit_id == audit_id))
+    pages = _sorted_pages(_dedup_pages(list(pages_result.scalars().all())))
+
+    kw_result = await db.execute(select(KeywordRecord).where(KeywordRecord.audit_id == audit_id))
+    rows = list(kw_result.scalars().all())
+
+    by_page: dict = {}
+    for r in rows:
+        if not r.page_url:
+            continue
+        by_page.setdefault(r.page_url, []).append(r)
+
+    # Page rows carry no score column; the per-page score lives in
+    # PageAnalysisRecord, so rank the picker by keyword count alone rather than
+    # reaching for an attribute that does not exist.
+    if url:
+        target = url.strip()
+        matched = next((p for p in pages if (p.url or "") == target), None)
+        if matched is None:
+            # Tolerate a trailing-slash or http/https difference from the UI.
+            norm = target.rstrip("/")
+            matched = next((p for p in pages if (p.url or "").rstrip("/") == norm), None)
+        if matched is None:
+            raise HTTPException(status_code=404, detail="Page not found in this audit")
+        own = by_page.get(matched.url, [])
+        keywords = [
+            _kw_row(r, matched.url)
+            for r in sorted(own, key=lambda r: ((r.relevance or 0), (r.volume or 0)), reverse=True)
+        ]
+        return {
+            "page": {
+                "url": matched.url,
+                "title": matched.title or "",
+                "h1": matched.h1 or "",
+                "word_count": matched.word_count or 0,
+            },
+            "keywords": keywords,
+            "keyword_count": len(keywords),
+            "keyword_sources": _count_by(own, "source"),
+            "intent_breakdown": _count_by(own, "intent"),
+            "summary": {
+                "high_opportunity": sum(1 for k in keywords if k["opportunity"] == "HIGH"),
+                "long_tail": sum(1 for k in keywords if k["tail"] == "long-tail"),
+                "verified_demand": sum(1 for k in keywords if k["source"] == "autocomplete"),
+                "ai_keywords": sum(1 for k in keywords if k["source"] == "ai"),
+                "estimated_monthly_searches": sum(k["volume"] or 0 for k in keywords),
+            },
+            "scope": "page",
+            "data_source_note": (
+                "Every keyword here is derived from this page's own title, headings, "
+                "URL and content, then expanded with Google Suggest and AI. Volume "
+                "and difficulty are estimates; 'Google Suggest' rows reflect real "
+                "search demand."
+            ),
+        }
+
+    index = []
+    for p in pages:
+        own = by_page.get(p.url, [])
+        top = sorted(own, key=lambda r: ((r.relevance or 0), (r.volume or 0)), reverse=True)
+        best = max((r.relevance or 0) for r in own) if own else 0
+        index.append({
+            "url": p.url,
+            "title": p.title or "",
+            "h1": p.h1 or "",
+            "top_relevance": best,
+            "word_count": p.word_count or 0,
+            "keyword_count": len(own),
+            "top_keywords": [r.keyword for r in top[:3]],
+            "sources": _count_by(own, "source"),
+        })
+    index.sort(key=lambda x: (-x["keyword_count"], -x["top_relevance"]))
+
+    return {
+        "pages": index,
+        "page_count": len(index),
+        "pages_with_keywords": sum(1 for p in index if p["keyword_count"]),
+        "total_page_keywords": sum(p["keyword_count"] for p in index),
+        "scope": "index",
+    }
 
 
 @router.get("/audit/{audit_id}/content-audit")

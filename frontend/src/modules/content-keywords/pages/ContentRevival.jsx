@@ -7,6 +7,7 @@ import ThemeHero from '../../../components/ai/ThemeHero';
 import ThemeStatCard from '../../../components/ai/ThemeStatCard';
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip';
 import ScoreRing from '../../../components/ScoreRing';
+import { formatImpact } from '../../../utils/format'
 
 const SEVERITY_STYLES = {
   CRITICAL: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
@@ -145,7 +146,7 @@ function RecommendationCard({ rec, index }) {
         </div>
         <SeverityBadge severity={priority} />
         {rec.impact && (
-          <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--radius-sm, 6px)', background: 'rgba(59,130,246,0.1)', color: 'var(--accent)' }}>Impact: {rec.impact}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 'var(--radius-sm, 6px)', background: 'rgba(59,130,246,0.1)', color: 'var(--accent)' }}>Impact: {formatImpact(rec.impact)}</span>
         )}
         {expanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
       </div>

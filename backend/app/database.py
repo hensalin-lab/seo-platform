@@ -57,6 +57,12 @@ def _set_sqlite_pragmas(dbapi_connection, connection_record):
       (the dominant cost of the multi-second write stalls we observed), leaving
       durability to the WAL checkpoint.
     - busy_timeout: concurrent writers queue instead of failing immediately.
+    - wal_autocheckpoint: the WAL can only be reclaimed when no reader is
+      holding an open snapshot. If any session leaks an uncommitted
+      transaction, the WAL grows without bound and every write then has to
+      search an ever-larger write-ahead log, which is what turned routine
+      concurrency into persistent "database is locked" failures. A bounded
+      autocheckpoint keeps the file small even if that ever happens again.
     """
     if "sqlite" not in settings.DATABASE_URL:
         return
@@ -65,6 +71,7 @@ def _set_sqlite_pragmas(dbapi_connection, connection_record):
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA wal_autocheckpoint=1000")
         cursor.close()
     except Exception:
         # Falls back to defaults if a compatibility layer lacks PRAGMA support.

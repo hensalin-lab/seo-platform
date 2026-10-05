@@ -141,6 +141,12 @@ class Settings(BaseSettings):
     CRAWLER_VERIFY_SSL: bool = True
     CRAWLER_RESPECT_ROBOTS: bool = True
     CRAWLER_POLITE_DELAY: float = 0.2
+
+    # Background SERP rank tracking. Kept deliberately small: SQLite allows a
+    # single writer, so an unbounded recapture fan-out on every restart
+    # starves foreground requests with "database is locked".
+    RANK_TRACK_PER_CYCLE: int = 4
+    RANK_TRACK_CONCURRENCY: int = 2
     CRAWLER_SITEMAP_SEEDING: bool = True
     CRAWLER_SITEMAP_MAX_PAGES: int = 300
     CRAWLER_JS_RENDER: bool = False

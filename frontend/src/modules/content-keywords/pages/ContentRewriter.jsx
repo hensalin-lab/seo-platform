@@ -16,6 +16,7 @@ import ThemePillTabs from '../../../components/ai/ThemePillTabs';
 import GooglebotView from '../../../components/GooglebotView';
 import { EmptyState, LoadingState } from '../../../components/States';
 import ScoreRing from '../../../components/ScoreRing';
+import { formatImpact } from '../../../utils/format'
 
 const GOOGLE_TABS = [
   { key: 'googlebot', label: 'Googlebot', icon: Globe },
@@ -436,7 +437,7 @@ function SignalCard({ signal, index }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {signal.expected_impact && <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>Impact: {signal.expected_impact}</span>}
+            {signal.expected_impact && <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>Impact: {formatImpact(signal.expected_impact)}</span>}
             {signal.effort && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Effort: {signal.effort}</span>}
           </div>
         </div>
@@ -697,7 +698,7 @@ function IssueCard({ issue, index }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {issue.expected_impact && <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>Impact: {issue.expected_impact}</span>}
+            {issue.expected_impact && <span style={{ fontSize: 9, color: '#059669', fontWeight: 600 }}>Impact: {formatImpact(issue.expected_impact)}</span>}
             {issue.effort && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Effort: {issue.effort}</span>}
           </div>
         </div>

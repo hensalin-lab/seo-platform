@@ -146,17 +146,21 @@ export const mainNav = [
   { path: '/trends', icon: 'TrendingUp', label: 'Trends', title: 'Trends', component: Trends },
   { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO', title: 'Programmatic SEO', component: ProgrammaticSeo, group: 'tools' },
   { path: '/workspaces', icon: 'FolderOpen', label: 'Workspaces', title: 'Client Workspaces', component: Workspaces, group: 'tools' },
-  { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: RankTrackingPage, group: 'tools' },
-  { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap', title: 'Keyword Gap Analysis', component: KeywordGapPage, group: 'tools' },
-  { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer', title: 'Backlink Explorer', component: BacklinkExplorerPage, group: 'tools' },
-  { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains', title: 'Referring Domains', component: ReferringDomainsPage, group: 'tools' },
-  { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links', title: 'Toxic Links', component: ToxicLinksPage, group: 'tools' },
-  { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap', title: 'Backlink Gap Analysis', component: BacklinkGapPage, group: 'tools' },
-  { path: '/keyword-difficulty', icon: 'Gauge', label: 'Keyword Difficulty', title: 'Keyword Difficulty', component: KeywordDifficultyPage, group: 'tools' },
-  { path: '/traffic-estimator', icon: 'TrendingUp', label: 'Traffic Estimator', title: 'Organic Traffic Estimator', component: TrafficEstimatorPage, group: 'tools' },
-  { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe', title: 'Keyword Universe Discovery', component: KeywordUniversePage, group: 'tools' },
-  { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow', title: 'Trust Flow / Citation Flow', component: TrustFlowPage, group: 'tools' },
-  { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection', title: 'URL Inspection', component: UrlInspectionPage, group: 'tools' },
+  // Retired standalone tools. The routes stay registered so old bookmarks and
+  // links keep resolving, but `hidden` keeps them out of the command palette and
+  // any nav surface. Audit-scoped equivalents (Keyword Strategy, Backlink
+  // Profile, Competitor Analysis) cover the same ground with real data.
+  { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking', title: 'Rank Tracking', component: RankTrackingPage, hidden: true },
+  { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap', title: 'Keyword Gap Analysis', component: KeywordGapPage, hidden: true },
+  { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer', title: 'Backlink Explorer', component: BacklinkExplorerPage, hidden: true },
+  { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains', title: 'Referring Domains', component: ReferringDomainsPage, hidden: true },
+  { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links', title: 'Toxic Links', component: ToxicLinksPage, hidden: true },
+  { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap', title: 'Backlink Gap Analysis', component: BacklinkGapPage, hidden: true },
+  { path: '/keyword-difficulty', icon: 'Gauge', label: 'Keyword Difficulty', title: 'Keyword Difficulty', component: KeywordDifficultyPage, hidden: true },
+  { path: '/traffic-estimator', icon: 'TrendingUp', label: 'Traffic Estimator', title: 'Organic Traffic Estimator', component: TrafficEstimatorPage, hidden: true },
+  { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe', title: 'Keyword Universe Discovery', component: KeywordUniversePage, hidden: true },
+  { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow', title: 'Trust Flow / Citation Flow', component: TrustFlowPage, hidden: true },
+  { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection', title: 'URL Inspection', component: UrlInspectionPage, hidden: true },
   { path: '/live-editor', icon: 'Edit3', label: 'Live Editor', title: 'Live Content Editor', component: LiveContentEditorPage, group: 'tools' },
   { path: '/uptime', icon: 'Activity', label: 'Uptime', title: 'Uptime Monitoring', component: UptimeMonitor, group: 'tools' },
   { path: '/usage', icon: 'BarChart3', label: 'Usage', title: 'Usage Metering', component: UsageMetering, group: 'tools' },
@@ -347,30 +351,7 @@ export const reportSidebarNav = [
       { suffix: '/ai-overviews', icon: 'Zap', label: 'AI Overviews Monitor' },
     ] },
   ] },
-  { section: '5. TOOLS', group: 'Tools', main: [
-    { path: '/rank-tracking', icon: 'TrendingUp', label: 'Rank Tracking' },
-    { path: '/keyword-gap', icon: 'GitCompare', label: 'Keyword Gap' },
-    { path: '/backlinks', icon: 'Link2', label: 'Backlink Explorer' },
-    { path: '/referring-domains', icon: 'Globe', label: 'Referring Domains' },
-    { path: '/toxic-links', icon: 'ShieldAlert', label: 'Toxic Links' },
-    { path: '/backlink-gap', icon: 'Network', label: 'Backlink Gap' },
-    { path: '/keyword-difficulty', icon: 'Gauge', label: 'Keyword Difficulty' },
-    { path: '/traffic-estimator', icon: 'TrendingUp', label: 'Traffic Estimator' },
-    { path: '/keyword-universe', icon: 'Search', label: 'Keyword Universe' },
-    { path: '/trust-flow', icon: 'Layers', label: 'Trust / Citation Flow' },
-    { path: '/url-inspection', icon: 'FileSearch', label: 'URL Inspection' },
-  ], moreGroups: [
-    { label: 'Platform', items: [
-      { path: '/programmatic', icon: 'LayoutGrid', label: 'Programmatic SEO' },
-      { path: '/live-editor', icon: 'Edit3', label: 'Live Editor' },
-      { path: '/uptime', icon: 'Activity', label: 'Uptime' },
-      { path: '/usage', icon: 'BarChart3', label: 'Usage' },
-      { path: '/api-reference', icon: 'Code2', label: 'API Reference' },
-      { path: '/free-tools', icon: 'Zap', label: 'Free Tools' },
-      { path: '/agents', icon: 'Bot', label: 'AI Agents & MCP' },
-    ] },
-  ] },
-];
+  ];
 
 export const auditSectionNav = auditSections.map(section => ({
   label: section.label,

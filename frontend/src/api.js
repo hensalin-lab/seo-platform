@@ -371,6 +371,8 @@ export const api = {
   freePageInspector: (url) => request(`/free/page-inspector?url=${encodeURIComponent(url)}`),
   freeSchemaDetector: (url) => request(`/free/schema-detector?url=${encodeURIComponent(url)}`),
   freeSitemapRobots: (url) => request(`/free/sitemap-robots?url=${encodeURIComponent(url)}`),
+  freePageKeywords: (url, maxRequests = 260, maxResults = 1500) =>
+    request(`/free/page-keywords?url=${encodeURIComponent(url)}&max_requests=${maxRequests}&max_results=${maxResults}`),
 
   // Client portal share links (Phase: enterprise)
   listShares: () => request('/shares'),

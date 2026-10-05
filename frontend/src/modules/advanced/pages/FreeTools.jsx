@@ -3,7 +3,7 @@ import { api } from '../../../api';
 import {
   Search, Globe, ShieldCheck, Zap, RefreshCw, ExternalLink,
   Shield, AlertTriangle, Clock, Landmark, Calendar,
-  FileText, Braces, Map, TerminalSquare,
+  FileText, Braces, Map, TerminalSquare, Layers, Copy, Check, Download,
 } from 'lucide-react';
 import {
   Card, CardHeader, Badge, LoadingSpinner, inputStyle, labelStyle,
@@ -13,6 +13,7 @@ import {
 const ACCENT = '#8b5cf6';
 
 const TABS = [
+  { id: 'pagekw', icon: Layers, label: 'Unlimited Page Keywords', title: 'Unlimited Keywords From Any Page', subtitle: 'Paste a URL, get hundreds of real Google Suggest keywords for that page — no key, no quota, no page limit.' },
   { id: 'autocomplete', icon: Search, label: 'Keyword Suggestions', title: 'Google Autocomplete', subtitle: 'Free keyword suggestions from Google — no key needed.' },
   { id: 'site', icon: Globe, label: 'Site Health', title: 'WHOIS + DNS', subtitle: 'Free domain age, registrar, expiry and DNS records via RDAP + DNS-over-HTTPS.' },
   { id: 'ssl', icon: ShieldCheck, label: 'SSL Grade', title: 'SSL Labs Grade', subtitle: 'Free TLS grade, protocol and certificate expiry via the SSL Labs API.' },
@@ -36,6 +37,219 @@ function gradeColor(grade) {
   if (grade.startsWith('B')) return '#84cc16';
   if (grade.startsWith('C')) return '#eab308';
   return '#ef4444';
+}
+
+const PAGE_SIZE = 100;
+
+const INTENT_STYLE = {
+  informational: { label: 'Informational', color: '#3b82f6', bg: '#eff6ff' },
+  commercial: { label: 'Commercial', color: '#8b5cf6', bg: '#f5f3ff' },
+  transactional: { label: 'Transactional', color: '#059669', bg: '#f0fdf4' },
+  navigational: { label: 'Navigational', color: '#64748b', bg: '#f1f5f9' },
+};
+
+// The headline tool: one URL in, hundreds of real suggestions out.
+function PageKeywordsTool() {
+  const [url, setUrl] = useState('');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [depth, setDepth] = useState(260);
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [intent, setIntent] = useState('all');
+  const [copied, setCopied] = useState(false);
+
+  const run = async (e) => {
+    e?.preventDefault?.();
+    if (!url.trim()) return;
+    setLoading(true);
+    setError(null);
+    setData(null);
+    setPage(0);
+    try {
+      const res = await api.freePageKeywords(url.trim(), depth);
+      setData(res);
+      if (res?.error) setError(res.error);
+    } catch (err) {
+      setError(err.message || 'Request failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const all = data?.keywords || [];
+  const filtered = all.filter(k => {
+    if (intent !== 'all' && k.intent !== intent) return false;
+    if (search && !k.keyword.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  const copyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(filtered.map(k => k.keyword).join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard blocked; not fatal */ }
+  };
+
+  const intentCounts = (data?.stats?.intent_breakdown) || {};
+
+  return (
+    <div>
+      <form onSubmit={run} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="https://example.com/your-page"
+          style={{ ...inputStyle, flex: 1, minWidth: 240 }}
+        />
+        <select
+          value={depth}
+          onChange={e => setDepth(Number(e.target.value))}
+          style={{ ...inputStyle, width: 'auto' }}
+          title="How many Google Suggest queries to fan out across"
+        >
+          <option value={120}>Quick (120 queries)</option>
+          <option value={260}>Standard (260 queries)</option>
+          <option value={450}>Deep (450 queries)</option>
+        </select>
+        <button type="submit" style={btnPrimary} disabled={loading}>
+          {loading ? <RefreshCw size={14} className="spin" /> : <Layers size={14} />} Get keywords
+        </button>
+      </form>
+
+      {error && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 8 }}>{error}</div>}
+      {loading && <LoadingSpinner message="Reading the page and expanding via Google Suggest…" />}
+
+      {data && !loading && !data.error && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 16 }}>
+            <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: ACCENT }}>{data.stats.total}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Keywords found</div>
+            </div>
+            <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#7c3aed' }}>{data.stats.long_tail}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Long-tail</div>
+            </div>
+            <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#3b82f6' }}>{data.stats.short_tail}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Short-tail</div>
+            </div>
+            <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#0d9488' }}>{data.stats.requests_made}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Suggest queries</div>
+            </div>
+          </div>
+
+          {data.seeds?.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                Seeds read from the page ({data.seeds.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {data.seeds.map(s => (
+                  <span key={s} style={{ padding: '3px 9px', borderRadius: 999, background: `${ACCENT}14`, color: ACCENT, fontSize: 11, fontWeight: 600 }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              placeholder="Filter keywords…"
+              style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+            />
+            <select
+              value={intent}
+              onChange={e => { setIntent(e.target.value); setPage(0); }}
+              style={{ ...inputStyle, width: 'auto' }}
+            >
+              <option value="all">All intents</option>
+              {Object.entries(INTENT_STYLE).filter(([k]) => intentCounts[k]).map(([k, v]) => (
+                <option key={k} value={k}>{v.label} ({intentCounts[k]})</option>
+              ))}
+            </select>
+            <button style={btnGhost} onClick={copyAll} disabled={!filtered.length}>
+              {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copied' : 'Copy all'}
+            </button>
+          </div>
+
+          <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ maxHeight: 460, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                  <tr style={{ background: 'var(--bg-secondary)' }}>
+                    {['Keyword', 'Intent', 'Type', 'Demand'].map((h, i) => (
+                      <th key={h} style={{
+                        padding: '8px 12px', textAlign: 'left', fontWeight: 600,
+                        color: 'var(--text-muted)', borderBottom: '1px solid var(--border)',
+                        width: i === 0 ? 'auto' : 110,
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((k, i) => {
+                    const st = INTENT_STYLE[k.intent] || INTENT_STYLE.commercial;
+                    return (
+                      <tr key={k.keyword + i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '7px 12px', color: 'var(--text)', fontWeight: 500 }}>{k.keyword}</td>
+                        <td style={{ padding: '7px 12px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4, background: st.bg, color: st.color }}>
+                            {st.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '7px 12px', fontSize: 11, color: 'var(--text-muted)' }}>
+                          {k.tail === 'long-tail' ? 'Long' : 'Short'}
+                        </td>
+                        <td style={{ padding: '7px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <div style={{ width: 34, height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ width: `${k.demand_score}%`, height: '100%', background: '#0d9488' }} />
+                            </div>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{k.demand_score}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!visible.length && (
+                    <tr><td colSpan={4} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No keywords match that filter.
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12, color: 'var(--text-muted)', gap: 10, flexWrap: 'wrap' }}>
+            <span>
+              {filtered.length ? safePage * PAGE_SIZE + 1 : 0}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button onClick={() => setPage(safePage - 1)} disabled={safePage === 0} style={{ ...btnGhost, opacity: safePage === 0 ? 0.5 : 1 }}>Prev</button>
+                <span>Page {safePage + 1} of {totalPages}</span>
+                <button onClick={() => setPage(safePage + 1)} disabled={safePage >= totalPages - 1} style={{ ...btnGhost, opacity: safePage >= totalPages - 1 ? 0.5 : 1 }}>Next</button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.6 }}>
+            {data.data_source_note}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function AutocompleteTool() {
@@ -475,6 +689,7 @@ function SitemapRobotsTool() {
 }
 
 const TOOLS = {
+  pagekw: PageKeywordsTool,
   autocomplete: AutocompleteTool,
   site: SiteHealthTool,
   ssl: SslTool,
@@ -484,7 +699,7 @@ const TOOLS = {
 };
 
 export default function FreeTools() {
-  const [tab, setTab] = useState('autocomplete');
+  const [tab, setTab] = useState('pagekw');
   const Active = TOOLS[tab];
   const meta = TABS.find(t => t.id === tab);
 
@@ -516,6 +731,7 @@ export default function FreeTools() {
           badge={{
             site: 'RDAP + DoH', ssl: 'SSL Labs', autocomplete: 'Google',
             page: 'Live fetch', schema: 'JSON-LD', sitemap: 'robots.txt',
+            pagekw: 'Google · Free',
           }[meta.id] || 'Free'}
           subtitle={meta.subtitle}
         />

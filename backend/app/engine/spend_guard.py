@@ -105,20 +105,47 @@ async def check_provider_budget(db, user_id: Optional[str], provider: str, cost:
 
 async def record_provider_usage(db, user_id: Optional[str], provider: str, cost: int = 1,
                                 details: Optional[dict] = None) -> None:
-    """Record a paid provider call for spend auditing. Best-effort (never raises)."""
+    """Record a paid provider call for spend auditing. Best-effort (never raises).
+
+    Writes through its own short-lived session rather than the caller's. On
+    SQLite the audit pipeline runs many concurrent writers, and using the
+    caller's session meant a lost lock race here rolled back whatever work that
+    session still had pending -- one failed bookkeeping insert could abort an
+    entire analysis step. Billing telemetry must not be able to do that.
+    """
+    own_session = False
     try:
         from app.models import UsageEvent
         merged = dict(details or {})
         merged.setdefault("provider", provider)
         merged.setdefault("cost", cost)
-        db.add(UsageEvent(
+
+        session = db
+        if db is None or getattr(db, "in_transaction", lambda: True)():
+            from app.database import async_session
+            session = async_session()
+            own_session = True
+
+        session.add(UsageEvent(
             user_id=user_id or None,
             event_type="provider.usage",
             details=merged,
         ))
-        await db.commit()
+        await session.commit()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Provider usage record failed: {e}")
+        if db is not None:
+            # Leave the caller's session usable for the work it still owes.
+            try:
+                await db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+    finally:
+        if own_session:
+            try:
+                await session.close()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 async def guard_provider_call(db, user_id: Optional[str], provider: str, cost: int = 1,

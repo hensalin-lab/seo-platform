@@ -8,9 +8,48 @@ import ThemeStatCard from '../../../components/ai/ThemeStatCard'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
 import { Spinner } from '../../../components/States'
 
+const PAGE_SIZE = 100
+
+// Source provenance matters: a term Google Suggest returned is real demand,
+// whereas a modifier-expanded term is pure inference from a seed. Showing both
+// as an undifferentiated list would overstate confidence.
+const SOURCE_META = {
+  autocomplete: { label: 'Google Suggest', color: '#059669', bg: '#f0fdf4' },
+  'on-page': { label: 'On-page', color: '#3b82f6', bg: '#eff6ff' },
+  ai: { label: 'AI', color: '#8b5cf6', bg: '#f5f3ff' },
+  modifier: { label: 'Expanded', color: '#d97706', bg: '#fffbeb' },
+}
+
+function DifficultyBar({ value }) {
+  const v = Number(value) || 0
+  if (!v) return <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+  const color = v >= 67 ? '#dc2626' : v >= 34 ? '#d97706' : '#059669'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ width: 44, height: 5, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.min(100, v)}%`, height: '100%', background: color }} />
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color }}>{v}</span>
+    </div>
+  )
+}
+
 function KeywordTable({ keywords, search }) {
-  const [sortBy, setSortBy] = useState('frequency')
+  const [sortBy, setSortBy] = useState('relevance')
   const [sortDir, setSortDir] = useState('desc')
+  const [page, setPage] = useState(0)
+  const [tailFilter, setTailFilter] = useState('all')
+  const [intentFilter, setIntentFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
+
+  const intentPresent = useMemo(
+    () => new Set(keywords.map(k => (k.intent || '').toLowerCase()).filter(Boolean)),
+    [keywords],
+  )
+  const sourcePresent = useMemo(
+    () => new Set(keywords.map(k => (k.source || '').toLowerCase()).filter(Boolean)),
+    [keywords],
+  )
 
   const filtered = useMemo(() => {
     let list = keywords
@@ -18,32 +57,77 @@ function KeywordTable({ keywords, search }) {
       const q = search.toLowerCase()
       list = list.filter(kw => kw.keyword?.toLowerCase().includes(q))
     }
+    if (tailFilter !== 'all') list = list.filter(kw => (kw.tail || kw.type || '') === tailFilter)
+    if (intentFilter !== 'all') list = list.filter(kw => (kw.intent || '').toLowerCase() === intentFilter)
+    if (sourceFilter !== 'all') list = list.filter(kw => (kw.source || '').toLowerCase() === sourceFilter)
     return [...list].sort((a, b) => {
       const aVal = a[sortBy] ?? 0
       const bVal = b[sortBy] ?? 0
       if (typeof aVal === 'string') return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
       return sortDir === 'asc' ? aVal - bVal : bVal - aVal
     })
-  }, [keywords, search, sortBy, sortDir])
+  }, [keywords, search, sortBy, sortDir, tailFilter, intentFilter, sourceFilter])
+
+  // Any filter change invalidates the current page offset.
+  useEffect(() => { setPage(0); }, [search, sortBy, sortDir, tailFilter, intentFilter, sourceFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
   const handleSort = (key) => {
     if (sortBy === key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
     else { setSortBy(key); setSortDir('desc') }
   }
 
-  const intentColors = { Informational: '#3b82f6', Commercial: '#8b5cf6', Transactional: '#059669', Navigational: '#64748b' }
-  const diffColors = { LOW: '#059669', MEDIUM: '#d97706', HIGH: '#dc2626' }
+  const intentColors = {
+    informational: '#3b82f6', commercial: '#8b5cf6',
+    transactional: '#059669', navigational: '#64748b',
+  }
   const oppColors = { HIGH: '#059669', MEDIUM: '#d97706', LOW: '#94a3b8' }
+  const selectStyle = {
+    padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12,
+    background: 'var(--bg-white)', color: '#475569', cursor: 'pointer',
+  }
 
   return (
     <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 8, padding: '12px 14px', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginRight: 2 }}>Filter</span>
+        <select value={tailFilter} onChange={e => setTailFilter(e.target.value)} style={selectStyle}>
+          <option value="all">All tails</option>
+          <option value="short-tail">Short-tail</option>
+          <option value="long-tail">Long-tail</option>
+        </select>
+        <select value={intentFilter} onChange={e => setIntentFilter(e.target.value)} style={selectStyle}>
+          <option value="all">All intents</option>
+          {[...intentPresent].sort().map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
+        <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} style={selectStyle}>
+          <option value="all">All sources</option>
+          {[...sourcePresent].sort().map(v => (
+            <option key={v} value={v}>{(SOURCE_META[v]?.label || v)}</option>
+          ))}
+        </select>
+        {(tailFilter !== 'all' || intentFilter !== 'all' || sourceFilter !== 'all') && (
+          <button onClick={() => { setTailFilter('all'); setIntentFilter('all'); setSourceFilter('all'); }}
+            style={{ padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, background: '#fff', color: '#64748b', cursor: 'pointer' }}>
+            Reset
+          </button>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
+          {filtered.length} keyword{filtered.length === 1 ? '' : 's'}
+        </span>
+      </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: 'var(--bg-secondary)' }}>
               {[
-                { key: 'keyword', label: 'Keyword', width: '25%' },
-                { key: 'frequency', label: 'Frequency' },
+                { key: 'keyword', label: 'Keyword', width: '24%' },
+                { key: 'relevance', label: 'Relevance' },
+                { key: 'volume', label: 'Volume' },
+                { key: 'frequency', label: 'On-page' },
                 { key: 'type', label: 'Type' },
                 { key: 'intent', label: 'Intent' },
                 { key: 'difficulty', label: 'Difficulty' },
@@ -58,49 +142,84 @@ function KeywordTable({ keywords, search }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((kw, i) => (
-              <tr key={kw.keyword + i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1e293b' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Search size={12} color="#94a3b8" />
-                    {kw.keyword}
-                  </div>
-                  {kw.source && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>via {kw.source}</div>}
-                </td>
-                <td style={{ padding: '10px 14px', fontWeight: 700, color: '#1e293b' }}>{kw.frequency || kw.volume || '—'}</td>
-                <td style={{ padding: '10px 14px' }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: kw.type === 'long-tail' ? '#f0fdf4' : '#eff6ff', color: kw.type === 'long-tail' ? '#059669' : '#3b82f6' }}>
-                    {kw.type === 'long-tail' ? 'Long-tail' : 'Short-tail'}
-                  </span>
-                </td>
-                <td style={{ padding: '10px 14px' }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (intentColors[kw.intent] || '#64748b') + '18', color: intentColors[kw.intent] || '#64748b' }}>
-                    {kw.intent || kw.source || '—'}
-                  </span>
-                </td>
-                <td style={{ padding: '10px 14px' }}>
-                  {kw.difficulty ? (
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (diffColors[kw.difficulty] || '#64748b') + '18', color: diffColors[kw.difficulty] || '#64748b' }}>
-                      {kw.difficulty}
+            {visible.map((kw, i) => {
+              const tail = kw.tail || kw.type || (String(kw.keyword || '').split(' ').length <= 2 ? 'short-tail' : 'long-tail')
+              const isLong = tail === 'long-tail'
+              const intentKey = (kw.intent || '').toLowerCase()
+              const srcKey = (kw.source || '').toLowerCase()
+              const src = SOURCE_META[srcKey]
+              return (
+                <tr key={kw.keyword + i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1e293b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Search size={12} color="#94a3b8" style={{ flexShrink: 0 }} />
+                      {kw.keyword}
+                    </div>
+                    {src && (
+                      <div style={{ fontSize: 10, marginTop: 3, display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: src.bg, color: src.color, fontWeight: 600 }}>
+                        {src.label}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 40, height: 5, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.min(100, Number(kw.relevance) || 0)}%`, height: '100%', background: '#3b82f6' }} />
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6' }}>{kw.relevance ?? 0}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontWeight: 700, color: '#1e293b' }}>{(kw.volume || 0).toLocaleString()}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{kw.frequency || '—'}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: isLong ? '#f0fdf4' : '#eff6ff', color: isLong ? '#059669' : '#3b82f6' }}>
+                      {isLong ? 'Long-tail' : 'Short-tail'}
                     </span>
-                  ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
-                </td>
-                <td style={{ padding: '10px 14px' }}>
-                  {kw.opportunity ? (
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (oppColors[kw.opportunity] || '#94a3b8') + '18', color: oppColors[kw.opportunity] || '#94a3b8' }}>
-                      {kw.opportunity}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (intentColors[intentKey] || '#64748b') + '18', color: intentColors[intentKey] || '#64748b', textTransform: 'capitalize' }}>
+                      {kw.intent || '—'}
                     </span>
-                  ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
-                </td>
-                <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{kw.pages_using ?? '—'}</td>
-              </tr>
-            ))}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}><DifficultyBar value={kw.difficulty} /></td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {kw.opportunity ? (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: (oppColors[kw.opportunity] || '#94a3b8') + '18', color: oppColors[kw.opportunity] || '#94a3b8' }}>
+                        {kw.opportunity}
+                      </span>
+                    ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{kw.pages_using ?? '—'}</td>
+                </tr>
+              )
+            })}
+            {!visible.length && (
+              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
+                No keywords match these filters
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', fontSize: 12, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-        <span>Showing {filtered.length} of {keywords.length} keywords</span>
-        <span style={{ color: '#059669', fontWeight: 600 }}>{keywords.filter(k => k.opportunity === 'HIGH').length} high-opportunity keywords</span>
+      <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', fontSize: 12, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span>
+          Showing {filtered.length ? safePage * PAGE_SIZE + 1 : 0}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+          {' '}of {keywords.length} keywords
+        </span>
+        <span style={{ color: '#059669', fontWeight: 600 }}>{keywords.filter(k => k.opportunity === 'HIGH').length} high-opportunity</span>
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button disabled={safePage === 0} onClick={() => setPage(safePage - 1)}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: safePage === 0 ? '#f8fafc' : '#fff', color: safePage === 0 ? '#cbd5e1' : '#475569', fontSize: 12, cursor: safePage === 0 ? 'default' : 'pointer' }}>
+              Prev
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Page {safePage + 1} of {totalPages}</span>
+            <button disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: safePage >= totalPages - 1 ? '#f8fafc' : '#fff', color: safePage >= totalPages - 1 ? '#cbd5e1' : '#475569', fontSize: 12, cursor: safePage >= totalPages - 1 ? 'default' : 'pointer' }}>
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -269,12 +388,15 @@ export default function KeywordStrategy() {
 
   const allKeywords = research?.keywords || enhanced?.keywords || []
   const summary = research?.summary || {}
-  const totalVolume = allKeywords.reduce((sum, kw) => sum + (kw.frequency || kw.volume || 0), 0)
+  const totalVolume = allKeywords.reduce((s, kw) => s + (kw.volume || 0), 0)
   const highOpp = allKeywords.filter(k => k.opportunity === 'HIGH').length
+  const longTail = allKeywords.filter(k => (k.tail || k.type) === 'long-tail').length
+  const shortTail = allKeywords.filter(k => (k.tail || k.type) === 'short-tail').length
+  const realDemand = allKeywords.filter(k => (k.source || '') === 'autocomplete').length
 
   const tabs = [
     { key: 'keywords', label: 'Keywords', icon: Key, count: allKeywords.length },
-    { key: 'quickwins', label: 'Quick Wins', icon: Target, count: allKeywords.filter(k => k.opportunity === 'HIGH' && k.difficulty !== 'HIGH').length },
+    { key: 'quickwins', label: 'Quick Wins', icon: Target, count: allKeywords.filter(k => k.opportunity === 'HIGH').slice(0, 12).length },
     { key: 'clusters', label: 'Topic Clusters', icon: GitMerge, count: research?.topic_clusters?.length || 0 },
     { key: 'questions', label: 'Questions', icon: HelpCircle, count: research?.question_keywords?.length || 0 },
     { key: 'cannibal', label: 'Cannibalization', icon: AlertTriangle, count: research?.cannibalization?.length || 0 },
@@ -302,8 +424,10 @@ export default function KeywordStrategy() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
           <ThemeStatCard icon={Key} label="Total Keywords" value={summary.total_keywords || allKeywords.length} color="#3b82f6" />
-          <ThemeStatCard icon={BarChart3} label="Total Frequency" value={totalVolume.toLocaleString()} color="#8b5cf6" />
+          <ThemeStatCard icon={BarChart3} label="Est. Monthly Searches" value={totalVolume.toLocaleString()} color="#8b5cf6" />
           <ThemeStatCard icon={Target} label="High Opportunity" value={highOpp} color="#059669" />
+          <ThemeStatCard icon={Sparkles} label="Long-tail" value={`${longTail} / ${longTail + shortTail}`} color="#7c3aed" />
+          <ThemeStatCard icon={TrendingUp} label="Verified Demand" value={realDemand} color="#0d9488" />
           <ThemeStatCard icon={AlertTriangle} label="Cannibalization" value={summary.cannibalization_issues || research?.cannibalization?.length || 0} color="#dc2626" />
         </div>
 

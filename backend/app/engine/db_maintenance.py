@@ -182,24 +182,40 @@ async def run_startup_maintenance() -> dict:
                 await conn.commit()
                 logger.info("Startup maintenance: non-SQLite database — skipping SQLite-only steps")
             else:
-                # The disk is often completely full here, so a journaled UPDATE would fail
-                # (it needs rollback space). Turn the journal off first; freed pages go to
-                # the freelist and are reused by later INSERTs without growing the file.
+                # Wipe cached raw HTML to reclaim disk. Freed pages land on the
+                # freelist and get reused by later writes, so the file does not
+                # grow.
+                #
+                # journal_mode is deliberately left alone. It is a *persistent*
+                # database property, not a per-connection one, so switching it to
+                # OFF and back on every boot used to drop the whole database out
+                # of WAL for the duration of startup: no WAL means readers block
+                # writers, and every concurrent request -- login included --
+                # failed with "database is locked". A crash between the two
+                # PRAGMAs left the file in DELETE mode permanently. WAL with
+                # synchronous=NORMAL is what lets the audit workers, the status
+                # drain and web handlers share the database, so keep it.
                 try:
-                    await conn.execute(text("PRAGMA journal_mode=OFF"))
-                    res = await conn.execute(text("UPDATE pages SET html_raw=''"))
-                    result["html_cleared"] = res.rowcount or 0
-                    logger.info(f"Startup maintenance: cleared html_raw on {result['html_cleared']} pages (journal off)")
+                    # Only write when there is something to clear. Rewriting every
+                    # row on every boot is a large write that served no purpose.
+                    pending = (
+                        await conn.execute(
+                            text("SELECT COUNT(*) FROM pages WHERE html_raw IS NOT NULL AND html_raw != ''")
+                        )
+                    ).scalar() or 0
+                    if pending:
+                        res = await conn.execute(text("UPDATE pages SET html_raw=''"))
+                        result["html_cleared"] = res.rowcount or 0
+                        logger.info(
+                            f"Startup maintenance: cleared html_raw on {result['html_cleared']} pages"
+                        )
+                    else:
+                        logger.info("Startup maintenance: no cached page HTML to clear")
                 except Exception as e:
                     result["html_error"] = str(e)
                     logger.warning(f"Startup maintenance: could not clear html_raw: {e}")
 
                 await conn.commit()
-
-                try:
-                    await conn.execute(text("PRAGMA journal_mode=DELETE"))
-                except Exception:
-                    pass
 
             # --- schema migrations (idempotent, SQLite only — Postgres uses alembic) ---
             if is_sqlite:

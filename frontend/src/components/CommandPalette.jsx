@@ -28,6 +28,7 @@ function buildSearchItems(auditId) {
 
   mainNav.forEach(m => {
     if (m.path === '/new' || m.path === '/history') return;
+    if (m.hidden) return; // retired tools: reachable by URL, not offered in search
     items.push({ id: m.path.slice(1), label: m.label, category: 'Pages', path: m.path, icon: m.icon });
   });
 
