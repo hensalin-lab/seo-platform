@@ -3,11 +3,15 @@ import {
   Bot, Cpu, Zap, Globe, Search, Link2, ShieldCheck, Sparkles, FileText,
   Activity, Plug, KeyRound, Copy, Check, TerminalSquare, LineChart,
 } from 'lucide-react';
-import { Card, CardHeader, Badge, LoadingSpinner, StatCard, btnPrimary, btnGhost, labelStyle } from './ui';
+import { Card, CardHeader, Badge, LoadingSpinner, StatCard, btnPrimary, btnGhost, labelStyle, inputStyle } from './ui';
 
 const ACCENT = '#8b5cf6';
 
-const MCP_ENDPOINT = 'https://seo-platform.fastapicloud.dev/api/mcp';
+// Resolved against the app's own API base. This was hardcoded to a FastAPI Cloud
+// host that no longer exists, so the live MCP handshake below always failed and
+// the setup snippets advertised a dead URL to anyone setting up a client.
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const MCP_ENDPOINT = `${API_BASE}/mcp`;
 
 const TOOLS = [
   { name: 'keyword_volume', icon: BarChartIcon, desc: 'Search volume, difficulty and intent for any keyword.', args: 'keyword' },
@@ -72,21 +76,50 @@ export default function McpAgents() {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [tools, setTools] = useState([]);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('rankiq_mcp_key') || '');
+
+  const saveKeyAndTest = () => {
+    const k = apiKey.trim();
+    if (k) localStorage.setItem('rankiq_mcp_key', k);
+    checkConnection();
+  };
 
   const checkConnection = async () => {
     setStatus('loading');
     setError(null);
     try {
       const h = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' };
+      // /api/mcp is guarded by MCP_API_KEY, not the session token, so a signed-in
+      // user still got 401. The key is a server-side secret the browser cannot
+      // see, so the user supplies it once and it is reused for the live check.
+      const mk = localStorage.getItem('rankiq_mcp_key');
+      if (mk) h['X-API-Key'] = mk;
       const init = await fetch(MCP_ENDPOINT, {
         method: 'POST', headers: h,
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'browser', version: '1.0' } } }),
       });
       const sid = init.headers.get('mcp-session-id') || '';
+      // A rejected handshake used to fall through to setStatus('ok'), so the page
+      // proudly reported "Connected - protocol verified" while listing zero tools.
+      // Check the status codes instead of trusting the request not throwing.
+      if (!init.ok) {
+        setError(init.status === 401
+          ? 'Unauthorized - paste your MCP_API_KEY below to authenticate.'
+          : `Handshake failed (HTTP ${init.status}).`);
+        setTools([]);
+        setStatus('error');
+        return;
+      }
       const list = await fetch(MCP_ENDPOINT, {
         method: 'POST', headers: { ...h, 'mcp-session-id': sid },
         body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
       });
+      if (!list.ok) {
+        setError(`Tool listing failed (HTTP ${list.status}).`);
+        setTools([]);
+        setStatus('error');
+        return;
+      }
       const data = await list.json().catch(() => ({}));
       const names = (data.result?.tools || []).map(t => t.name);
       setTools(names);
@@ -121,7 +154,7 @@ export default function McpAgents() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard icon={Cpu} label="MCP Tools" value={tools.length ? `${tools.length} live` : '12 total'} color={ACCENT} sub="over /api/mcp" />
-        <StatCard icon={Zap} label="Connection" value={status === 'ok' ? 'Live' : status === 'loading' ? 'Testing…' : status === 'error' ? 'Unreachable' : 'Live'} color={status === 'ok' ? '#22c55e' : status === 'error' ? '#ef4444' : ACCENT} sub={allLive ? 'all tools verified' : 'some tools offline'} />
+        <StatCard icon={Zap} label="Connection" value={status === 'ok' ? 'Live' : status === 'loading' ? 'Testing…' : status === 'error' ? 'Unreachable' : 'Untested'} color={status === 'ok' ? '#22c55e' : status === 'error' ? '#ef4444' : ACCENT} sub={status === 'ok' ? (allLive ? 'all tools verified' : `${tools.length} tools listed`) : status === 'error' ? 'see details below' : 'awaiting test'} />
         <StatCard icon={Sparkles} label="Capability" value="SEO + AEO + GEO" color="#d946ef" sub="full engine exposure" />
       </div>
 
@@ -142,6 +175,26 @@ export default function McpAgents() {
               </Badge>
             </div>
             {status === 'error' && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 10 }}>{error}</div>}
+            <div style={{ marginTop: 14 }}>
+              <label style={labelStyle}>MCP API key</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="password"
+                  value={apiKey}
+                  placeholder="Paste the MCP_API_KEY from your server .env"
+                  onChange={e => setApiKey(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveKeyAndTest(); }}
+                  style={{ flex: 1, ...inputStyle }}
+                />
+                <button style={btnPrimary} onClick={saveKeyAndTest} disabled={status === 'loading' || !apiKey.trim()}>
+                  <KeyRound size={14} /> Save &amp; test
+                </button>
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-dim)', marginTop: 6 }}>
+                The MCP endpoint is authenticated with <code>MCP_API_KEY</code>, not your login session. It is stored
+                only in this browser so the connection test can authenticate.
+              </div>
+            </div>
           </Card>
 
           {AGENT_CONFIGS.map(cfg => (

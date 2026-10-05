@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import time
 import httpx
 from app.config import settings
 
@@ -10,23 +11,39 @@ logger = logging.getLogger(__name__)
 class AIRecommendationEngine:
     """Uses OpenRouter GPT-4o with multi-provider fallback (free Gemini/CF/OpenRouter-free models) for SEO recommendations."""
 
+    # When OpenRouter's balance cannot cover a request it answers 402 for every
+    # call, and this engine retries each one before falling back. That turned
+    # every recommendation into a multi-second stall and pushed audits past
+    # their timeouts. Remember the exhaustion and stop paying for the retries.
+    _openrouter_unavailable_until: float = 0.0
+    _OPENROUTER_COOLDOWN_S = 900.0
+
     def __init__(self):
         self.api_key = settings.OPENROUTER_API_KEY
         self.model = settings.OPENROUTER_MODEL
         self.timeout = settings.OPENROUTER_TIMEOUT
 
     async def _call_any_provider(self, system_prompt: str, user_prompt: str, max_tokens: int = 2900) -> dict | None:
+        # A live ensemble first: dual_ai leads with providers that actually have
+        # credit, so the common case is answered on the first attempt.
+        ensemble = None
+        try:
+            from app.engine.dual_ai import _run_all
+            ensemble = await _run_all(system_prompt, user_prompt, max_tokens=min(max_tokens, 2900), wait_for_local=False, timeout=25.0)
+        except Exception as e:
+            logger.warning("Multi-provider fallback failed: %s", e)
+
+        if ensemble:
+            ensemble.pop("providers_used", None)
+            return ensemble
+
+        if time.time() < AIRecommendationEngine._openrouter_unavailable_until:
+            return None
+
         result = await self._call_openrouter(system_prompt, user_prompt, max_tokens)
         if result:
             return result
-        try:
-            from app.engine.dual_ai import _run_all
-            merged = await _run_all(system_prompt, user_prompt, max_tokens=min(max_tokens, 2900), wait_for_local=False, timeout=25.0)
-            merged.pop("providers_used", None)
-            return merged or None
-        except Exception as e:
-            logger.warning("Multi-provider fallback failed: %s", e)
-            return None
+        return ensemble or None
 
     async def _call_openrouter(self, system_prompt: str, user_prompt: str, max_tokens: int = 2900) -> dict | None:
         if not self.api_key:
@@ -53,6 +70,17 @@ class AIRecommendationEngine:
                 )
                 if resp.status_code != 200:
                     logger.error("OpenRouter %s: %s", resp.status_code, resp.text[:200])
+                    # 402 means the balance cannot cover this request, so every
+                    # further call fails the same way. Trip the breaker instead of
+                    # paying the timeout+retry cost on each recommendation.
+                    if resp.status_code == 402:
+                        AIRecommendationEngine._openrouter_unavailable_until = (
+                            time.time() + AIRecommendationEngine._OPENROUTER_COOLDOWN_S
+                        )
+                        logger.warning(
+                            "OpenRouter out of credit; skipping direct calls for %ds",
+                            int(AIRecommendationEngine._OPENROUTER_COOLDOWN_S),
+                        )
                     return None
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
