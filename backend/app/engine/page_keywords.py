@@ -415,6 +415,11 @@ def _modifier_variants(seed: str) -> list:
 # --------------------------------------------------------------------------
 # layer 3: AI, batched across pages
 # --------------------------------------------------------------------------
+_AI_SYSTEM_PROMPT = (
+    "You are a precise SEO strategist. You reply with valid JSON and nothing "
+    "else -- no prose, no markdown fences."
+)
+
 AI_PROMPT = """You are an SEO strategist. For EACH web page below, list the search queries \
 that page should target. Rules:
 - Only queries genuinely about THAT page's own subject. Never reuse another page's topic.
@@ -450,15 +455,33 @@ def _page_brief(page) -> str:
     )
 
 
-async def _ai_queries_for_pages(briefs: dict, vocab_by_url: dict,
-                                strong_by_url: dict) -> dict:
+async def _ai_queries_for_pages(
+    briefs: dict,
+    vocab_by_url: dict,
+    strong_by_url: dict,
+    subject_by_url: dict | None = None,
+) -> dict:
     """Ask the model for queries for many pages at once.
 
     Returns {page_url: [query dict, ...]}. Pages the model invents queries for
     but did not receive are dropped, and every query still has to pass the
     page-grounding check.
     """
-    from app.engine.dual_ai import _groq_chat, _cf_workers_chat
+    from app.engine.dual_ai import (
+        _groq_chat, _cf_workers_chat, _gemini_chat, _cerebras_chat,
+        _ollama_chat, _openrouter_chat,
+    )
+
+    if subject_by_url is None:
+        subject_by_url = {}
+
+    # Hosted providers first because they are fast, but Ollama is last and
+    # always worth trying: a local model has no quota and no expiry, so it is
+    # the difference between "no AI keywords at all" and some.
+    _PROVIDER_CHAIN = (
+        _groq_chat, _cf_workers_chat, _gemini_chat, _cerebras_chat,
+        _openrouter_chat, _ollama_chat,
+    )
 
     if not briefs:
         return {}
@@ -481,7 +504,7 @@ async def _ai_queries_for_pages(briefs: dict, vocab_by_url: dict,
         payload = "\n".join(briefs[u] for u in group)
         prompt = AI_PROMPT.format(pages=payload)
         raw = None
-        for fn in (_groq_chat, _cf_workers_chat):
+        for fn in _PROVIDER_CHAIN:
             try:
                 # Each provider walks its own fallback chain internally, and when
                 # a provider is out of credit that chain can take a minute to
@@ -489,7 +512,13 @@ async def _ai_queries_for_pages(briefs: dict, vocab_by_url: dict,
                 # whole keyword stage time out and the audit fell back to the
                 # legacy 30-word list. Cap each attempt so a dead provider costs
                 # seconds instead of the stage.
-                res = await asyncio.wait_for(fn(prompt), timeout=AI_CALL_TIMEOUT)
+                # Every provider in dual_ai takes (system_prompt, user_prompt).
+                # Passing the single blob positionally made the call raise
+                # TypeError, the bare `except` swallowed it, and the layer
+                # silently returned nothing on every provider.
+                res = await asyncio.wait_for(
+                    fn(_AI_SYSTEM_PROMPT, prompt), timeout=AI_CALL_TIMEOUT,
+                )
                 if res:
                     raw = res
                     break
@@ -648,6 +677,10 @@ async def build_page_keywords(pages, start_url: str = "", use_ai: bool = True,
                 vocab, strong = vocab_by_url[url]
                 if not _grounded_in_page(text, vocab, strong, seed=seed):
                     continue
+                # A tagline phrase ("your story you're only") must not become
+                # "Cheap Story You're" -- same declared-subject rule as Suggest.
+                if not _on_declared_subject(text, subject_by_url.get(url) or set()):
+                    continue
                 rows[text] = {
                     "keyword": _display(text),
                     "norm": text,
@@ -749,14 +782,14 @@ async def build_page_keywords(pages, start_url: str = "", use_ai: bool = True,
                 if not _is_usable(text) or text in rows:
                     continue
                 rows[text] = {
-                    "keyword": it["keyword"],
+                    "keyword": it.get("query") or it.get("keyword") or _display(text),
                     "norm": text,
                     "source": "ai",
-                    "volume": it["volume"],
-                    "difficulty": it["difficulty"],
+                    "volume": it.get("volume", 0),
+                    "difficulty": it.get("difficulty", 0),
                     # Rank by the volume the model reported: it is the only
                     # ordering signal those queries carry.
-                    "relevance": min(99, 70 + min(25, int((it["volume"] or 0) ** 0.32))),
+                    "relevance": min(99, 70 + min(25, int((it.get("volume") or 0) ** 0.32))),
                     "seed": "",
                     "frequency": 0,
                 }
