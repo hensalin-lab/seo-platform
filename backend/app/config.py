@@ -17,8 +17,22 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_database_url(cls, v: str) -> str:
         if v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
+
+    @property
+    def uses_transaction_pooler(self) -> bool:
+        """True when DATABASE_URL points at Supabase's transaction-mode pooler.
+
+        Supabase's session-mode pooler (port 5432) caps the free tier at a
+        single client, which the connection pool plus the background workers
+        exhaust immediately (EMAXCONNSESSION). The transaction-mode pooler
+        (6543) serves many clients but multiplexes over a single connection, so
+        server-side prepared statements must be disabled for it. That has to be
+        an int in connect_args -- a URL query param arrives as a str and asyncpg
+        rejects it.
+        """
+        return ":6543/" in self.DATABASE_URL
 
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.5-flash"

@@ -2,7 +2,7 @@
     "rewrites":  [
                      {
                          "source":  "/api/:path*",
-                         "destination":  "https://seo-platform.fastapicloud.dev/api/:path*"
+                         "destination":  "https://rankiq-api.vercel.app/api/:path*"
                      },
                      {
                          "source":  "/((?!api/|assets/|favicon\\.png|favicon\\.ico|robots\\.txt|\\.well-known/).*)",

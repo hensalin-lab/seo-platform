@@ -5,10 +5,20 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import event
 from app.config import settings
 
+def _connect_args() -> dict:
+    if "sqlite" in settings.DATABASE_URL:
+        return {"check_same_thread": False}
+    if settings.uses_transaction_pooler:
+        # Transaction mode multiplexes over one backend connection, so
+        # server-side prepared statements are not supported.
+        return {"statement_cache_size": 0}
+    return {}
+
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
+    connect_args=_connect_args(),
 )
 
 
