@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../../api'
 import { DataSourceBadge } from '../../../components/DataSourceBadge'
-import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown, Sparkles, Brain, ArrowRight, Clock, RefreshCw, Wand2 } from 'lucide-react'
+import { Key, AlertTriangle, CheckCircle, TrendingUp, HelpCircle, GitMerge, Target, Search, Filter, BarChart3, ArrowUpRight, Lightbulb, ChevronDown, Sparkles, Brain, ArrowRight, Clock, RefreshCw, Wand2, FileText } from 'lucide-react'
 import ThemeHero from '../../../components/ai/ThemeHero'
 import ThemeStatCard from '../../../components/ai/ThemeStatCard'
 import AiSuggestionStrip from '../../../components/ai/AiSuggestionStrip'
@@ -342,6 +342,100 @@ const IMPACT_COLORS = {
   LOW: { bg: 'rgba(34,197,94,0.1)', color: '#22c55e' },
 };
 
+// A 300-page crawl makes a plain <select> unnavigable, so the picker filters
+// as you type and shows each page's own keyword count -- the count is the
+// fastest way to tell a page with its own keyword set from one that has none.
+function PageScopePicker({ index, scope, onScope, loading }) {
+  const [q, setQ] = useState('')
+  const [typedUrl, setTypedUrl] = useState('')
+  const pages = index?.pages || []
+
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase()
+    const list = !needle ? pages : pages.filter(p =>
+      (p.title || '').toLowerCase().includes(needle) ||
+      (p.url || '').toLowerCase().includes(needle))
+    // Cap the rendered options so a large crawl does not build a 2000-node list.
+    return list.slice(0, 200)
+  }, [pages, q])
+
+  const totalKeywords = pages.reduce((s, p) => s + (p.keyword_count || 0), 0)
+
+  // Accepts a full URL or a bare path, because both are what people paste.
+  const submitTyped = () => {
+    const raw = typedUrl.trim()
+    if (!raw) return
+    const cleaned = raw.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+    const hit = pages.find(p => (p.url || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '') === cleaned)
+    onScope(hit ? hit.url : raw)
+    setTypedUrl('')
+  }
+
+  const fieldStyle = { width: '100%', padding: '9px 10px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, background: 'var(--bg-white)' }
+  const labelStyle = { display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5 }
+
+  return (
+    <div style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: 2, minWidth: 260 }}>
+          <label htmlFor="kw-page-picker" style={labelStyle}>Keywords for</label>
+          <select
+            id="kw-page-picker"
+            value={scope}
+            onChange={e => onScope(e.target.value)}
+            disabled={loading}
+            style={{ ...fieldStyle, color: '#1e293b', cursor: loading ? 'wait' : 'pointer' }}
+          >
+            <option value="">All pages (site-wide) — {totalKeywords.toLocaleString()} keywords</option>
+            {shown.map(p => (
+              <option key={p.url} value={p.url}>
+                {p.title || p.url} — {p.keyword_count} kw{p.word_count ? `, ${p.word_count}w` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        {pages.length > 8 && (
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label htmlFor="kw-page-filter" style={labelStyle}>Find a page</label>
+            <input
+              id="kw-page-filter"
+              type="text"
+              placeholder="Title or URL..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              style={fieldStyle}
+            />
+          </div>
+        )}
+        <div style={{ flex: 2, minWidth: 260 }}>
+          <label htmlFor="kw-page-url" style={labelStyle}>Or paste a page URL from this site</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              id="kw-page-url"
+              type="text"
+              placeholder="datavicloud.ai/solutions/solutions-overview"
+              value={typedUrl}
+              onChange={e => setTypedUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submitTyped() }}
+              style={fieldStyle}
+            />
+            <button onClick={submitTyped} disabled={!typedUrl.trim()}
+              style={{ padding: '9px 14px', borderRadius: 8, border: 'none', background: typedUrl.trim() ? '#1e293b' : '#e2e8f0', color: typedUrl.trim() ? '#fff' : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: typedUrl.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
+              Show
+            </button>
+          </div>
+        </div>
+      </div>
+      {index && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+          {index.pages_with_keywords} of {index.page_count} crawled pages have their own keyword set
+          {shown.length < pages.length && ` · showing ${shown.length}`}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function KeywordStrategy() {
   const { id } = useParams()
   const [research, setResearch] = useState(null)
@@ -352,18 +446,53 @@ export default function KeywordStrategy() {
   const [search, setSearch] = useState('')
   const [aiSuggestions, setAiSuggestions] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  // '' = the site-wide roll-up. Anything else is one crawled page, and the
+  // table then shows only that page's keywords.
+  const [scope, setScope] = useState('')
+  const [pageIndex, setPageIndex] = useState(null)
+  const [pageData, setPageData] = useState(null)
+  const [scopeLoading, setScopeLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
       api.getKeywordResearch(id).catch(e => ({ __error: e?.message || 'failed' })),
       api.getKeywordsEnhanced(id).catch(e => ({ __error: e?.message || 'failed' })),
-    ]).then(([res, enh]) => {
+      // The picker is optional chrome: if it fails the page-wide view still works.
+      api.getPageKeywords(id).catch(() => null),
+    ]).then(([res, enh, idx]) => {
       const bothFailed = res?.__error && enh?.__error
       if (bothFailed) setLoadError(res.__error || 'Could not reach the keyword endpoints')
       setResearch(res?.__error ? null : res);
       setEnhanced(enh?.__error ? null : enh);
+      if (idx) {
+        setPageIndex(idx);
+        // Open on the page that was actually audited. Someone who ran an audit
+        // on datavicloud.ai/s wants that page's keywords, not a site-wide average
+        // that dilutes them across 300 other pages.
+        const landing = idx.landing_page_url
+          || idx.pages?.find(p => p.keyword_count > 0)?.url
+        if (landing) setScope(landing);
+      }
     }).finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!scope) { setPageData(null); setScopeLoading(false); return }
+    setScopeLoading(true)
+    api.getPageKeywords(id, scope)
+      .then(d => { if (!cancelled) setPageData(d) })
+      .catch(() => {
+        if (!cancelled) {
+          setPageData(null)
+          window.dispatchEvent(new CustomEvent('show-toast', {
+            detail: { message: 'Could not load keywords for that page', type: 'error' },
+          }))
+        }
+      })
+      .finally(() => { if (!cancelled) setScopeLoading(false) })
+    return () => { cancelled = true }
+  }, [id, scope])
 
   const loadAiSuggestions = async () => {
     setAiLoading(true);
@@ -386,20 +515,38 @@ export default function KeywordStrategy() {
     </div>
   )
 
-  const allKeywords = research?.keywords || enhanced?.keywords || []
-  const summary = research?.summary || {}
-  const totalVolume = allKeywords.reduce((s, kw) => s + (kw.volume || 0), 0)
-  const highOpp = allKeywords.filter(k => k.opportunity === 'HIGH').length
-  const longTail = allKeywords.filter(k => (k.tail || k.type) === 'long-tail').length
-  const shortTail = allKeywords.filter(k => (k.tail || k.type) === 'short-tail').length
-  const realDemand = allKeywords.filter(k => (k.source || '') === 'autocomplete').length
+  const scoped = Boolean(scope) && Boolean(pageData)
+  const scopedSummary = pageData?.summary || {}
+
+  // In page scope the table reads that page's own rows. Falling back to the
+  // site-wide list while a fetch is in flight would silently show another
+  // page's keywords under this page's name, which is worse than showing none.
+  const allKeywords = scoped
+    ? (pageData.keywords || [])
+    : (research?.keywords || enhanced?.keywords || [])
+  const summary = scoped ? {} : (research?.summary || {})
+  const totalVolume = scoped
+    ? (scopedSummary.estimated_monthly_searches || 0)
+    : allKeywords.reduce((s, kw) => s + (kw.volume || 0), 0)
+  const highOpp = scoped ? (scopedSummary.high_opportunity || 0) : allKeywords.filter(k => k.opportunity === 'HIGH').length
+  const longTail = scoped ? (scopedSummary.long_tail || 0) : allKeywords.filter(k => (k.tail || k.type) === 'long-tail').length
+  const shortTail = scoped ? 0 : allKeywords.filter(k => (k.tail || k.type) === 'short-tail').length
+  const realDemand = scoped ? (scopedSummary.verified_demand || 0) : allKeywords.filter(k => (k.source || '') === 'autocomplete').length
+  const cannibalCount = scoped
+    ? allKeywords.filter(k => k.opportunity === 'HIGH').length
+    : (summary.cannibalization_issues || research?.cannibalization?.length || 0)
 
   const tabs = [
-    { key: 'keywords', label: 'Keywords', icon: Key, count: allKeywords.length },
+    { key: 'keywords', label: scoped ? 'Page Keywords' : 'Keywords', icon: Key, count: allKeywords.length },
     { key: 'quickwins', label: 'Quick Wins', icon: Target, count: allKeywords.filter(k => k.opportunity === 'HIGH').slice(0, 12).length },
-    { key: 'clusters', label: 'Topic Clusters', icon: GitMerge, count: research?.topic_clusters?.length || 0 },
-    { key: 'questions', label: 'Questions', icon: HelpCircle, count: research?.question_keywords?.length || 0 },
-    { key: 'cannibal', label: 'Cannibalization', icon: AlertTriangle, count: research?.cannibalization?.length || 0 },
+    // Clusters, questions and cannibalization are properties of the crawl as a
+    // whole -- there is no honest per-page version of them, so they are hidden
+    // rather than shown unchanged beside a page-scoped keyword list.
+    ...(scoped ? [] : [
+      { key: 'clusters', label: 'Topic Clusters', icon: GitMerge, count: research?.topic_clusters?.length || 0 },
+      { key: 'questions', label: 'Questions', icon: HelpCircle, count: research?.question_keywords?.length || 0 },
+      { key: 'cannibal', label: 'Cannibalization', icon: AlertTriangle, count: research?.cannibalization?.length || 0 },
+    ]),
     { key: 'ai', label: 'AI Suggestions', icon: Sparkles, count: aiSuggestions ? Object.values(aiSuggestions?.suggestions || {}).reduce((s, v) => s + (Array.isArray(v) ? v.length : 0), 0) : 0 },
   ]
 
@@ -422,13 +569,38 @@ export default function KeywordStrategy() {
           <AiSuggestionStrip auditId={id} tool="keywords" title="AI keyword fixes" />
         </div>
 
+        {pageIndex && (
+          <PageScopePicker
+            index={pageIndex}
+            scope={scope}
+            onScope={setScope}
+            loading={scopeLoading}
+          />
+        )}
+
+        {scoped && pageData?.page && (
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1e40af' }}>
+            <strong>{pageData.page.title || pageData.page.url}</strong>
+            <span style={{ color: '#3b82f6' }}> — {pageData.page.url}</span>
+            {' · '}{allKeywords.length} keywords from this page only
+            {pageData.page.word_count ? ` · ${pageData.page.word_count} words on page` : ''}
+            <div style={{ marginTop: 4, color: '#475569' }}>
+              {pageData.data_source_note}
+            </div>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-          <ThemeStatCard icon={Key} label="Total Keywords" value={summary.total_keywords || allKeywords.length} color="#3b82f6" />
+          <ThemeStatCard icon={Key} label={scoped ? "This Page's Keywords" : 'Total Keywords'} value={scoped ? allKeywords.length : (summary.total_keywords || allKeywords.length)} color="#3b82f6" />
           <ThemeStatCard icon={BarChart3} label="Est. Monthly Searches" value={totalVolume.toLocaleString()} color="#8b5cf6" />
           <ThemeStatCard icon={Target} label="High Opportunity" value={highOpp} color="#059669" />
-          <ThemeStatCard icon={Sparkles} label="Long-tail" value={`${longTail} / ${longTail + shortTail}`} color="#7c3aed" />
+          <ThemeStatCard icon={Sparkles} label="Long-tail" value={scoped ? String(longTail) : `${longTail} / ${longTail + shortTail}`} color="#7c3aed" />
           <ThemeStatCard icon={TrendingUp} label="Verified Demand" value={realDemand} color="#0d9488" />
-          <ThemeStatCard icon={AlertTriangle} label="Cannibalization" value={summary.cannibalization_issues || research?.cannibalization?.length || 0} color="#dc2626" />
+          {scoped ? (
+            <ThemeStatCard icon={FileText} label="Page Words" value={pageData?.page?.word_count ?? 0} color="#0d9488" />
+          ) : (
+            <ThemeStatCard icon={AlertTriangle} label="Cannibalization" value={cannibalCount} color="#dc2626" />
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
@@ -453,8 +625,14 @@ export default function KeywordStrategy() {
           })}
         </div>
 
+        {scopeLoading && (
+          <div style={{ background: 'var(--bg-white)', borderRadius: 12, border: '1px solid var(--border)', padding: 36, textAlign: 'center', marginBottom: 16 }}>
+            <Spinner size={40} />
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 10 }}>Loading this page's keywords...</div>
+          </div>
+        )}
         {activeTab === 'quickwins' && <QuickWins keywords={allKeywords} />}
-        {activeTab === 'keywords' && <KeywordTable keywords={allKeywords} search={search} />}
+        {activeTab === 'keywords' && !scopeLoading && <KeywordTable keywords={allKeywords} search={search} />}
         {activeTab === 'clusters' && <TopicClusters clusters={research?.topic_clusters} />}
         {activeTab === 'questions' && <QuestionKeywords questions={research?.question_keywords} />}
         {activeTab === 'cannibal' && <Cannibalization cannibalization={research?.cannibalization} />}

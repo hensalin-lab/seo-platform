@@ -180,6 +180,10 @@ export const api = {
   getContentQuality: (id) => request(`/audit/${id}/content-quality`),
   getSeoHealth: (id) => request(`/audit/${id}/seo-health`),
   getKeywordResearch: (id) => request(`/audit/${id}/keyword-research`),
+  // Without `url` this returns the page index the picker lists; with it, that
+  // one page's own keywords.
+  getPageKeywords: (id, url = '') =>
+    request(`/audit/${id}/page-keywords${url ? `?url=${encodeURIComponent(url)}` : ''}`),
   getContentAudit: (id) => request(`/audit/${id}/content-audit`),
   getBlogAi: (id) => request(`/audit/${id}/blog-ai`),
   getPageImprovements: (id) => request(`/audit/${id}/page-improvements`),

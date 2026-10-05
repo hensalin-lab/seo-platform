@@ -28,7 +28,7 @@ from collections import Counter
 
 import httpx
 
-from app.engine.free_data import GOOGLE_SUGGEST, host_of
+from app.engine.free_data import GOOGLE_SUGGEST, google_autocomplete, host_of
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,12 @@ def _clean_body(html: str) -> str:
 
 
 def _clean(text: str) -> str:
-    return re.sub(r"<[^>]+>", " ", text or "")
+    import html as _html
+
+    # Unescape as well as strip tags: a title stored as
+    # "Revenue &amp; Sales Operations" otherwise seeds the literal string
+    # "&amp;", which no one ever types.
+    return _html.unescape(re.sub(r"<[^>]+>", " ", text or ""))
 
 
 def _unescape(text: str) -> str:
@@ -203,6 +208,15 @@ def _seed_ok(phrase: str) -> bool:
     # Leading or trailing filler reads as a clause, not a search topic.
     if words[0] in _SEED_STOPWORDS or words[-1] in _SEED_STOPWORDS:
         return False
+    # Sliding bigrams over a heading cut a sentence into pieces that are not
+    # topics: "You Can't Build Great AI on Bad Data" produced "can't build",
+    # "build great", "start activating". Those are verbs and pronouns, and
+    # Google completes them into whatever else uses the phrase.
+    if any(w in _NOISE_TOKENS for w in words):
+        return False
+    # A contraction is never part of how anyone types a search.
+    if "'" in p:
+        return False
     # Two filler words in a row ("of the", "to your") is boilerplate.
     filler_run = 0
     for w in words:
@@ -212,20 +226,56 @@ def _seed_ok(phrase: str) -> bool:
     return True
 
 
+# Seeds pulled out of headings are frequently clauses rather than topics
+# ("You Can't Build Great AI on Bad Data"), and Google happily completes the
+# fragment "can't build" into Palbox and muscle-gain advice. These words carry
+# no subject of their own, so a candidate must keep at least one word that does.
+_NOISE_TOKENS = {
+    "not", "no", "never", "cant", "cannot", "wont", "dont", "doesnt", "isnt",
+    "you", "your", "yours", "our", "we", "us", "they", "them", "their", "it",
+    "its", "this", "that", "these", "those", "here", "there", "then", "than",
+    "and", "but", "for", "with", "from", "into", "onto", "over", "under",
+    "get", "got", "make", "made", "take", "come", "give", "use", "used",
+    "just", "very", "really", "much", "many", "more", "most", "some", "any",
+    "all", "one", "two", "way", "ways", "thing", "things", "stuff", "like",
+    "well", "also", "even", "only", "still", "back", "down", "out", "off",
+    "now", "new", "old", "big", "small", "long", "short", "good", "best",
+    "start", "started", "starting", "stop", "stopped", "stopping",
+}
+
+
+def _grounded_in_seed(candidate: str, seed: str) -> bool:
+    """The completion must still contain the seed's subject.
+
+    Fanning Suggest out over qualifier stems produces real searches for the
+    wrong thing: a page about revenue analytics yielded "can't build palbox"
+    and "build can be rejected if". Requiring the seed's own non-noise word to
+    survive the completion keeps the result about the page's subject.
+    """
+    seed_words = [
+        w for w in re.findall(r"[a-z0-9']+", (seed or "").lower())
+        if w not in _SEED_STOPWORDS and w not in _NOISE_TOKENS and len(w) > 2
+    ]
+    if not seed_words:
+        return True
+    cand_words = set(re.findall(r"[a-z0-9']+", (candidate or "").lower()))
+    return any(w in cand_words for w in seed_words)
+
+
 async def _suggest(client: httpx.AsyncClient, q: str, limit: int = 10) -> list[str]:
-    try:
-        resp = await client.get(
-            GOOGLE_SUGGEST,
-            params={"client": "firefox", "hl": "en", "q": q.strip()},
-        )
-        if resp.status_code != 200:
-            return []
-        data = resp.json()
-    except Exception:
-        return []
-    items = data[1] if isinstance(data, list) and len(data) > 1 else []
-    out = [str(s).strip() for s in items if s]
-    return [s for s in out if _usable(s)][:limit]
+    # Delegate to the shared helper: it rotates the `client` parameter because
+    # Google 403s some values outright, and a hardcoded one silently returned
+    # zero keywords for every page.
+    raw = await google_autocomplete(q, limit=limit * 2)
+    # The seed is the tail of the query once a qualifier or letter is prepended,
+    # so ground against the longest word-run the query ends with.
+    seed = max(re.split(r"\s+(?:a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)\s*$", q, flags=re.I), key=len, default=q)
+    tail = " ".join(re.split(r"^\S+\s+", q)[-1:] or [q]) if " " in q.strip() else q
+    for candidate_seed in (tail, q):
+        kept = [s for s in raw if _usable(s) and _grounded_in_seed(s, candidate_seed)]
+        if kept:
+            return kept[:limit]
+    return [s for s in raw if _usable(s)][:limit]
 
 
 async def fetch_page_signals(url: str) -> dict:

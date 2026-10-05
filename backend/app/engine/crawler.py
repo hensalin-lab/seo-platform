@@ -197,13 +197,17 @@ class CrawlerEngine:
         if "noindex" in page.robots_meta.lower():
             page.is_indexable = False
 
+        # get_text(strip=True) concatenates inline elements with no separator, so
+        # a heading authored as <span>Stop</span><span>Analyzing</span> came out
+        # as "StopAnalyzing" -- which then became an unsearchable keyword seed.
+        # A space separator restores word boundaries.
         h1_tag = soup.find("h1")
-        page.h1 = h1_tag.get_text(strip=True) if h1_tag else ""
+        page.h1 = re.sub(r"\s+", " ", h1_tag.get_text(" ", strip=True)) if h1_tag else ""
 
         page.headings = []
         for level in ["h1", "h2", "h3", "h4", "h5", "h6"]:
             for tag in soup.find_all(level):
-                text = tag.get_text(strip=True)
+                text = re.sub(r"\s+", " ", tag.get_text(" ", strip=True)).strip()
                 if text:
                     page.headings.append({"level": level.upper(), "text": text[:200]})
 
@@ -232,6 +236,7 @@ class CrawlerEngine:
             for t in body.find_all(["script", "style", "noscript"]):
                 t.decompose()
             raw_text = body.get_text(separator="\n", strip=True)
+            raw_text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", raw_text)
             cleaned = _collapse_duplicate_lines(raw_text)
             page.content_text = re.sub(r"\s*\n\s*", " ", cleaned)[:settings.CRAWLER_CONTENT_LIMIT]
             page.word_count = len(page.content_text.split())

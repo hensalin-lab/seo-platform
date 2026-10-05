@@ -167,6 +167,57 @@ def _page_vocabulary(page, extra: str = "") -> tuple:
     return strong | body_terms, strong
 
 
+def _on_declared_subject(candidate: str, subject: set) -> bool:
+    """Must the keyword share a word with the page's title/meta/URL?
+
+    Returns True when the page declares no subject at all (a title of "Overview"
+    names nothing), so those pages keep whatever they had rather than being
+    emptied out.
+    """
+    if not subject:
+        return True
+    return any(w in subject for w in _tokens(candidate))
+
+
+def _subject_terms(page) -> set:
+    """The subject the page *declares*, as opposed to the one it talks about.
+
+    A homepage H1 is usually a tagline rather than a topic -- "Your revenue
+    pipeline has a story. You're only hearing half of it." Seeding Google
+    Suggest on words like "story" and "half" produced "Hearing Aid Half Shell"
+    and "Story Regretting You". The title, meta description and URL slug are
+    where a page names its actual subject ("AI GTM Operating System & Revenue
+    Insights"), so a Suggest completion has to survive on one of those.
+    """
+    out: set = set()
+    for value in (
+        _clean(getattr(page, "title", "") or ""),
+        _clean(getattr(page, "meta_description", "") or ""),
+        " ".join(_slug_terms(getattr(page, "url", "") or "")),
+    ):
+        for w in _tokens(value):
+            if w in STOP_WORDS or w in NAV_WORDS:
+                continue
+            if w in _WEAK_TERMS or w in _GENERIC_TOKENS:
+                continue
+            out.add(w)
+    # A title like "Overview" or "Pricing" names no subject; the headings do.
+    if len(out) < 2:
+        headings = getattr(page, "headings", None) or []
+        if isinstance(headings, str):
+            try:
+                headings = json.loads(headings)
+            except Exception:  # noqa: BLE001
+                headings = []
+        for h in headings[:25]:
+            text = h.get("text", "") if isinstance(h, dict) else str(h)
+            for w in _tokens(_clean(text)):
+                if w in STOP_WORDS or w in NAV_WORDS or w in _WEAK_TERMS:
+                    continue
+                out.add(w)
+    return out
+
+
 def page_seeds(page, limit: int = MAX_SEEDS_PER_PAGE) -> list[tuple]:
     """Seed phrases for one page, strongest evidence first.
 
@@ -475,6 +526,7 @@ async def _ai_queries_for_pages(briefs: dict, vocab_by_url: dict,
             by_url.setdefault(url, [])
             vocab = vocab_by_url.get(url, (set(), set()))[0]
             strong = vocab_by_url.get(url, (set(), set()))[1]
+            subject = subject_by_url.get(url) or set()
             for q in (entry.get("queries") or [])[:10]:
                 text = _normalise(q.get("query") or q.get("keyword") or "")
                 if not _is_usable(text):
@@ -545,12 +597,14 @@ async def build_page_keywords(pages, start_url: str = "", use_ai: bool = True,
     seeds_by_url: dict = {}
     vocab_by_url: dict = {}
     strong_by_url: dict = {}
+    subject_by_url: dict = {}
 
     for p in pages:
         url = p.url
         vocab, strong = _page_vocabulary(p)
         vocab_by_url[url] = (vocab, strong)
         strong_by_url[url] = strong
+        subject_by_url[url] = _subject_terms(p)
         seeds_by_url[url] = page_seeds(p)
 
     # ---------------- layer 1: on-page ----------------
@@ -647,6 +701,11 @@ async def build_page_keywords(pages, start_url: str = "", use_ai: bool = True,
                 # check that stops Google reinterpreting a product name as a
                 # different industry.
                 if not _keeps_seed(text, seed):
+                    continue
+                # Finally, the completion has to belong to the subject the page
+                # declares in its title, meta or URL -- not to a word that only
+                # appears in a tagline or somewhere in the body.
+                if not _on_declared_subject(text, subject_by_url.get(url) or set()):
                     continue
                 rows[text] = {
                     "keyword": _display(text),

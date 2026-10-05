@@ -5745,11 +5745,33 @@ async def get_page_keywords(audit_id: str, url: str = "", db: AsyncSession = Dep
         })
     index.sort(key=lambda x: (-x["keyword_count"], -x["top_relevance"]))
 
+    # Name the page the audit was started on. Someone who audits one URL wants
+    # that page's keywords by default, and the list above is ordered by keyword
+    # count, so without this the UI cannot tell which entry is "their" page.
+    audit = await db.get(Audit, audit_id)
+    start_url = (getattr(audit, "start_url", "") or getattr(audit, "website_url", "") or "") if audit else ""
+
+    def _same(a: str, b: str) -> bool:
+        return (a or "").rstrip("/").lower() == (b or "").rstrip("/").lower()
+
+    landing = next((p for p in index if _same(p["url"], start_url)), None)
+    if landing is None and start_url:
+        # The crawler may have normalised the host (www, http->https), so fall
+        # back to a path match before giving up.
+        path = start_url.rstrip("/").split("/")
+        tail = "/".join(path[3:]) if len(path) > 3 else ""
+        landing = next(
+            (p for p in index if tail and (p["url"] or "").rstrip("/").endswith("/" + tail)),
+            None,
+        )
+
     return {
         "pages": index,
         "page_count": len(index),
         "pages_with_keywords": sum(1 for p in index if p["keyword_count"]),
         "total_page_keywords": sum(p["keyword_count"] for p in index),
+        "start_url": start_url,
+        "landing_page_url": (landing or {}).get("url", ""),
         "scope": "index",
     }
 

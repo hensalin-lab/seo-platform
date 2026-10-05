@@ -17,6 +17,17 @@ import httpx
 logger = logging.getLogger(__name__)
 
 GOOGLE_SUGGEST = "https://suggestqueries.google.com/complete/search"
+
+DEFAULT_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
+
+# Google rejects some autocomplete `client` values outright with a 403 "Sorry..."
+# interstitial -- `firefox` started doing that, which silently zeroed out every
+# keyword source in the product. These are tried in order, and the first one
+# that answers is used, so a single blocked client cannot empty the list again.
+_SUGGEST_CLIENTS = ("chrome", "firefox", "gws-wiz-serp", "opera")
 RDAP_BOOTSTRAP = "https://rdap.org/domain/"
 DNS_OVER_HTTPS = "https://cloudflare-dns.com/dns-query"
 SSL_LABS_API = "https://api.ssllabs.com/api/v3/analyze"
@@ -39,23 +50,45 @@ def host_of(url: str) -> str:
 
 
 async def google_autocomplete(q: str, limit: int = 10) -> list:
-    """Free Google autocomplete suggestions (no key required)."""
+    """Free Google autocomplete suggestions (no key required).
+
+    Tries several documented ``client`` values because Google 403s some of them
+    from datacentre IPs. A 403 or a 429 on one client falls through to the next
+    rather than returning empty, which previously looked like "no demand exists"
+    and emptied the whole keyword feature.
+    """
     if not q or not q.strip():
         return []
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                GOOGLE_SUGGEST,
-                params={"client": "firefox", "hl": "en", "q": q.strip()},
-            )
+    last_status = 0
+    async with httpx.AsyncClient(
+        timeout=10, follow_redirects=True, headers={
+            "User-Agent": DEFAULT_UA,
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+    ) as client:
+        for suggest_client in _SUGGEST_CLIENTS:
+            try:
+                resp = await client.get(
+                    GOOGLE_SUGGEST,
+                    params={"client": suggest_client, "hl": "en", "q": q.strip()},
+                )
+            except Exception as e:
+                logger.warning(f"Google autocomplete ({suggest_client}) failed: {e}")
+                continue
+            last_status = resp.status_code
             if resp.status_code != 200:
-                return []
-            data = resp.json()
-        items = data[1] if isinstance(data, list) and len(data) > 1 else []
-        return [str(s) for s in items if s][:limit]
-    except Exception as e:
-        logger.warning(f"Google autocomplete failed: {e}")
-        return []
+                continue
+            try:
+                data = resp.json()
+            except Exception:
+                continue
+            items = data[1] if isinstance(data, list) and len(data) > 1 else []
+            out = [str(s) for s in items if s][:limit]
+            if out:
+                return out
+    logger.warning(f"Google autocomplete returned nothing for {q!r} (last status {last_status})")
+    return []
 
 
 def _rdap_events_to_dates(events):
@@ -212,11 +245,6 @@ async def site_checks(url: str) -> dict:
 # ---------------------------------------------------------------------------
 # Live page fetch tools (free, keyless — fetch + parse the page directly)
 # ---------------------------------------------------------------------------
-
-DEFAULT_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
-)
 
 
 def _normalize_page_url(url: str) -> str:
