@@ -37,8 +37,6 @@ PROVIDER_HEALTH = {}
 # Map _run_all task names to the provider names used in the health registry,
 # so error cooldowns actually apply instead of dead providers being retried.
 _HEALTH_NAME = {
-    "groq-llama-3.3-70b": "groq",
-    "cerebras-gemma-4-31b": "cerebras",
     "lmstudio-local": "lmstudio",
     "ollama-local": "ollama",
     "vllm-local": "vllm",
@@ -702,10 +700,16 @@ async def _run_all(system_prompt: str, user_prompt: str, max_tokens: int = 3000,
     else:
         lsp, lup = system_prompt, user_prompt
     def _build():
+        # Order matters and is not cosmetic. OpenRouter is tried first but this
+        # account's balance only covers ~375 output tokens, so every call capped
+        # near 2900 came back 402 ("requires more credits") and burned its
+        # retries before any healthy provider was reached -- audits sat in
+        # AI_ANALYSIS for minutes. Groq is live and has headroom, so a working
+        # provider now leads and OpenRouter degrades to a later fallback.
         base = [
+            ("groq", _groq_chat, (system_prompt, user_prompt, min(max_tokens, 3500))),
+            ("cerebras", _cerebras_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("gpt-4o", _openrouter_chat, (system_prompt, user_prompt, min(max_tokens, 2900))),
-            ("groq-llama-3.3-70b", _groq_chat, (system_prompt, user_prompt, min(max_tokens, 3500))),
-            ("cerebras-gemma-4-31b", _cerebras_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("lmstudio-local", _lmstudio_chat, (system_prompt, user_prompt, min(max_tokens, 3000))),
             ("ollama-local", _ollama_chat, (lsp, lup, min(max_tokens, 2000))),
             ("vllm-local", _vllm_chat, (system_prompt, user_prompt, min(max_tokens, 2000))),

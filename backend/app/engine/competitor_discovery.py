@@ -32,7 +32,11 @@ async def discover_competitors(domain: str, keyword: str | None = None) -> dict[
 async def _serpapi_discover(domain: str, keyword: str | None, api_key: str) -> dict[str, Any]:
     query = keyword or domain.split(".")[0]
     url = f"https://serpapi.com/search?engine=google&q={query}&api_key={api_key}&num=10"
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=10.0)) as client:
+    # httpx.Timeout requires all four values together: passing only connect/read
+    # raises "Timeout must either include a default, or set all four parameters
+    # explicitly" at construction time, which silently disabled SERP competitor
+    # discovery on every audit.
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)) as client:
         resp = await client.get(url)
         data = resp.json()
     organic = data.get("organic_results", [])
@@ -58,7 +62,7 @@ async def _duckduckgo_discover(domain: str, keyword: str | None) -> dict[str, An
     query = keyword or domain.split(".")[0]
     url = f"https://html.duckduckgo.com/html/?q={query}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=10.0)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)) as client:
         resp = await client.get(url, headers=headers)
     import re
     competitors = []

@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // Vite's host check answers 403 for any Host it does not recognise, which
+    // blocks tunnel hostnames (trycloudflare.com and friends). Only the dev
+    // server is affected; the production build is served by the reverse proxy.
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

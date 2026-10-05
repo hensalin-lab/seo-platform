@@ -1750,9 +1750,27 @@ async def _run_audit_task_impl(audit_id: str):
                 await _safe_commit(db, timeout=20)
                 logger.warning(f"Audit {audit_id} passed with {len(linter_errors)} linter warnings (non-blocking)")
 
-            await update_status(AuditStatus.COMPLETED.value, 100, "Audit complete")
+            # Write the terminal status through THIS session. update_status()
+            # opens a second session, but `db` still holds an uncommitted write
+            # transaction here (the pending AuditScore/AuditSnapshot rows), so the
+            # second session cannot acquire the database write lock. Its bounded
+            # commit times out and the bare `except` in update_status swallows the
+            # failure, leaving the audit stuck at REPORT_QA/95% even though the
+            # pipeline finished. Setting the fields here keeps one session, one
+            # lock, one authoritative write.
+            audit.status = AuditStatus.COMPLETED.value
+            audit.progress = 100
+            audit.current_step = "Audit complete"
             audit.completed_at = _dt.datetime.utcnow()
             await _safe_commit(db, timeout=20)
+            # The GET /audit/{id} detail endpoint memoises status/progress for up
+            # to an hour, so it has to be invalidated or the frontend keeps polling
+            # the stale 95% snapshot it already cached.
+            try:
+                from app.api.status import _cache_clear
+                _cache_clear(audit_id)
+            except Exception:
+                pass
             logger.info(f"Audit {audit_id} completed successfully")
 
             try:
@@ -1775,6 +1793,14 @@ async def _run_audit_task_impl(audit_id: str):
                     a.error_message = str(e)[:500]
                     a.completed_at = _dt.datetime.utcnow()
                     await _safe_commit(db, timeout=20)
+            except Exception:
+                pass
+            # Same reason as the success path: without dropping the memoised
+            # status the frontend keeps rendering the last cached progress of an
+            # audit that has already stopped running.
+            try:
+                from app.api.status import _cache_clear
+                _cache_clear(audit_id)
             except Exception:
                 pass
             asyncio.create_task(_notify_audit_failed(audit_id, str(e)))

@@ -33,6 +33,11 @@ export default function AuditProgress() {
   const intervalRef = useRef(null)
   const pollIntervalRef = useRef(2000)
   const mountedRef = useRef(true)
+  // A single failed poll (a 400 while the backend briefly holds its write lock,
+  // a dropped request) used to call setError and stop the loop, so one blip
+  // pinned the page on a hard error for the rest of the audit. Count consecutive
+  // failures instead and only surface them once polling is clearly broken.
+  const failCountRef = useRef(0)
 
   useEffect(() => {
     mountedRef.current = true
@@ -41,6 +46,8 @@ export default function AuditProgress() {
       try {
         const s = await api.getAuditStatus(id)
         if (!mountedRef.current) return
+        failCountRef.current = 0
+        setError('')
         setStatus(s)
         if (s.status === 'COMPLETED') { clearInterval(intervalRef.current); setTimeout(() => { if (mountedRef.current) navigate(`/audit/${id}/dashboard`) }, 1000) }
         else if (s.status === 'FAILED') { clearInterval(intervalRef.current) }
@@ -49,7 +56,18 @@ export default function AuditProgress() {
           clearInterval(intervalRef.current)
           intervalRef.current = setInterval(poll, pollIntervalRef.current)
         }
-      } catch (err) { if (mountedRef.current) setError(err.message) }
+      } catch (err) {
+        if (!mountedRef.current) return
+        failCountRef.current += 1
+        // Tolerate transient failures; keep polling so a healthy audit is never
+        // abandoned because of one bad response.
+        if (failCountRef.current >= 5) setError(err.message)
+        else {
+          pollIntervalRef.current = Math.min(pollIntervalRef.current + 1000, 10000)
+          clearInterval(intervalRef.current)
+          intervalRef.current = setInterval(poll, pollIntervalRef.current)
+        }
+      }
     }
     poll()
     intervalRef.current = setInterval(poll, pollIntervalRef.current)

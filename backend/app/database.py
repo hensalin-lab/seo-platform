@@ -5,20 +5,44 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import event
 from app.config import settings
 
-def _connect_args() -> dict:
+def _engine_options() -> dict:
     if "sqlite" in settings.DATABASE_URL:
-        return {"check_same_thread": False}
+        return {"connect_args": {"check_same_thread": False}}
+
     if settings.uses_transaction_pooler:
-        # Transaction mode multiplexes over one backend connection, so
-        # server-side prepared statements are not supported.
-        return {"statement_cache_size": 0}
-    return {}
+        # Supabase's transaction-mode pooler (pgbouncer, port 6543) multiplexes
+        # clients over one backend connection. Prepared statements collide
+        # across clients, and pgbouncer can close the connection mid-statement
+        # (ConnectionDoesNotExistError), which strands long-running audits. A
+        # single pooled connection with no overflow keeps every statement on
+        # one server-side connection, which is what pgbouncer transaction mode
+        # actually supports.
+        return {
+            "connect_args": {"statement_cache_size": 0},
+            "pool_size": 1,
+            "max_overflow": 0,
+            "pool_recycle": 1800,
+            "pool_pre_ping": True,
+        }
+
+    # Session mode (port 5432): the free tier allows one client, so the pool
+    # must never exceed it or every connection past the first is refused
+    # (EMAXCONNSESSION).
+    if settings.uses_supabase_pooler:
+        return {
+            "pool_size": 1,
+            "max_overflow": 0,
+            "pool_recycle": 1800,
+            "pool_pre_ping": True,
+        }
+
+    return {"connect_args": {"statement_cache_size": 0}}
 
 
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    connect_args=_connect_args(),
+    **_engine_options(),
 )
 
 

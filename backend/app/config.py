@@ -24,15 +24,19 @@ class Settings(BaseSettings):
     def uses_transaction_pooler(self) -> bool:
         """True when DATABASE_URL points at Supabase's transaction-mode pooler.
 
-        Supabase's session-mode pooler (port 5432) caps the free tier at a
-        single client, which the connection pool plus the background workers
-        exhaust immediately (EMAXCONNSESSION). The transaction-mode pooler
-        (6543) serves many clients but multiplexes over a single connection, so
-        server-side prepared statements must be disabled for it. That has to be
+        Transaction mode (port 6543) multiplexes many clients over one backend
+        connection. Server-side prepared statements collide across clients
+        (DuplicatePreparedStatementError) and pgbouncer can drop the
+        connection mid-statement, which strands long-running audits. It has to be
         an int in connect_args -- a URL query param arrives as a str and asyncpg
         rejects it.
         """
         return ":6543/" in self.DATABASE_URL
+
+    @property
+    def uses_supabase_pooler(self) -> bool:
+        """True when DATABASE_URL points at any Supabase pooler host."""
+        return "pooler.supabase.com" in self.DATABASE_URL
 
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.5-flash"
@@ -61,7 +65,10 @@ class Settings(BaseSettings):
     GROQ_MAX_RETRIES: int = 3
 
     CEREBRAS_API_KEY: str = ""
-    CEREBRAS_MODEL: str = "gemma-4-31b"
+    # gemma-4-31b was retired by Cerebras and every call returned 404
+    # model_archived_error, so the provider burned its retries on a dead model.
+    # The account's live catalogue is gpt-oss-120b / qwen-3.8-27b.
+    CEREBRAS_MODEL: str = "qwen-3.8-27b"
     CEREBRAS_TIMEOUT: int = 30
     CEREBRAS_MAX_RETRIES: int = 3
 
