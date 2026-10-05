@@ -11,10 +11,10 @@ def normalize_domain(value: str) -> str:
     """Return a bare domain (lowercase, no scheme, no path/query, no www).
 
     Examples:
-        "https://www.datavicloud.ai/" -> "datavicloud.ai"
-        "datavicloud.ai"              -> "datavicloud.ai"
+        "https://www.example.com/" -> "example.com"
+        "example.com"             -> "example.com"
         "HTTP://APOLLO.IO/pricing?x=1" -> "apollo.io"
-        "blog.datavicloud.ai"          -> "blog.datavicloud.ai"
+        "blog.example.com"          -> "blog.example.com"
     """
     if not value:
         return ""

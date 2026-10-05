@@ -918,7 +918,18 @@ class AiSearchIntelligenceEngine:
         if definitions == 0 and word_count > 300:
             risks.append({"risk": "Missing definitions", "severity": "High", "detail": "No clear definitions found — AI may misinterpret the topic"})
 
-        brand_consistency = len(re.findall(r"(?:DataviCloud|datavicloud|DATAVICLOUD)", content or ""))
+        # Brand term is derived from the page title, so the check works for any
+        # audited site instead of a hardcoded company name.
+        brand_term = ""
+        if title:
+            m = re.match(r"^\s*([A-Z][A-Za-z0-9]{2,})", (title or "").strip())
+            if m:
+                brand_term = m.group(1)
+        brand_consistency = (
+            len(re.findall(rf"\b{re.escape(brand_term)}\b", content or "", re.IGNORECASE))
+            if brand_term
+            else 0
+        )
         if brand_consistency > 0 and brand_consistency < 3:
             risks.append({"risk": "Inconsistent product naming", "severity": "Medium", "detail": f"Brand mentioned only {brand_consistency} times — inconsistent entity signals"})
 

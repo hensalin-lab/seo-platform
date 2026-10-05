@@ -177,7 +177,7 @@ export default function PromptTestingLab() {
           <input
             value={brand}
             onChange={e => setBrand(e.target.value)}
-            placeholder="e.g. Datavicloud"
+            placeholder="e.g. example.com"
             style={{
               flex: 1, padding: '8px 12px', background: '#12141a', border: '1px solid var(--border)',
               borderRadius: 8, color: '#e6eaf2', fontSize: 13, outline: 'none', maxWidth: 300,

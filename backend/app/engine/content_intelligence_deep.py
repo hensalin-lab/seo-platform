@@ -897,7 +897,7 @@ class ContentIntelligenceDeep:
 
         faqs: list[dict[str, str]] = []
 
-        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "crm", "pipeline", "datavi", "intelligence"]):
+        if any(kw in topic_lower for kw in ["gtm", "revenue", "sales", "crm", "pipeline", "intelligence"]):
             faqs = [
                 {
                     "question": f"What is {topic}?",

@@ -1,4 +1,4 @@
-"""initial schema — baseline with all tables and indexes
+﻿"""initial schema â€” baseline with all tables and indexes
 
 Revision ID: 001_initial
 Revises: 
@@ -31,34 +31,34 @@ def upgrade() -> None:
             op.create_index(name, table, columns, unique=unique)
 
     # --- users ---
-    op.execute(f"CREATE TABLE IF NOT EXISTS users ({if_sqlite('id VARCHAR PRIMARY KEY, ')}email VARCHAR NOT NULL, username VARCHAR NOT NULL, hashed_password VARCHAR NOT NULL, role VARCHAR DEFAULT 'VIEWER', is_active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    op.execute(f"CREATE TABLE IF NOT EXISTS users ({if_sqlite('id VARCHAR PRIMARY KEY, ')}email VARCHAR NOT NULL, username VARCHAR NOT NULL, hashed_password VARCHAR NOT NULL, role VARCHAR DEFAULT 'VIEWER', is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     create_index_if_not_exists("ix_users_email", "users", ["email"], unique=True)
     create_index_if_not_exists("ix_users_username", "users", ["username"], unique=True)
 
     # --- api_keys ---
-    op.execute("CREATE TABLE IF NOT EXISTS api_keys (id VARCHAR PRIMARY KEY, user_id VARCHAR, key VARCHAR NOT NULL, name VARCHAR DEFAULT '', is_active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_used_at DATETIME)")
+    op.execute("CREATE TABLE IF NOT EXISTS api_keys (id VARCHAR PRIMARY KEY, user_id VARCHAR, key VARCHAR NOT NULL, name VARCHAR DEFAULT '', is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_used_at TIMESTAMP)")
     create_index_if_not_exists("ix_api_keys_key", "api_keys", ["key"], unique=True)
     create_index_if_not_exists("ix_api_keys_user_id", "api_keys", ["user_id"])
 
     # --- sessions ---
-    op.execute("CREATE TABLE IF NOT EXISTS sessions (id VARCHAR PRIMARY KEY, user_id VARCHAR, token VARCHAR NOT NULL, expires_at DATETIME NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, ip_address VARCHAR DEFAULT '', user_agent VARCHAR DEFAULT '')")
+    op.execute("CREATE TABLE IF NOT EXISTS sessions (id VARCHAR PRIMARY KEY, user_id VARCHAR, token VARCHAR NOT NULL, expires_at TIMESTAMP NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ip_address VARCHAR DEFAULT '', user_agent VARCHAR DEFAULT '')")
     create_index_if_not_exists("ix_sessions_token", "sessions", ["token"], unique=True)
     create_index_if_not_exists("ix_sessions_user_id", "sessions", ["user_id"])
 
     # --- webhooks ---
-    op.execute("CREATE TABLE IF NOT EXISTS webhooks (id VARCHAR PRIMARY KEY, user_id VARCHAR, url VARCHAR NOT NULL, events JSON DEFAULT '[]', secret VARCHAR DEFAULT '', is_active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_triggered_at DATETIME)")
+    op.execute("CREATE TABLE IF NOT EXISTS webhooks (id VARCHAR PRIMARY KEY, user_id VARCHAR, url VARCHAR NOT NULL, events JSON DEFAULT '[]', secret VARCHAR DEFAULT '', is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_triggered_at TIMESTAMP)")
     create_index_if_not_exists("ix_webhooks_user_id", "webhooks", ["user_id"])
 
     # --- scheduled_audits ---
-    op.execute("CREATE TABLE IF NOT EXISTS scheduled_audits (id VARCHAR PRIMARY KEY, user_id VARCHAR, website_url VARCHAR NOT NULL, competitor_url VARCHAR, frequency VARCHAR DEFAULT 'weekly', next_run DATETIME, is_active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    op.execute("CREATE TABLE IF NOT EXISTS scheduled_audits (id VARCHAR PRIMARY KEY, user_id VARCHAR, website_url VARCHAR NOT NULL, competitor_url VARCHAR, frequency VARCHAR DEFAULT 'weekly', next_run TIMESTAMP, is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     create_index_if_not_exists("ix_scheduled_user_id", "scheduled_audits", ["user_id"])
 
     # --- whitelabel_settings ---
-    op.execute("CREATE TABLE IF NOT EXISTS whitelabel_settings (id VARCHAR PRIMARY KEY, user_id VARCHAR, company_name VARCHAR DEFAULT '', logo_url VARCHAR DEFAULT '', primary_color VARCHAR DEFAULT '#3B82F6', secondary_color VARCHAR DEFAULT '#1E293B', custom_domain VARCHAR DEFAULT '', is_active BOOLEAN DEFAULT 0)")
+    op.execute("CREATE TABLE IF NOT EXISTS whitelabel_settings (id VARCHAR PRIMARY KEY, user_id VARCHAR, company_name VARCHAR DEFAULT '', logo_url VARCHAR DEFAULT '', primary_color VARCHAR DEFAULT '#3B82F6', secondary_color VARCHAR DEFAULT '#1E293B', custom_domain VARCHAR DEFAULT '', is_active BOOLEAN DEFAULT false)")
     create_index_if_not_exists("ix_wl_user_id", "whitelabel_settings", ["user_id"])
 
     # --- audits ---
-    op.execute("CREATE TABLE IF NOT EXISTS audits (id VARCHAR PRIMARY KEY, website_url VARCHAR NOT NULL, competitor_url VARCHAR, gsc_property VARCHAR, ga_property VARCHAR, status VARCHAR DEFAULT 'QUEUED', progress INTEGER DEFAULT 0, current_step VARCHAR DEFAULT '', error_message TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, completed_at DATETIME, user_id VARCHAR)")
+    op.execute("CREATE TABLE IF NOT EXISTS audits (id VARCHAR PRIMARY KEY, website_url VARCHAR NOT NULL, competitor_url VARCHAR, gsc_property VARCHAR, ga_property VARCHAR, status VARCHAR DEFAULT 'QUEUED', progress INTEGER DEFAULT 0, current_step VARCHAR DEFAULT '', error_message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, completed_at TIMESTAMP, user_id VARCHAR)")
     create_index_if_not_exists("ix_audits_status", "audits", ["status"])
     create_index_if_not_exists("ix_audits_created_at", "audits", ["created_at"])
 
@@ -76,7 +76,7 @@ def upgrade() -> None:
     create_index_if_not_exists("ix_pages_content_hash", "pages", ["content_hash"])
 
     # --- issues ---
-    op.execute("CREATE TABLE IF NOT EXISTS issues (id VARCHAR PRIMARY KEY, audit_id VARCHAR, page_url VARCHAR DEFAULT '', category VARCHAR DEFAULT '', severity VARCHAR DEFAULT 'LOW', signal_id INTEGER DEFAULT 0, signal_name VARCHAR DEFAULT '', description TEXT DEFAULT '', impact TEXT DEFAULT '', fix TEXT DEFAULT '', effort VARCHAR DEFAULT 'MEDIUM', root_cause TEXT DEFAULT '', fix_code VARCHAR DEFAULT '', snapshot_hash VARCHAR DEFAULT '', pages_affected INTEGER DEFAULT 1, detected_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    op.execute("CREATE TABLE IF NOT EXISTS issues (id VARCHAR PRIMARY KEY, audit_id VARCHAR, page_url VARCHAR DEFAULT '', category VARCHAR DEFAULT '', severity VARCHAR DEFAULT 'LOW', signal_id INTEGER DEFAULT 0, signal_name VARCHAR DEFAULT '', description TEXT DEFAULT '', impact TEXT DEFAULT '', fix TEXT DEFAULT '', effort VARCHAR DEFAULT 'MEDIUM', root_cause TEXT DEFAULT '', fix_code VARCHAR DEFAULT '', snapshot_hash VARCHAR DEFAULT '', pages_affected INTEGER DEFAULT 1, detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     create_index_if_not_exists("ix_issues_audit_id", "issues", ["audit_id"])
     create_index_if_not_exists("ix_issues_page_url", "issues", ["page_url"])
     create_index_if_not_exists("ix_issues_category", "issues", ["category"])
@@ -110,12 +110,12 @@ def upgrade() -> None:
     create_index_if_not_exists("ix_ai_vis_data_audit_id", "ai_visibility_data", ["audit_id"])
 
     # --- audit_history ---
-    op.execute("CREATE TABLE IF NOT EXISTS audit_history (id VARCHAR PRIMARY KEY, audit_id VARCHAR, website_url VARCHAR DEFAULT '', competitor_url VARCHAR DEFAULT '', overall_score FLOAT DEFAULT 0.0, seo_score FLOAT DEFAULT 0.0, aeo_score FLOAT DEFAULT 0.0, geo_score FLOAT DEFAULT 0.0, ai_score FLOAT DEFAULT 0.0, total_pages INTEGER DEFAULT 0, total_issues INTEGER DEFAULT 0, status VARCHAR DEFAULT 'COMPLETED', linter_warnings INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    op.execute("CREATE TABLE IF NOT EXISTS audit_history (id VARCHAR PRIMARY KEY, audit_id VARCHAR, website_url VARCHAR DEFAULT '', competitor_url VARCHAR DEFAULT '', overall_score FLOAT DEFAULT 0.0, seo_score FLOAT DEFAULT 0.0, aeo_score FLOAT DEFAULT 0.0, geo_score FLOAT DEFAULT 0.0, ai_score FLOAT DEFAULT 0.0, total_pages INTEGER DEFAULT 0, total_issues INTEGER DEFAULT 0, status VARCHAR DEFAULT 'COMPLETED', linter_warnings INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     create_index_if_not_exists("ix_history_created_at", "audit_history", ["created_at"])
     create_index_if_not_exists("ix_history_website_url", "audit_history", ["website_url"])
 
     # --- audit_linter_results ---
-    op.execute("CREATE TABLE IF NOT EXISTS audit_linter_results (id VARCHAR PRIMARY KEY, audit_id VARCHAR, passed INTEGER DEFAULT 0, failed INTEGER DEFAULT 0, details JSON DEFAULT '[]', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    op.execute("CREATE TABLE IF NOT EXISTS audit_linter_results (id VARCHAR PRIMARY KEY, audit_id VARCHAR, passed INTEGER DEFAULT 0, failed INTEGER DEFAULT 0, details JSON DEFAULT '[]', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     create_index_if_not_exists("ix_linter_audit_id", "audit_linter_results", ["audit_id"])
 
     # --- page_analysis_records ---
@@ -133,7 +133,7 @@ def upgrade() -> None:
     create_index_if_not_exists("ix_roadmap_rec_audit_id", "roadmap_records", ["audit_id"])
 
     # --- chat_messages ---
-    op.execute("CREATE TABLE IF NOT EXISTS chat_messages (id VARCHAR PRIMARY KEY, audit_id VARCHAR, role VARCHAR DEFAULT 'user', content TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+    op.execute("CREATE TABLE IF NOT EXISTS chat_messages (id VARCHAR PRIMARY KEY, audit_id VARCHAR, role VARCHAR DEFAULT 'user', content TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     create_index_if_not_exists("ix_chat_audit_id", "chat_messages", ["audit_id"])
 
 

@@ -35,10 +35,14 @@ class Settings(BaseSettings):
     OPENROUTER_MODEL_REWRITE: str = "qwen/qwen3-235b-a22b"
     OPENROUTER_MODEL_COMPETITOR: str = "deepseek/deepseek-chat-v3-0324"
     OPENROUTER_MODEL_FREE: str = "openrouter/free"
+    # Free OpenRouter model used by the grammar-check AI ensemble. The free-tier
+    # catalog churns (google/gemini-2.0-flash-exp:free was delisted), so
+    # ai_validator.py falls back to newer free models if this one 404s.
+    OPENROUTER_MODEL_GRAMMAR: str = "google/gemma-4-31b-it:free"
     OPENROUTER_TIMEOUT: int = 80
 
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     GROQ_TIMEOUT: int = 30
     GROQ_MAX_RETRIES: int = 3
 
@@ -46,6 +50,18 @@ class Settings(BaseSettings):
     CEREBRAS_MODEL: str = "gemma-4-31b"
     CEREBRAS_TIMEOUT: int = 30
     CEREBRAS_MAX_RETRIES: int = 3
+
+    # ---- AI grammar-validation ensemble ----
+    # Multiple free LLM providers judge each rule-engine correction and the
+    # majority vote decides. Order controls which providers are tried first.
+    GRAMMAR_AI_ENABLED: bool = True
+    GRAMMAR_AI_PROVIDERS: str = "gemini,groq,openrouter"
+    # How many providers must approve before a correction is accepted. With 3
+    # providers the default 2 gives a true majority.
+    GRAMMAR_AI_MIN_APPROVALS: int = 2
+    # Per-call timeout for a single provider verdict (seconds). Kept short so a
+    # slow provider can't stall interactive grammar checking.
+    GRAMMAR_AI_TIMEOUT: int = 20
 
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5-coder:7b"
@@ -126,7 +142,7 @@ class Settings(BaseSettings):
         "https://seo-platform-jr83tb3xw-seo-tools1.vercel.app",
         "https://seo-platform-de0dwy0qd-seo-tools1.vercel.app",
         "https://frontend-one-sand-27.vercel.app",
-        "https://datavi-rankiq-seo-tools1.vercel.app",
+        "https://rankiq-seo-tools1.vercel.app",
     ]
 
     AI_TIMEOUT: int = 45
@@ -198,7 +214,7 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = ""
-    APP_URL: str = "https://datavi-rankiq-seo-tools1.vercel.app"
+    APP_URL: str = "https://rankiq-seo-tools1.vercel.app"
 
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 

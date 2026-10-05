@@ -567,7 +567,7 @@ def _issue_fix_guidance(page, signal_id, signal_name: str, category: str) -> dic
     elif desc_issue:
         if not meta:
             base_title = title or h1 or "Your page"
-            replace_with = _trim_len(f"{base_title}: get actionable data, AI, and analytics insights. {_CTA_PHRASES[2]} with DataViCloud today.")
+            replace_with = _trim_len(f"{base_title}: get actionable data, AI, and analytics insights. {_CTA_PHRASES[2]} with RankIQ today.")
         elif "keyword" in lower:
             kws = [w for w in re.split(r"\s+", title.lower()) if w.isalnum() and len(w) > 3][:2]
             kw_str = " ".join(kws) if kws else (title.split(" ")[0] if title else "your topic")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api'
 import { Globe, AlertTriangle, CheckCircle2, XCircle, Shield, ExternalLink } from 'lucide-react'
@@ -14,7 +14,7 @@ function ScoreCard({ label, value }) {
   return (
     <div style={{ background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e2e8f0)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)' }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: scoreColor(value ?? 0), marginTop: 4 }}>{value ?? '—'}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}> / 100</span></div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: scoreColor(value ?? 0), marginTop: 4 }}>{value ?? 'â€”'}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}> / 100</span></div>
     </div>
   )
 }
@@ -50,7 +50,7 @@ export default function ShareView() {
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Report unavailable</h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>{error}</p>
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            <a href="/login" style={{ color: 'var(--accent)' }}>Sign in</a> to run your own SEO audit with Datavi RankIQ.
+            <a href="/login" style={{ color: 'var(--accent)' }}>Sign in</a> to run your own SEO audit with RankIQ.
           </p>
         </div>
       </div>
@@ -69,9 +69,9 @@ export default function ShareView() {
       <header style={{ background: 'var(--bg-card, #fff)', borderBottom: '1px solid var(--border, #e2e8f0)', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 960, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>D</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Datavi RankIQ</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>RankIQ</div>
           <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Shield size={13} /> Shared report · read-only
+            <Shield size={13} /> Shared report Â· read-only
           </div>
         </div>
       </header>
@@ -84,7 +84,7 @@ export default function ShareView() {
           </a>
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
-          {report.report_title} · Generated {data.completed_at ? new Date(data.completed_at).toLocaleDateString() : ''}
+          {report.report_title} Â· Generated {data.completed_at ? new Date(data.completed_at).toLocaleDateString() : ''}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 28 }}>
@@ -160,7 +160,7 @@ export default function ShareView() {
         )}
 
         <footer style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid var(--border, #e2e8f0)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
-          Powered by Datavi RankIQ · This report is shared by the audit owner. Visit <a href="/login" style={{ color: 'var(--accent)' }}>RankIQ</a> to audit your own website.
+          Powered by RankIQ Â· This report is shared by the audit owner. Visit <a href="/login" style={{ color: 'var(--accent)' }}>RankIQ</a> to audit your own website.
         </footer>
       </main>
     </div>

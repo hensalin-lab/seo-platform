@@ -1,4 +1,4 @@
-"""audit_snapshots — per-run score snapshot table for historical trends
+﻿"""audit_snapshots â€” per-run score snapshot table for historical trends
 
 Revision ID: 002_audit_snapshots
 Revises: 001_initial
@@ -31,7 +31,7 @@ def upgrade() -> None:
                "total_pages INTEGER DEFAULT 0, "
                "total_issues INTEGER DEFAULT 0, "
                "snapshot_type VARCHAR DEFAULT 'initial', "
-               "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+               "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
 
     def create_index_if_not_exists(name, table, columns):
         if dialect == "sqlite":
